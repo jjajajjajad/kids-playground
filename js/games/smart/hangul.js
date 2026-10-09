@@ -50,25 +50,6 @@ KP.game({
       .hgPic .hgW b{color:var(--c);font-weight:400}
       .hgBtns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
       @media (max-aspect-ratio:1/1){.hgSpotRow{flex-direction:column;gap:4px}}
-      /* 쓰기 */
-      .hgWr{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;gap:8px;padding:2px 10px 12px}
-      .hgChips{display:flex;gap:7px;overflow-x:auto;max-width:100%;padding:4px 6px 8px;flex:0 0 auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-      .hgChips::-webkit-scrollbar{display:none}
-      .hgChip{flex:0 0 auto;min-width:50px;height:50px;border-radius:16px;background:#fff;color:var(--c);font-size:28px;line-height:1;display:flex;align-items:center;justify-content:center;position:relative;box-shadow:0 4px 0 rgba(47,58,102,.12);border:3px solid #fff}
-      .hgChip.sep{margin-left:10px}
-      .hgChip.sel{border-color:var(--c);transform:translateY(-3px)}
-      .hgChip.done::after{content:"✓";position:absolute;right:2px;top:-4px;font-size:15px;color:#fff;background:var(--grass);border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center}
-      .hgWMain{flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;gap:clamp(10px,3vw,40px)}
-      .hgWInfo{display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--c)}
-      .hgWInfo .hgCh{font-size:clamp(60px,min(9vw,13vh),110px)}
-      .hgWp{display:flex;flex-direction:column;align-items:center;font-size:clamp(18px,2.4vw,26px);color:var(--ink)}
-      .hgWp .e{font-size:clamp(50px,min(7vw,10vh),86px)}
-      .hgWBoard{position:relative;flex:0 1 640px;height:100%;min-width:0;display:flex;align-items:center;justify-content:center}
-      .hgWBoard canvas{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:30px;touch-action:none}
-      .hgWBoard canvas.guide{background:#fff;box-shadow:0 8px 0 rgba(47,58,102,.14);outline:5px solid var(--c);outline-offset:-5px}
-      .hgWBtns{display:flex;gap:12px;flex:0 0 auto}
-      .glowNext{animation:glow 1s ease-in-out infinite}
-      @media (max-aspect-ratio:1/1){.hgWMain{flex-direction:column;gap:6px}.hgWInfo{flex-direction:row;gap:14px}.hgWInfo .hgCh{font-size:54px}.hgWp{flex-direction:row;gap:6px}.hgWp .e{font-size:44px}.hgWBoard{flex:1 1 auto;width:100%}}
       /* 글자 합체 */
       .hgMg{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:space-between;gap:8px;padding:4px 10px 14px}
       .hgRow{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:clamp(5px,0.8vw,10px);width:min(100%,1100px)}
@@ -171,43 +152,18 @@ KP.game({
     ctx.VC = ["#ff5b6e", "#ff8a3d", "#e6a700", "#3fbf6a", "#14b8a6", "#2f95f5", "#5b7cfa", "#8a63ee", "#d94fc2", "#2fb466"];
     ctx.nameOfC = (c) => (ctx.H.find((h) => h[0] === c) || [c, c])[1];
 
-    /* ---------- 획 (100×100 칸, 선은 점 목록, {o:[x,y,r]} 는 동그라미) ---------- */
-    ctx.STROKES = {
-      ㄱ: [[[20, 22], [78, 22], [78, 82]]],
-      ㄴ: [[[24, 18], [24, 78], [84, 78]]],
-      ㄷ: [[[22, 22], [78, 22]], [[22, 22], [22, 78], [80, 78]]],
-      ㄹ: [[[22, 18], [78, 18], [78, 48]], [[78, 48], [22, 48], [22, 82], [80, 82]]],
-      ㅁ: [[[22, 20], [22, 80]], [[22, 20], [78, 20], [78, 80]], [[22, 80], [78, 80]]],
-      ㅂ: [[[24, 16], [24, 82]], [[76, 16], [76, 82]], [[24, 48], [76, 48]], [[24, 82], [76, 82]]],
-      ㅅ: [[[52, 16], [18, 84]], [[45, 44], [84, 84]]],
-      ㅇ: [{ o: [50, 50, 32] }],
-      ㅈ: [[[20, 20], [80, 20]], [[56, 20], [18, 84]], [[47, 48], [84, 84]]],
-      ㅊ: [[[42, 6], [58, 14]], [[20, 30], [80, 30]], [[56, 30], [18, 88]], [[47, 54], [84, 88]]],
-      ㅋ: [[[20, 20], [78, 20], [78, 82]], [[20, 50], [78, 50]]],
-      ㅌ: [[[22, 18], [78, 18]], [[22, 48], [74, 48]], [[22, 18], [22, 80], [80, 80]]],
-      ㅍ: [[[16, 20], [84, 20]], [[36, 20], [36, 78]], [[64, 20], [64, 78]], [[16, 78], [84, 78]]],
-      ㅎ: [[[40, 8], [60, 8]], [[18, 26], [82, 26]], { o: [50, 62, 22] }],
-      ㅏ: [[[40, 10], [40, 90]], [[40, 50], [72, 50]]],
-      ㅑ: [[[38, 10], [38, 90]], [[38, 38], [70, 38]], [[38, 62], [70, 62]]],
-      ㅓ: [[[28, 50], [60, 50]], [[60, 10], [60, 90]]],
-      ㅕ: [[[30, 38], [62, 38]], [[30, 62], [62, 62]], [[62, 10], [62, 90]]],
-      ㅗ: [[[50, 30], [50, 62]], [[12, 62], [88, 62]]],
-      ㅛ: [[[38, 30], [38, 62]], [[62, 30], [62, 62]], [[12, 62], [88, 62]]],
-      ㅜ: [[[12, 38], [88, 38]], [[50, 38], [50, 74]]],
-      ㅠ: [[[12, 38], [88, 38]], [[38, 38], [38, 74]], [[62, 38], [62, 74]]],
-      ㅡ: [[[10, 50], [90, 50]]],
-      ㅣ: [[[50, 10], [50, 90]]],
-    };
-
     /* ---------- 화면 틀 ---------- */
     const modes = U.el("div", "hgModes");
     ctx.bCons = U.btn('<b class="hgTabCh">ㄱ</b>자음', "hgMode");
     ctx.bVow = U.btn('<b class="hgTabCh">ㅏ</b>모음', "hgMode");
     ctx.bMerge = U.btn(KP.E("🧩") + "글자 합체", "hgMode");
-    ctx.bWrite = U.btn(KP.E("✍️") + "쓰기", "hgMode");
     ctx.bQuiz = U.btn(KP.E("❓") + "퀴즈", "hgMode");
+    ctx.bWrite = U.btn(KP.E("✍️") + "쓰기", "hgMode");
     modes.append(ctx.bCons, ctx.bVow, ctx.bMerge, ctx.bWrite, ctx.bQuiz);
-    ctx.tap(ctx.bWrite, () => self.mode(ctx, "write"));
+    ctx.tap(ctx.bWrite, () => {
+      KP.audio.sfx("open");
+      KP.open("hwrite");
+    });
     ctx.tap(ctx.bCons, () => self.mode(ctx, "cons"));
     ctx.tap(ctx.bVow, () => self.mode(ctx, "vow"));
     ctx.tap(ctx.bMerge, () => self.mode(ctx, "merge"));
@@ -242,43 +198,6 @@ KP.game({
     ctx.spot.addEventListener("click", (e) => {
       if (e.target === ctx.spot) self.closeSpot(ctx);
     });
-
-    // 쓰기 (펜·손가락)
-    ctx.vWrite = U.el("div", "hgView");
-    const wr = U.el("div", "hgWr");
-    ctx.wChipsRow = U.el("div", "hgChips");
-    const wMain = U.el("div", "hgWMain");
-    ctx.wInfo = U.el("div", "hgWInfo");
-    ctx.wBoard = U.el("div", "hgWBoard");
-    ctx.tguide = U.el("canvas", "guide");
-    ctx.tcv = U.el("canvas", "ink");
-    ctx.wBoard.append(ctx.tguide, ctx.tcv);
-    wMain.append(ctx.wInfo, ctx.wBoard);
-    const wBtns = U.el("div", "hgWBtns");
-    const bAgain = U.btn(KP.E("🔄") + "다시", "btn big");
-    ctx.bWNext = U.btn("다음 글자 " + KP.E("▶️"), "btn big primary");
-    wBtns.append(bAgain, ctx.bWNext);
-    wr.append(ctx.wChipsRow, wMain, wBtns);
-    ctx.vWrite.appendChild(wr);
-    ctx.tap(bAgain, () => {
-      KP.audio.sfx("back");
-      self.traceReset(ctx);
-    });
-    ctx.tap(ctx.bWNext, () => self.writePick(ctx, ctx.wIdx + 1));
-    ctx.wChips = this.writeList(ctx).map((it, j) => {
-      const c = U.btn(it.ch, "hgChip" + ((j === 14 || j === 24) ? " sep" : ""));
-      c.style.setProperty("--c", it.color);
-      ctx.tap(c, () => self.writePick(ctx, j));
-      ctx.wChipsRow.appendChild(c);
-      return c;
-    });
-    addEventListener("resize", () => {
-      if (ctx._active && ctx.m === "write") {
-        self.writeFit(ctx);
-        self.traceReset(ctx);
-      }
-    });
-    this.setupTrace(ctx);
 
     // 글자 합체
     ctx.vMerge = U.el("div", "hgView");
@@ -317,8 +236,7 @@ KP.game({
     ctx.q = U.el("div", "hgQ");
     ctx.vQuiz.appendChild(ctx.q);
 
-    ctx.traced = new Set(KP.store.get("hg:traced", []));
-    ctx.body.append(modes, ctx.vCons, ctx.vVow, ctx.vMerge, ctx.vWrite, ctx.vQuiz, ctx.spot);
+    ctx.body.append(modes, ctx.vCons, ctx.vVow, ctx.vMerge, ctx.vQuiz, ctx.spot);
   },
 
   start(ctx) {
@@ -335,7 +253,7 @@ KP.game({
   mode(ctx, m, first) {
     ctx.m = m;
     ctx.qToken = (ctx.qToken || 0) + 1;
-    [["cons", ctx.bCons, ctx.vCons], ["vow", ctx.bVow, ctx.vVow], ["merge", ctx.bMerge, ctx.vMerge], ["write", ctx.bWrite, ctx.vWrite], ["quiz", ctx.bQuiz, ctx.vQuiz]].forEach(([k, b, v]) => {
+    [["cons", ctx.bCons, ctx.vCons], ["vow", ctx.bVow, ctx.vVow], ["merge", ctx.bMerge, ctx.vMerge], ["quiz", ctx.bQuiz, ctx.vQuiz]].forEach(([k, b, v]) => {
       b.classList.toggle("sel", m === k);
       v.classList.toggle("on", m === k);
     });
@@ -345,6 +263,8 @@ KP.game({
     if (m === "cons" || m === "vow") {
       const cards = m === "cons" ? ctx.consCards : ctx.vowCards;
       ctx.say(m === "cons" ? "자음을 눌러 봐요! 무슨 소리일까요?" : "모음을 눌러 봐요! 아, 야, 어, 여!");
+      const hw = KP.store.get("hw:stars", {}) || {};
+      ctx.traced = new Set(Object.keys(hw).filter((k) => hw[k]).map((k) => k.slice(1)));
       cards.forEach((c) => {
         c.classList.toggle("seen", ctx.seen.has(c.dataset.ch));
         c.classList.toggle("traced", ctx.traced.has(c.dataset.ch));
@@ -354,14 +274,6 @@ KP.game({
       this.mergeReset(ctx);
       ctx.say("🧩 자음 하나, 모음 하나를 골라요. 둘이 만나면 글자가 돼요!");
       ctx.hint(() => ctx.mgC[0], "위에서 자음을 골라 봐요!");
-    } else if (m === "write") {
-      ctx.say("✍️ 펜이나 손가락으로 회색 길을 따라 써요!");
-      const L = this.writeList(ctx);
-      let j = ctx.wWant != null ? ctx.wWant : L.findIndex((it) => !ctx.traced.has(it.ch));
-      ctx.wWant = null;
-      if (j < 0) j = 0;
-      this.writePick(ctx, j, first);
-      if (!first) ctx.after(50, () => this.writePick(ctx, ctx.wIdx, true)); // 화면이 보인 뒤 크기 다시 맞춤
     } else this.quiz(ctx);
   },
 
@@ -395,8 +307,8 @@ KP.game({
     ctx.tap(pic, () => KP.voice.say(w + "! " + w[0] + "!"));
     ctx.tap(bNext, () => this.learn(ctx, kind, i, card));
     ctx.tap(bWrite, () => {
-      ctx.wWant = this.writeList(ctx).findIndex((it) => it.ch === c);
-      this.mode(ctx, "write");
+      KP.hwriteWant = c; // 쓰기 공책에서 이 글자로 바로
+      KP.open("hwrite");
     });
     // "기역! 기차의 기!" / "아! 아기의 아!"
     KP.voice.say(nm + "! " + w + "의 " + w[0] + "!");
@@ -416,279 +328,6 @@ KP.game({
     if (quiet) return;
     const cards = ctx.m === "cons" ? ctx.consCards : ctx.vowCards;
     ctx.hint(() => (cards || []).find((c) => !ctx.seen.has(c.dataset.ch)) || null, "다른 글자도 눌러 봐요!");
-  },
-
-  /* ================= 쓰기 (펜·손가락 따라 쓰기) =================
-     - 아래 판(안내 획)과 위 판(아이가 그린 선) 두 겹 → 안내만 다시 그려도 그린 선은 그대로
-     - 펜(애플펜슬 등)을 한 번이라도 쓰면 그 뒤로는 손바닥(터치)은 무시 → 손 대고 써도 선이 안 엉킴
-     - 펜은 누르는 힘에 따라 굵기가 달라지고, 촘촘한 펜 입력(coalesced)도 빠짐없이 그림
-     - 획 순서는 따지지 않음(아이 부담 줄이기). 번호 동그라미로 시작점만 안내 */
-  setupTrace(ctx) {
-    const U = KP.u;
-    const ink = ctx.tcv;
-    const g = ink.getContext("2d");
-    const T = (ctx.tr = { pts: [], pid: null, last: null, done: false, pen: false });
-    const pos = (e) => {
-      const r = ink.getBoundingClientRect();
-      return { x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100, p: e.pressure };
-    };
-    ink.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-      KP.audio.unlock();
-      if (e.pointerType === "pen") T.pen = true;
-      else if (T.pen && e.pointerType === "touch") return; // 펜 쓰는 중 손바닥
-      if (T.done || T.pid !== null) return;
-      T.pid = e.pointerId;
-      try {
-        ink.setPointerCapture(e.pointerId);
-      } catch (_) {}
-      T.isPen = e.pointerType === "pen";
-      T.last = pos(e);
-      const k = ink.width / 100;
-      g.fillStyle = T.color;
-      g.beginPath();
-      g.arc(T.last.x * k, T.last.y * k, (T.isPen ? 3 : 4.5) * k, 0, Math.PI * 2);
-      g.fill();
-      this.traceHit(ctx, T.last);
-    });
-    ink.addEventListener("pointermove", (e) => {
-      if (e.pointerId !== T.pid || T.done) return;
-      const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
-      const list = evs.length ? evs : [e];
-      const k = ink.width / 100;
-      g.strokeStyle = T.color;
-      g.lineCap = g.lineJoin = "round";
-      for (const ev of list) {
-        const p = pos(ev);
-        g.lineWidth = (T.isPen ? 4 + 8 * Math.min(1, p.p > 0 ? p.p : 0.5) : 9) * k;
-        g.beginPath();
-        g.moveTo(T.last.x * k, T.last.y * k);
-        g.lineTo(p.x * k, p.y * k);
-        g.stroke();
-        // 빠르게 그어도 사이 점들이 판정되게 잘게 나눠 확인
-        const n = Math.max(1, Math.ceil(U.dist(T.last.x, T.last.y, p.x, p.y) / 3));
-        for (let j = 1; j <= n; j++) this.traceHit(ctx, { x: T.last.x + ((p.x - T.last.x) * j) / n, y: T.last.y + ((p.y - T.last.y) * j) / n });
-        if (U.dist(T.last.x, T.last.y, p.x, p.y) > 1.5 && Math.random() < 0.15) KP.audio.sfx("rub");
-        T.last = p;
-        if (T.done) break;
-      }
-    });
-    const end = (e) => {
-      if (e.pointerId !== T.pid) return;
-      T.pid = null;
-      T.last = null;
-    };
-    ink.addEventListener("pointerup", end);
-    ink.addEventListener("pointercancel", end);
-    ink.addEventListener("lostpointercapture", end);
-  },
-  /** 쓸 글자 목록: 자음 14 → 모음 10 → 글자 가~하 14 */
-  writeList(ctx) {
-    if (ctx._wl) return ctx._wl;
-    const L = [];
-    ctx.H.forEach(([c, nm], i) => L.push({ ch: c, kind: "c", nm, color: ctx.CC[i], strokes: ctx.STROKES[c], word: ctx.H[i][2][0] }));
-    ctx.V.forEach(([v, snd], i) => L.push({ ch: v, kind: "v", nm: snd, color: ctx.VC[i], strokes: ctx.STROKES[v], word: ctx.V[i][2][0] }));
-    ctx.H.forEach(([c], i) => {
-      const s = ctx.compose(c, "ㅏ");
-      L.push({ ch: s, kind: "s", nm: s, color: ctx.CC[i], strokes: this.sylStrokes(ctx, c, "ㅏ"), word: ctx.wordFor(s) });
-    });
-    return (ctx._wl = L);
-  },
-  /** 자음 + 모음 획을 한 글자 칸 안에 배치 (세로 모음은 오른쪽, 가로 모음은 아래) */
-  sylStrokes(ctx, c, v) {
-    const vert = "ㅏㅑㅓㅕㅣ".includes(v);
-    const cb = vert ? [2, 14, 62, 86] : [18, 2, 82, 56];
-    const vb = vert ? [38, 2, 98, 98] : [2, 34, 98, 100];
-    const map = (strokes, [x0, y0, x1, y1]) =>
-      strokes.map((s) => {
-        const sx = (x1 - x0) / 100,
-          sy = (y1 - y0) / 100;
-        if (s.o) return { o: [x0 + s.o[0] * sx, y0 + s.o[1] * sy, s.o[2] * Math.min(sx, sy)] };
-        return s.map(([x, y]) => [x0 + x * sx, y0 + y * sy]);
-      });
-    return map(ctx.STROKES[c], cb).concat(map(ctx.STROKES[v], vb));
-  },
-  /** 쓰기 화면에서 글자 고르기 */
-  writePick(ctx, idx, quiet) {
-    const U = KP.u;
-    const L = this.writeList(ctx);
-    ctx.wIdx = (idx + L.length) % L.length;
-    const it = L[ctx.wIdx];
-    const T = ctx.tr;
-    T.ch = it.ch;
-    T.color = it.color;
-    T.nm = it.nm;
-    T.strokes = it.strokes;
-    T.syl = it.kind === "s";
-    ctx.wChips.forEach((c, j) => {
-      c.classList.toggle("sel", j === ctx.wIdx);
-      c.classList.toggle("done", ctx.traced.has(L[j].ch));
-    });
-    const chip = ctx.wChips[ctx.wIdx];
-    if (chip.scrollIntoView) chip.scrollIntoView({ block: "nearest", inline: "center", behavior: quiet ? "auto" : "smooth" });
-    ctx.wInfo.style.setProperty("--c", it.color);
-    ctx.wInfo.innerHTML = '<span class="hgCh">' + it.ch + "</span>" + (it.word ? '<span class="hgWp">' + KP.E(it.word[1]) + "<span>" + it.word[0] + "</span></span>" : "");
-    ctx.wBoard.style.setProperty("--c", it.color);
-    this.writeFit(ctx);
-    this.traceReset(ctx);
-    ctx.bWNext.classList.remove("glowNext");
-    if (!quiet) {
-      KP.audio.sfx("select");
-      const say = it.kind === "c" ? U.josa(it.nm, "을/를") + " 써 볼까요?" : U.josa(it.nm, "을/를") + " 써 볼까요?";
-      KP.voice.say(say + (it.word ? " " + it.word[0] + "의 " + it.word[0][0] + "!" : "") + " 1번 동그라미부터!");
-    }
-    ctx.hint(() => this.traceStartPoint(ctx), "노란 1번 동그라미에서 시작해요!");
-  },
-  writeFit(ctx) {
-    const box = ctx.wBoard;
-    const w = box.clientWidth,
-      h = box.clientHeight;
-    if (!w || !h) return;
-    const sz = Math.max(150, Math.min(w - 8, h - 8, 620));
-    const d = Math.min(devicePixelRatio || 1, 2);
-    [ctx.tguide, ctx.tcv].forEach((c) => {
-      c.style.width = c.style.height = sz + "px";
-      c.width = c.height = Math.round(sz * d);
-    });
-  },
-  /** 획들을 잘게 나눈 점 목록 */
-  tracePoints(strokes) {
-    const out = [];
-    (strokes || []).forEach((s, si) => {
-      if (s.o) {
-        const [cx, cy, r] = s.o;
-        const n = Math.max(8, Math.ceil((2 * Math.PI * r) / 4));
-        for (let k = 0; k <= n; k++) {
-          const a = -Math.PI / 2 - (k / n) * Math.PI * 2; // 위에서 시작해 시계 반대 방향
-          out.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, s: si, hit: false });
-        }
-      } else {
-        for (let k = 1; k < s.length; k++) {
-          const [x1, y1] = s[k - 1],
-            [x2, y2] = s[k];
-          const n = Math.max(1, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / 4));
-          for (let j = k === 1 ? 0 : 1; j <= n; j++) out.push({ x: x1 + ((x2 - x1) * j) / n, y: y1 + ((y2 - y1) * j) / n, s: si, hit: false });
-        }
-      }
-    });
-    return out;
-  },
-  traceReset(ctx) {
-    const T = ctx.tr;
-    T.pts = this.tracePoints(T.strokes);
-    T.nStroke = (T.strokes || []).length;
-    T.strokeDone = new Array(T.nStroke).fill(false);
-    T.done = false;
-    T.pid = null;
-    T.last = null;
-    ctx.tcv.getContext("2d").clearRect(0, 0, ctx.tcv.width, ctx.tcv.height);
-    this.traceDraw(ctx);
-  },
-  /** 아래 판: 안내 획 (다 쓴 획은 색으로) + 다음 획 시작 번호 */
-  traceDraw(ctx) {
-    const T = ctx.tr;
-    const cv = ctx.tguide,
-      g = cv.getContext("2d");
-    const k = cv.width / 100;
-    g.clearRect(0, 0, cv.width, cv.height);
-    // 칸 가운데 십자 점선 (공책 느낌)
-    g.strokeStyle = "#eef1f8";
-    g.lineWidth = 0.8 * k;
-    g.setLineDash([2 * k, 2 * k]);
-    g.beginPath();
-    g.moveTo(50 * k, 2 * k);
-    g.lineTo(50 * k, 98 * k);
-    g.moveTo(2 * k, 50 * k);
-    g.lineTo(98 * k, 50 * k);
-    g.stroke();
-    g.setLineDash([]);
-    const strokes = T.strokes || [];
-    const path = (s) => {
-      g.beginPath();
-      if (s.o) g.arc(s.o[0] * k, s.o[1] * k, s.o[2] * k, 0, Math.PI * 2);
-      else s.forEach(([x, y], j) => (j ? g.lineTo(x * k, y * k) : g.moveTo(x * k, y * k)));
-    };
-    const lw = T.syl ? 11 : 15;
-    g.lineCap = g.lineJoin = "round";
-    strokes.forEach((s, si) => {
-      g.strokeStyle = T.strokeDone[si] ? T.color : "#e3e7f2";
-      g.globalAlpha = T.strokeDone[si] ? 0.35 : 1;
-      g.lineWidth = lw * k;
-      path(s);
-      g.stroke();
-      g.globalAlpha = 1;
-      if (!T.strokeDone[si]) {
-        g.strokeStyle = "#b9c1d9";
-        g.lineWidth = 1.4 * k;
-        g.setLineDash([2.5 * k, 3 * k]);
-        path(s);
-        g.stroke();
-        g.setLineDash([]);
-      }
-    });
-    const ni = T.strokeDone.indexOf(false);
-    if (ni >= 0 && !T.done) {
-      const p = T.pts.find((q) => q.s === ni);
-      if (p) {
-        const r = T.syl ? 5.5 : 6.5;
-        g.fillStyle = "#ffd23f";
-        g.strokeStyle = "#fff";
-        g.lineWidth = 1.5 * k;
-        g.beginPath();
-        g.arc(p.x * k, p.y * k, r * k, 0, Math.PI * 2);
-        g.fill();
-        g.stroke();
-        g.fillStyle = "#1b2550";
-        g.font = r * 1.25 * k + "px Jua, sans-serif";
-        g.textAlign = "center";
-        g.textBaseline = "middle";
-        g.fillText(String(ni + 1), p.x * k, p.y * k + 0.5 * k);
-      }
-    }
-  },
-  traceStartPoint(ctx) {
-    const T = ctx.tr;
-    if (ctx.m !== "write" || T.done) return null;
-    const ni = T.strokeDone.indexOf(false);
-    const p = T.pts.find((q) => q.s === ni);
-    if (!p) return null;
-    const r = ctx.tcv.getBoundingClientRect();
-    return { x: r.left + (p.x / 100) * r.width, y: r.top + (p.y / 100) * r.height };
-  },
-  /** 손가락·펜 위치 근처의 안내 점들을 '지나감'으로 표시 */
-  traceHit(ctx, p) {
-    const T = ctx.tr;
-    if (T.done) return;
-    const R = T.syl ? 8.5 : 11;
-    let changed = false;
-    for (const q of T.pts) {
-      if (!q.hit && (q.x - p.x) * (q.x - p.x) + (q.y - p.y) * (q.y - p.y) < R * R) q.hit = true;
-    }
-    for (let si = 0; si < T.nStroke; si++) {
-      if (T.strokeDone[si]) continue;
-      const mine = T.pts.filter((q) => q.s === si);
-      const hit = mine.filter((q) => q.hit).length;
-      if (hit / mine.length >= 0.85) {
-        T.strokeDone[si] = true;
-        changed = true;
-        KP.audio.note(KP.audio.SCALE[(si * 2) % 8], { inst: "marimba", dur: 0.25, vol: 0.22 });
-      }
-    }
-    if (!changed) return;
-    this.traceDraw(ctx);
-    if (T.strokeDone.every(Boolean)) {
-      T.done = true;
-      T.pid = null;
-      this.traceDraw(ctx);
-      ctx.traced.add(T.ch);
-      KP.store.set("hg:traced", [...ctx.traced]);
-      if (ctx.wChips[ctx.wIdx]) ctx.wChips[ctx.wIdx].classList.add("done");
-      KP.audio.sfx("good");
-      ctx.score.add();
-      KP.celebrate({ ctx, msg: T.nm + " 완성!", sticker: false });
-      ctx.bWNext.classList.add("glowNext");
-      ctx.hint(() => (ctx.m === "write" ? ctx.bWNext : null), "잘했어요! 다음 글자도 써 볼까요?");
-    }
   },
 
   /* ================= 글자 합체 ================= */

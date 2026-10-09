@@ -233,7 +233,7 @@
         const step = (now) => {
           rafs.delete(id);
           if (!ctx._active) return;
-          const dt = Math.min(0.05, (now - last) / 1000);
+          const dt = Math.max(0, Math.min(0.05, (now - last) / 1000)); // 첫 프레임 시각이 앞설 수 있어 음수 방지
           last = now;
           if (fn(dt, now) === false) return;
           id = requestAnimationFrame(step);
