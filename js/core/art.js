@@ -101,6 +101,30 @@
           })
       )
     );
+  /* ---- 캔버스용 비트맵 캐시 ----
+     SVG 그림을 캔버스에 그릴 때마다 기기가 다시 그려내면(특히 iPad Safari) 매우 느리다.
+     크기별로 한 번만 비트맵으로 만들어 두고 그걸 찍는다. 크기는 8px 단위로 묶어 개수를 제한. */
+  const bmp = new Map();
+  function bitmapOf(im, src, px) {
+    const q = Math.min(512, Math.max(16, Math.ceil(px / 8) * 8));
+    const key = src + "|" + q;
+    let c = bmp.get(key);
+    if (c) {
+      bmp.delete(key); // 최근 사용 순서 갱신
+      bmp.set(key, c);
+      return c;
+    }
+    try {
+      c = document.createElement("canvas");
+      c.width = c.height = q;
+      c.getContext("2d").drawImage(im, 0, 0, q, q);
+    } catch (e) {
+      return null;
+    }
+    bmp.set(key, c);
+    if (bmp.size > 240) bmp.delete(bmp.keys().next().value);
+    return c;
+  }
   /** 캔버스에 그림 그리기 (가운데 기준) */
   KP.drawE = (ctx, ch, x, y, size, rot = 0) => {
     const im = KP.eImage(ch);
@@ -108,7 +132,13 @@
     ctx.translate(x, y);
     if (rot) ctx.rotate(rot);
     if (im && im.complete && im.naturalWidth) {
-      ctx.drawImage(im, -size / 2, -size / 2, size, size);
+      let scale = 1;
+      try {
+        const m = ctx.getTransform();
+        scale = Math.hypot(m.a, m.b) || 1;
+      } catch (e) {}
+      const b = size * scale >= 4 ? bitmapOf(im, im.src, size * scale) : null;
+      ctx.drawImage(b || im, -size / 2, -size / 2, size, size);
     } else {
       ctx.font = size * 0.85 + "px serif";
       ctx.textAlign = "center";

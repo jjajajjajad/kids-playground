@@ -54,7 +54,8 @@ KP.game({
       s = 0,
       ox = 0,
       oy = 0,
-      layer = null;
+      layer = null,
+      trail = null; // 발자국은 찍을 때 한 번만 그려 두는 판 (매 화면 다시 그리지 않음)
     const st = (ctx.mz = { ready: false });
 
     /* ---------- 미로 만들기 ---------- */
@@ -259,6 +260,12 @@ KP.game({
       g.strokeStyle = "#fff1c9";
       g.lineWidth = w;
       g.stroke(segs);
+      // 발자국 판 새로 만들고 지금까지의 발자국 다시 찍기
+      trail = document.createElement("canvas");
+      trail.width = W * d;
+      trail.height = H * d;
+      trail.getContext("2d").setTransform(d, 0, 0, d, 0, 0);
+      (st.steps || []).forEach(stamp);
       // 길 위 작은 점무늬
       g.fillStyle = "rgba(214,170,100,.25)";
       for (let k = 0; k < cols * rows * 3; k++) {
@@ -280,6 +287,14 @@ KP.game({
     }
     const px = (u) => ox + u * s,
       py = (v) => oy + v * s;
+    function stamp(f) {
+      if (!trail) return;
+      const g = trail.getContext("2d");
+      g.globalAlpha = 0.42;
+      KP.drawE(g, "🐾", px(f.x), py(f.y), s * 0.26, f.a + Math.PI / 2);
+      g.globalAlpha = 1;
+    }
+    ctx.mzClearTrail = () => trail && trail.getContext("2d").clearRect(0, 0, W, H);
 
     function draw(now) {
       if (!W || !st.ready) return;
@@ -298,11 +313,7 @@ KP.game({
         cx.globalAlpha = 1;
       }
       // 발자국
-      for (const f of st.steps) {
-        cx.globalAlpha = 0.42;
-        KP.drawE(cx, "🐾", px(f.x), py(f.y), s * 0.26, f.a + Math.PI / 2);
-      }
-      cx.globalAlpha = 1;
+      if (trail) cx.drawImage(trail, 0, 0, W, H);
       // 목표
       const g = st.goal,
         gb = st.won ? 1.25 + 0.1 * Math.sin(t * 10) : 1 + 0.06 * Math.sin(t * 3);
@@ -329,8 +340,13 @@ KP.game({
       cx.ellipse(px(p.x) + bx, py(p.y) + s * 0.3, s * 0.26, s * 0.08, 0, 0, 7);
       cx.fill();
       KP.drawE(cx, st.pair[0], px(p.x) + bx, py(p.y) + by - hop - (lift - 1) * s * 0.4, s * 0.74 * lift);
-      spot.style.left = px(p.x) + "px";
-      spot.style.top = py(p.y) + "px";
+      // 힌트용 투명 점: 위치가 바뀔 때만 옮김
+      const sl = Math.round(px(p.x)), stp = Math.round(py(p.y));
+      if (sl !== st._sl || stp !== st._st) {
+        st._sl = sl;
+        st._st = stp;
+        spot.style.transform = "translate(" + sl + "px," + stp + "px)";
+      }
     }
 
     /* ---------- 손가락 ---------- */
@@ -389,6 +405,7 @@ KP.game({
           const f = { x: lf.x + Math.cos(a) * 0.34, y: lf.y + Math.sin(a) * 0.34, a };
           st.steps.push(f);
           if (st.steps.length > 400) st.steps.shift();
+          stamp(f);
           if (st.steps.length % 2) A.note(U.pick(["C6", "E6", "G6"]), { inst: "marimba", dur: 0.08, vol: 0.05 });
         }
       }
