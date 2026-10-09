@@ -12,6 +12,8 @@
     hidden: {}, // 숨긴 게임 {id:true}
     lastCat: "play", // 마지막으로 본 메뉴
     hints: true, // 손가락 힌트
+    lock: true, // 게임 잠금: 오늘 날짜(한국 시간 8자리)를 넣어야 열림
+    lockCats: ["play", "make", "music", "smart", "bigkid"], // 잠글 카테고리 (공부 놀이는 바로)
   };
   function clean(v) {
     const c = Object.assign({}, DEF, v && typeof v === "object" ? v : {});
@@ -24,6 +26,9 @@
     c.bgm = !!c.bgm;
     c.hints = c.hints !== false;
     if (typeof c.lastCat !== "string") c.lastCat = DEF.lastCat;
+    c.lock = c.lock !== false;
+    if (!Array.isArray(c.lockCats)) c.lockCats = DEF.lockCats.slice();
+    c.lockCats = c.lockCats.filter((x) => typeof x === "string");
     return c;
   }
   let cur = clean(KP.store.get("settings", {}));

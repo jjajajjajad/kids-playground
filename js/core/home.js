@@ -37,6 +37,102 @@
     el.addEventListener("contextmenu", (e) => e.preventDefault());
   };
 
+  /* ---------------- 게임 잠금 (오늘 날짜 8자리) ----------------
+     공부 놀이 외의 카테고리는 한국 시간 기준 오늘 날짜(예: 20261010)를 넣어야 열린다.
+     한 번 풀면 앱을 다시 열 때까지(또는 날짜가 바뀔 때까지) 열려 있다. */
+  const todayKST = () => {
+    try {
+      const p = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+      const g = (t) => (p.find((x) => x.type === t) || {}).value || "";
+      const v = g("year") + g("month") + g("day");
+      if (/^\d{8}$/.test(v)) return v;
+    } catch (e) {}
+    return new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10).replace(/-/g, "");
+  };
+  let openedOn = ""; // 잠금을 푼 날짜(한국 시간). 날짜가 바뀌면 다시 잠김
+  const gate = (KP.gate = {
+    today: todayKST,
+    unlocked: () => openedOn === todayKST(),
+    unlock() {
+      openedOn = todayKST();
+    },
+    relock() {
+      openedOn = "";
+    },
+    /** 이 카테고리가 지금 잠겨 있나 */
+    locked(cat) {
+      const s = KP.settings.get();
+      return !!s.lock && s.lockCats.includes(cat) && !gate.unlocked();
+    },
+    /** 날짜 입력판을 띄우고, 맞으면 then() */
+    ask(then) {
+      if (gate.unlocked()) return then && then();
+      showPad(then);
+    },
+  });
+  let pad = null;
+  function showPad(then) {
+    if (pad) pad.remove();
+    KP.voice.stop();
+    let val = "";
+    pad = U.el("div", "gatePad");
+    const box = U.el("div", "gateBox");
+    box.innerHTML =
+      '<div class="gateTitle">' + KP.E("🔒") + " 어른이 열어 주세요</div>" +
+      '<div class="gateSub">오늘 날짜 8자리를 눌러 주세요 <small>(예: 2026년 1월 5일 → 20260105)</small></div>';
+    const slots = U.el("div", "gateSlots");
+    for (let i = 0; i < 8; i++) slots.appendChild(U.el("span", "gateSlot" + (i === 3 || i === 5 ? " gap" : "")));
+    const keys = U.el("div", "gateKeys");
+    const draw = () => U.$$(".gateSlot", slots).forEach((el, i) => {
+      el.textContent = val[i] || "";
+      el.classList.toggle("on", i === val.length);
+    });
+    const close = () => {
+      if (pad) pad.remove();
+      pad = null;
+    };
+    const press = (k) => {
+      KP.audio.unlock();
+      if (k === "del") val = val.slice(0, -1);
+      else if (val.length < 8) val += k;
+      KP.audio.sfx("tap");
+      draw();
+      if (val.length === 8) {
+        if (val === todayKST()) {
+          gate.unlock();
+          KP.audio.sfx("good");
+          close();
+          KP.renderHome();
+          then && then();
+        } else {
+          U.replay(slots, "wrong");
+          KP.audio.sfx("bad");
+          setTimeout(() => {
+            val = "";
+            draw();
+          }, 450);
+        }
+      }
+    };
+    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "cancel", "0", "del"].forEach((k) => {
+      const b = U.btn(k === "del" ? "⌫" : k === "cancel" ? "닫기" : k, "gateKey" + (k.length > 1 ? " fn" : ""));
+      b.addEventListener("click", () => (k === "cancel" ? (KP.audio.sfx("back"), close()) : press(k)));
+      keys.appendChild(b);
+    });
+    box.append(slots, keys);
+    pad.appendChild(box);
+    pad.addEventListener("click", (e) => e.target === pad && close());
+    document.body.appendChild(pad);
+    draw();
+  }
+  // 어떤 길로 놀이를 열든(홈 카드, 작품 '이어 그리기' 등) 잠금 확인
+  const rawOpen = KP.open;
+  KP.open = function (id) {
+    const g = KP.GAMES[id];
+    if (g && gate.locked(g.cat)) return gate.ask(() => rawOpen(id));
+    return rawOpen(id);
+  };
+
   /* ---------------- 홈 ---------------- */
   const home = U.el("section", "screen on");
   home.id = "home";
@@ -97,6 +193,13 @@
       t.style.setProperty("--cat", c.color);
       t.style.setProperty("--tsoft", c.soft);
       t.addEventListener("click", () => {
+        if (gate.locked(c.id)) {
+          KP.audio.sfx("tap");
+          return gate.ask(() => {
+            KP.settings.set({ lastCat: c.id });
+            KP.renderHome();
+          });
+        }
         KP.audio.sfx("select");
         KP.voice.say(c.name);
         KP.settings.set({ lastCat: c.id });
@@ -108,8 +211,13 @@
   };
   KP.renderHome = function () {
     const s = KP.settings.get();
-    const cat = KP.CATS.find((c) => c.id === s.lastCat) ? s.lastCat : KP.CATS[0].id;
-    U.$$(".tab", home).forEach((t) => t.classList.toggle("sel", t.dataset.cat === cat));
+    let cat = KP.CATS.find((c) => c.id === s.lastCat) ? s.lastCat : KP.CATS[0].id;
+    // 잠긴 카테고리면 열린 카테고리(공부 놀이 우선)로 보여 줌
+    if (gate.locked(cat)) cat = (KP.CATS.find((c) => c.id === "study" && !gate.locked(c.id)) || KP.CATS.find((c) => !gate.locked(c.id)) || { id: cat }).id;
+    U.$$(".tab", home).forEach((t) => {
+      t.classList.toggle("sel", t.dataset.cat === cat);
+      t.classList.toggle("locked", gate.locked(t.dataset.cat));
+    });
     const grid = U.$(".grid", home);
     const c = KP.CATS.find((x) => x.id === cat);
     grid.style.setProperty("--cat", c.color);

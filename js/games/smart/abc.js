@@ -8,7 +8,7 @@ KP.game({
   id: "abc",
   icon: "🔤",
   name: "ABC 놀이",
-  cat: "smart",
+  cat: "study",
   levels: 3,
   score: "⭐",
   setup(ctx) {

@@ -6,7 +6,7 @@ KP.game({
   id: "dots",
   icon: "1️⃣",
   name: "숫자 순서 놀이",
-  cat: "smart",
+  cat: "study",
   levels: 3,
   score: "⭐",
   setup(ctx) {

@@ -5,7 +5,7 @@ KP.game({
   id: "count",
   icon: "🔢",
   name: "숫자 세기",
-  cat: "smart",
+  cat: "study",
   levels: 3,
   score: "⭐",
   setup(ctx) {

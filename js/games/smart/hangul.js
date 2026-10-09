@@ -12,7 +12,7 @@ KP.game({
   id: "hangul",
   icon: "✏️",
   name: "한글 놀이",
-  cat: "smart",
+  cat: "study",
   levels: 3,
   score: "⭐",
   setup(ctx) {

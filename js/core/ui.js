@@ -26,6 +26,7 @@
     { id: "make", name: "만들기", icon: "🎨", color: "#ff7452", soft: "#ffe08a" },
     { id: "music", name: "음악", icon: "🎵", color: "#8a63ee", soft: "#d6c4ff" },
     { id: "smart", name: "똑똑 놀이", icon: "🧠", color: "#2fb466", soft: "#a8e8c2" },
+    { id: "study", name: "공부 놀이", icon: "📚", color: "#ff5d8f", soft: "#ffc6da" },
     { id: "bigkid", name: "형아 도전", icon: "🦸", color: "#f29a00", soft: "#a9d0ff" },
   ];
   KP.SOFT_DEFAULT = "#c9e4ff";

@@ -6,7 +6,7 @@ KP.game({
   id: "more",
   icon: "🍎",
   name: "많은 쪽 찾기",
-  cat: "smart",
+  cat: "study",
   levels: 3,
   score: "⭐",
   setup(ctx) {

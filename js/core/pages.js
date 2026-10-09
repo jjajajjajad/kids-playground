@@ -178,6 +178,39 @@
     hRow.appendChild(hc);
     sHint.appendChild(hRow);
 
+    // 게임 잠금
+    const sLock = sec("게임 잠금");
+    const lRow = U.el("label", "pRow", "<span>잠긴 카테고리는 오늘 날짜 8자리(한국 시간)를 넣어야 열기</span>");
+    const lc = U.el("input");
+    lc.type = "checkbox";
+    lc.checked = s.lock;
+    lc.addEventListener("change", () => KP.settings.set({ lock: lc.checked }));
+    lRow.appendChild(lc);
+    sLock.appendChild(lRow);
+    const lChips = U.el("div", "pChips");
+    KP.CATS.forEach((c) => {
+      const on = () => KP.settings.get().lockCats.includes(c.id);
+      const b = U.btn((on() ? "🔒 " : "🔓 ") + c.name, "chip" + (on() ? " sel" : ""));
+      b.addEventListener("click", () => {
+        const cur = KP.settings.get().lockCats.slice();
+        const i = cur.indexOf(c.id);
+        if (i >= 0) cur.splice(i, 1);
+        else cur.push(c.id);
+        KP.settings.set({ lockCats: cur });
+        b.classList.toggle("sel", on());
+        b.textContent = (on() ? "🔒 " : "🔓 ") + c.name;
+      });
+      lChips.appendChild(b);
+    });
+    sLock.appendChild(lChips);
+    const bRelock = U.btn("지금 다시 잠그기", "chip");
+    bRelock.addEventListener("click", () => {
+      KP.gate.relock();
+      KP.toast("다시 잠갔어요");
+    });
+    sLock.appendChild(U.el("p", "pNote", "한 번 열면 앱을 껐다 켜거나 날짜가 바뀔 때까지 열려 있어요. 공부 놀이처럼 잠그지 않은 카테고리는 바로 들어갈 수 있어요."));
+    sLock.appendChild(bRelock);
+
     // 게임 보이기
     const sGames = sec("보여줄 놀이 고르기");
     KP.CATS.forEach((c) => {

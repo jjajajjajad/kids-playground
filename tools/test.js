@@ -36,7 +36,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
         if (m.type() === "error") errs.push("console: " + m.text());
       });
       await page.goto(`http://localhost:${PORT}/index.html`);
-      await page.waitForFunction(() => window.KP && KP.ready, null, { timeout: 15000 });
+      await page.waitForFunction(() => window.KP && KP.ready && (KP.gate.unlock(), true), null, { timeout: 15000 });
       await sleep(600);
       const outDir = path.join(__dirname, "out", vp.name);
       if (SHOTS) {
