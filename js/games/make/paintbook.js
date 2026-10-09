@@ -27,6 +27,10 @@ KP.game({
       .pb-sw{width:var(--sw);height:var(--sw);border-radius:50%;border:4px solid #fff;box-shadow:0 4px 0 rgba(0,0,0,.14);transition:transform .12s}
       .pb-sw.light{border-color:#e4e8f2}
       .pb-sw.sel{transform:scale(1.18);box-shadow:0 0 0 4px var(--ink),0 4px 0 rgba(0,0,0,.14)}
+      .pb-sw.myPaint{position:relative;border-color:#ffe7a3}
+      .pb-sw.myPaint .tag{position:absolute;right:-9px;top:-9px;font-size:calc(var(--sw) * .36);line-height:1;pointer-events:none}
+      .pb-sep{grid-column:1/-1;height:3px;margin:1px 4px;border-radius:3px;background:repeating-linear-gradient(90deg,#c9d2e6 0 6px,transparent 6px 11px)}
+      .pb-pal.mine3{grid-template-columns:repeat(3,var(--sw))}
       .pb-svg .pb-r{cursor:pointer;transition:fill .18s}
       .pb-svg .pb-r.pop{animation:pbPop .35s ease-out;transform-box:fill-box;transform-origin:center}
       @keyframes pbPop{40%{transform:scale(1.06)}}
@@ -44,7 +48,7 @@ KP.game({
         .pb{gap:8px;padding:2px 10px 10px;--sw:min(calc((100vw - 74px) / 7),50px);--ab:min(calc((100vw - 60px) / 5),62px);
           grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"acts" "board" "pal"}
         .pb-acts{flex-direction:row}
-        .pb-pal{grid-template-columns:repeat(7,var(--sw));gap:8px}
+        .pb-pal,.pb-pal.mine3{grid-template-columns:repeat(7,var(--sw));gap:8px}
         .pb-grid{grid-template-columns:repeat(2,1fr);gap:10px}
       }
     `);
@@ -227,21 +231,32 @@ KP.game({
     const bDone = U.btn(KP.E("✅"), "pb-act done");
     acts.append(bScene, bUndo, bReset, bDone);
 
-    COLORS.forEach(([c, name], i) => {
-      const b = U.btn("", "pb-sw" + (c === "#ffffff" ? " light" : "") + (c === "url(#pbRainbow)" ? " rainbow swatch" : "") + (c === "url(#pbGlitter)" ? " glitter swatch" : ""));
-      if (!c.startsWith("url")) b.style.background = c;
-      b.dataset.c = c;
-      ctx.tap(b, () => {
-        color = c;
-        KP.store.set("paintbook:color", c);
-        U.$$(".pb-sw", pal).forEach((x) => x.classList.toggle("sel", x === b));
-        U.replay(b, "jump");
-        A.note(A.SCALE[i % 8], { inst: "marimba", dur: 0.25, vol: 0.22 });
-        if (c === "url(#pbGlitter)") A.sfx("sparkle");
-        KP.voice.say(name);
+    /** 팔레트: 내 물감(물감 실험실에서 담은 색, 최근 6개)을 맨 앞에 🎨 표시로 → 열 때마다 다시 그림 */
+    function renderPal() {
+      pal.innerHTML = "";
+      const mine = KP.paint
+        ? KP.paint.mine().map((m) => ({ hex: m.hex.toLowerCase(), n: m.n })).filter((m) => !COLORS.some((c) => c[0] === m.hex)).slice(0, 6)
+        : [];
+      pal.classList.toggle("mine3", mine.length > 2);
+      mine.map((m) => [m.hex, m.n, true]).concat(COLORS).forEach(([c, name, my], i) => {
+        if (mine.length && i === mine.length) pal.appendChild(U.el("span", "pb-sep"));
+        const b = U.btn(my ? '<span class="tag">' + KP.E("🎨") + "</span>" : "", "pb-sw" + (my ? " myPaint" : "") + (c === "#ffffff" ? " light" : "") + (c === "url(#pbRainbow)" ? " rainbow swatch" : "") + (c === "url(#pbGlitter)" ? " glitter swatch" : ""));
+        if (!c.startsWith("url")) b.style.background = c;
+        b.dataset.c = c;
+        ctx.tap(b, () => {
+          color = c;
+          KP.store.set("paintbook:color", c);
+          U.$$(".pb-sw", pal).forEach((x) => x.classList.toggle("sel", x === b));
+          U.replay(b, "jump");
+          A.note(A.SCALE[i % 8], { inst: "marimba", dur: 0.25, vol: 0.22 });
+          if (c === "url(#pbGlitter)") A.sfx("sparkle");
+          KP.voice.say(my ? "내가 만든 " + (name || "물감") : name);
+        });
+        pal.appendChild(b);
       });
-      pal.appendChild(b);
-    });
+    }
+    renderPal();
+    ctx.renderPal = renderPal;
     const markColor = () => U.$$(".pb-sw", pal).forEach((x) => x.classList.toggle("sel", x.dataset.c === color));
 
     function load(id) {
@@ -287,7 +302,7 @@ KP.game({
       updateUndo();
       saveFills();
       unsaved = true;
-      const i = COLORS.findIndex((c) => c[0] === color);
+      const i = Math.max(0, COLORS.findIndex((c) => c[0] === color));
       A.note(["C5", "D5", "E5", "G5", "A5", "C6"][i % 6], { inst: "marimba", dur: 0.3, vol: 0.25 });
       if (color.startsWith("url")) A.sfx("sparkle");
       else A.noise({ dur: 0.12, vol: 0.05, bp: 1800, bpTo: 600, q: 1 });
@@ -462,6 +477,7 @@ KP.game({
   },
   start(ctx) {
     ctx.picker.classList.remove("show");
+    ctx.renderPal();
     ctx.load();
     ctx.markColor();
     ctx.say("색을 고르고 그림을 톡 눌러 칠해 봐요! " + KP.u.josa(ctx.sceneName(), "을/를") + " 칠해 볼까요?");

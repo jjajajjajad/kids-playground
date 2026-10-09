@@ -283,6 +283,10 @@
         .zpPal{grid-area:pal;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-content:center}
         .zpSp{font-size:22px;width:44px;height:44px;border-radius:50%;border:4px solid #fff;box-shadow:0 4px 0 rgba(0,0,0,.14);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
         .zpSp.sel{border-color:var(--ink);transform:scale(1.15)}
+        .zpSp.myPaint{position:relative;border-color:#ffe7a3}
+        .zpSp.myPaint.sel{border-color:var(--ink)}
+        .zpSp.myPaint .tag{position:absolute;right:-10px;top:-10px;font-size:17px;line-height:1;pointer-events:none}
+        .zpSep{flex:0 0 100%;height:3px;border-radius:3px;background:repeating-linear-gradient(90deg,#c9d2e6 0 6px,transparent 6px 11px)}
         .zpAct{grid-area:act;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
         .zpB{background:#fff;border-radius:20px;box-shadow:0 6px 0 rgba(47,58,102,.13);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 10px;min-width:70px;font-size:14px;line-height:1.1}
         .zpB .e{font-size:30px}
@@ -294,6 +298,8 @@
         @media (orientation:landscape) and (min-height:500px){
           .zpWork{grid-template-areas:"pal paper act";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);padding:2px 14px 14px;gap:14px}
           .zpPal{display:grid;grid-template-columns:repeat(2,auto);gap:10px 10px;align-content:center;overflow-y:auto;padding:4px}
+          .zpPal.mine3{grid-template-columns:repeat(3,auto)}
+          .zpSep{grid-column:1/-1;height:3px}
           .zpSp{width:clamp(44px,5.2vh,58px);height:clamp(44px,5.2vh,58px);font-size:26px}
           .zpAct{flex-direction:column;flex-wrap:nowrap;justify-content:center}
           .zpB{min-width:96px;padding:8px 10px;font-size:15px}
@@ -325,31 +331,56 @@
         sw.forEach((x) => x.classList.remove("sel"));
         b.classList.add("sel");
       };
-      COLORS.forEach((c, i) => {
-        const b = U.el("button", "zpSp" + (i === 0 ? " sel" : ""));
-        b.style.background = c;
-        if (c === "#ffffff") b.style.borderColor = "#e3e7f2";
-        b.addEventListener("click", () => {
-          ctx.paint = { kind: "color", color: c };
-          sel(b);
-          KP.audio.sfx("tap");
+      // 팔레트: 내 물감(물감 실험실에서 담은 색, 최근 6개)을 맨 앞에 🎨 표시로 → 색칠 화면에 들어올 때마다 다시 그림
+      ctx.renderPal = () => {
+        pal.innerHTML = "";
+        sw.length = 0;
+        const mine = KP.paint
+          ? KP.paint.mine().map((m) => ({ hex: m.hex.toLowerCase(), n: m.n })).filter((m) => !COLORS.includes(m.hex)).slice(0, 6)
+          : [];
+        pal.classList.toggle("mine3", mine.length > 2);
+        const cur = ctx.paint.kind === "color" ? ctx.paint.color : null;
+        if (cur && !COLORS.includes(cur) && !mine.some((m) => m.hex === cur)) ctx.paint = { kind: "color", color: COLORS[0] };
+        mine.forEach((m) => {
+          const b = U.el("button", "zpSp zpMine myPaint" + (ctx.paint.color === m.hex ? " sel" : ""), '<span class="tag">' + KP.E("🎨") + "</span>");
+          b.style.background = m.hex;
+          b.addEventListener("click", () => {
+            ctx.paint = { kind: "color", color: m.hex };
+            sel(b);
+            KP.audio.sfx("tap");
+            KP.voice.say("내가 만든 " + (m.n || "물감"));
+          });
+          pal.appendChild(b);
+          sw.push(b);
         });
-        pal.appendChild(b);
-        sw.push(b);
-      });
-      [["rainbow", "🌈", "무지개"], ["glitter", "✨", "반짝이"], ["dots", "⚪", "물방울 무늬"], ["stripes", "〰️", "줄무늬"]].forEach(([k, em, nm]) => {
-        const b = U.el("button", "zpSp", KP.E(em));
-        b.style.background = k === "rainbow" ? "conic-gradient(#ff5b6e,#ffa14a,#ffe14d,#4fd37b,#3fb0ff,#9a6bff,#ff5b6e)" : k === "glitter" ? "linear-gradient(135deg,#ffd56b,#ff8ad8,#8ad1ff)" : "#fff";
-        b.addEventListener("click", () => {
-          const base = ctx.paint.kind === "color" ? ctx.paint.color : ctx.paint.base || "#5cc6ff";
-          ctx.paint = { kind: k, base: base === "#ffffff" ? "#5cc6ff" : base };
-          sel(b);
-          KP.audio.sfx("sparkle");
-          KP.voice.say(nm + "!");
+        if (mine.length) pal.appendChild(U.el("span", "zpSep"));
+        COLORS.forEach((c) => {
+          const b = U.el("button", "zpSp" + (ctx.paint.kind === "color" && ctx.paint.color === c ? " sel" : ""));
+          b.style.background = c;
+          if (c === "#ffffff") b.style.borderColor = "#e3e7f2";
+          b.addEventListener("click", () => {
+            ctx.paint = { kind: "color", color: c };
+            sel(b);
+            KP.audio.sfx("tap");
+          });
+          pal.appendChild(b);
+          sw.push(b);
         });
-        pal.appendChild(b);
-        sw.push(b);
-      });
+        [["rainbow", "🌈", "무지개"], ["glitter", "✨", "반짝이"], ["dots", "⚪", "물방울 무늬"], ["stripes", "〰️", "줄무늬"]].forEach(([k, em, nm]) => {
+          const b = U.el("button", "zpSp" + (ctx.paint.kind === k ? " sel" : ""), KP.E(em));
+          b.style.background = k === "rainbow" ? "conic-gradient(#ff5b6e,#ffa14a,#ffe14d,#4fd37b,#3fb0ff,#9a6bff,#ff5b6e)" : k === "glitter" ? "linear-gradient(135deg,#ffd56b,#ff8ad8,#8ad1ff)" : "#fff";
+          b.addEventListener("click", () => {
+            const base = ctx.paint.kind === "color" ? ctx.paint.color : ctx.paint.base || "#5cc6ff";
+            ctx.paint = { kind: k, base: base === "#ffffff" ? "#5cc6ff" : base };
+            sel(b);
+            KP.audio.sfx("sparkle");
+            KP.voice.say(nm + "!");
+          });
+          pal.appendChild(b);
+          sw.push(b);
+        });
+      };
+      ctx.renderPal();
 
       /* 버튼 (그림 + 짧은 이름) */
       const mk = (em, label, cls = "") => U.btn(KP.E(em) + "<span>" + label + "</span>", "zpB " + cls);
@@ -508,6 +539,7 @@
       }
       ctx.choose.style.display = "none";
       ctx.choose.innerHTML = "";
+      ctx.renderPal(); // 실험실에서 새로 담아 온 내 물감도 바로 보이게
       ctx.work.style.display = "";
       ctx.bubble.style.display = "none"; // 그림판 공간 확보 (안내는 목소리로)
       // 도안 둘레 여백 잘라내기 → 동물이 그림판을 꽉 채움

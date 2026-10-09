@@ -35,6 +35,10 @@ KP.game({
       .dw-sw{width:var(--sw);height:var(--sw);border-radius:50%;border:4px solid #fff;box-shadow:0 4px 0 rgba(0,0,0,.14);transition:transform .12s}
       .dw-sw.light{border-color:#e4e8f2}
       .dw-sw.sel{transform:scale(1.16);box-shadow:0 0 0 4px var(--ink),0 4px 0 rgba(0,0,0,.14)}
+      .dw-sw.myPaint{position:relative;border-color:#ffe7a3}
+      .dw-sw.myPaint .tag{position:absolute;right:-9px;top:-9px;font-size:calc(var(--sw) * .36);line-height:1;pointer-events:none}
+      .dw-sep{grid-column:1/-1;height:3px;margin:1px 4px;border-radius:3px;background:repeating-linear-gradient(90deg,#c9d2e6 0 6px,transparent 6px 11px)}
+      .dw-pal.mine3{grid-template-columns:repeat(3,var(--sw))}
       .dw-stamp{width:var(--sw);height:var(--sw);border-radius:14px;background:#fff;box-shadow:0 4px 0 rgba(0,0,0,.12);font-size:calc(var(--sw) * .7);display:flex;align-items:center;justify-content:center}
       .dw-stamp.sel{background:#fff3bf;box-shadow:0 0 0 4px var(--sun)}
       .dw-act{width:var(--ab);height:var(--ab);border-radius:18px;background:#fff;box-shadow:0 5px 0 rgba(47,58,102,.14);font-size:calc(var(--ab) * .55);display:flex;align-items:center;justify-content:center;position:relative}
@@ -49,7 +53,7 @@ KP.game({
           grid-template-areas:"tools tools" "sizes acts" "board board" "pal pal"}
         .dw-tools{flex-direction:row;gap:8px}
         .dw-sizes{flex-direction:row;gap:6px}
-        .dw-pal{grid-template-columns:repeat(7,var(--sw));gap:8px}
+        .dw-pal,.dw-pal.mine3{grid-template-columns:repeat(7,var(--sw));gap:8px}
         .dw-acts{grid-template-columns:repeat(4,var(--ab));gap:8px;justify-content:end}
       }
     `);
@@ -148,8 +152,13 @@ KP.game({
         });
         return;
       }
-      COLORS.forEach(([c, name]) => {
-        const b = U.btn("", "dw-sw" + (c === "#ffffff" || c === "#ffd0a6" ? " light" : "") + (pref.color === c && pref.tool !== "rainbow" ? " sel" : ""));
+      // 내 물감(물감 실험실에서 담은 색, 최근 6개)을 맨 앞에 🎨 표시로
+      const mine = myPaints();
+      palEl.classList.toggle("mine3", mine.length > 2);
+      const list = mine.map((m) => [m.hex, m.n, true]).concat(COLORS);
+      list.forEach(([c, name, my], i) => {
+        if (mine.length && i === mine.length) palEl.appendChild(U.el("span", "dw-sep"));
+        const b = U.btn(my ? '<span class="tag">' + KP.E("🎨") + "</span>" : "", "dw-sw" + (my ? " myPaint" : "") + (c === "#ffffff" || c === "#ffd0a6" ? " light" : "") + (pref.color === c && pref.tool !== "rainbow" ? " sel" : ""));
         b.style.background = c;
         ctx.tap(b, () => {
           pref.color = c;
@@ -157,11 +166,14 @@ KP.game({
           savePref();
           refresh();
           U.replay(b, "jump");
-          A.note(A.SCALE[COLORS.findIndex((x) => x[0] === c) % 8], { inst: "marimba", dur: 0.25, vol: 0.22 });
-          KP.voice.say(name);
+          A.note(A.SCALE[i % 8], { inst: "marimba", dur: 0.25, vol: 0.22 });
+          KP.voice.say(my ? "내가 만든 " + (name || "물감") : name);
         });
         palEl.appendChild(b);
       });
+    }
+    function myPaints() {
+      return KP.paint ? KP.paint.mine().map((m) => ({ hex: m.hex.toLowerCase(), n: m.n })).filter((m) => !COLORS.some((c) => c[0] === m.hex)).slice(0, 6) : [];
     }
     function refresh() {
       Object.entries(toolBtns).forEach(([id, b]) => {
