@@ -1,0 +1,15 @@
+{
+  "name": "kids-playground",
+  "private": true,
+  "description": "아이 놀이터 - 유아용 놀이 웹앱 (PWA)",
+  "scripts": {
+    "build": "node tools/build.js",
+    "test": "node tools/test.js"
+  },
+  "devDependencies": {
+    "@fontsource/jua": "^5.3.0",
+    "@iconify-json/fluent-emoji": "^1.2.7",
+    "unicode-emoji-json": "^0.8.0",
+    "playwright": "1.56.1"
+  }
+}
