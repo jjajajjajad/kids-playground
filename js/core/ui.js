@@ -21,12 +21,14 @@
   const ORDER = (KP.ORDER = []);
 
   KP.CATS = [
-    { id: "play", name: "신나는 놀이", icon: "🎈", color: "#2f95f5" },
-    { id: "make", name: "만들기", icon: "🎨", color: "#ff7452" },
-    { id: "music", name: "음악", icon: "🎵", color: "#8a63ee" },
-    { id: "smart", name: "똑똑 놀이", icon: "🧠", color: "#2fb466" },
-    { id: "bigkid", name: "형아 도전", icon: "🦸", color: "#f29a00" },
+    // color: 놀이 안 강조색, soft: 홈 카드·제목 스티커의 파스텔색
+    { id: "play", name: "신나는 놀이", icon: "🎈", color: "#2f95f5", soft: "#ffb4a2" },
+    { id: "make", name: "만들기", icon: "🎨", color: "#ff7452", soft: "#ffe08a" },
+    { id: "music", name: "음악", icon: "🎵", color: "#8a63ee", soft: "#d6c4ff" },
+    { id: "smart", name: "똑똑 놀이", icon: "🧠", color: "#2fb466", soft: "#a8e8c2" },
+    { id: "bigkid", name: "형아 도전", icon: "🦸", color: "#f29a00", soft: "#a9d0ff" },
   ];
+  KP.SOFT_DEFAULT = "#c9e4ff";
   KP.MASCOT = "🐻";
 
   KP.game = function (def) {
@@ -129,16 +131,19 @@
     const root = U.el("section", "screen game cat-" + def.cat);
     root.id = "g-" + def.id;
     root.style.setProperty("--cat", cat.color);
+    root.style.setProperty("--soft", def.cat === cat.id ? cat.soft : KP.SOFT_DEFAULT);
 
     const bar = U.el("header", "bar");
     const homeBtn = U.btn(KP.E("🏠"), "barBtn home");
     const title = U.el("div", "title", KP.E(def.icon) + "<span>" + def.name + "</span>");
     const right = U.el("div", "barRight");
+    const lvDots = U.el("div", "lvDots");
+    lvDots.setAttribute("aria-hidden", "true");
     const lvBadge = U.el("div", "pill lvPill");
     const scorePill = U.el("div", "pill scorePill", KP.E(def.score || "⭐") + "<b>0</b>");
     const stPill = U.el("div", "pill stickerPill", KP.E("📒") + "<b>0</b>");
     if (!def.score) scorePill.style.display = "none";
-    right.append(lvBadge, scorePill, stPill);
+    right.append(lvDots, lvBadge, scorePill, stPill);
     bar.append(homeBtn, title, right);
 
     const bubble = U.el("div", "bubble");
@@ -355,7 +360,17 @@
         if (def.levels > 1) {
           lvBadge.style.display = "";
           lvBadge.innerHTML = KP.E("🏅") + "<b>" + Math.min(lv.lvl, def.levels) + "단계</b>";
-        } else lvBadge.style.display = "none";
+          // 다음 단계까지: 연속 3번 성공하면 단계가 오른다 (win 의 규칙과 같음)
+          if (lv.lvl < def.levels) {
+            const n = Math.min(3, lv.streak || 0);
+            lvDots.innerHTML = "<i></i><i></i><i></i>";
+            [...lvDots.children].forEach((d, i) => d.classList.toggle("on", i < n));
+            lvDots.style.display = "";
+          } else lvDots.style.display = "none";
+        } else {
+          lvBadge.style.display = "none";
+          lvDots.style.display = "none";
+        }
         stPill.querySelector("b").textContent = KP.stickers ? KP.stickers.count() : 0;
       },
       stickerPill: stPill,

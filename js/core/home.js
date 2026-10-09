@@ -44,8 +44,9 @@
     home.innerHTML = "";
     const top = U.el("header", "homeTop");
     const brand = U.el("div", "brand");
-    const mascot = U.el("div", "homeMascot", KP.E(KP.MASCOT));
-    brand.append(mascot, U.el("h1", "", "아이 놀이터"));
+    const mascot = U.el("button", "homeMascot", KP.E(KP.MASCOT));
+    mascot.setAttribute("aria-label", "곰돌이");
+    brand.append(U.el("h1", "", "아이 놀이터"));
     const acts = U.el("div", "homeActs");
     const bSt = U.btn(KP.E("📒") + "<b>0</b>", "act stickerBtn");
     const bGal = U.btn(KP.E("🖼️"), "act galBtn");
@@ -56,8 +57,9 @@
     top.append(brand, acts);
 
     const tabs = U.el("nav", "tabs");
+    tabs.appendChild(mascot);
     const grid = U.el("div", "grid");
-    home.append(top, tabs, grid);
+    home.append(tabs, top, grid);
 
     mascot.addEventListener("click", () => {
       U.replay(mascot, "jump");
@@ -93,6 +95,7 @@
       const t = U.btn(KP.E(c.icon) + "<span>" + c.name + "</span>", "tab");
       t.dataset.cat = c.id;
       t.style.setProperty("--cat", c.color);
+      t.style.setProperty("--tsoft", c.soft);
       t.addEventListener("click", () => {
         KP.audio.sfx("select");
         KP.voice.say(c.name);
@@ -110,11 +113,31 @@
     const grid = U.$(".grid", home);
     const c = KP.CATS.find((x) => x.id === cat);
     grid.style.setProperty("--cat", c.color);
+    grid.style.setProperty("--soft", c.soft);
     grid.innerHTML = "";
-    KP.ORDER.filter((id) => KP.GAMES[id].cat === cat && !s.hidden[id]).forEach((id, i) => {
+    const ids = KP.ORDER.filter((id) => KP.GAMES[id].cat === cat && !s.hidden[id]);
+    // 오늘의 도전: 날짜와 카테고리로 정해지는 하루 한 놀이 (하루 동안은 그대로)
+    let hero = null;
+    if (ids.length > 1) {
+      const key = today() + cat;
+      let hsh = 0;
+      for (let k = 0; k < key.length; k++) hsh = (hsh * 31 + key.charCodeAt(k)) >>> 0;
+      hero = ids[hsh % ids.length];
+      ids.splice(ids.indexOf(hero), 1);
+      ids.unshift(hero);
+    }
+    const ROT = [1.5, -1, 2, -2, 1, -1.5, -1, 2, -0.5, 1.2, -1.8, 0.6];
+    ids.forEach((id, i) => {
       const g = KP.GAMES[id];
-      const card = U.btn('<span class="cIco">' + KP.E(g.icon) + '</span><span class="cName">' + g.name + "</span>", "card");
+      const isHero = id === hero;
+      const card = U.btn(
+        isHero
+          ? '<span class="hTag">오늘의 도전</span><span class="cIco">' + KP.E(g.icon) + '</span><span class="cName">' + g.name + '</span><span class="hGo">시작!</span>'
+          : '<span class="cIco">' + KP.E(g.icon) + '</span><span class="cName">' + g.name + "</span>",
+        "card" + (isHero ? " hero" : "")
+      );
       card.style.setProperty("--i", i);
+      card.style.setProperty("--rot", (isHero ? -1.5 : ROT[i % ROT.length]) + "deg");
       if (g.badge) card.appendChild(U.el("span", "cBadge", g.badge));
       const lv = KP.level.get(id);
       if (g.levels > 1 && lv.lvl > 1) card.appendChild(U.el("span", "cLv", KP.E("🏅") + Math.min(lv.lvl, g.levels)));
@@ -122,7 +145,7 @@
         if (card.dataset.busy) return; // 연타 시 두 번 열리지 않게
         card.dataset.busy = "1";
         KP.audio.sfx("open");
-        KP.voice.say(g.name);
+        KP.voice.say(isHero ? "오늘의 도전! " + g.name : g.name);
         U.replay(card, "press");
         setTimeout(() => KP.open(id), 140);
       });
