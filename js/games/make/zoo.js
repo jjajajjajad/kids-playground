@@ -250,7 +250,14 @@
 
   /* =================================================================
      색칠 공방
+     ① 동물 고르기 화면(큰 카드) → ② 색칠 화면(그림판이 화면을 꽉 채움)
+     - 태블릿 가로: 색은 왼쪽 세로줄, 버튼은 오른쪽 세로줄
+     - 폰 세로: 그림판 아래에 색·버튼
+     - 도안 여백을 잘라 동물이 그림판을 꽉 채우고,
+       부위를 살짝 빗나가도 가장 가까운 부위가 칠해지며, 쓱쓱 문질러도 칠해짐
   ================================================================= */
+  const COLORS = ["#ff5b6e", "#ff9f43", "#ffe14d", "#7bd389", "#2fb466", "#5cc6ff", "#2f6fe0", "#9a6bff", "#ff8ad8", "#b27b4f", "#f5d6a8", "#3b3355", "#a9b8d6", "#ffffff"];
+  const isWhite = (e) => (e.getAttribute("fill") || "").toLowerCase() === "#ffffff";
   KP.game({
     id: "zoopaint",
     icon: "🖌️",
@@ -259,44 +266,58 @@
     badge: "NEW",
     setup(ctx) {
       KP.css("zoopaint", `
-        .zpPick{display:flex;gap:10px;overflow-x:auto;padding:4px 14px 8px;flex:0 0 auto;scrollbar-width:none}
-        .zpPick::-webkit-scrollbar{display:none}
-        .zpT{flex:0 0 auto;width:clamp(66px,9vw,88px);height:clamp(58px,8vw,76px);background:#fff;border-radius:18px;box-shadow:0 5px 0 rgba(47,58,102,.12);padding:4px;border:3px solid transparent}
-        .zpT.sel{border-color:var(--sun);transform:translateY(-3px)}
-        .zpBoard{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 12px}
-        .zpPaper{position:relative;height:100%;max-height:560px;aspect-ratio:200/170;max-width:100%;background:radial-gradient(circle at 50% 40%,#fff,#f4fbff);border-radius:30px;box-shadow:0 8px 0 rgba(47,58,102,.12);padding:3%}
-        .zpPaper .zSvg .fb{cursor:pointer;transition:fill .15s}
-        .zpPaper.fly{transition:transform .9s cubic-bezier(.5,-0.3,.7,1),opacity .9s;transform:translate(0,-120%) scale(.3) rotate(-12deg);opacity:0}
-        .zpPal{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:6px 10px 2px;flex:0 0 auto}
-        .zpSp{font-size:clamp(22px,3vw,28px);width:clamp(40px,5.6vw,52px);height:clamp(40px,5.6vw,52px);border-radius:50%;border:4px solid #fff;box-shadow:0 4px 0 rgba(0,0,0,.14);display:flex;align-items:center;justify-content:center}
+        /* ① 고르기 */
+        .zpChoose{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(130px,19vw,210px),1fr));gap:clamp(10px,1.8vw,18px);padding:8px clamp(12px,2vw,22px) 20px;align-content:start}
+        .zpCard{position:relative;background:#fff;border-radius:26px;padding:10px 8px 8px;box-shadow:0 7px 0 rgba(47,58,102,.12);display:flex;flex-direction:column;align-items:center;gap:2px;animation:cardIn .4s backwards;animation-delay:calc(var(--i)*35ms)}
+        .zpCard:active{transform:translateY(5px)}
+        .zpCard .zpThumb{width:100%;aspect-ratio:200/150}
+        .zpCard b{font-weight:400;font-size:clamp(17px,2.4vw,22px)}
+        .zpDraft{position:absolute;top:-6px;right:-4px;background:var(--sun);font-size:13px;padding:3px 8px;border-radius:999px;box-shadow:0 3px 0 rgba(0,0,0,.12)}
+        /* ② 색칠 */
+        .zpWork{flex:1;min-height:0;display:grid;gap:10px;padding:2px 12px 12px;grid-template-areas:"paper" "pal" "act";grid-template-rows:minmax(0,1fr) auto auto}
+        .zpPaper{grid-area:paper;position:relative;min-height:0;background:radial-gradient(circle at 50% 42%,#fff 55%,#f1f9ff);border-radius:30px;box-shadow:0 8px 0 rgba(47,58,102,.12);touch-action:none;overflow:hidden}
+        .zpPaper > svg{position:absolute;inset:2%;width:96%;height:96%}
+        .zpPaper .fb{transition:fill .15s;stroke-width:3.2px}
+        .zpPaper.fly svg{transition:transform .9s cubic-bezier(.5,-0.3,.7,1),opacity .9s;transform:translate(0,-110%) scale(.3) rotate(-12deg);opacity:0}
+        .zpPal{grid-area:pal;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-content:center}
+        .zpSp{font-size:22px;width:44px;height:44px;border-radius:50%;border:4px solid #fff;box-shadow:0 4px 0 rgba(0,0,0,.14);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
         .zpSp.sel{border-color:var(--ink);transform:scale(1.15)}
-        .zpAct{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:8px 10px 14px;flex:0 0 auto}
-        .zpSend{font-size:clamp(20px,3vw,28px)}
-        .zpSpark{position:absolute;pointer-events:none;font-size:28px;animation:zpSpark .6s forwards}
-        @keyframes zpSpark{to{transform:translateY(-30px) scale(.4);opacity:0}}
+        .zpAct{grid-area:act;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+        .zpB{background:#fff;border-radius:20px;box-shadow:0 6px 0 rgba(47,58,102,.13);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 10px;min-width:70px;font-size:14px;line-height:1.1}
+        .zpB .e{font-size:30px}
+        .zpB:active{transform:translateY(4px)}
+        .zpB.send{background:var(--cat);color:#fff;box-shadow:0 6px 0 color-mix(in srgb,var(--cat) 60%,#000);min-width:110px}
+        .zpSpark{position:absolute;pointer-events:none;font-size:30px;animation:zpSpark .6s forwards;z-index:2}
+        @keyframes zpSpark{to{transform:translateY(-34px) scale(.4);opacity:0}}
+        /* 가로 화면(태블릿): 색은 왼쪽, 버튼은 오른쪽 세로줄 → 그림판이 높이를 다 씀 */
+        @media (orientation:landscape) and (min-height:500px){
+          .zpWork{grid-template-areas:"pal paper act";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);padding:2px 14px 14px;gap:14px}
+          .zpPal{display:grid;grid-template-columns:repeat(2,auto);gap:10px 10px;align-content:center;overflow-y:auto;padding:4px}
+          .zpSp{width:clamp(44px,5.2vh,58px);height:clamp(44px,5.2vh,58px);font-size:26px}
+          .zpAct{flex-direction:column;flex-wrap:nowrap;justify-content:center}
+          .zpB{min-width:96px;padding:8px 10px;font-size:15px}
+          .zpB .e{font-size:34px}
+          .zpB.send{min-width:96px;padding:12px 10px}
+        }
+        /* 폰처럼 좁은 세로 화면 */
+        @media (max-width:500px){
+          .zpSp{width:36px;height:36px;font-size:18px;border-width:3px}
+          .zpPal{gap:6px}
+          .zpB{min-width:0;flex:1;padding:5px 4px;font-size:12.5px}
+          .zpB .e{font-size:26px}
+          .zpB.send{min-width:0;flex:1.4}
+        }
       `);
-      const pick = U.el("div", "zpPick");
-      const board = U.el("div", "zpBoard");
+      const choose = U.el("div", "zpChoose");
+      const work = U.el("div", "zpWork");
       const paper = U.el("div", "zpPaper");
-      board.appendChild(paper);
       const pal = U.el("div", "zpPal");
       const act = U.el("div", "zpAct");
-      ctx.body.append(pick, board, pal, act);
-      Object.assign(ctx, { pick, paper, pal, act, drafts: {}, undo: [] });
+      work.append(paper, pal, act);
+      ctx.body.append(choose, work);
+      Object.assign(ctx, { choose, work, paper, pal, act, drafts: {}, undo: [] });
 
-      // 동물 고르기 (견본 색 썸네일)
-      ORDER.forEach((tid) => {
-        const b = U.btn(makeSvg(tid, "thumb" + tid, T[tid].sample), "zpT");
-        b.dataset.tid = tid;
-        b.addEventListener("click", () => {
-          KP.audio.sfx("select");
-          this.load(ctx, tid);
-        });
-        pick.appendChild(b);
-      });
-
-      // 색 + 특수 색
-      const COLORS = ["#ff5b6e", "#ff9f43", "#ffe14d", "#7bd389", "#2fb466", "#5cc6ff", "#2f6fe0", "#9a6bff", "#ff8ad8", "#b27b4f", "#f5d6a8", "#3b3355", "#a9b8d6", "#ffffff"];
+      /* 색 + 특수 색 */
       ctx.paint = { kind: "color", color: COLORS[0] };
       const sw = [];
       const sel = (b) => {
@@ -329,13 +350,19 @@
         sw.push(b);
       });
 
-      // 동작 버튼
-      const bUndo = U.btn(KP.E("↩️") + " 되돌리기", "btn");
-      const bMagic = U.btn(KP.E("🪄") + " 마법 색칠", "btn");
-      const bClear = U.btn(KP.E("🧽") + " 처음부터", "btn");
-      const bSend = U.btn(KP.E("🦁") + " 동물원에 보내기", "btn primary zpSend");
-      act.append(bUndo, bMagic, bClear, bSend);
+      /* 버튼 (그림 + 짧은 이름) */
+      const mk = (em, label, cls = "") => U.btn(KP.E(em) + "<span>" + label + "</span>", "zpB " + cls);
+      const bBack = mk("🐾", "다른 동물");
+      const bUndo = mk("↩️", "되돌리기");
+      const bMagic = mk("🪄", "마법 색칠");
+      const bClear = mk("🧽", "처음부터");
+      const bSend = mk("🦁", "동물원에 보내기", "send");
+      act.append(bBack, bUndo, bMagic, bClear, bSend);
       ctx.bSend = bSend;
+      bBack.addEventListener("click", () => {
+        KP.audio.sfx("back");
+        this.showChoose(ctx);
+      });
       bUndo.addEventListener("click", () => {
         const u = ctx.undo.pop();
         if (!u) return KP.audio.sfx("bad");
@@ -361,39 +388,97 @@
           ctx.undo.push({ el: e, prev: e.getAttribute("fill") });
           e.setAttribute("fill", "#ffffff");
         });
+        ctx.toldDone = false;
         KP.audio.sfx("whoosh");
       });
       bSend.addEventListener("click", () => this.send(ctx));
 
-      // 색칠하기
-      paper.addEventListener("pointerdown", (e) => {
-        const t = e.target.closest(".fb");
-        if (!t) return;
-        e.preventDefault();
-        KP.audio.unlock();
+      /* 칠하기: 누른 곳 → 없으면 가까운 부위(최대 약 40px) */
+      const partAt = (x, y) => {
+        const hit = (px, py) => {
+          const el = document.elementFromPoint(px, py);
+          const fb = el && el.closest && el.closest(".fb");
+          return fb && paper.contains(fb) ? fb : null;
+        };
+        let f = hit(x, y);
+        if (f) return f;
+        for (const r of [10, 20, 30, 42]) {
+          for (let k = 0; k < 12; k++) {
+            const a = (k / 12) * Math.PI * 2;
+            f = hit(x + Math.cos(a) * r, y + Math.sin(a) * r);
+            if (f) return f;
+          }
+        }
+        return null;
+      };
+      const fillPart = (t, x, y, quiet) => {
         const svg = paper.querySelector("svg");
         const fill = ctx.paint.kind === "color" ? ctx.paint.color : ensureDef(svg, ctx.uid, ctx.paint.kind, ctx.paint.base);
+        if (t.getAttribute("fill") === fill) return;
         ctx.undo.push({ el: t, prev: t.getAttribute("fill") });
-        if (ctx.undo.length > 60) ctx.undo.shift();
+        if (ctx.undo.length > 80) ctx.undo.shift();
         t.setAttribute("fill", fill);
-        KP.audio.note(U.pick(KP.audio.SCALE.slice(4, 11)), { inst: "marimba", dur: 0.3, vol: 0.22 });
+        KP.audio.note(U.pick(KP.audio.SCALE.slice(4, 11)), { inst: "marimba", dur: 0.3, vol: quiet ? 0.12 : 0.22 });
         const r = paper.getBoundingClientRect();
         const sp = U.el("div", "zpSpark", KP.E(ctx.paint.kind === "color" ? "✨" : "🌟"));
-        sp.style.left = e.clientX - r.left - 14 + "px";
-        sp.style.top = e.clientY - r.top - 20 + "px";
+        sp.style.left = x - r.left - 15 + "px";
+        sp.style.top = y - r.top - 22 + "px";
         paper.appendChild(sp);
         setTimeout(() => sp.remove(), 650);
         this.checkDone(ctx);
+      };
+      let down = false;
+      paper.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        KP.audio.unlock();
+        down = true;
+        const t = partAt(e.clientX, e.clientY);
+        if (t) fillPart(t, e.clientX, e.clientY);
       });
+      // 쓱쓱 문질러 칠하기
+      paper.addEventListener("pointermove", (e) => {
+        if (!down) return;
+        const el = document.elementFromPoint(e.clientX, e.clientY);
+        const t = el && el.closest && el.closest(".fb");
+        if (t && paper.contains(t)) fillPart(t, e.clientX, e.clientY, true);
+      });
+      ["pointerup", "pointercancel", "pointerleave"].forEach((ev) => paper.addEventListener(ev, () => (down = false)));
     },
-    load(ctx, tid) {
-      // 지금 칠하던 것 임시 보관
+    /* ① 동물 고르기 */
+    showChoose(ctx) {
+      this.stash(ctx);
+      ctx.work.style.display = "none";
+      ctx.choose.style.display = "";
+      ctx.bubble.style.display = "";
+      ctx.choose.innerHTML = "";
+      const cards = ORDER.map((tid, i) => {
+        const d = ctx.drafts[tid];
+        const c = U.btn('<div class="zpThumb">' + (d ? d.svg.replace(/viewBox="[^"]*"/, 'viewBox="0 0 200 170"') : makeSvg(tid, "thumb" + tid, T[tid].sample)) + "</div><b>" + T[tid].name + "</b>", "zpCard");
+        c.style.setProperty("--i", i);
+        if (d) c.appendChild(U.el("span", "zpDraft", "칠하던 중"));
+        c.addEventListener("click", () => {
+          KP.audio.sfx("open");
+          this.load(ctx, tid);
+        });
+        ctx.choose.appendChild(c);
+        return c;
+      });
+      ctx.say("어떤 동물을 색칠할까요? 골라 보세요!");
+      ctx.hint(() => cards[0], "색칠하고 싶은 동물을 콕 눌러요!");
+    },
+    /* 칠하던 그림 임시 보관 */
+    stash(ctx) {
       const cur = ctx.paper.querySelector("svg");
-      if (cur && ctx.tid) ctx.drafts[ctx.tid] = { svg: ctx.paper.innerHTML, uid: ctx.uid };
+      if (cur && ctx.tid && [...cur.querySelectorAll(".fb")].some((e) => !isWhite(e))) ctx.drafts[ctx.tid] = { svg: ctx.paper.innerHTML, uid: ctx.uid };
+      ctx.paper.innerHTML = "";
+      ctx.tid = null;
+    },
+    /* ② 색칠 화면 */
+    load(ctx, tid) {
       ctx.tid = tid;
       ctx.undo = [];
+      ctx.toldDone = false;
       ctx.paper.classList.remove("fly");
-      U.$$(".zpT", ctx.pick).forEach((b) => b.classList.toggle("sel", b.dataset.tid === tid));
       const d = ctx.drafts[tid];
       if (d) {
         ctx.uid = d.uid;
@@ -402,13 +487,27 @@
         ctx.uid = "z" + KP.newId();
         ctx.paper.innerHTML = makeSvg(tid, ctx.uid);
       }
-      ctx.toldDone = false;
+      ctx.choose.style.display = "none";
+      ctx.work.style.display = "";
+      ctx.bubble.style.display = "none"; // 그림판 공간 확보 (안내는 목소리로)
+      // 도안 둘레 여백 잘라내기 → 동물이 그림판을 꽉 채움
+      requestAnimationFrame(() => {
+        const svg = ctx.paper.querySelector("svg");
+        if (!svg) return;
+        svg.setAttribute("viewBox", "0 0 200 170");
+        try {
+          const bb = svg.getBBox(),
+            pad = 6;
+          if (bb.width > 20) svg.setAttribute("viewBox", [bb.x - pad, bb.y - pad, bb.width + pad * 2, bb.height + pad * 2].map((v) => v.toFixed(1)).join(" "));
+        } catch (e) {}
+      });
       const nm = T[tid].name;
-      ctx.say(U.josa(nm, "을/를") + " 색칠해요! 색을 고르고 " + U.josa(nm, "을/를") + " 콕콕 눌러요.");
+      ctx.instr = U.josa(nm, "을/를") + " 색칠해요! 색을 고르고 콕콕 눌러요.";
+      KP.voice.say(ctx.instr);
       ctx.hint(() => ctx.paper.querySelector('.fb[fill="#ffffff"]') || ctx.bSend, "색을 고르고 그림을 콕 눌러 봐요!");
     },
     checkDone(ctx) {
-      const left = [...ctx.paper.querySelectorAll(".fb")].filter((e) => (e.getAttribute("fill") || "").toLowerCase() === "#ffffff").length;
+      const left = [...ctx.paper.querySelectorAll(".fb")].filter(isWhite).length;
       if (left === 0 && !ctx.toldDone) {
         ctx.toldDone = true;
         KP.voice.say("우와, 다 칠했다! 동물원에 보내 볼까?");
@@ -418,14 +517,18 @@
     },
     async send(ctx) {
       const fbs = [...ctx.paper.querySelectorAll(".fb")];
-      const colored = fbs.filter((e) => (e.getAttribute("fill") || "").toLowerCase() !== "#ffffff").length;
-      if (!colored) {
+      if (!fbs.some((e) => !isWhite(e))) {
         ctx.miss(ctx.bSend, "먼저 예쁘게 색칠해 봐요!", { soft: true });
         return;
       }
       const svg = ctx.paper.querySelector("svg");
+      // 동물원에서는 원래 도안 크기 기준으로 그림
+      const vb = svg.getAttribute("viewBox");
+      svg.setAttribute("viewBox", "0 0 200 170");
+      const html = svg.outerHTML;
+      svg.setAttribute("viewBox", vb);
       const d = new Date();
-      const item = { id: KP.newId(), kind: "zoo", tid: ctx.tid, uid: ctx.uid, svg: svg.outerHTML, t: Date.now(), date: d.getMonth() + 1 + "월 " + d.getDate() + "일" };
+      const item = { id: KP.newId(), kind: "zoo", tid: ctx.tid, uid: ctx.uid, svg: html, t: Date.now(), date: d.getMonth() + 1 + "월 " + d.getDate() + "일" };
       await KP.db.put("art", item);
       KP.zooNew = item.id;
       delete ctx.drafts[ctx.tid];
@@ -433,10 +536,18 @@
       KP.audio.sfx("whoosh");
       const nm = T[ctx.tid].name;
       const ok = await ctx.win({ msg: nm + " 출발!", big: true });
+      ctx.paper.innerHTML = "";
+      ctx.tid = null;
       if (ok) KP.open("zoo");
     },
     start(ctx) {
-      this.load(ctx, ctx.tid || "dino");
+      if (ctx.tid) this.load(ctx, ctx.tid);
+      else this.showChoose(ctx);
+    },
+    stop(ctx) {
+      // 나갔다 와도 칠하던 그림은 남겨 둠
+      const cur = ctx.paper.querySelector("svg");
+      if (cur && ctx.tid) ctx.drafts[ctx.tid] = { svg: ctx.paper.innerHTML, uid: ctx.uid };
     },
   });
 
