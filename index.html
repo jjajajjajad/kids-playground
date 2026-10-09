@@ -1,0 +1,2422 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="아이놀이터">
+<meta name="theme-color" content="#aee9ff">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<title>아이 놀이터</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent;
+      -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; touch-action:manipulation; }
+  html,body { width:100%; height:100%; overflow:hidden; overscroll-behavior:none; }
+  body {
+    font-family:"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+    background:linear-gradient(180deg,#aee9ff 0%,#e6f9ff 45%,#fff6c9 100%);
+    color:#3a3a55;
+  }
+  .screen { position:absolute; inset:0; display:none; flex-direction:column;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  .screen.on { display:flex; }
+  .body { flex:1; display:flex; flex-direction:column; min-height:0; position:relative; }
+
+  /* ---------- 공통 상단바 ---------- */
+  .bar { display:flex; align-items:center; gap:10px; padding:10px 14px; flex:0 0 auto; }
+  .bar h2 { font-size:clamp(19px,3.4vw,28px); flex:1; text-shadow:0 2px 0 rgba(255,255,255,.7); white-space:nowrap; overflow:hidden; }
+  .homeBtn {
+    font-size:clamp(19px,3vw,25px); font-weight:800; border:none; cursor:pointer;
+    background:#fff; color:#ff7b54; border-radius:999px; padding:9px 18px;
+    box-shadow:0 5px 0 #ffd3c2; transition:transform .08s; flex:0 0 auto;
+  }
+  .homeBtn:active { transform:translateY(4px); box-shadow:0 1px 0 #ffd3c2; }
+  .score {
+    background:#fff; border-radius:999px; padding:8px 16px; font-size:clamp(17px,2.8vw,24px);
+    font-weight:800; box-shadow:0 4px 0 rgba(0,0,0,.08); color:#4a7bd8; flex:0 0 auto; white-space:nowrap;
+  }
+
+  /* ---------- 홈 ---------- */
+  #home { align-items:center; justify-content:flex-start; overflow-y:auto; }
+  #home .title { text-align:center; padding:22px 10px 4px; }
+  #home .title h1 { font-size:clamp(32px,6vw,56px); color:#ff7b54; text-shadow:0 3px 0 #fff; letter-spacing:2px; }
+  #home .title p { font-size:clamp(14px,2.4vw,19px); color:#6b7aa1; margin-top:4px; }
+  .menu {
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+    gap:14px; padding:16px; width:100%; max-width:1000px;
+  }
+  .catHead {
+    grid-column:1/-1; font-size:clamp(19px,3.2vw,27px); font-weight:900; color:#5a6ea6;
+    padding:14px 4px 0; text-shadow:0 2px 0 #fff;
+  }
+  .card {
+    background:#fff; border:none; cursor:pointer; border-radius:24px; padding:16px 6px 12px;
+    display:flex; flex-direction:column; align-items:center; gap:7px;
+    box-shadow:0 7px 0 rgba(0,0,0,.10); transition:transform .1s;
+  }
+  .card:active { transform:scale(.93) translateY(4px); box-shadow:0 2px 0 rgba(0,0,0,.10); }
+  .card .ico { font-size:clamp(40px,6.5vw,58px); line-height:1.1; }
+  .card .nm { font-size:clamp(15px,2.4vw,20px); font-weight:800; }
+  .card:nth-child(6n+1){ background:#ffe9e3; } .card:nth-child(6n+2){ background:#e3f4ff; }
+  .card:nth-child(6n+3){ background:#fff6d6; } .card:nth-child(6n+4){ background:#e9ffe3; }
+  .card:nth-child(6n+5){ background:#f3e8ff; } .card:nth-child(6n+0){ background:#ffe8f4; }
+
+  /* ---------- 칭찬 오버레이 ---------- */
+  #praise {
+    position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    flex-direction:column; gap:10px; background:rgba(255,255,255,.55); z-index:99; pointer-events:none;
+  }
+  #praise.on { display:flex; }
+  #praise .big { font-size:clamp(80px,16vw,150px); animation:pop .5s; }
+  #praise .txt { font-size:clamp(30px,6vw,54px); font-weight:900; color:#ff7b54; text-shadow:0 3px 0 #fff; animation:pop .5s; }
+  @keyframes pop { 0%{transform:scale(.2)} 70%{transform:scale(1.2)} 100%{transform:scale(1)} }
+  @keyframes wobble { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-10px)} 75%{transform:translateX(10px)} }
+  .wrong { animation:wobble .35s; }
+  @keyframes wiggle { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-12deg)} 75%{transform:rotate(12deg)} }
+  .wig { animation:wiggle .4s; }
+
+  /* ---------- 그림판 / 색칠 ---------- */
+  .tools { display:flex; flex-wrap:wrap; gap:8px; padding:6px 12px; align-items:center; flex:0 0 auto; }
+  .swatch {
+    width:clamp(34px,5.2vw,48px); height:clamp(34px,5.2vw,48px); border-radius:50%;
+    border:4px solid #fff; box-shadow:0 3px 0 rgba(0,0,0,.15); cursor:pointer; flex:0 0 auto;
+  }
+  .swatch.sel { border-color:#3a3a55; transform:scale(1.15); }
+  .toolBtn {
+    font-size:clamp(17px,3vw,25px); background:#fff; border:none; border-radius:16px;
+    padding:8px 12px; cursor:pointer; box-shadow:0 4px 0 rgba(0,0,0,.12); font-weight:700;
+  }
+  .toolBtn.sel { background:#ffe08a; box-shadow:0 4px 0 #d8b74f; }
+  .canvasWrap { flex:1; position:relative; margin:0 12px 12px; min-height:0; }
+  .canvasWrap canvas, .canvasWrap svg, .canvasWrap .under {
+    position:absolute; inset:0; width:100%; height:100%;
+    background:#fff; border-radius:22px; box-shadow:0 6px 0 rgba(0,0,0,.10); touch-action:none;
+  }
+  .canvasWrap svg { background:#f2fbff; }
+
+  /* ---------- 필드형 게임 ---------- */
+  .field { flex:1; position:relative; overflow:hidden; touch-action:none; }
+  .floaty { position:absolute; cursor:pointer; user-select:none; line-height:1; }
+  .bubbleBall {
+    border-radius:50%;
+    background:radial-gradient(circle at 32% 30%, rgba(255,255,255,.95), rgba(173,225,255,.55) 45%, rgba(120,180,255,.35));
+    border:2px solid rgba(255,255,255,.8); box-shadow:inset -6px -6px 12px rgba(90,140,220,.25);
+  }
+  .popped { transform:scale(1.8); opacity:0; transition:all .18s; }
+  .water { background:linear-gradient(180deg,#8fd7ff 0%,#3f9fe0 100%); margin:0 12px 12px; border-radius:22px; }
+  .sky { background:linear-gradient(180deg,#bfeaff 0%,#eafaff 100%); margin:0 12px 12px; border-radius:22px; }
+
+  /* ---------- 두더지 ---------- */
+  #moleGridBox {
+    flex:1; display:grid; grid-template-columns:repeat(3,1fr); gap:14px; padding:14px; max-width:760px;
+    width:100%; margin:0 auto; min-height:0;
+  }
+  .hole {
+    background:#c9a36b; border-radius:26px; display:flex; align-items:flex-end; justify-content:center;
+    overflow:hidden; box-shadow:inset 0 8px 12px rgba(0,0,0,.25); cursor:pointer;
+  }
+  .hole .mo { font-size:clamp(48px,8.5vw,84px); transform:translateY(110%); transition:transform .18s; line-height:1.05; }
+  .hole.up .mo { transform:translateY(8%); }
+
+  /* ---------- 짝 맞추기 ---------- */
+  #memGridBox {
+    flex:1; display:grid; grid-template-columns:repeat(4,1fr); gap:12px; padding:14px;
+    max-width:820px; width:100%; margin:0 auto; min-height:0;
+  }
+  .mcard { perspective:600px; cursor:pointer; }
+  .mcard .inner { position:relative; width:100%; height:100%; transition:transform .35s; transform-style:preserve-3d; }
+  .mcard.open .inner { transform:rotateY(180deg); }
+  .mface {
+    position:absolute; inset:0; border-radius:18px; display:flex; align-items:center; justify-content:center;
+    font-size:clamp(36px,6.5vw,66px); backface-visibility:hidden; box-shadow:0 5px 0 rgba(0,0,0,.12);
+  }
+  .mback { background:linear-gradient(135deg,#7fc8ff,#4a7bd8); color:#fff; }
+  .mfront { background:#fff; transform:rotateY(180deg); }
+  .mcard.done { visibility:hidden; }
+
+  /* ---------- 퀴즈 공통 ---------- */
+  .quizQ { text-align:center; font-size:clamp(21px,4vw,36px); font-weight:900; padding:6px 12px; flex:0 0 auto; }
+  .quizStage {
+    flex:1; display:flex; align-items:center; justify-content:center; flex-wrap:wrap;
+    gap:14px; padding:10px; align-content:center; position:relative; min-height:0;
+  }
+  .quizStage .item { font-size:clamp(46px,8vw,80px); line-height:1.15; }
+  .quizAns { display:flex; gap:16px; justify-content:center; padding:0 12px 20px; flex:0 0 auto; flex-wrap:wrap; }
+  .ansBtn {
+    min-width:clamp(78px,13vw,124px); min-height:clamp(78px,13vw,124px);
+    font-size:clamp(38px,6.5vw,60px); font-weight:900; border:none; border-radius:26px; background:#fff;
+    box-shadow:0 7px 0 rgba(0,0,0,.13); cursor:pointer; transition:transform .08s;
+    display:flex; align-items:center; justify-content:center; line-height:1.1;
+  }
+  .ansBtn:active { transform:translateY(4px); box-shadow:0 2px 0 rgba(0,0,0,.13); }
+  .colorDot { width:clamp(80px,13vw,124px); height:clamp(80px,13vw,124px); border-radius:50%;
+    border:6px solid #fff; box-shadow:0 7px 0 rgba(0,0,0,.15); cursor:pointer; }
+  .colorDot:active { transform:translateY(4px); }
+  .sil { filter:brightness(0); opacity:.8; }
+  .bigTop { text-align:center; font-size:clamp(70px,12vw,120px); padding:4px; flex:0 0 auto; line-height:1.1; }
+
+  /* ---------- 글자/숫자 카드 ---------- */
+  .letterGrid {
+    flex:1; display:grid; grid-template-columns:repeat(auto-fill,minmax(118px,1fr));
+    gap:12px; padding:14px; overflow-y:auto; align-content:start;
+  }
+  .letterCard {
+    background:#fff; border:none; border-radius:20px; padding:12px 4px; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:3px; box-shadow:0 6px 0 rgba(0,0,0,.10);
+  }
+  .letterCard:active { transform:scale(.92); }
+  .letterCard .ch { font-size:clamp(34px,5.5vw,50px); font-weight:900; color:#4a7bd8; line-height:1.1; }
+  .letterCard .em { font-size:clamp(34px,5.5vw,52px); line-height:1.15; }
+  .letterCard .wd { font-size:clamp(14px,2.2vw,18px); font-weight:800; }
+
+  /* ---------- 음악 ---------- */
+  .keysRow { flex:1; display:flex; gap:8px; padding:14px; align-items:stretch; min-height:0; }
+  .key {
+    flex:1; border:none; border-radius:0 0 22px 22px; background:#fff; cursor:pointer;
+    box-shadow:0 8px 0 rgba(0,0,0,.15); display:flex; flex-direction:column;
+    justify-content:flex-end; align-items:center; padding-bottom:14px; font-size:clamp(22px,3.6vw,36px);
+    touch-action:none;
+  }
+  .key span { font-size:clamp(13px,1.9vw,17px); color:#8a8aa5; font-weight:800; }
+  .key.hit { transform:translateY(5px); box-shadow:0 3px 0 rgba(0,0,0,.15); filter:brightness(1.12); }
+  .xyloBox { flex:1; display:flex; flex-direction:column; gap:10px; padding:14px 24px; align-items:center; min-height:0; }
+  .xbar {
+    border:none; border-radius:16px; cursor:pointer; flex:1; width:100%;
+    box-shadow:0 6px 0 rgba(0,0,0,.18); font-size:clamp(15px,2.4vw,20px); font-weight:900; color:#fff;
+    text-shadow:0 1px 2px rgba(0,0,0,.3); touch-action:none;
+  }
+  .xbar.hit { transform:translateY(4px); filter:brightness(1.2); }
+  .drumBox { flex:1; display:grid; grid-template-columns:repeat(3,1fr); gap:14px; padding:14px; min-height:0; }
+  .pad {
+    border:none; border-radius:26px; cursor:pointer; font-size:clamp(38px,6.5vw,64px);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    box-shadow:0 8px 0 rgba(0,0,0,.15); touch-action:none;
+  }
+  .pad span { font-size:clamp(14px,2.2vw,19px); font-weight:900; color:#3a3a55; }
+  .pad.hit { transform:translateY(5px) scale(.97); filter:brightness(1.1); }
+  .simonBox { flex:1; display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:14px; max-width:640px; width:100%; margin:0 auto; min-height:0; }
+  .spad { border:none; border-radius:30px; cursor:pointer; font-size:clamp(44px,8vw,80px);
+    box-shadow:0 8px 0 rgba(0,0,0,.2); opacity:.72; touch-action:none; }
+  .spad.lit { opacity:1; transform:scale(1.04); filter:brightness(1.25) saturate(1.3); }
+
+  /* ---------- 경주/로켓/달걀 ---------- */
+  .road {
+    position:absolute; left:0; right:0; height:44%; background:#6d6d7a;
+    border-top:6px dashed #fff; border-bottom:6px solid #4c4c58;
+  }
+  .carEl { position:absolute; font-size:clamp(44px,8vw,74px); transform:scaleX(-1); transition:left .12s linear; line-height:1; }
+  .flagEl { position:absolute; font-size:clamp(40px,7vw,66px); }
+  .tapHint { position:absolute; bottom:8px; left:0; right:0; text-align:center; color:#fff;
+    font-size:clamp(17px,3vw,26px); font-weight:900; text-shadow:0 2px 3px rgba(0,0,0,.4); pointer-events:none; }
+  .rocketStage { flex:1; position:relative; background:linear-gradient(180deg,#20264d 0%,#3a4a8a 70%,#7a6a5a 100%);
+    margin:0 12px 12px; border-radius:22px; overflow:hidden; touch-action:none; }
+  #rocketEl { position:absolute; left:50%; bottom:10%; transform:translateX(-50%);
+    font-size:clamp(90px,16vw,150px); transition:transform 1.6s ease-in; line-height:1; }
+  #rocketCnt { position:absolute; top:6%; left:0; right:0; text-align:center; color:#fff;
+    font-size:clamp(60px,11vw,110px); font-weight:900; text-shadow:0 3px 0 rgba(0,0,0,.3); }
+  .eggRow { flex:1; display:flex; align-items:center; justify-content:center; gap:5vw; flex-wrap:wrap; padding:10px; }
+  .eggBtn { background:none; border:none; font-size:clamp(80px,15vw,150px); cursor:pointer; line-height:1.1; }
+
+  /* ---------- 얼굴/아이스크림 ---------- */
+  .faceStage { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.05; min-height:0; }
+  .faceStage .hatL { font-size:clamp(56px,9vw,96px); min-height:1.1em; }
+  .faceStage .faceL { font-size:clamp(120px,22vw,220px); cursor:pointer; }
+  .faceStage .neckL { font-size:clamp(50px,8vw,86px); min-height:1.1em; }
+  .btnRow { display:flex; gap:12px; justify-content:center; padding:0 12px 18px; flex-wrap:wrap; flex:0 0 auto; }
+  .iceStage { flex:1; display:flex; flex-direction:column-reverse; align-items:center; justify-content:flex-start; padding-bottom:8px; min-height:0; overflow:hidden; }
+  .cone { width:0; height:0; border-left:52px solid transparent; border-right:52px solid transparent; border-top:120px solid #d9a05b; }
+  .scoop { width:118px; height:96px; border-radius:50% 50% 45% 45%; margin-bottom:-26px; position:relative;
+    box-shadow:inset -8px -10px 14px rgba(0,0,0,.12); animation:pop .3s; }
+  .scoop .tp { position:absolute; font-size:26px; }
+
+  /* ---------- 퍼즐 ---------- */
+  .pzBoard { flex:1; display:flex; align-items:center; justify-content:center; padding:8px; min-height:0; }
+  .pzGrid { display:grid; gap:4px; background:#fff; border-radius:18px; padding:6px;
+    box-shadow:0 6px 0 rgba(0,0,0,.12); }
+  .pzTile { background-repeat:no-repeat; border-radius:8px; cursor:pointer; }
+  .pzTile.selTile { outline:5px solid #ff7b54; transform:scale(1.06); z-index:2; }
+
+  /* ---------- 태블릿(넓은 화면) 최적화 ---------- */
+  @media (min-width:900px){
+    .menu { max-width:1240px; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:18px; }
+    .card { padding:22px 8px 16px; border-radius:28px; }
+    .card .ico { font-size:66px; }
+    .card .nm { font-size:22px; }
+    .letterGrid { grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:16px; }
+    #memGridBox { max-width:1000px; }
+    #moleGridBox { max-width:900px; }
+    .quizStage .item { font-size:92px; }
+    .ansBtn { min-width:140px; min-height:140px; font-size:66px; }
+    .colorDot { width:140px; height:140px; }
+    .simonBox { max-width:760px; }
+    .cone { border-left-width:64px; border-right-width:64px; border-top-width:150px; }
+    .scoop { width:146px; height:118px; margin-bottom:-32px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="praise"><div class="big">🎉</div><div class="txt">잘했어요!</div></div>
+
+<section id="home" class="screen on">
+  <div class="title">
+    <h1>🧸 아이 놀이터 🧸</h1>
+    <p>하고 싶은 놀이를 눌러 보세요! (44가지)</p>
+    <button id="fsBtn" class="toolBtn" style="margin-top:10px">⛶ 전체화면</button>
+    <button id="bgmBtn" class="toolBtn" style="margin-top:10px">🎵 배경음악 켜기</button>
+  </div>
+  <div class="menu" id="menu"></div>
+</section>
+
+<script>
+"use strict";
+/* ================================================================
+   공통 유틸
+================================================================ */
+const $ = (s,p=document)=>p.querySelector(s);
+const $$ = (s,p=document)=>[...p.querySelectorAll(s)];
+const rand = n=>Math.floor(Math.random()*n);
+const shuffle = a=>{ for(let i=a.length-1;i>0;i--){ const j=rand(i+1); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+function el(tag,cls,html){ const e=document.createElement(tag); if(cls)e.className=cls; if(html!=null)e.innerHTML=html; return e; }
+
+/* ---- 소리 ---- */
+let AC=null, noiseBuf=null;
+function ac(){ if(!AC){ AC=new (window.AudioContext||window.webkitAudioContext)(); } if(AC.state==="suspended")AC.resume(); return AC; }
+function tone(freq,dur=0.15,type="sine",vol=0.25,when=0){
+  try{
+    const ctx=ac(),o=ctx.createOscillator(),g=ctx.createGain();
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(vol,ctx.currentTime+when);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+when+dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(ctx.currentTime+when); o.stop(ctx.currentTime+when+dur+0.05);
+  }catch(e){}
+}
+function noiseHit(dur=0.15,vol=0.25,hp=0){
+  try{
+    const ctx=ac();
+    if(!noiseBuf){ noiseBuf=ctx.createBuffer(1,ctx.sampleRate*0.5,ctx.sampleRate);
+      const d=noiseBuf.getChannelData(0); for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1; }
+    const s=ctx.createBufferSource(); s.buffer=noiseBuf;
+    const g=ctx.createGain(); g.gain.setValueAtTime(vol,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+    let node=s;
+    if(hp){ const f=ctx.createBiquadFilter(); f.type="highpass"; f.frequency.value=hp; s.connect(f); node=f; }
+    node.connect(g); g.connect(ctx.destination); s.start(); s.stop(ctx.currentTime+dur+0.05);
+  }catch(e){}
+}
+function kick(){
+  try{
+    const ctx=ac(),o=ctx.createOscillator(),g=ctx.createGain();
+    o.frequency.setValueAtTime(150,ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(45,ctx.currentTime+0.25);
+    g.gain.setValueAtTime(0.55,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.3);
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+0.35);
+  }catch(e){}
+}
+/* ---- 예쁜 종소리 & 동요 멜로디 ---- */
+const NOTE_HZ={C4:261.63,D4:293.66,E4:329.63,F4:349.23,G4:392.00,A4:440.00,B4:493.88,C5:523.25,D5:587.33,E5:659.25};
+const SCALE10=[NOTE_HZ.C4,NOTE_HZ.D4,NOTE_HZ.E4,NOTE_HZ.F4,NOTE_HZ.G4,NOTE_HZ.A4,NOTE_HZ.B4,NOTE_HZ.C5,NOTE_HZ.D5,NOTE_HZ.E5];
+function bell(f,dur=0.5,vol=0.25,when=0){
+  tone(f,dur,"sine",vol,when);
+  tone(f*2,dur*0.6,"sine",vol*0.35,when);
+  tone(f*3,dur*0.35,"sine",vol*0.12,when);
+}
+const MELODIES=[
+  ["E4","D4","C4","D4","E4","E4","E4","D4","D4","D4","E4","G4","G4"],
+  ["G4","G4","A4","A4","G4","G4","E4","G4","G4","E4","E4","D4"],
+  ["C4","C4","G4","G4","A4","A4","G4"],
+  ["G4","E4","E4","F4","D4","D4","C4","D4","E4","F4","G4","G4","G4"],
+  ["C4","D4","E4","F4","G4","A4","G4"],
+  ["C4","C4","C4","E4","G4","G4","E4","C4"]
+];
+function playMelody(idx){
+  const mel=MELODIES[idx==null?rand(MELODIES.length):idx];
+  mel.forEach((n,i)=>bell(NOTE_HZ[n],0.32,0.26,i*0.17));
+}
+function popSound(){ bell(1046,0.18,0.2); bell(1568,0.2,0.15,0.06); }
+function goodSound(){ playMelody(); }
+function badSound(){ tone(392,0.2,"sine",0.14); tone(311,0.3,"sine",0.12,0.18); }
+
+/* ---- 음성 ---- */
+function speak(text,lang="ko-KR",rate=0.9){
+  try{
+    if(!("speechSynthesis" in window))return;
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    u.lang=lang; u.rate=rate; u.pitch=1.2;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+const speakEN = t=>speak(t,"en-US",0.85);
+
+/* ---- 칭찬 ---- */
+const PRAISES=[["🎉","잘했어요!"],["🌟","최고예요!"],["👏","멋져요!"],["💖","참 잘했어요!"],["🏆","딩동댕!"],["🎊","우와 대단해요!"]];
+let praiseTimer=null;
+function praise(){
+  const [em,tx]=PRAISES[rand(PRAISES.length)];
+  $("#praise .big").textContent=em; $("#praise .txt").textContent=tx;
+  $("#praise").classList.add("on");
+  goodSound(); speak(tx);
+  clearTimeout(praiseTimer);
+  praiseTimer=setTimeout(()=>$("#praise").classList.remove("on"),1200);
+}
+function wrongTap(elm,msg){
+  elm.classList.remove("wrong"); void elm.offsetWidth; elm.classList.add("wrong");
+  badSound(); if(msg)speak(msg);
+}
+
+/* ---- 화면 골격 ---- */
+const starts={}, stops={};
+let current="home";
+const GAMES=[]; // {id,icon,name,cat}
+function makeScreen(id,icon,name,cat,opt={}){
+  const sec=el("section","screen"); sec.id=id;
+  let barHtml='<button class="homeBtn" data-go="home">🏠</button><h2>'+icon+" "+name+'</h2>';
+  if(opt.score) barHtml+='<div class="score">⭐ <span id="'+id+'Score">0</span></div>';
+  if(opt.count) barHtml+='<div class="score"><span id="'+id+'Score">0</span> '+opt.count+'</div>';
+  if(opt.reset) barHtml+='<button class="homeBtn" id="'+id+'Reset" style="color:#4a7bd8">🔄</button>';
+  sec.appendChild(el("div","bar",barHtml));
+  const body=el("div","body"); sec.appendChild(body);
+  document.body.appendChild(sec);
+  GAMES.push({id,icon,name,cat});
+  return body;
+}
+function addScore(id,n=1){
+  const s=$("#"+id+"Score");
+  s.textContent = (+s.textContent)+n;
+  return +s.textContent;
+}
+function resetScore(id){ const s=$("#"+id+"Score"); if(s)s.textContent=0; }
+function go(id){
+  if(stops[current])stops[current]();
+  try{ speechSynthesis.cancel(); }catch(e){}
+  $$(".screen").forEach(s=>s.classList.remove("on"));
+  $("#"+id).classList.add("on");
+  current=id;
+  if(starts[id])starts[id]();
+}
+document.addEventListener("click",e=>{
+  const b=e.target.closest("[data-go]");
+  if(b){ ac(); bell(784,0.22,0.18); go(b.dataset.go); }
+});
+/* 일반 버튼: click(브라우저가 스크롤/탭을 구분) / 게임 연타 영역: pointerdown(즉시 반응) */
+function onTap(elm,fn){ elm.addEventListener("click",e=>{ ac(); fn(e); }); }
+function onTapFast(elm,fn){ elm.addEventListener("pointerdown",e=>{ e.preventDefault(); ac(); fn(e); }); }
+
+/* 길게 누르기 메뉴(검색 팝업)·텍스트 선택·핀치 확대 차단 */
+document.addEventListener("contextmenu",e=>e.preventDefault());
+document.addEventListener("selectstart",e=>e.preventDefault());
+document.addEventListener("gesturestart",e=>e.preventDefault());
+
+/* 전체화면 토글 */
+(function(){
+  const b=document.getElementById("fsBtn");
+  const de=document.documentElement;
+  const req=de.requestFullscreen||de.webkitRequestFullscreen;
+  const isApp=(window.matchMedia&&(matchMedia("(display-mode: standalone)").matches||matchMedia("(display-mode: fullscreen)").matches))||navigator.standalone;
+  if(isApp){ b.style.display="none"; return; } /* 앱으로 실행 중이면 이미 전체화면 */
+  function isFs(){ return !!(document.fullscreenElement||document.webkitFullscreenElement); }
+  function upd(){ b.textContent=isFs()?"↙ 전체화면 나가기":"⛶ 전체화면"; }
+  b.addEventListener("click",()=>{
+    ac(); bell(880,0.2,0.18);
+    if(!req){
+      b.textContent="😢 이 브라우저는 전체화면이 안 돼요";
+      speak("이 브라우저는 전체화면을 지원하지 않아요");
+      setTimeout(()=>{ b.textContent="⛶ 전체화면"; },2500);
+      return;
+    }
+    try{
+      if(isFs()) (document.exitFullscreen||document.webkitExitFullscreen).call(document);
+      else req.call(de);
+    }catch(e){}
+  });
+  document.addEventListener("fullscreenchange",upd);
+  document.addEventListener("webkitfullscreenchange",upd);
+})();
+
+/* ---- 배경음악 (오르골풍 동요 메들리) ---- */
+(function(){
+  const b=document.getElementById("bgmBtn");
+  const R=null; // 쉼표
+  // [음, 박자] — 반짝반짝 / 비행기 / 나비야 / 학교종 / 곰 세 마리
+  const SONGS=[
+    [["C4",1],["C4",1],["G4",1],["G4",1],["A4",1],["A4",1],["G4",2],
+     ["F4",1],["F4",1],["E4",1],["E4",1],["D4",1],["D4",1],["C4",2],
+     ["G4",1],["G4",1],["F4",1],["F4",1],["E4",1],["E4",1],["D4",2],
+     ["G4",1],["G4",1],["F4",1],["F4",1],["E4",1],["E4",1],["D4",2],
+     ["C4",1],["C4",1],["G4",1],["G4",1],["A4",1],["A4",1],["G4",2],
+     ["F4",1],["F4",1],["E4",1],["E4",1],["D4",1],["D4",1],["C4",2]],
+    [["E4",1],["D4",1],["C4",1],["D4",1],["E4",1],["E4",1],["E4",2],
+     ["D4",1],["D4",1],["D4",2],["E4",1],["G4",1],["G4",2],
+     ["E4",1],["D4",1],["C4",1],["D4",1],["E4",1],["E4",1],["E4",2],
+     ["D4",1],["D4",1],["E4",1],["D4",1],["C4",3]],
+    [["G4",1],["E4",1],["E4",2],["F4",1],["D4",1],["D4",2],
+     ["C4",1],["D4",1],["E4",1],["F4",1],["G4",1],["G4",1],["G4",2],
+     ["G4",1],["E4",1],["E4",1],["E4",1],["F4",1],["D4",1],["D4",1],["D4",1],
+     ["C4",1],["E4",1],["G4",1],["G4",1],["E4",1],["E4",1],["E4",3]],
+    [["G4",1],["G4",1],["A4",1],["A4",1],["G4",1],["G4",1],["E4",2],
+     ["G4",1],["G4",1],["E4",1],["E4",1],["D4",3],
+     ["G4",1],["G4",1],["A4",1],["A4",1],["G4",1],["G4",1],["E4",2],
+     ["G4",1],["E4",1],["D4",1],["E4",1],["C4",3]],
+    [["C4",2],["C4",1],["C4",1],["C4",1],["C4",1],["E4",1],["G4",1],["G4",1],["E4",1],["C4",2],
+     ["E4",1],["E4",1],["E4",2],["E4",1],["E4",1],["G4",1],["G4",1],["E4",1],["C4",3]]
+  ];
+  const BEAT=320; // ms
+  let on=false, t=null, order=[], si=0, queue=[], qi=0;
+  function nextSong(){
+    if(!order.length||si>=order.length){ order=shuffle([0,1,2,3,4]); si=0; }
+    queue=SONGS[order[si++]].concat([[R,4]]); // 곡 사이 쉼
+    qi=0;
+  }
+  function step(){
+    if(!on)return;
+    if(qi>=queue.length)nextSong();
+    const [n,beats]=queue[qi++];
+    if(n){
+      const f=NOTE_HZ[n];
+      tone(f,beats*BEAT/1000*0.9,"sine",0.05);
+      tone(f*2,beats*BEAT/1000*0.55,"sine",0.017);
+      tone(f*4,beats*BEAT/1000*0.3,"sine",0.006);
+    }
+    t=setTimeout(step,beats*BEAT);
+  }
+  b.addEventListener("click",()=>{
+    ac();
+    on=!on;
+    if(on){
+      b.textContent="🔇 배경음악 끄기";
+      order=[]; nextSong(); step();
+    }else{
+      b.textContent="🎵 배경음악 켜기";
+      clearTimeout(t);
+    }
+  });
+})();
+
+/* 공용 데이터 */
+const ANIMALS=[
+  ["🐶","강아지","멍멍!"],["🐱","고양이","야옹!"],["🐮","소","음메!"],["🐷","돼지","꿀꿀!"],
+  ["🐔","닭","꼬끼오!"],["🐤","병아리","삐약삐약!"],["🦆","오리","꽥꽥!"],["🐸","개구리","개굴개굴!"],
+  ["🐘","코끼리","뿌우!"],["🦁","사자","어흥!"],["🐯","호랑이","어흥!"],["🐵","원숭이","우끼끼!"],
+  ["🐭","쥐","찍찍!"],["🐴","말","히힝!"],["🐑","양","메에!"],["🐝","꿀벌","윙윙!"]
+];
+const PAINT_COLORS=["#e74c3c","#ff8a2b","#f4d03f","#2ecc71","#1abc9c","#3498db","#8e6bbf","#ff7bac","#8d6e63","#3a3a55","#95a5a6","#ffffff"];
+
+/* ================================================================
+   [만들기] 1. 그림 그리기
+================================================================ */
+(function(){
+  const body=makeScreen("draw","🎨","그림 그리기","만들기 놀이");
+  const pal=el("div","tools"), tools=el("div","tools"), wrap=el("div","canvasWrap");
+  const canvas=document.createElement("canvas"); wrap.appendChild(canvas);
+  body.append(pal,tools,wrap);
+  const ctx=canvas.getContext("2d");
+  const STAMPS=["🐥","🐶","🐱","⭐","🌸","🚗","❤️","🦋","🍎","🌈"];
+  const SIZES=[6,14,28];
+  let color=PAINT_COLORS[0], mode="pen", sizeIdx=1, hue=0, stampIdx=0;
+  let drawing=false, last=null, snap=null;
+
+  PAINT_COLORS.forEach((c,i)=>{
+    const d=el("div","swatch"+(i===0?" sel":""));
+    d.style.background=c; if(c==="#ffffff")d.style.borderColor="#ddd";
+    onTap(d,()=>{
+      color=c; if(mode!=="stamp")setMode("pen");
+      $$(".swatch",pal).forEach(s=>s.classList.remove("sel")); d.classList.add("sel");
+      tone(520,0.06,"triangle",0.15);
+    });
+    pal.appendChild(d);
+  });
+  const bPen=el("button","toolBtn sel","🖍️ 크레용"), bRain=el("button","toolBtn","🌈 무지개펜"),
+        bStamp=el("button","toolBtn","🐥 도장"), bErase=el("button","toolBtn","🧽 지우개"),
+        bSize=el("button","toolBtn","⚫ 굵기"), bClear=el("button","toolBtn","🗑️ 다 지우기");
+  tools.append(bPen,bRain,bStamp,bErase,bSize,bClear);
+  function setMode(m){
+    mode=m;
+    [[bPen,"pen"],[bRain,"rainbow"],[bStamp,"stamp"],[bErase,"eraser"]]
+      .forEach(([bt,mm])=>bt.classList.toggle("sel",mm===m));
+  }
+  onTap(bPen,()=>{ setMode("pen"); tone(520,0.06); });
+  onTap(bRain,()=>{ setMode("rainbow"); tone(620,0.06); });
+  onTap(bErase,()=>{ setMode("eraser"); tone(420,0.06); });
+  onTap(bStamp,()=>{
+    if(mode==="stamp")stampIdx=(stampIdx+1)%STAMPS.length;
+    setMode("stamp"); bStamp.textContent=STAMPS[stampIdx]+" 도장"; tone(720,0.06);
+  });
+  onTap(bSize,()=>{
+    sizeIdx=(sizeIdx+1)%SIZES.length;
+    bSize.textContent=["🔸 가늘게","⚫ 굵기","🟣 굵게"][sizeIdx]; tone(560,0.06);
+  });
+  onTap(bClear,()=>{ ctx.fillStyle="#fff"; ctx.fillRect(0,0,canvas.width,canvas.height); tone(300,0.15,"sawtooth",0.1); });
+
+  function resize(){
+    if(canvas.width>0){ try{ snap=ctx.getImageData(0,0,canvas.width,canvas.height); }catch(e){ snap=null; } }
+    const r=wrap.getBoundingClientRect(), dpr=Math.min(window.devicePixelRatio||1,2);
+    canvas.width=Math.max(1,Math.floor(r.width*dpr)); canvas.height=Math.max(1,Math.floor(r.height*dpr));
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.fillStyle="#fff"; ctx.fillRect(0,0,r.width,r.height);
+    ctx.lineCap="round"; ctx.lineJoin="round";
+    if(snap){ try{ ctx.putImageData(snap,0,0); }catch(e){} }
+  }
+  starts.draw=()=>requestAnimationFrame(resize);
+  window.addEventListener("resize",()=>{ if(current==="draw")resize(); });
+
+  const pos=e=>{ const r=canvas.getBoundingClientRect(); return {x:e.clientX-r.left,y:e.clientY-r.top}; };
+  function stroke(){
+    if(mode==="eraser"){ ctx.strokeStyle="#fff"; ctx.lineWidth=SIZES[sizeIdx]*2.2; }
+    else if(mode==="rainbow"){ hue=(hue+4)%360; ctx.strokeStyle="hsl("+hue+",90%,55%)"; ctx.lineWidth=SIZES[sizeIdx]; }
+    else { ctx.strokeStyle=color; ctx.lineWidth=SIZES[sizeIdx]; }
+  }
+  canvas.addEventListener("pointerdown",e=>{
+    e.preventDefault(); ac(); canvas.setPointerCapture(e.pointerId);
+    const p=pos(e);
+    if(mode==="stamp"){
+      ctx.font=(SIZES[sizeIdx]*3+26)+"px serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText(STAMPS[stampIdx],p.x,p.y);
+      tone(700+rand(300),0.08,"triangle",0.18); return;
+    }
+    drawing=true; last=p;
+    ctx.beginPath(); stroke(); ctx.fillStyle=ctx.strokeStyle;
+    ctx.arc(p.x,p.y,ctx.lineWidth/2,0,Math.PI*2); ctx.fill();
+  });
+  canvas.addEventListener("pointermove",e=>{
+    if(!drawing)return; e.preventDefault();
+    (e.getCoalescedEvents?e.getCoalescedEvents():[e]).forEach(ev=>{
+      const p=pos(ev);
+      ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); stroke(); ctx.stroke();
+      last=p;
+    });
+  });
+  ["pointerup","pointercancel","pointerleave"].forEach(t=>canvas.addEventListener(t,()=>{drawing=false;last=null;}));
+})();
+
+/* ================================================================
+   [만들기] 2. 색칠 놀이 (SVG)
+================================================================ */
+(function(){
+  const body=makeScreen("paintbook","🖍️","색칠 놀이","만들기 놀이");
+  const pal=el("div","tools"), picks=el("div","tools"), wrap=el("div","canvasWrap");
+  body.append(pal,picks,wrap);
+  let curColor=PAINT_COLORS[0];
+  PAINT_COLORS.forEach((c,i)=>{
+    const d=el("div","swatch"+(i===0?" sel":""));
+    d.style.background=c; if(c==="#ffffff")d.style.borderColor="#ddd";
+    onTap(d,()=>{ curColor=c; $$(".swatch",pal).forEach(s=>s.classList.remove("sel")); d.classList.add("sel"); tone(520,0.06,"triangle",0.15); });
+    pal.appendChild(d);
+  });
+  const S='fill="#ffffff" stroke="#3a3a55" stroke-width="5"';
+  const PICS={
+    "🏠 집":'<polygon class="fb" points="95,135 200,55 305,135" '+S+'/><rect class="fb" x="115" y="135" width="170" height="115" '+S+'/><rect class="fb" x="182" y="180" width="42" height="70" '+S+'/><rect class="fb" x="132" y="152" width="36" height="36" '+S+'/><rect class="fb" x="234" y="152" width="36" height="36" '+S+'/><circle class="fb" cx="58" cy="55" r="27" '+S+'/><rect class="fb" x="10" y="250" width="380" height="35" '+S+'/>',
+    "🌸 꽃":[0,60,120,180,240,300].map(a=>'<ellipse class="fb" cx="200" cy="68" rx="24" ry="36" '+S+' transform="rotate('+a+' 200 115)"/>').join("")+'<circle class="fb" cx="200" cy="115" r="30" '+S+'/><rect class="fb" x="194" y="160" width="12" height="105" '+S+'/><ellipse class="fb" cx="238" cy="215" rx="30" ry="15" '+S+' transform="rotate(-25 238 215)"/>',
+    "🐟 물고기":'<polygon class="fb" points="268,150 340,98 340,202" '+S+'/><ellipse class="fb" cx="175" cy="150" rx="105" ry="62" '+S+'/><ellipse class="fb" cx="185" cy="115" rx="30" ry="16" '+S+' transform="rotate(-20 185 115)"/><circle cx="110" cy="135" r="10" fill="#3a3a55"/><circle class="fb" cx="330" cy="55" r="12" '+S+'/><circle class="fb" cx="355" cy="30" r="8" '+S+'/>',
+    "🚗 자동차":'<rect class="fb" x="122" y="92" width="150" height="60" rx="18" '+S+'/><rect class="fb" x="60" y="140" width="280" height="62" rx="20" '+S+'/><rect class="fb" x="138" y="104" width="50" height="40" rx="8" '+S+'/><rect class="fb" x="205" y="104" width="50" height="40" rx="8" '+S+'/><circle class="fb" cx="130" cy="208" r="28" '+S+'/><circle class="fb" cx="272" cy="208" r="28" '+S+'/><circle cx="130" cy="208" r="9" fill="#3a3a55"/><circle cx="272" cy="208" r="9" fill="#3a3a55"/>'
+  };
+  const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("viewBox","0 0 400 300");
+  svg.setAttribute("preserveAspectRatio","xMidYMid meet");
+  wrap.appendChild(svg);
+  function load(name){ svg.innerHTML=PICS[name]; }
+  Object.keys(PICS).forEach((nm,i)=>{
+    const b=el("button","toolBtn"+(i===0?" sel":""),nm);
+    onTap(b,()=>{ $$(".toolBtn",picks).forEach(x=>x.classList.remove("sel")); b.classList.add("sel"); load(nm); tone(600,0.06); });
+    picks.appendChild(b);
+  });
+  const bReset=el("button","toolBtn","🗑️ 처음처럼");
+  onTap(bReset,()=>{ $$(".fb",svg).forEach(p=>p.setAttribute("fill","#ffffff")); tone(300,0.12,"sawtooth",0.1); });
+  picks.appendChild(bReset);
+  svg.addEventListener("pointerdown",e=>{
+    e.preventDefault(); ac();
+    const t=e.target.closest(".fb");
+    if(t){ t.setAttribute("fill",curColor); tone(500+rand(300),0.07,"triangle",0.15); }
+  });
+  load("🏠 집");
+})();
+
+/* ================================================================
+   [만들기] 3. 얼굴 꾸미기
+================================================================ */
+(function(){
+  const body=makeScreen("face","🤡","얼굴 꾸미기","만들기 놀이");
+  const stage=el("div","faceStage"), row=el("div","btnRow");
+  const hatL=el("div","hatL"), faceL=el("div","faceL"), neckL=el("div","neckL");
+  stage.append(hatL,faceL,neckL); body.append(stage,row);
+  const FACES=["😀","😜","🥳","😴","🤪","😎","😺","🐷","🤖","👻","🦄","🐵"];
+  const HATS=["","🎩","👒","🎀","👑","🧢","🎓","🪖"];
+  const NECKS=["","🧣","🎀","👔","🌸"];
+  const FUN=["우와, 멋쟁이!","하하, 재미있는 얼굴!","정말 귀여워요!","최고로 웃겨요!"];
+  let fi=0,hi=0,ni=0;
+  function render(){ hatL.textContent=HATS[hi]; faceL.textContent=FACES[fi]; neckL.textContent=NECKS[ni]; }
+  function bump(){ faceL.classList.remove("wig"); void faceL.offsetWidth; faceL.classList.add("wig"); }
+  const bF=el("button","toolBtn","😀 얼굴 바꾸기"), bH=el("button","toolBtn","🎩 모자 바꾸기"),
+        bN=el("button","toolBtn","🧣 꾸미기"), bR=el("button","toolBtn","🎲 랜덤!");
+  onTap(bF,()=>{ fi=(fi+1)%FACES.length; render(); bump(); tone(600,0.07,"triangle",0.18); });
+  onTap(faceL,()=>{ fi=(fi+1)%FACES.length; render(); bump(); tone(600,0.07,"triangle",0.18); });
+  onTap(bH,()=>{ hi=(hi+1)%HATS.length; render(); bump(); tone(700,0.07,"triangle",0.18); });
+  onTap(bN,()=>{ ni=(ni+1)%NECKS.length; render(); bump(); tone(500,0.07,"triangle",0.18); });
+  onTap(bR,()=>{ fi=rand(FACES.length); hi=rand(HATS.length); ni=rand(NECKS.length);
+    render(); bump(); goodSound(); speak(FUN[rand(FUN.length)]); });
+  row.append(bF,bH,bN,bR);
+  render();
+})();
+
+/* ================================================================
+   [만들기] 4. 아이스크림 가게
+================================================================ */
+(function(){
+  const body=makeScreen("icecream","🍦","아이스크림 가게","만들기 놀이");
+  const q=el("div","quizQ","맛을 골라 아이스크림을 쌓아 보세요!");
+  const stage=el("div","iceStage"), fl=el("div","btnRow"), tp=el("div","btnRow");
+  body.append(q,stage,fl,tp);
+  const cone=el("div","cone"); stage.appendChild(cone);
+  const FLAVORS=[["딸기","#ff9fb2"],["초코","#8b5a3c"],["바닐라","#fff3cf"],["민트","#b7f0d8"],["포도","#cbb3f0"],["멜론","#cdeea0"]];
+  const TOPS=["🍒","⭐","🍪","🌈","🍫"];
+  let scoops=[];
+  FLAVORS.forEach(([nm,c])=>{
+    const b=el("button","toolBtn",nm);
+    b.style.background=c;
+    onTap(b,()=>{
+      if(scoops.length>=4){ speak("가득 찼어요!"); wrongTap(q); return; }
+      const s=el("div","scoop"); s.style.background=c;
+      stage.appendChild(s); scoops.push(s);
+      bell(SCALE10[scoops.length+2]||NOTE_HZ.C5,0.3,0.24);
+      speak(nm+"!");
+    });
+    fl.appendChild(b);
+  });
+  TOPS.forEach(t=>{
+    const b=el("button","toolBtn",t);
+    onTap(b,()=>{
+      if(!scoops.length){ speak("먼저 맛을 골라 보세요!"); return; }
+      const top=scoops[scoops.length-1];
+      if($$(".tp",top).length>=6)return;
+      const sp=el("span","tp",t);
+      sp.style.left=(8+rand(80))+"px"; sp.style.top=(4+rand(46))+"px";
+      top.appendChild(sp);
+      tone(900+rand(300),0.06,"triangle",0.15);
+    });
+    tp.appendChild(b);
+  });
+  const bDone=el("button","toolBtn","✅ 완성!"), bNew=el("button","toolBtn","🗑️ 새로 만들기");
+  onTap(bDone,()=>{ if(!scoops.length){ speak("먼저 맛을 골라 보세요!"); return; } praise(); setTimeout(()=>speak("냠냠! 맛있겠다!"),1300); });
+  onTap(bNew,()=>{ scoops.forEach(s=>s.remove()); scoops=[]; tone(300,0.12,"sawtooth",0.1); });
+  tp.append(bDone,bNew);
+})();
+
+/* ================================================================
+   [만들기] 5. 숨은 그림 찾기 (닦아서 찾기)
+================================================================ */
+(function(){
+  const body=makeScreen("wipe","🧽","숨은 그림 찾기","만들기 놀이");
+  const q=el("div","quizQ","문질러서 숨은 친구를 찾아보세요!");
+  const tools=el("div","tools"); tools.style.justifyContent="center";
+  const wrap=el("div","canvasWrap");
+  const under=el("div","under");
+  const charBox=el("div");
+  charBox.style.cssText="position:absolute;display:flex;align-items:center;justify-content:center;line-height:1;";
+  const word=el("div");
+  word.style.cssText="position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:clamp(24px,4.5vw,40px);font-weight:900;";
+  under.append(charBox,word);
+  const cv=document.createElement("canvas");
+  cv.style.background="transparent";
+  wrap.append(under,cv); body.append(q,tools,wrap);
+  const cx=cv.getContext("2d");
+
+  const THINGS=[["🦖","공룡"],["🚂","기차"],["🍉","수박"],["🐳","고래"],["🌻","해바라기"],["🚁","헬리콥터"],["🦋","나비"],["🍰","케이크"],["⛄","눈사람"],["🦒","기린"]];
+  const PKEY="kidsWipePhotos";
+  let photos=[], persisted=false;
+  try{ const sv=JSON.parse(localStorage.getItem(PKEY)||"[]"); if(Array.isArray(sv)){ photos=sv; persisted=sv.length>0; } }catch(e){}
+  function savePhotos(){
+    try{ localStorage.setItem(PKEY,JSON.stringify(photos)); persisted=true; }
+    catch(e){ persisted=false; }
+  }
+  let cur=null, done=false, box={x:0,y:0,s:100};
+
+  const fileIn=document.createElement("input");
+  fileIn.type="file"; fileIn.accept="image/*"; fileIn.multiple=true; fileIn.style.display="none";
+  const bPhoto=el("button","toolBtn","📷 우리 캐릭터 넣기");
+  bPhoto.addEventListener("click",()=>{ ac(); fileIn.click(); });
+  const bNew=el("button","toolBtn","🔄 다시 숨기");
+  onTap(bNew,()=>{ tone(500,0.08); round(); });
+  tools.append(bPhoto,bNew,fileIn);
+  fileIn.addEventListener("change",()=>{
+    const fl=[...(fileIn.files||[])];
+    if(!fl.length)return;
+    let loaded=0;
+    fl.forEach(f=>{
+      const rd=new FileReader();
+      rd.onload=()=>{
+        const im=new Image();
+        im.onload=()=>{
+          const c=document.createElement("canvas"); c.width=400; c.height=400;
+          const x=c.getContext("2d");
+          if(x){
+            const s=Math.min(im.width,im.height);
+            x.drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,400,400);
+            photos.push(c.toDataURL("image/jpeg",0.85));
+          }
+          if(++loaded===fl.length){
+            savePhotos(); renderStrip();
+            speak("우리 캐릭터 "+fl.length+"개가 숨을 준비를 했어요!");
+            round(true);
+          }
+        };
+        im.onerror=()=>{ if(++loaded===fl.length){ renderStrip(); round(true); } };
+        im.src=rd.result;
+      };
+      rd.readAsDataURL(f);
+    });
+    fileIn.value="";
+  });
+
+  /* 등록된 캐릭터 갤러리 */
+  const stripWrap=el("div");
+  stripWrap.style.cssText="flex:0 0 auto;padding:0 14px 6px;";
+  const stripInfo=el("div");
+  stripInfo.style.cssText="font-size:clamp(13px,2.2vw,17px);font-weight:800;color:#6b7aa1;padding:2px 2px 5px;";
+  const strip=el("div");
+  strip.style.cssText="display:flex;gap:10px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:6px 2px;";
+  stripWrap.append(stripInfo,strip);
+  body.insertBefore(stripWrap,wrap);
+  function renderStrip(){
+    strip.innerHTML="";
+    stripInfo.textContent=photos.length
+      ? "등록된 우리 캐릭터 "+photos.length+"개 · "+(persisted?"이 기기에 저장됨 ✅":"저장 안 됨(앱을 닫으면 사라져요)")+" · 사진을 누르면 바로 숨어요"
+      : "아직 등록된 캐릭터가 없어요. 📷 버튼으로 넣어 보세요! (여러 장 한번에 가능)";
+    photos.forEach((url,i)=>{
+      const t=el("div");
+      t.style.cssText="position:relative;flex:0 0 auto;";
+      const im=document.createElement("img");
+      im.src=url;
+      im.style.cssText="width:58px;height:58px;object-fit:cover;border-radius:12px;box-shadow:0 3px 0 rgba(0,0,0,.15);display:block;";
+      const del=el("div","","✖");
+      del.style.cssText="position:absolute;top:-7px;right:-7px;width:23px;height:23px;border-radius:50%;background:#ff7b54;color:#fff;font-size:12px;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 0 rgba(0,0,0,.2);";
+      im.addEventListener("click",()=>{ ac(); bell(880,0.2,0.2); round(true,url); });
+      del.addEventListener("click",()=>{ ac(); tone(350,0.12,"sine",0.12); photos.splice(i,1); savePhotos(); renderStrip(); });
+      t.append(im,del);
+      strip.appendChild(t);
+    });
+  }
+  renderStrip();
+
+  function cover(){
+    const r=wrap.getBoundingClientRect(), dpr=Math.min(window.devicePixelRatio||1,2);
+    cv.width=Math.floor(r.width*dpr); cv.height=Math.floor(r.height*dpr);
+    cx.setTransform(dpr,0,0,dpr,0,0);
+    cx.globalCompositeOperation="source-over";
+    const g=cx.createLinearGradient(0,0,r.width,r.height);
+    g.addColorStop(0,"#b6c3d8"); g.addColorStop(1,"#8fa2c0");
+    cx.fillStyle=g; cx.fillRect(0,0,r.width,r.height);
+    cx.fillStyle="rgba(255,255,255,.5)"; cx.font="26px sans-serif"; cx.textAlign="center";
+    cx.fillText("여기를 문질문질~ 🧽", r.width/2, r.height/2);
+    cx.globalCompositeOperation="destination-out";
+  }
+  function place(usePhoto){
+    const W=wrap.clientWidth, H=wrap.clientHeight;
+    const S=Math.max(90,Math.min(W,H)*0.4);
+    box.s=S;
+    box.x=10+rand(Math.max(1,Math.floor(W-S-20)));
+    box.y=10+rand(Math.max(1,Math.floor(H-S-20)));
+    charBox.style.left=box.x+"px"; charBox.style.top=box.y+"px";
+    charBox.style.width=S+"px"; charBox.style.height=S+"px";
+    charBox.innerHTML="";
+    if(usePhoto){
+      const im=document.createElement("img");
+      im.src=cur;
+      im.style.cssText="width:100%;height:100%;object-fit:cover;border-radius:18px;box-shadow:0 4px 10px rgba(0,0,0,.25);pointer-events:none;";
+      charBox.appendChild(im);
+    }else{
+      charBox.textContent=cur[0];
+      charBox.style.fontSize=(S*0.85)+"px";
+    }
+  }
+  function round(forcePhoto,url){
+    done=false;
+    word.textContent="";
+    cv.style.transition="none"; cv.style.opacity="1";
+    const usePhoto=!!(photos.length&&(forcePhoto||Math.random()<0.5));
+    cur=usePhoto?(url||photos[rand(photos.length)]):THINGS[rand(THINGS.length)];
+    charBox.dataset.photo=usePhoto?"1":"";
+    requestAnimationFrame(()=>{ place(usePhoto); cover(); });
+  }
+  function charCleared(){
+    try{
+      const sx=cv.width/wrap.clientWidth, sy=cv.height/wrap.clientHeight;
+      const x0=Math.max(0,Math.floor(box.x*sx)), y0=Math.max(0,Math.floor(box.y*sy));
+      const w=Math.min(cv.width-x0,Math.ceil(box.s*sx)), h=Math.min(cv.height-y0,Math.ceil(box.s*sy));
+      if(w<=0||h<=0)return 0;
+      const d=cx.getImageData(x0,y0,w,h).data;
+      let t=0,c=0;
+      for(let i=3;i<d.length;i+=4*13){ t++; if(d[i]<40)c++; }
+      return t?c/t:0;
+    }catch(e){ return 0; }
+  }
+  function rub(e){
+    const r=cv.getBoundingClientRect();
+    cx.beginPath();
+    cx.arc(e.clientX-r.left, e.clientY-r.top, 34, 0, Math.PI*2);
+    cx.fill();
+  }
+  function checkWin(){
+    if(done)return;
+    if(charCleared()>0.93){
+      done=true;
+      const label=charBox.dataset.photo?"우리 캐릭터":cur[1];
+      word.textContent=label+" 찾았다!";
+      speak(label+"! 찾았다!");
+      cv.style.transition="opacity .8s"; cv.style.opacity="0";
+      praise();
+      setTimeout(round,2600);
+    }
+  }
+  cv.addEventListener("pointerdown",e=>{ e.preventDefault(); ac(); cv.setPointerCapture(e.pointerId); rub(e); noiseHit(0.05,0.05,1200); checkWin(); });
+  cv.addEventListener("pointermove",e=>{
+    if(!e.buttons)return; e.preventDefault();
+    (e.getCoalescedEvents?e.getCoalescedEvents():[e]).forEach(rub);
+    if(Math.random()<0.25)checkWin();
+  });
+  cv.addEventListener("pointerup",checkWin);
+  starts.wipe=()=>round();
+  window.addEventListener("resize",()=>{ if(current==="wipe")round(); });
+})();
+
+/* ================================================================
+   [게임] 6. 풍선 터뜨리기  /  7. 비눗방울 팡팡
+================================================================ */
+function riserGame(id,icon,name,makeEl,unit){
+  const body=makeScreen(id,icon,name,"신나는 게임",{count:unit});
+  const field=el("div","field sky"); body.appendChild(field);
+  let timer=null; const alive=new Set();
+  function spawn(){
+    const b=makeEl();
+    b.classList.add("floaty");
+    const size=b._size;
+    b.style.left=rand(Math.max(40,field.clientWidth-size))+"px";
+    b.style.top=field.clientHeight+"px";
+    field.appendChild(b); alive.add(b);
+    const speed=0.9+Math.random()*1.4;
+    let y=field.clientHeight;
+    const ph=Math.random()*6, amp=8+rand(16);
+    (function step(){
+      if(!alive.has(b))return;
+      y-=speed; b.style.top=y+"px";
+      b.style.transform="translateX("+(Math.sin(ph+y/40)*amp)+"px)";
+      if(y<-140){ alive.delete(b); b.remove(); return; }
+      b._raf=requestAnimationFrame(step);
+    })();
+    b.addEventListener("pointerdown",e=>{
+      e.preventDefault(); ac();
+      if(!alive.has(b))return;
+      alive.delete(b); cancelAnimationFrame(b._raf);
+      b.classList.add("popped"); if(b._popTxt)b.textContent=b._popTxt;
+      popSound();
+      if(addScore(id)%10===0)praise();
+      setTimeout(()=>b.remove(),200);
+    });
+  }
+  starts[id]=()=>{ resetScore(id); timer=setInterval(spawn,780); spawn(); spawn(); };
+  stops[id]=()=>{ clearInterval(timer); alive.forEach(b=>{cancelAnimationFrame(b._raf); b.remove();}); alive.clear(); };
+}
+riserGame("balloon","🎈","풍선 터뜨리기",()=>{
+  const b=el("div","","🎈");
+  const size=58+rand(36); b._size=size; b._popTxt="💥";
+  b.style.fontSize=size+"px";
+  b.style.filter="hue-rotate("+rand(360)+"deg) drop-shadow(0 4px 3px rgba(0,0,0,.15))";
+  return b;
+},"개");
+riserGame("bubble","🫧","비눗방울 팡팡",()=>{
+  const b=el("div","bubbleBall","");
+  const size=54+rand(46); b._size=size; b._popTxt="";
+  b.style.width=size+"px"; b.style.height=size+"px";
+  return b;
+},"방울");
+
+/* ================================================================
+   [게임] 8. 두더지 잡기
+================================================================ */
+(function(){
+  const body=makeScreen("mole","🐹","두더지 잡기","신나는 게임",{count:"마리"});
+  const grid=el("div"); grid.id="moleGridBox"; body.appendChild(grid);
+  const FACES=["🐹","🐹","🐹","🐰","🐸"];
+  let timer=null; const holes=[];
+  for(let i=0;i<9;i++){
+    const h=el("div","hole",'<div class="mo">🐹</div>');
+    h.addEventListener("pointerdown",e=>{
+      e.preventDefault(); ac();
+      if(!h.classList.contains("up"))return;
+      h.classList.remove("up");
+      popSound();
+      if(addScore("mole")%8===0)praise();
+    });
+    grid.appendChild(h); holes.push(h);
+  }
+  function popUp(){
+    const cands=holes.filter(h=>!h.classList.contains("up"));
+    if(!cands.length)return;
+    const h=cands[rand(cands.length)];
+    $(".mo",h).textContent=FACES[rand(FACES.length)];
+    h.classList.add("up");
+    tone(300+rand(200),0.08,"triangle",0.12);
+    setTimeout(()=>h.classList.remove("up"),1100+rand(700));
+  }
+  starts.mole=()=>{ resetScore("mole"); timer=setInterval(popUp,750); };
+  stops.mole=()=>{ clearInterval(timer); holes.forEach(h=>h.classList.remove("up")); };
+})();
+
+/* ================================================================
+   [게임] 9. 물고기 잡기
+================================================================ */
+(function(){
+  const body=makeScreen("fish","🐟","물고기 잡기","신나는 게임",{count:"마리"});
+  const field=el("div","field water"); body.appendChild(field);
+  const KINDS=["🐠","🐟","🐡","🦑","🐙","🦀","🐢"];
+  let timer=null; const alive=new Set();
+  function spawn(){
+    const f=el("div","floaty",KINDS[rand(KINDS.length)]);
+    const size=46+rand(38); f.style.fontSize=size+"px";
+    const fromLeft=Math.random()<0.5;
+    const W=field.clientWidth;
+    let x=fromLeft?-90:W+20;
+    const dir=fromLeft?1:-1;
+    f.style.top=(20+rand(Math.max(40,field.clientHeight-size-40)))+"px";
+    f.style.left=x+"px";
+    if(dir===1)f.style.transform="scaleX(-1)";
+    field.appendChild(f); alive.add(f);
+    const speed=(1+Math.random()*1.6)*dir;
+    (function step(){
+      if(!alive.has(f))return;
+      x+=speed; f.style.left=x+"px";
+      if(x<-120||x>W+120){ alive.delete(f); f.remove(); return; }
+      f._raf=requestAnimationFrame(step);
+    })();
+    f.addEventListener("pointerdown",e=>{
+      e.preventDefault(); ac();
+      if(!alive.has(f))return;
+      alive.delete(f); cancelAnimationFrame(f._raf);
+      f.style.transform=""; f.textContent="💦"; f.classList.add("popped");
+      popSound();
+      if(addScore("fish")%10===0)praise();
+      setTimeout(()=>f.remove(),200);
+    });
+  }
+  starts.fish=()=>{ resetScore("fish"); timer=setInterval(spawn,850); spawn(); spawn(); };
+  stops.fish=()=>{ clearInterval(timer); alive.forEach(f=>{cancelAnimationFrame(f._raf); f.remove();}); alive.clear(); };
+})();
+
+/* ================================================================
+   [게임] 10. 과일 받기
+================================================================ */
+(function(){
+  const body=makeScreen("fruit","🧺","과일 받기","신나는 게임",{count:"개"});
+  const q=el("div","quizQ","바구니를 움직여 과일을 받아요!");
+  const field=el("div","field sky"); body.append(q,field);
+  const FRUITS=["🍎","🍌","🍊","🍓","🍇","🍑","🍐"];
+  const basket=el("div","floaty","🧺");
+  basket.style.fontSize="clamp(60px,10vw,92px)"; basket.style.bottom="4px"; basket.style.zIndex="5";
+  field.appendChild(basket);
+  let bx=100, timer=null; const alive=new Set();
+  function setBasket(x){
+    bx=Math.max(30,Math.min(field.clientWidth-30,x));
+    basket.style.left=(bx-45)+"px";
+  }
+  field.addEventListener("pointerdown",e=>{ e.preventDefault(); ac(); setBasket(e.clientX-field.getBoundingClientRect().left); });
+  field.addEventListener("pointermove",e=>{
+    if(!e.buttons)return; e.preventDefault();
+    setBasket(e.clientX-field.getBoundingClientRect().left);
+  });
+  function spawn(){
+    const f=el("div","floaty",FRUITS[rand(FRUITS.length)]);
+    f.style.fontSize="clamp(40px,7vw,64px)"; f.style.pointerEvents="none";
+    const fx=30+rand(Math.max(60,field.clientWidth-60));
+    f.style.left=(fx-24)+"px";
+    let y=-60; f.style.top=y+"px";
+    field.appendChild(f); alive.add(f);
+    const speed=1.6+Math.random()*1.6;
+    (function step(){
+      if(!alive.has(f))return;
+      y+=speed; f.style.top=y+"px";
+      const H=field.clientHeight;
+      if(y>H-108 && Math.abs(fx-bx)<62){
+        alive.delete(f); f.remove();
+        popSound();
+        basket.classList.remove("wig"); void basket.offsetWidth; basket.classList.add("wig");
+        if(addScore("fruit")%10===0)praise();
+        return;
+      }
+      if(y>H){ alive.delete(f); f.remove(); return; }
+      f._raf=requestAnimationFrame(step);
+    })();
+  }
+  starts.fruit=()=>{ resetScore("fruit"); setBasket(field.clientWidth/2||160); timer=setInterval(spawn,950); };
+  stops.fruit=()=>{ clearInterval(timer); alive.forEach(f=>{cancelAnimationFrame(f._raf); f.remove();}); alive.clear(); };
+})();
+
+/* ================================================================
+   [게임] 11. 반짝반짝 불꽃
+================================================================ */
+(function(){
+  const body=makeScreen("firework","✨","반짝반짝 불꽃","신나는 게임");
+  const wrap=el("div","canvasWrap");
+  const cv=document.createElement("canvas"); cv.style.background="#0d1130";
+  const hint=el("div","","화면을 콕콕 눌러 보세요! 🎆");
+  hint.style.cssText="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:clamp(20px,3.6vw,32px);font-weight:800;opacity:.85;pointer-events:none;";
+  wrap.append(cv,hint); body.appendChild(wrap);
+  const cx=cv.getContext("2d");
+  let parts=[], rockets=[], stars=[], raf=null, hinted=false, tapCount=0, autoT=0, W=0, H=0;
+
+  function resize(){
+    const r=wrap.getBoundingClientRect(), dpr=Math.min(window.devicePixelRatio||1,2);
+    cv.width=Math.floor(r.width*dpr); cv.height=Math.floor(r.height*dpr);
+    cx.setTransform(dpr,0,0,dpr,0,0);
+    W=r.width; H=r.height;
+    stars=[];
+    for(let i=0;i<70;i++)stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+0.4,tw:Math.random()*6.28});
+  }
+  function boomSound(){ kick(); noiseHit(0.35,0.12,900); }
+  function shimmerSound(){ [1046,1318,1568,2093].forEach((f,i)=>tone(f,0.35,"sine",0.07,i*0.05)); }
+  function addP(x,y,vx,vy,hue,opt){
+    parts.push(Object.assign({x,y,vx,vy,hue,life:1,decay:0.011+Math.random()*0.008,
+      size:2+Math.random()*2.5,grav:0.045,glitter:false,crackle:false},opt||{}));
+  }
+  function explode(x,y,type,hue){
+    if(hue==null)hue=rand(360);
+    const n=34+rand(20);
+    if(type==="ring"){
+      for(let i=0;i<n;i++){ const a=i/n*Math.PI*2, sp=3.4+Math.random()*0.4;
+        addP(x,y,Math.cos(a)*sp,Math.sin(a)*sp,hue,{glitter:Math.random()<0.4}); }
+    }else if(type==="heart"){
+      for(let i=0;i<n;i++){ const t=i/n*Math.PI*2;
+        const hx=16*Math.pow(Math.sin(t),3);
+        const hy=-(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t));
+        addP(x,y,hx*0.22,hy*0.22,330+rand(30),{decay:0.010,glitter:Math.random()<0.3}); }
+    }else if(type==="star"){
+      for(let i=0;i<20;i++){ const a=i/20*Math.PI*2, sp=(i%4===0)?4.6:2.2;
+        addP(x,y,Math.cos(a)*sp,Math.sin(a)*sp,50+rand(20),{glitter:true}); }
+    }else if(type==="double"){
+      const h2=(hue+180)%360;
+      for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, sp=1+Math.random()*2;
+        addP(x,y,Math.cos(a)*sp,Math.sin(a)*sp,hue); }
+      for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, sp=2.6+Math.random()*1.6;
+        addP(x,y,Math.cos(a)*sp,Math.sin(a)*sp,h2,{glitter:Math.random()<0.5}); }
+    }else{
+      for(let i=0;i<n+14;i++){ const a=Math.random()*Math.PI*2, sp=1+Math.random()*4.4;
+        addP(x,y,Math.cos(a)*sp,Math.sin(a)*sp,hue+rand(40),{glitter:Math.random()<0.35,crackle:Math.random()<0.12}); }
+    }
+    boomSound(); shimmerSound();
+  }
+  const TYPES=["peony","ring","double","heart","star","peony","double"];
+  function launch(x,ty,type){
+    rockets.push({x,y:H+8,ty:Math.max(50,ty),vy:-(7+Math.random()*2.5),hue:rand(360),type});
+    tone(1200,0.25,"sine",0.06); noiseHit(0.25,0.05,2500);
+  }
+  function finale(){
+    for(let i=0;i<5;i++){
+      setTimeout(()=>explode(40+Math.random()*(W-80),50+Math.random()*(H*0.5),TYPES[rand(TYPES.length)]),i*260);
+    }
+    playMelody();
+  }
+  function loop(){
+    cx.globalCompositeOperation="source-over";
+    cx.fillStyle="rgba(13,17,48,0.24)"; cx.fillRect(0,0,W,H);
+    stars.forEach(s=>{
+      s.tw+=0.05;
+      cx.globalAlpha=0.35+Math.sin(s.tw)*0.3;
+      cx.fillStyle="#fff";
+      cx.beginPath(); cx.arc(s.x,s.y,s.r,0,Math.PI*2); cx.fill();
+    });
+    cx.globalAlpha=1;
+    cx.globalCompositeOperation="lighter";
+    rockets=rockets.filter(r=>r.y>r.ty);
+    rockets.forEach(r=>{
+      r.y+=r.vy;
+      addP(r.x+(Math.random()*4-2),r.y,(Math.random()-0.5)*0.4,0.8+Math.random()*0.5,r.hue,{decay:0.05,size:1.6,grav:0.01});
+      if(r.y<=r.ty)explode(r.x,r.ty,r.type,r.hue);
+      cx.fillStyle="hsl("+r.hue+",90%,80%)";
+      cx.beginPath(); cx.arc(r.x,r.y,3,0,Math.PI*2); cx.fill();
+    });
+    parts=parts.filter(p=>p.life>0);
+    if(parts.length>900)parts.splice(0,parts.length-900);
+    parts.forEach(p=>{
+      p.x+=p.vx; p.y+=p.vy; p.vx*=0.985; p.vy=p.vy*0.985+p.grav; p.life-=p.decay;
+      if(p.crackle&&p.life<0.45){
+        p.crackle=false;
+        for(let i=0;i<5;i++){ const a=Math.random()*Math.PI*2;
+          addP(p.x,p.y,Math.cos(a)*1.4,Math.sin(a)*1.4,p.hue,{decay:0.03,size:1.5}); }
+      }
+      const al=p.glitter?(Math.random()<0.5?p.life:p.life*0.2):p.life;
+      cx.globalAlpha=Math.max(al,0);
+      cx.fillStyle="hsl("+p.hue+",95%,"+(60+p.life*20)+"%)";
+      cx.beginPath(); cx.arc(p.x,p.y,p.size,0,Math.PI*2); cx.fill();
+    });
+    cx.globalAlpha=1;
+    if(++autoT>150){ autoT=0; launch(40+Math.random()*(W-80),60+Math.random()*(H*0.45),TYPES[rand(TYPES.length)]); }
+    raf=requestAnimationFrame(loop);
+  }
+  cv.addEventListener("pointerdown",e=>{
+    e.preventDefault(); ac();
+    if(!hinted){ hint.style.display="none"; hinted=true; }
+    const r=cv.getBoundingClientRect();
+    launch(e.clientX-r.left,e.clientY-r.top,TYPES[rand(TYPES.length)]);
+    tapCount++;
+    if(tapCount%8===0)setTimeout(finale,600);
+  });
+  cv.addEventListener("pointermove",e=>{
+    if(e.buttons&&Math.random()<0.22){
+      const r=cv.getBoundingClientRect();
+      explode(e.clientX-r.left,e.clientY-r.top,"peony");
+    }
+  });
+  starts.firework=()=>{ requestAnimationFrame(()=>{ resize(); autoT=120; loop(); }); };
+  stops.firework=()=>{ cancelAnimationFrame(raf); parts=[]; rockets=[]; };
+  window.addEventListener("resize",()=>{ if(current==="firework")resize(); });
+})();
+
+/* ================================================================
+   [게임] 12. 로켓 발사 (열까지 세기)
+================================================================ */
+(function(){
+  const body=makeScreen("rocket","🚀","로켓 발사","신나는 게임");
+  const q=el("div","quizQ","열 번 눌러서 로켓을 발사해요!");
+  const stage=el("div","rocketStage");
+  const cnt=el("div"); cnt.id="rocketCnt"; cnt.textContent="0";
+  const rk=el("div"); rk.id="rocketEl"; rk.textContent="🚀";
+  stage.append(cnt,rk); body.append(q,stage);
+  const KR=["","하나","둘","셋","넷","다섯","여섯","일곱","여덟","아홉","열"];
+  let n=0, flying=false, t1=null,t2=null;
+  function reset(){ n=0; flying=false; cnt.textContent="0"; rk.style.transition="none"; rk.style.transform="translateX(-50%)"; rk.textContent="🚀"; void rk.offsetWidth; rk.style.transition=""; }
+  onTapFast(stage,()=>{
+    if(flying)return;
+    n++;
+    cnt.textContent=n;
+    bell(SCALE10[n-1],0.3,0.26);
+    speak(KR[n]);
+    rk.classList.remove("wig"); void rk.offsetWidth; rk.classList.add("wig");
+    if(n>=10){
+      flying=true;
+      t1=setTimeout(()=>{
+        speak("발사!"); noiseHit(0.9,0.3,300);
+        rk.textContent="🚀\n🔥";
+        rk.style.transform="translateX(-50%) translateY(-140vh)";
+        praise();
+        t2=setTimeout(reset,2800);
+      },700);
+    }
+  });
+  starts.rocket=reset;
+  stops.rocket=()=>{ clearTimeout(t1); clearTimeout(t2); };
+})();
+
+/* ================================================================
+   [게임] 13. 자동차 경주
+================================================================ */
+(function(){
+  const body=makeScreen("race","🏎️","자동차 경주","신나는 게임");
+  const q=el("div","quizQ","화면을 빨리빨리 눌러서 달려요!");
+  const field=el("div","field"); field.style.cssText+="margin:0 12px 12px;border-radius:22px;background:#9adf7c;";
+  body.append(q,field);
+  const road1=el("div","road"), road2=el("div","road");
+  road1.style.top="4%"; road2.style.bottom="4%";
+  const rival=el("div","carEl","🚙"), mine=el("div","carEl","🚗");
+  const flag1=el("div","flagEl","🏁"), flag2=el("div","flagEl","🏁");
+  const hint=el("div","tapHint","콕콕콕 눌러요! 👆");
+  field.append(road1,road2,rival,mine,flag1,flag2,hint);
+  let myX=0, rvX=0, timer=null, over=false, rt=null;
+  function layout(){
+    const H=field.clientHeight;
+    rival.style.top=(H*0.04+H*0.22-30)+"px";
+    mine.style.bottom=(H*0.04+H*0.22-30)+"px"; mine.style.top="";
+    flag1.style.top=(H*0.04+8)+"px"; flag2.style.bottom=(H*0.04+8)+"px";
+    flag1.style.right="10px"; flag2.style.right="10px";
+  }
+  function reset(){
+    over=false; myX=10; rvX=10;
+    mine.style.left=myX+"px"; rival.style.left=rvX+"px";
+    layout();
+    clearInterval(timer);
+    timer=setInterval(()=>{
+      if(over)return;
+      rvX+=(field.clientWidth/600)*(7+rand(6));
+      rival.style.left=rvX+"px";
+      check(rvX,false);
+    },330);
+  }
+  function finishX(){ return field.clientWidth-95; }
+  function check(x,isMe){
+    if(x>=finishX()&&!over){
+      over=true; clearInterval(timer);
+      if(isMe){ praise(); speak("일등이에요!"); }
+      else { badSound(); speak("아깝다! 다시 한번 해봐요!"); }
+      rt=setTimeout(reset,2300);
+    }
+  }
+  onTapFast(field,()=>{
+    if(over)return;
+    myX+=(field.clientWidth/600)*13;
+    mine.style.left=myX+"px";
+    tone(200+rand(100),0.05,"square",0.1);
+    check(myX,true);
+  });
+  starts.race=()=>requestAnimationFrame(reset);
+  stops.race=()=>{ clearInterval(timer); clearTimeout(rt); };
+  window.addEventListener("resize",()=>{ if(current==="race")layout(); });
+})();
+
+/* ================================================================
+   [게임] 14. 깜짝 달걀
+================================================================ */
+(function(){
+  const body=makeScreen("egg","🥚","깜짝 달걀","신나는 게임",{reset:true});
+  const q=el("div","quizQ","달걀을 톡톡! 누가 숨어 있을까요?");
+  const row=el("div","eggRow"); body.append(q,row);
+  let opened=0;
+  function build(){
+    row.innerHTML=""; opened=0;
+    for(let i=0;i<3;i++){
+      const b=el("button","eggBtn","🥚");
+      let st=0;
+      onTap(b,()=>{
+        if(st===0){
+          st=1;
+          b.classList.remove("wig"); void b.offsetWidth; b.classList.add("wig");
+          tone(400,0.08,"square",0.15);
+          speak("톡톡!");
+        }else if(st===1){
+          st=2;
+          b.textContent="🐣"; noiseHit(0.12,0.2,800);
+          setTimeout(()=>{
+            const a=ANIMALS[rand(ANIMALS.length)];
+            b.textContent=a[0];
+            goodSound(); speak(a[1]+"! "+a[2]);
+            opened++;
+            if(opened===3){ setTimeout(()=>{ praise(); setTimeout(build,1800); },700); }
+          },550);
+        }
+      });
+      row.appendChild(b);
+    }
+  }
+  onTap($("#eggReset"),()=>{ tone(500,0.08); build(); });
+  starts.egg=build;
+})();
+
+/* ================================================================
+   [음악] 15. 피아노 / 16. 실로폰
+================================================================ */
+const NOTE_NAMES=["도","레","미","파","솔","라","시","도"];
+const PIANO_FREQ=[261.63,293.66,329.63,349.23,392,440,493.88,523.25];
+const RAINBOW=["#ff9d9d","#ffc48a","#ffe88a","#b9f0a4","#a4e5f0","#a4baf0","#d0a4f0","#f0a4d8"];
+(function(){
+  const body=makeScreen("piano","🎹","피아노","음악 놀이");
+  const row=el("div","keysRow"); body.appendChild(row);
+  NOTE_NAMES.forEach((nm,i)=>{
+    const k=el("button","key","🎵<span>"+nm+"</span>");
+    k.style.background=RAINBOW[i];
+    k.addEventListener("pointerdown",e=>{
+      e.preventDefault(); ac();
+      tone(PIANO_FREQ[i],0.5,"triangle",0.3);
+      tone(PIANO_FREQ[i]*2,0.3,"sine",0.08);
+      k.classList.add("hit"); setTimeout(()=>k.classList.remove("hit"),180);
+    });
+    row.appendChild(k);
+  });
+})();
+(function(){
+  const body=makeScreen("xylo","🎼","실로폰","음악 놀이");
+  const box=el("div","xyloBox"); body.appendChild(box);
+  NOTE_NAMES.forEach((nm,i)=>{
+    const b=el("button","xbar",nm);
+    b.style.background=RAINBOW[i];
+    b.style.maxWidth=(100-i*4.5)+"%";
+    b.addEventListener("pointerdown",e=>{
+      e.preventDefault(); ac();
+      const f=PIANO_FREQ[i]*2;
+      tone(f,0.4,"sine",0.3); tone(f*3,0.12,"sine",0.08); tone(f*5.4,0.06,"sine",0.04);
+      b.classList.add("hit"); setTimeout(()=>b.classList.remove("hit"),150);
+    });
+    box.appendChild(b);
+  });
+})();
+
+/* ================================================================
+   [음악] 17. 신나는 드럼
+================================================================ */
+(function(){
+  const body=makeScreen("drum","🥁","신나는 드럼","음악 놀이");
+  const box=el("div","drumBox"); body.appendChild(box);
+  const PADS=[
+    ["🥁","큰북","#ffd3c2",()=>kick()],
+    ["🪘","작은북","#ffe9a8",()=>noiseHit(0.12,0.3,900)],
+    ["🎩","심벌즈","#d8f3ff",()=>noiseHit(0.5,0.18,4000)],
+    ["🔔","트라이앵글","#e8ffe0",()=>{tone(2093,0.8,"sine",0.15);tone(2637,0.6,"sine",0.08);}],
+    ["🪇","탬버린","#f3e0ff",()=>{noiseHit(0.15,0.15,3000);tone(2400,0.1,"square",0.05);}],
+    ["🪵","우드블록","#ffe0ef",()=>tone(820,0.07,"square",0.25)]
+  ];
+  PADS.forEach(([em,nm,bg,fn])=>{
+    const p=el("button","pad",em+"<span>"+nm+"</span>");
+    p.style.background=bg;
+    p.addEventListener("pointerdown",e=>{
+      e.preventDefault(); ac(); fn();
+      p.classList.add("hit"); setTimeout(()=>p.classList.remove("hit"),120);
+    });
+    box.appendChild(p);
+  });
+})();
+
+/* ================================================================
+   [음악] 18. 순서 기억하기 (사이먼)
+================================================================ */
+(function(){
+  const body=makeScreen("simon","💡","순서 기억하기","음악 놀이");
+  const q=el("div","quizQ","불빛 순서를 잘 보고 따라 눌러요!");
+  const box=el("div","simonBox"); body.append(q,box);
+  const PADS=[["#ff8a8a","🐶",330],["#8ad0ff","🐱",392],["#ffe58a","🐤",523],["#a8ef9c","🐸",659]];
+  const btns=PADS.map(([bg,em,fq],i)=>{
+    const b=el("button","spad",em); b.style.background=bg;
+    b.addEventListener("pointerdown",e=>{ e.preventDefault(); ac(); input(i); });
+    box.appendChild(b);
+    return b;
+  });
+  let seq=[], idx=0, canTap=false, tids=[];
+  function lit(i,d=380){
+    btns[i].classList.add("lit");
+    bell(PADS[i][2],0.4,0.3);
+    tids.push(setTimeout(()=>btns[i].classList.remove("lit"),d));
+  }
+  function show(){
+    canTap=false; idx=0;
+    q.textContent="잘 보세요! ("+seq.length+"단계)";
+    seq.forEach((v,k)=>tids.push(setTimeout(()=>lit(v),600+k*620)));
+    tids.push(setTimeout(()=>{ canTap=true; q.textContent="이제 따라 눌러요!"; },600+seq.length*620));
+  }
+  function input(i){
+    if(!canTap)return;
+    lit(i,220);
+    if(i===seq[idx]){
+      idx++;
+      if(idx===seq.length){
+        canTap=false;
+        if(seq.length>=5){ praise(); tids.push(setTimeout(newGame,1800)); }
+        else { goodSound(); speak("딩동댕! 하나 더!"); seq.push(rand(4)); tids.push(setTimeout(show,1300)); }
+      }
+    }else{
+      canTap=false; badSound(); speak("다시 잘 보세요!");
+      tids.push(setTimeout(show,1200));
+    }
+  }
+  function newGame(){ seq=[rand(4)]; show(); }
+  starts.simon=newGame;
+  stops.simon=()=>{ tids.forEach(clearTimeout); tids=[]; canTap=false; btns.forEach(b=>b.classList.remove("lit")); };
+})();
+
+/* ================================================================
+   퀴즈형 게임 공통 도우미
+================================================================ */
+function quizUI(body){
+  const q=el("div","quizQ"), stage=el("div","quizStage");
+  body.append(q,stage);
+  return {q,stage};
+}
+
+/* ================================================================
+   [똑똑] 19. 숫자 세기
+================================================================ */
+(function(){
+  const body=makeScreen("count","🔢","숫자 세기","똑똑 놀이",{score:true});
+  const {q,stage}=quizUI(body);
+  const ans=el("div","quizAns"); body.appendChild(ans);
+  const ITEMS=["🍎","🍌","🐟","🚗","🌼","🍪","🐥","⚽"];
+  let busy=false;
+  function round(){
+    busy=false;
+    const answer=1+rand(5), em=ITEMS[rand(ITEMS.length)];
+    stage.innerHTML="";
+    for(let i=0;i<answer;i++)stage.appendChild(el("div","item",em));
+    q.textContent="몇 개일까요? 세어 보세요!";
+    speak("몇 개일까요?");
+    const opts=new Set([answer]);
+    while(opts.size<3)opts.add(1+rand(5));
+    ans.innerHTML="";
+    shuffle([...opts]).forEach(n=>{
+      const b=el("button","ansBtn",n);
+      onTap(b,()=>{
+        if(busy)return;
+        if(n===answer){ busy=true; addScore("count"); praise(); setTimeout(round,1500); }
+        else wrongTap(b,"다시 세어 볼까요?");
+      });
+      ans.appendChild(b);
+    });
+  }
+  starts.count=round;
+})();
+
+/* ================================================================
+   [똑똑] 20. 색깔 찾기
+================================================================ */
+(function(){
+  const body=makeScreen("color","🌈","색깔 찾기","똑똑 놀이",{score:true});
+  const {q,stage}=quizUI(body);
+  const COLORS=[["빨간색","#e74c3c"],["주황색","#ff8a2b"],["노란색","#f4d03f"],["초록색","#2ecc71"],["파란색","#3498db"],["보라색","#8e6bbf"],["분홍색","#ff7bac"],["갈색","#8d6e63"],["검정색","#3a3a55"],["하얀색","#ffffff"]];
+  let busy=false;
+  function round(){
+    busy=false;
+    const pick=shuffle([...COLORS]).slice(0,6);
+    const target=pick[rand(pick.length)];
+    q.textContent=target[0]+"을 찾아보세요!";
+    speak(target[0]+"을 찾아보세요");
+    stage.innerHTML="";
+    shuffle([...pick]).forEach(([nm,hex])=>{
+      const d=el("div","colorDot");
+      d.style.background=hex; if(hex==="#ffffff")d.style.borderColor="#ddd";
+      onTap(d,()=>{
+        if(busy)return;
+        if(nm===target[0]){ busy=true; addScore("color"); praise(); setTimeout(round,1500); }
+        else wrongTap(d,"이건 "+nm+"이에요");
+      });
+      stage.appendChild(d);
+    });
+  }
+  starts.color=round;
+})();
+
+/* ================================================================
+   [똑똑] 21. 모양 찾기
+================================================================ */
+(function(){
+  const body=makeScreen("shape","🔷","모양 찾기","똑똑 놀이",{score:true});
+  const {q,stage}=quizUI(body);
+  const SHAPES=[["동그라미","🔴"],["세모","🔺"],["네모","🟦"],["별","⭐"],["하트","❤️"],["달","🌙"],["다이아몬드","🔶"]];
+  let busy=false;
+  function round(){
+    busy=false;
+    const pick=shuffle([...SHAPES]).slice(0,5);
+    const target=pick[rand(pick.length)];
+    q.textContent=target[0]+" 모양을 찾아보세요!";
+    speak(target[0]+" 모양을 찾아보세요");
+    stage.innerHTML="";
+    shuffle([...pick]).forEach(([nm,em])=>{
+      const b=el("button","ansBtn",em);
+      onTap(b,()=>{
+        if(busy)return;
+        if(nm===target[0]){ busy=true; addScore("shape"); praise(); setTimeout(round,1500); }
+        else wrongTap(b,"이건 "+nm+"예요");
+      });
+      stage.appendChild(b);
+    });
+  }
+  starts.shape=round;
+})();
+
+/* ================================================================
+   [똑똑] 22. 다른 그림 찾기
+================================================================ */
+(function(){
+  const body=makeScreen("odd","🔍","다른 그림 찾기","똑똑 놀이",{score:true});
+  const {q,stage}=quizUI(body);
+  const PAIRS=[["🐶","🐱"],["🍎","🍊"],["⭐","❤️"],["🐸","🐢"],["🚗","🚌"],["🌼","🌷"],["🐤","🦆"],["⚽","🏀"],["🧸","🤖"],["🍩","🍪"]];
+  let busy=false;
+  function round(){
+    busy=false;
+    const [a,b]=shuffle([...PAIRS[rand(PAIRS.length)]]);
+    q.textContent="다른 그림 하나를 찾아보세요!";
+    speak("다른 그림을 찾아보세요");
+    const items=[b,a,a,a,a,a];
+    stage.innerHTML="";
+    shuffle(items).forEach(em=>{
+      const bt=el("button","ansBtn",em);
+      onTap(bt,()=>{
+        if(busy)return;
+        if(em===b){ busy=true; addScore("odd"); praise(); setTimeout(round,1500); }
+        else wrongTap(bt,"이건 똑같은 그림이에요");
+      });
+      stage.appendChild(bt);
+    });
+  }
+  starts.odd=round;
+})();
+
+/* ================================================================
+   [똑똑] 23. 그림자 찾기
+================================================================ */
+(function(){
+  const body=makeScreen("shadow","🌓","그림자 찾기","똑똑 놀이",{score:true});
+  const q=el("div","quizQ"), top=el("div","bigTop"), stage=el("div","quizStage");
+  body.append(q,top,stage);
+  const THINGS=["🐘","🦒","🚗","🌂","🍌","🐟","🦋","🏠","🚀","🐰","🍦","🎸"];
+  let busy=false;
+  function round(){
+    busy=false;
+    const pick=shuffle([...THINGS]).slice(0,3);
+    const target=pick[0];
+    top.textContent=target;
+    q.textContent="이 그림의 그림자를 찾아보세요!";
+    speak("그림자를 찾아보세요");
+    stage.innerHTML="";
+    shuffle([...pick]).forEach(em=>{
+      const b=el("button","ansBtn",'<span class="sil">'+em+"</span>");
+      onTap(b,()=>{
+        if(busy)return;
+        if(em===target){
+          busy=true;
+          $(".sil",b).classList.remove("sil");
+          addScore("shadow"); praise(); setTimeout(round,1600);
+        }else wrongTap(b,"다른 그림자예요");
+      });
+      stage.appendChild(b);
+    });
+  }
+  starts.shadow=round;
+})();
+
+/* ================================================================
+   [똑똑] 24. 큰 것 작은 것
+================================================================ */
+(function(){
+  const body=makeScreen("size","⚖️","큰 것 작은 것","똑똑 놀이",{score:true});
+  const {q,stage}=quizUI(body);
+  const THINGS=["🐻","🍎","🚗","⭐","🐟","🎈","🌼","🧸"];
+  let busy=false;
+  function round(){
+    busy=false;
+    const em=THINGS[rand(THINGS.length)];
+    const wantBig=Math.random()<0.5;
+    const sizes=shuffle([56,88,126]);
+    const answer=wantBig?126:56;
+    q.textContent=(wantBig?"제일 큰":"제일 작은")+" 것을 찾아보세요!";
+    speak(q.textContent);
+    stage.innerHTML="";
+    sizes.forEach(s=>{
+      const b=el("button","ansBtn",em);
+      b.style.fontSize=s+"px";
+      b.style.minWidth=(s+50)+"px"; b.style.minHeight=(s+50)+"px";
+      onTap(b,()=>{
+        if(busy)return;
+        if(s===answer){ busy=true; addScore("size"); praise(); setTimeout(round,1500); }
+        else wrongTap(b, wantBig?"더 큰 게 있어요!":"더 작은 게 있어요!");
+      });
+      stage.appendChild(b);
+    });
+  }
+  starts.size=round;
+})();
+
+/* ================================================================
+   [똑똑] 25. 많은 쪽 찾기
+================================================================ */
+(function(){
+  const body=makeScreen("more","🍎","많은 쪽 찾기","똑똑 놀이",{score:true});
+  const {q,stage}=quizUI(body);
+  const THINGS=["🍎","🍬","⭐","🐥","🌼","🍪"];
+  let busy=false;
+  function round(){
+    busy=false;
+    const em=THINGS[rand(THINGS.length)];
+    let n1=1+rand(5), n2=1+rand(5);
+    while(n2===n1)n2=1+rand(5);
+    q.textContent="어느 쪽이 더 많을까요?";
+    speak(q.textContent);
+    stage.innerHTML="";
+    [n1,n2].forEach(n=>{
+      const b=el("button","ansBtn",em.repeat(n));
+      b.style.fontSize="clamp(28px,5vw,46px)";
+      b.style.maxWidth="42%"; b.style.flexWrap="wrap"; b.style.lineHeight="1.2";
+      b.style.padding="14px"; b.style.display="flex"; b.style.flexWrap="wrap";
+      onTap(b,()=>{
+        if(busy)return;
+        if(n===Math.max(n1,n2)){ busy=true; addScore("more"); praise(); setTimeout(round,1500); }
+        else wrongTap(b,"이쪽이 더 적어요");
+      });
+      stage.appendChild(b);
+    });
+  }
+  starts.more=round;
+})();
+
+/* ================================================================
+   [똑똑] 26. 동물 먹이 주기
+================================================================ */
+(function(){
+  const body=makeScreen("feed","🥕","동물 먹이 주기","똑똑 놀이",{score:true});
+  const q=el("div","quizQ"), top=el("div","bigTop"), stage=el("div","quizStage");
+  body.append(q,top,stage);
+  const FEED=[["🐰","토끼","🥕","당근"],["🐵","원숭이","🍌","바나나"],["🐶","강아지","🦴","뼈다귀"],["🐱","고양이","🐟","생선"],["🐼","판다","🎋","대나무"],["🐿️","다람쥐","🌰","도토리"],["🐮","소","🌾","풀"],["🐝","꿀벌","🌼","꽃"]];
+  let busy=false;
+  function round(){
+    busy=false;
+    const pick=shuffle([...FEED]).slice(0,3);
+    const target=pick[0];
+    top.textContent=target[0];
+    q.textContent=target[1]+"는 무엇을 먹을까요?";
+    speak(q.textContent);
+    stage.innerHTML="";
+    shuffle(pick.map(p=>p)).forEach(p=>{
+      const b=el("button","ansBtn",p[2]);
+      onTap(b,()=>{
+        if(busy)return;
+        if(p===target){
+          busy=true; addScore("feed");
+          top.textContent=target[0]+"😋";
+          speak("냠냠! 맛있어요!"); goodSound();
+          setTimeout(()=>{ praise(); setTimeout(round,1400); },700);
+        }else wrongTap(b,p[3]+"은 아니에요");
+      });
+      stage.appendChild(b);
+    });
+  }
+  starts.feed=round;
+})();
+
+/* ================================================================
+   [똑똑] 27. 소리 듣고 찾기
+================================================================ */
+(function(){
+  const body=makeScreen("listen","👂","소리 듣고 찾기","똑똑 놀이",{score:true});
+  const {q,stage}=quizUI(body);
+  const row=el("div","btnRow"); body.appendChild(row);
+  const bAgain=el("button","toolBtn","🔊 다시 듣기");
+  row.appendChild(bAgain);
+  let busy=false, target=null;
+  function say(){ if(target)speak(target[2]+" "+target[2]+" 누구일까요?"); }
+  onTap(bAgain,say);
+  function round(){
+    busy=false;
+    const pick=shuffle([...ANIMALS]).slice(0,3);
+    target=pick[0];
+    q.textContent="무슨 소리인지 듣고 찾아보세요!";
+    say();
+    stage.innerHTML="";
+    shuffle([...pick]).forEach(a=>{
+      const b=el("button","ansBtn",a[0]);
+      onTap(b,()=>{
+        if(busy)return;
+        if(a===target){ busy=true; addScore("listen"); speak(a[1]+"! "+a[2]); setTimeout(praise,600); setTimeout(round,2000); }
+        else wrongTap(b,"이건 "+a[1]+"예요");
+      });
+      stage.appendChild(b);
+    });
+  }
+  starts.listen=round;
+})();
+
+/* ================================================================
+   [똑똑] 28. 짝 맞추기
+================================================================ */
+(function(){
+  const body=makeScreen("memory","🃏","짝 맞추기","똑똑 놀이",{reset:true});
+  const grid=el("div"); grid.id="memGridBox"; body.appendChild(grid);
+  const POOL=["🐶","🐱","🐰","🦁","🐼","🐸","🚗","🍓","⭐","🌈","🎈","🐤"];
+  const NAME={"🐶":"강아지","🐱":"고양이","🐰":"토끼","🦁":"사자","🐼":"판다","🐸":"개구리","🚗":"자동차","🍓":"딸기","⭐":"별","🌈":"무지개","🎈":"풍선","🐤":"병아리"};
+  let first=null, lock=false, remain=0;
+  function build(){
+    grid.innerHTML=""; first=null; lock=false;
+    const pick=shuffle([...POOL]).slice(0,6);
+    const cards=shuffle([...pick,...pick]);
+    remain=cards.length;
+    cards.forEach(em=>{
+      const c=el("div","mcard",'<div class="inner"><div class="mface mback">❓</div><div class="mface mfront">'+em+'</div></div>');
+      c.dataset.v=em;
+      c.addEventListener("pointerdown",e=>{
+        e.preventDefault(); ac();
+        if(lock||c.classList.contains("open")||c.classList.contains("done"))return;
+        c.classList.add("open");
+        tone(600,0.07,"triangle",0.15);
+        if(!first){ first=c; return; }
+        if(first.dataset.v===c.dataset.v){
+          const a=first; first=null;
+          speak(NAME[c.dataset.v]||""); goodSound();
+          setTimeout(()=>{
+            a.classList.add("done"); c.classList.add("done");
+            remain-=2;
+            if(remain===0){ praise(); setTimeout(build,1600); }
+          },500);
+        }else{
+          lock=true; const a=first; first=null;
+          badSound();
+          setTimeout(()=>{ a.classList.remove("open"); c.classList.remove("open"); lock=false; },800);
+        }
+      });
+      grid.appendChild(c);
+    });
+  }
+  onTap($("#memoryReset"),()=>{ tone(500,0.08); build(); });
+  starts.memory=build;
+})();
+
+/* ================================================================
+   [똑똑] 29. 숫자 순서 놀이 (1→5 차례로 누르기)
+================================================================ */
+(function(){
+  const body=makeScreen("dots","1️⃣","숫자 순서 놀이","똑똑 놀이",{score:true});
+  const {q,stage}=quizUI(body);
+  const SLOTS=[[14,18],[68,10],[40,44],[13,70],[70,66]];
+  let next=1, busy=false;
+  function round(){
+    next=1; busy=false;
+    q.textContent="1부터 5까지 차례로 눌러 보세요!";
+    speak("일부터 오까지 차례로 눌러 보세요");
+    stage.innerHTML="";
+    const order=shuffle([1,2,3,4,5]);
+    order.forEach((n,i)=>{
+      const b=el("button","ansBtn",n);
+      b.style.position="absolute";
+      b.style.left=SLOTS[i][0]+"%"; b.style.top=SLOTS[i][1]+"%";
+      onTap(b,()=>{
+        if(busy)return;
+        if(n===next){
+          b.style.background="#ffd54f";
+          bell(SCALE10[n-1],0.32,0.3);
+          speak(String(n));
+          next++;
+          if(next>5){ busy=true; addScore("dots"); praise(); setTimeout(round,1700); }
+        }else wrongTap(b, next+"부터 눌러요!");
+      });
+      stage.appendChild(b);
+    });
+  }
+  starts.dots=round;
+})();
+
+/* ================================================================
+   [똑똑] 30. 숫자 배우기 (1~10)
+================================================================ */
+(function(){
+  const body=makeScreen("numbers","💯","숫자 배우기","똑똑 놀이");
+  const q=el("div","quizQ","숫자를 눌러 보세요!");
+  const panel=el("div","quizStage"); panel.style.flex="0 0 auto"; panel.style.minHeight="90px";
+  const grid=el("div","letterGrid"); grid.style.gridTemplateColumns="repeat(auto-fill,minmax(86px,1fr))";
+  body.append(q,panel,grid);
+  const NAT=["","하나","둘","셋","넷","다섯","여섯","일곱","여덟","아홉","열"];
+  for(let n=1;n<=10;n++){
+    const b=el("button","letterCard",'<span class="ch">'+n+'</span><span class="wd">'+NAT[n]+"</span>");
+    onTap(b,()=>{
+      panel.innerHTML="";
+      for(let i=0;i<n;i++){
+        const d=el("div","","🍎"); d.style.fontSize="clamp(26px,4.5vw,44px)";
+        panel.appendChild(d);
+      }
+      bell(SCALE10[n-1],0.3,0.26);
+      speak(n+"! "+NAT[n]+"!");
+    });
+    grid.appendChild(b);
+  }
+})();
+
+/* ================================================================
+   [똑똑] 31. 한글 놀이
+================================================================ */
+(function(){
+  const body=makeScreen("hangul","✏️","한글 놀이","똑똑 놀이");
+  const q=el("div","quizQ","글자를 눌러서 소리를 들어 보세요!");
+  const grid=el("div","letterGrid"); body.append(q,grid);
+  const H=[
+    ["ㄱ","기역","가방","👜"],["ㄴ","니은","나비","🦋"],["ㄷ","디귿","다람쥐","🐿️"],["ㄹ","리을","라면","🍜"],
+    ["ㅁ","미음","모자","🎩"],["ㅂ","비읍","바나나","🍌"],["ㅅ","시옷","사과","🍎"],["ㅇ","이응","오리","🦆"],
+    ["ㅈ","지읒","자동차","🚗"],["ㅊ","치읓","치즈","🧀"],["ㅋ","키읔","코끼리","🐘"],["ㅌ","티읕","토끼","🐰"],
+    ["ㅍ","피읖","포도","🍇"],["ㅎ","히읗","하마","🦛"]
+  ];
+  H.forEach(([ch,nm,wd,em])=>{
+    const b=el("button","letterCard",'<span class="ch">'+ch+'</span><span class="em">'+em+'</span><span class="wd">'+wd+"</span>");
+    onTap(b,()=>{
+      b.classList.remove("wig"); void b.offsetWidth; b.classList.add("wig");
+      tone(500+rand(300),0.08,"triangle",0.15);
+      speak(nm+"! "+wd+"!");
+    });
+    grid.appendChild(b);
+  });
+})();
+
+/* ================================================================
+   [똑똑] 32. ABC 놀이
+================================================================ */
+(function(){
+  const body=makeScreen("abc","🅰️","ABC 놀이","똑똑 놀이");
+  const q=el("div","quizQ","알파벳을 눌러서 소리를 들어 보세요!");
+  const grid=el("div","letterGrid"); body.append(q,grid);
+  const A=[
+    ["A","Apple","🍎"],["B","Bear","🐻"],["C","Cat","🐱"],["D","Dog","🐶"],["E","Egg","🥚"],
+    ["F","Fish","🐟"],["G","Grape","🍇"],["H","Hat","🎩"],["I","Ice cream","🍦"],["J","Juice","🧃"],
+    ["K","Kite","🪁"],["L","Lion","🦁"],["M","Monkey","🐵"],["N","Nose","👃"],["O","Orange","🍊"],
+    ["P","Pig","🐷"],["Q","Queen","👸"],["R","Rabbit","🐰"],["S","Star","⭐"],["T","Tiger","🐯"],
+    ["U","Umbrella","☂️"],["V","Violin","🎻"],["W","Watch","⌚"],["X","Xylophone","🎵"],
+    ["Y","Yo-yo","🪀"],["Z","Zebra","🦓"]
+  ];
+  A.forEach(([ch,wd,em])=>{
+    const b=el("button","letterCard",'<span class="ch">'+ch+'</span><span class="em">'+em+'</span><span class="wd">'+wd+"</span>");
+    onTap(b,()=>{
+      b.classList.remove("wig"); void b.offsetWidth; b.classList.add("wig");
+      tone(500+rand(300),0.08,"triangle",0.15);
+      speakEN(ch+"! "+wd+"!");
+    });
+    grid.appendChild(b);
+  });
+})();
+
+/* ================================================================
+   [똑똑] 33. 동물 소리
+================================================================ */
+(function(){
+  const body=makeScreen("zoo","🐶","동물 소리","똑똑 놀이");
+  const grid=el("div","letterGrid"); grid.style.gridTemplateColumns="repeat(auto-fill,minmax(122px,1fr))";
+  body.appendChild(grid);
+  ANIMALS.forEach(([em,nm,cry])=>{
+    const b=el("button","letterCard",'<span class="em" style="font-size:clamp(44px,7.5vw,68px)">'+em+'</span><span class="wd">'+nm+"</span>");
+    onTap(b,()=>{
+      b.classList.remove("wig"); void b.offsetWidth; b.classList.add("wig");
+      tone(500+rand(400),0.1,"triangle",0.15);
+      speak(nm+"! "+cry);
+    });
+    grid.appendChild(b);
+  });
+})();
+
+/* ================================================================
+   [똑똑] 34. 퍼즐 맞추기 (2x2/3x3/4x4 + 내 사진)
+================================================================ */
+(function(){
+  const body=makeScreen("puzzle","🧩","퍼즐 맞추기","똑똑 놀이");
+  const tools=el("div","tools"); tools.style.justifyContent="center";
+  const boardBox=el("div","pzBoard");
+  const grid=el("div","pzGrid");
+  boardBox.appendChild(grid);
+  body.append(tools,boardBox);
+
+  function makeScene(draw){
+    const c=document.createElement("canvas"); c.width=600; c.height=600;
+    const x=c.getContext("2d");
+    if(!x)return "";
+    draw(x);
+    return c.toDataURL("image/png");
+  }
+  function emo(x,ch,px,py,size){ x.font=size+"px serif"; x.textAlign="center"; x.textBaseline="middle"; x.fillText(ch,px,py); }
+  let IMGS=null;
+  function ensureImgs(){
+    if(IMGS)return;
+    IMGS=[
+      makeScene(x=>{
+        const g=x.createLinearGradient(0,0,0,600); g.addColorStop(0,"#aee9ff"); g.addColorStop(1,"#d9f7c9");
+        x.fillStyle=g; x.fillRect(0,0,600,600);
+        emo(x,"☀️",90,90,120); emo(x,"🏠",300,320,300); emo(x,"🌳",510,380,190); emo(x,"🌷",115,510,110); emo(x,"🐶",470,530,110);
+      }),
+      makeScene(x=>{
+        const g=x.createLinearGradient(0,0,0,600); g.addColorStop(0,"#8fd7ff"); g.addColorStop(1,"#2f7fc0");
+        x.fillStyle=g; x.fillRect(0,0,600,600);
+        emo(x,"🐠",180,180,180); emo(x,"🐙",440,330,190); emo(x,"🐢",160,470,140); emo(x,"🫧",320,90,90); emo(x,"🐚",500,545,90);
+      }),
+      makeScene(x=>{
+        const g=x.createLinearGradient(0,0,0,600); g.addColorStop(0,"#1d2340"); g.addColorStop(1,"#3a4a8a");
+        x.fillStyle=g; x.fillRect(0,0,600,600);
+        emo(x,"🌙",110,100,130); emo(x,"🚀",320,320,260); emo(x,"⭐",500,140,90); emo(x,"⭐",120,320,70); emo(x,"🪐",500,480,130);
+      })
+    ];
+    if(!imgURL)imgURL=IMGS[0];
+  }
+  let imgIdx=0, imgURL="", N=2, cells=[], selIdx=-1, busy=false;
+
+  const sizeBtns=[["2×2",2],["3×3",3],["4×4",4]].map(([lb,n],i)=>{
+    const b=el("button","toolBtn"+(i===0?" sel":""),lb);
+    onTap(b,()=>{ N=n; sizeBtns.forEach(x=>x.classList.remove("sel")); b.classList.add("sel"); tone(600,0.06); build(); });
+    tools.appendChild(b); return b;
+  });
+  const bImg=el("button","toolBtn","🖼️ 그림 바꾸기");
+  onTap(bImg,()=>{ ensureImgs(); imgIdx=(imgIdx+1)%IMGS.length; imgURL=IMGS[imgIdx]; tone(700,0.06); build(); });
+  tools.appendChild(bImg);
+
+  const fileIn=document.createElement("input");
+  fileIn.type="file"; fileIn.accept="image/*"; fileIn.style.display="none";
+  const bPhoto=el("button","toolBtn","📷 내 사진");
+  bPhoto.addEventListener("click",()=>{ ac(); fileIn.click(); });
+  tools.append(bPhoto,fileIn);
+  fileIn.addEventListener("change",()=>{
+    const f=fileIn.files&&fileIn.files[0];
+    if(!f)return;
+    const rd=new FileReader();
+    rd.onload=()=>{
+      const im=new Image();
+      im.onload=()=>{
+        const c=document.createElement("canvas"); c.width=600; c.height=600;
+        const x=c.getContext("2d");
+        const s=Math.min(im.width,im.height);
+        x.drawImage(im,(im.width-s)/2,(im.height-s)/2,s,s,0,0,600,600);
+        imgURL=c.toDataURL("image/jpeg",0.85);
+        speak("내 사진 퍼즐이에요!");
+        build();
+      };
+      im.src=rd.result;
+    };
+    rd.readAsDataURL(f);
+    fileIn.value="";
+  });
+
+  function layout(){
+    const side=Math.max(150,Math.min(boardBox.clientWidth,boardBox.clientHeight)-16);
+    grid.style.width=side+"px"; grid.style.height=side+"px";
+    grid.style.gridTemplateColumns="repeat("+N+",1fr)";
+    grid.style.gridTemplateRows="repeat("+N+",1fr)";
+  }
+  function pieceStyle(d,k){
+    const r=Math.floor(k/N), c=k%N;
+    d.style.backgroundImage="url("+imgURL+")";
+    d.style.backgroundSize=(N*100)+"% "+(N*100)+"%";
+    d.style.backgroundPosition=(N>1?c/(N-1)*100:0)+"% "+(N>1?r/(N-1)*100:0)+"%";
+  }
+  function render(){ cells.forEach((k,i)=>pieceStyle(grid.children[i],k)); }
+  function solved(){ return cells.every((k,i)=>k===i); }
+  function build(){
+    busy=false; selIdx=-1;
+    grid.innerHTML=""; grid.style.gap="4px";
+    const n2=N*N;
+    cells=[...Array(n2).keys()];
+    do{ shuffle(cells); }while(solved());
+    for(let i=0;i<n2;i++){
+      const d=el("div","pzTile");
+      d.addEventListener("click",()=>{
+        ac();
+        if(busy)return;
+        if(selIdx===-1){
+          selIdx=i; d.classList.add("selTile"); tone(600,0.07,"triangle",0.15);
+        }else if(selIdx===i){
+          selIdx=-1; d.classList.remove("selTile"); tone(400,0.06,"triangle",0.12);
+        }else{
+          grid.children[selIdx].classList.remove("selTile");
+          const t=cells[selIdx]; cells[selIdx]=cells[i]; cells[i]=t;
+          selIdx=-1;
+          popSound(); render();
+          if(solved()){
+            busy=true; grid.style.gap="0px";
+            praise();
+            setTimeout(()=>speak("퍼즐 완성! 대단해요!"),1400);
+            setTimeout(build,3200);
+          }
+        }
+      });
+      grid.appendChild(d);
+    }
+    layout(); render();
+  }
+  starts.puzzle=()=>requestAnimationFrame(()=>{ ensureImgs(); build(); });
+  window.addEventListener("resize",()=>{ if(current==="puzzle")layout(); });
+})();
+
+/* ================================================================
+   [게임] 35. 까꿍 놀이
+================================================================ */
+(function(){
+  const body=makeScreen("peekaboo","🚪","까꿍 놀이","신나는 게임",{reset:true});
+  const q=el("div","quizQ","문을 열면 누가 있을까요?");
+  const row=el("div","eggRow"); body.append(q,row);
+  let opened=0;
+  function build(){
+    row.innerHTML=""; opened=0;
+    for(let i=0;i<6;i++){
+      const b=el("button","eggBtn","🚪");
+      b.style.fontSize="clamp(62px,11vw,116px)";
+      let open=false;
+      onTap(b,()=>{
+        if(open)return; open=true;
+        const a=ANIMALS[rand(ANIMALS.length)];
+        b.textContent=a[0];
+        b.classList.add("wig");
+        popSound();
+        speak("까꿍! "+a[1]+"!");
+        if(++opened===6){ setTimeout(()=>{ praise(); setTimeout(build,1900); },600); }
+      });
+      row.appendChild(b);
+    }
+  }
+  onTap($("#peekabooReset"),()=>{ tone(500,0.08); build(); });
+  starts.peekaboo=build;
+})();
+
+/* ================================================================
+   [게임] 36. 초록불 빨간불
+================================================================ */
+(function(){
+  const body=makeScreen("light","🚦","초록불 빨간불","신나는 게임");
+  const q=el("div","quizQ","초록불일 때만 콕콕! 빨간불엔 멈춰요!");
+  const lamp=el("div","bigTop","🟢");
+  const track=el("div","field sky"); track.style.flex="0 0 clamp(90px,16vh,140px)";
+  const runner=el("div","floaty","🐰"); runner.style.cssText+="font-size:clamp(44px,8vw,70px);bottom:8px;pointer-events:none;";
+  const goal=el("div","floaty","🥕"); goal.style.cssText+="font-size:clamp(40px,7vw,64px);right:8px;bottom:10px;pointer-events:none;";
+  const zone=el("div","field");
+  zone.style.cssText+="margin:0 12px 12px;border-radius:22px;background:rgba(255,255,255,.65);display:flex;align-items:center;justify-content:center;font-size:clamp(22px,4vw,34px);font-weight:900;color:#5a6ea6;";
+  zone.textContent="여기를 콕콕 눌러요! 👆";
+  track.append(runner,goal);
+  body.append(q,lamp,track,zone);
+  let green=true, x=8, lt=null, done=false;
+  function setX(){ runner.style.left=x+"px"; }
+  function flip(){
+    green=!green;
+    lamp.textContent=green?"🟢":"🔴";
+    speak(green?"초록불! 달려요!":"빨간불! 멈춰요!");
+    lt=setTimeout(flip,1600+rand(2200));
+  }
+  onTapFast(zone,()=>{
+    if(done)return;
+    if(green){
+      x+=Math.max(10,track.clientWidth/28);
+      setX();
+      tone(500+rand(200),0.05,"triangle",0.12);
+      if(x>track.clientWidth-90){
+        done=true; clearTimeout(lt);
+        speak("당근 냠냠! 도착!"); praise();
+        setTimeout(start,2400);
+      }
+    }else{
+      badSound();
+      x=Math.max(8,x-30); setX();
+    }
+  });
+  function start(){
+    done=false; green=true; lamp.textContent="🟢"; x=8; setX();
+    clearTimeout(lt); lt=setTimeout(flip,2200);
+  }
+  starts.light=start;
+  stops.light=()=>clearTimeout(lt);
+})();
+
+/* ================================================================
+   [게임] 37. 같은 색 풍선
+================================================================ */
+(function(){
+  const body=makeScreen("colorpop","🎯","같은 색 풍선","신나는 게임",{score:true});
+  const q=el("div","quizQ");
+  const field=el("div","field sky");
+  body.append(q,field);
+  const CP=[["빨간색","#e74c3c"],["노란색","#f4d03f"],["초록색","#2ecc71"],["파란색","#3498db"],["보라색","#8e6bbf"],["분홍색","#ff7bac"]];
+  let target=null, timer=null, hitCnt=0; const alive=new Set();
+  function newTarget(){
+    target=CP[rand(CP.length)]; hitCnt=0;
+    q.innerHTML=target[0]+' 풍선만 터뜨려요! <span style="display:inline-block;width:26px;height:26px;border-radius:50%;vertical-align:-4px;background:'+target[1]+'"></span>';
+    speak(target[0]+" 풍선만 터뜨려요");
+  }
+  function spawn(){
+    const c=CP[rand(CP.length)];
+    const b=el("div","floaty");
+    const size=56+rand(30);
+    b.style.cssText+="width:"+size+"px;height:"+(size*1.15)+"px;border-radius:50% 50% 48% 48%/55% 55% 45% 45%;background:"+c[1]+";box-shadow:inset -7px -9px 12px rgba(0,0,0,.18);";
+    b.style.left=rand(Math.max(40,field.clientWidth-size))+"px";
+    b.style.top=field.clientHeight+"px";
+    field.appendChild(b); alive.add(b);
+    const speed=0.9+Math.random()*1.2;
+    let y=field.clientHeight;
+    const ph=Math.random()*6, amp=8+rand(14);
+    (function step(){
+      if(!alive.has(b))return;
+      y-=speed; b.style.top=y+"px";
+      b.style.transform="translateX("+(Math.sin(ph+y/40)*amp)+"px)";
+      if(y<-140){ alive.delete(b); b.remove(); return; }
+      b._raf=requestAnimationFrame(step);
+    })();
+    b.addEventListener("pointerdown",e=>{
+      e.preventDefault(); ac();
+      if(!alive.has(b))return;
+      if(c[0]===target[0]){
+        alive.delete(b); cancelAnimationFrame(b._raf);
+        b.classList.add("popped"); popSound();
+        addScore("colorpop"); hitCnt++;
+        setTimeout(()=>b.remove(),200);
+        if(hitCnt>=5){ praise(); setTimeout(newTarget,1400); }
+      }else{
+        b.classList.remove("wrong"); void b.offsetWidth; b.classList.add("wrong");
+        badSound(); speak("이건 "+c[0]+"이에요");
+      }
+    });
+  }
+  starts.colorpop=()=>{ resetScore("colorpop"); newTarget(); timer=setInterval(spawn,820); spawn(); spawn(); };
+  stops.colorpop=()=>{ clearInterval(timer); alive.forEach(b=>{cancelAnimationFrame(b._raf); b.remove();}); alive.clear(); };
+})();
+
+/* ================================================================
+   [게임] 38. 생일 촛불 끄기
+================================================================ */
+(function(){
+  const body=makeScreen("candle","🎂","생일 촛불 끄기","신나는 게임");
+  const q=el("div","quizQ");
+  const cRow=el("div","quizStage"); cRow.style.flex="0 0 auto"; cRow.style.minHeight="90px";
+  const cake=el("div","bigTop","🎂"); cake.style.fontSize="clamp(110px,20vw,200px)";
+  body.append(q,cRow,cake);
+  const HB=[["G4",1],["G4",1],["A4",2],["G4",2],["C5",2],["B4",4],["G4",1],["G4",1],["A4",2],["G4",2],["D5",2],["C5",4]];
+  function birthdaySong(){ let t=0.2; HB.forEach(([n,b])=>{ bell(NOTE_HZ[n],b*0.3,0.24,t); t+=b*0.27; }); }
+  let left=0;
+  function round(){
+    left=3+rand(3);
+    q.textContent="촛불을 하나씩 눌러서 후~ 꺼 보세요!";
+    speak("촛불을 후 하고 꺼 보세요!");
+    cRow.innerHTML="";
+    for(let i=0;i<left;i++){
+      const b=el("button","eggBtn","🕯️");
+      b.style.fontSize="clamp(48px,9vw,84px)";
+      let out=false;
+      onTap(b,()=>{
+        if(out)return; out=true; left--;
+        b.textContent="💨"; noiseHit(0.25,0.12,1500);
+        speak("후!");
+        setTimeout(()=>{ b.style.visibility="hidden"; },500);
+        if(left===0){
+          setTimeout(()=>{
+            birthdaySong(); praise();
+            setTimeout(()=>speak("생일 축하합니다!"),1500);
+            setTimeout(round,4600);
+          },600);
+        }
+      });
+      cRow.appendChild(b);
+    }
+  }
+  starts.candle=round;
+})();
+
+/* ================================================================
+   [게임] 39. 악어 이빨
+================================================================ */
+(function(){
+  const body=makeScreen("croc","🐊","악어 이빨","신나는 게임",{reset:true});
+  const q=el("div","quizQ","조심조심! 아픈 이빨을 누르면 앙!");
+  const face=el("div","bigTop","🐊"); face.style.fontSize="clamp(90px,16vw,160px)";
+  const row=el("div","quizStage"); body.append(q,face,row);
+  let trap=0, done=false;
+  function build(){
+    done=false; trap=rand(8);
+    face.textContent="🐊";
+    q.textContent="조심조심! 아픈 이빨을 누르면 앙!";
+    row.innerHTML="";
+    for(let i=0;i<8;i++){
+      const b=el("button","ansBtn","🦷");
+      b.style.cssText+="min-width:clamp(62px,10vw,100px);min-height:clamp(62px,10vw,100px);font-size:clamp(30px,5vw,50px);";
+      onTap(b,()=>{
+        if(done||b.dataset.used)return;
+        b.dataset.used="1";
+        if(i===trap){
+          done=true;
+          b.textContent="💥";
+          face.textContent="🐊❗";
+          badSound(); noiseHit(0.3,0.25,500);
+          speak("앙! 깜짝이야! 하하하");
+          face.classList.add("wig");
+          setTimeout(()=>{ face.classList.remove("wig"); build(); },2300);
+        }else{
+          b.style.visibility="hidden";
+          bell(700+rand(400),0.2,0.2);
+        }
+      });
+      row.appendChild(b);
+    }
+  }
+  onTap($("#crocReset"),()=>{ tone(500,0.08); build(); });
+  starts.croc=build;
+})();
+
+/* ================================================================
+   [게임] 40. 가위바위보
+================================================================ */
+(function(){
+  const body=makeScreen("rps","✋","가위바위보","신나는 게임",{score:true});
+  const q=el("div","quizQ","가위 바위 보!");
+  const top=el("div","bigTop","🤖❔");
+  const stage=el("div","quizAns"); stage.style.flex="1"; stage.style.alignItems="center";
+  body.append(q,top,stage);
+  const H=[["✌️","가위"],["✊","바위"],["🖐️","보"]];
+  let busy=false;
+  H.forEach(([em,nm],i)=>{
+    const b=el("button","ansBtn",em);
+    onTap(b,()=>{
+      if(busy)return; busy=true;
+      speak("가위, 바위, 보!");
+      let cnt=0;
+      const roll=setInterval(()=>{
+        top.textContent="🤖"+H[rand(3)][0];
+        if(++cnt>7){ clearInterval(roll); judge(i); }
+      },140);
+    });
+    stage.appendChild(b);
+  });
+  function judge(me){
+    const cpu=rand(3);
+    top.textContent="🤖"+H[cpu][0];
+    const r=(me-cpu+3)%3;
+    setTimeout(()=>{
+      if(r===1){ addScore("rps"); q.textContent="이겼다! 🎉"; praise(); }
+      else if(r===0){ q.textContent="비겼어요! 한 번 더!"; bell(660,0.3,0.2); speak("비겼어요! 한 번 더!"); }
+      else { q.textContent="아이코, 졌어요! 다시!"; badSound(); speak("아이코! 다시 해봐요!"); }
+      setTimeout(()=>{ q.textContent="가위 바위 보!"; top.textContent="🤖❔"; busy=false; },1700);
+    },300);
+  }
+  starts.rps=()=>{ top.textContent="🤖❔"; q.textContent="가위 바위 보!"; busy=false; };
+})();
+
+/* ================================================================
+   [만들기] 41. 꽃 키우기
+================================================================ */
+(function(){
+  const body=makeScreen("grow","🌱","꽃 키우기","만들기 놀이");
+  const q=el("div","quizQ","물을 주면 꽃이 자라요!");
+  const plant=el("div","bigTop","🟤"); plant.style.fontSize="clamp(110px,20vw,200px)";
+  const row=el("div","btnRow"); body.append(q,plant,row);
+  const STAGES=["🟤","🌱","🌿","🪴"];
+  const FLOWERS=["🌷","🌻","🌸","🌹","🌼","💐"];
+  const WORDS=["씨앗이 콩콩!","새싹이 쏙!","무럭무럭 자라요!"];
+  let st=0, bloomed=false;
+  const bWater=el("button","toolBtn","💧 물 주기"), bNew=el("button","toolBtn","🌰 새 씨앗");
+  onTap(bWater,()=>{
+    if(bloomed){ speak("새 씨앗을 심어 보세요!"); return; }
+    noiseHit(0.2,0.08,2500); bell(600+st*120,0.25,0.2);
+    st++;
+    plant.classList.remove("wig"); void plant.offsetWidth; plant.classList.add("wig");
+    if(st<STAGES.length){ plant.textContent=STAGES[st]; speak(WORDS[st-1]||""); }
+    else{
+      bloomed=true;
+      plant.textContent=FLOWERS[rand(FLOWERS.length)]+"🦋";
+      praise();
+      setTimeout(()=>speak("와! 예쁜 꽃이 피었어요!"),1400);
+    }
+  });
+  onTap(bNew,()=>{ st=0; bloomed=false; plant.textContent=STAGES[0]; tone(400,0.1); speak("새 씨앗을 심었어요"); });
+  row.append(bWater,bNew);
+  starts.grow=()=>{ st=0; bloomed=false; plant.textContent=STAGES[0]; };
+})();
+
+/* ================================================================
+   [똑똑] 42. 색깔 섞기
+================================================================ */
+(function(){
+  const body=makeScreen("mix","🎨","색깔 섞기","똑똑 놀이");
+  const q=el("div","quizQ","물감 두 개를 골라 보세요!");
+  const result=el("div");
+  result.style.cssText="width:clamp(110px,18vw,170px);height:clamp(110px,18vw,170px);border-radius:50%;margin:6px auto;border:8px solid #fff;box-shadow:0 7px 0 rgba(0,0,0,.15);background:#eee;transition:background .5s;flex:0 0 auto;";
+  const label=el("div","quizQ","");
+  const stage=el("div","quizStage"); stage.style.flex="0 0 auto";
+  const pad=el("div"); pad.style.flex="1";
+  body.append(q,result,label,stage,pad);
+  const BASE=[["빨강","#e74c3c"],["노랑","#f4d03f"],["파랑","#3498db"],["하양","#ffffff"]];
+  const MIX={"빨강|노랑":["주황","#ff8a2b"],"노랑|파랑":["초록","#2ecc71"],"빨강|파랑":["보라","#8e6bbf"],
+             "빨강|하양":["분홍","#ff9fb2"],"파랑|하양":["하늘색","#a4dcf5"],"노랑|하양":["크림색","#fff3cf"]};
+  let sel=[];
+  BASE.forEach(([nm,hex])=>{
+    const d=el("div","colorDot"); d.style.background=hex;
+    if(hex==="#ffffff")d.style.borderColor="#ddd";
+    onTap(d,()=>{
+      if(sel.length>=2)return;
+      bell(700,0.15,0.18);
+      d.style.transform="scale(1.15)";
+      sel.push([nm,hex,d]);
+      if(sel.length===2){
+        const [a,b]=sel;
+        let mixed;
+        if(a[0]===b[0]) mixed=[a[0]+" 그대로",a[1]];
+        else mixed=MIX[a[0]+"|"+b[0]]||MIX[b[0]+"|"+a[0]];
+        result.style.background=mixed[1];
+        label.textContent=a[0]+" + "+b[0]+" = "+mixed[0]+"!";
+        speak(a[0]+"과 "+b[0]+"을 섞으면, "+mixed[0]+"!");
+        bell(523,0.3,0.24); bell(659,0.3,0.2,0.14); bell(784,0.35,0.2,0.28);
+        setTimeout(()=>{ sel.forEach(s=>s[2].style.transform=""); sel=[]; },1600);
+      }
+    });
+    stage.appendChild(d);
+  });
+  starts.mix=()=>{ sel.forEach(s=>s[2].style.transform=""); sel=[]; result.style.background="#eee"; label.textContent=""; };
+})();
+
+/* ================================================================
+   [똑똑] 43. 사탕 가게
+================================================================ */
+(function(){
+  const body=makeScreen("candy","🍭","사탕 가게","똑똑 놀이",{score:true});
+  const q=el("div","quizQ");
+  const jar=el("div","bigTop","🫙");
+  const stage=el("div","quizStage");
+  body.append(q,jar,stage);
+  const CP=[["빨간","#e74c3c"],["노란","#f4d03f"],["초록","#2ecc71"],["파란","#3498db"],["보라","#8e6bbf"],["분홍","#ff7bac"]];
+  let target=null, need=0, busy=false;
+  function round(){
+    busy=false;
+    const pick=shuffle([...CP]).slice(0,3);
+    target=pick[0];
+    q.textContent=target[0]+" 사탕을 모두 병에 담아요!";
+    speak(q.textContent);
+    stage.innerHTML="";
+    const candies=[];
+    need=3;
+    for(let i=0;i<3;i++)candies.push(target);
+    for(let i=0;i<5;i++)candies.push(pick[1+rand(2)]);
+    shuffle(candies).forEach(c=>{
+      const d=el("div","colorDot");
+      d.style.background=c[1];
+      d.style.width="clamp(58px,9vw,92px)"; d.style.height="clamp(58px,9vw,92px)";
+      onTap(d,()=>{
+        if(busy||d.style.visibility==="hidden")return;
+        if(c[0]===target[0]){
+          d.style.visibility="hidden"; popSound(); need--;
+          jar.classList.remove("wig"); void jar.offsetWidth; jar.classList.add("wig");
+          if(need===0){ busy=true; addScore("candy"); praise(); setTimeout(round,1700); }
+        }else wrongTap(d,"이건 "+c[0]+" 사탕이에요");
+      });
+      stage.appendChild(d);
+    });
+  }
+  starts.candy=round;
+})();
+
+/* ================================================================
+   [음악] 44. 악기 소리 맞추기
+================================================================ */
+(function(){
+  const body=makeScreen("inst","🔔","악기 소리 맞추기","음악 놀이",{score:true});
+  const {q,stage}=quizUI(body);
+  const row=el("div","btnRow");
+  const bAgain=el("button","toolBtn","🔊 다시 듣기");
+  row.appendChild(bAgain); body.appendChild(row);
+  const INST=[
+    ["🥁","큰북",()=>{ kick(); setTimeout(kick,320); }],
+    ["🔔","트라이앵글",()=>{ tone(2093,0.8,"sine",0.18); tone(2637,0.6,"sine",0.08); }],
+    ["🎹","피아노",()=>{ bell(261.63,0.4,0.3); bell(329.63,0.4,0.25,0.28); bell(392,0.5,0.25,0.56); }],
+    ["🪘","작은북",()=>{ noiseHit(0.12,0.3,900); setTimeout(()=>noiseHit(0.12,0.3,900),260); }],
+    ["🪇","탬버린",()=>{ noiseHit(0.15,0.15,3000); tone(2400,0.1,"square",0.05); }]
+  ];
+  let target=null, busy=false;
+  onTap(bAgain,()=>{ if(target)target[2](); });
+  function round(){
+    busy=false;
+    const pick=shuffle([...INST]).slice(0,3);
+    target=pick[0];
+    q.textContent="무슨 악기 소리일까요? 잘 들어 보세요!";
+    setTimeout(()=>{ if(current==="inst")target[2](); },700);
+    stage.innerHTML="";
+    shuffle([...pick]).forEach(it=>{
+      const b=el("button","ansBtn",it[0]);
+      onTap(b,()=>{
+        if(busy)return;
+        it[2]();
+        if(it===target){ busy=true; addScore("inst"); setTimeout(praise,600); setTimeout(round,2200); }
+        else setTimeout(()=>wrongTap(b,"이건 "+it[1]+" 소리예요"),350);
+      });
+      stage.appendChild(b);
+    });
+  }
+  starts.inst=round;
+})();
+
+/* ================================================================
+   홈 메뉴 구성 (카테고리별)
+================================================================ */
+(function(){
+  const menu=$("#menu");
+  const CATS=[["만들기 놀이","🎨"],["신나는 게임","🎯"],["음악 놀이","🎵"],["똑똑 놀이","🧠"]];
+  CATS.forEach(([cat,ci])=>{
+    menu.appendChild(el("div","catHead",ci+" "+cat));
+    GAMES.filter(g=>g.cat===cat).forEach(g=>{
+      const b=el("button","card",'<span class="ico">'+g.icon+'</span><span class="nm">'+g.name+"</span>");
+      b.dataset.go=g.id;
+      menu.appendChild(b);
+    });
+  });
+})();
+/* 앱 설치 시 오프라인 실행용 서비스워커 (https 주소에서만 동작) */
+if("serviceWorker" in navigator && location.protocol==="https:"){
+  window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+}
+</script>
+</body>
+</html>
