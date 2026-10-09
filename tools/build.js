@@ -34,7 +34,7 @@ const OVERRIDE = {
   "🦸": "person-superhero",
   "👢": "womans-boot",
 };
-const CORE = ["kp", "GEN:emoji-map", "GEN:version", "art", "store", "settings", "audio", "voice", "ui", "drag", "celebrate", "home", "pages", "catalog"];
+const CORE = ["kp", "GEN:emoji-map", "GEN:version", "art", "store", "settings", "audio", "voice", "ui", "drag", "paint", "celebrate", "home", "pages", "catalog"];
 
 const srcFiles = [...walk(P("js"), [".js"]).filter((f) => !f.includes(path.join("js", "gen"))), ...walk(P("css"), [".css"])];
 const RE = /(?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:️|⃣|[\u{1F3FB}-\u{1F3FF}]|‍(?:\p{Extended_Pictographic}|[♀♂])️?)*|[#*0-9]️⃣/gu;

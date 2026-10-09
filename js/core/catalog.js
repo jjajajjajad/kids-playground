@@ -8,13 +8,13 @@
     // 신나는 놀이
     "firework", "balloon", "bubble", "mole", "fish", "fruit", "rocket", "race", "egg", "peekaboo", "light", "colorpop", "candle", "croc", "rps",
     // 만들기
-    "zoo", "zoopaint", "draw", "wipe", "paintbook", "face", "icecream", "grow",
+    "zoo", "zoopaint", "paintlab", "decal", "draw", "wipe", "paintbook", "face", "icecream", "grow",
     // 음악
     "piano", "xylo", "drum", "musicbox", "simon", "inst",
     // 똑똑 놀이
     "count", "color", "shape", "animals", "listen", "feed", "odd", "shadow", "size", "more", "memory", "dots", "numbers", "hangul", "abc", "mix", "candy",
     // 형아 도전
-    "maze", "jigsaw", "sorter", "trace", "dotdot", "pattern", "sort", "missing", "sequence", "train", "connect", "spatial", "emotion", "dress",
+    "maze", "colororder", "jigsaw", "sorter", "trace", "dotdot", "pattern", "sort", "missing", "sequence", "train", "connect", "spatial", "emotion", "dress",
   ];
   KP.sortGames = function () {
     const idx = (id) => {
