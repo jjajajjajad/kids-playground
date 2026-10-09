@@ -568,11 +568,9 @@ img.e,
 /* ---------------- 힌트 ---------------- */
 .hintGlow {
   animation: glow 1s ease-in-out 3;
-  position: relative;
-  z-index: 3;
 }
 @keyframes glow {
-  50% { box-shadow: 0 0 0 10px rgba(255, 197, 49, 0.85), 0 0 30px 10px rgba(255, 197, 49, 0.6); transform: scale(1.06); }
+  50% { box-shadow: 0 0 0 10px rgba(255, 197, 49, 0.85), 0 0 30px 10px rgba(255, 197, 49, 0.6); filter: brightness(1.12); }
 }
 .hintHand {
   position: fixed;
@@ -728,7 +726,7 @@ img.e,
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
-.stk .e {
+.cStk .e {
   animation: stkIn 0.7s cubic-bezier(0.2, 1.6, 0.4, 1);
 }
 @keyframes stkIn {
@@ -1077,5 +1075,70 @@ img.e,
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+/* ---------------- 좁은 화면(폰 세로) 홈 ---------------- */
+@media (max-width: 640px) {
+  .homeTop {
+    flex-wrap: wrap;
+    padding: 10px 12px 2px;
+    gap: 6px;
+  }
+  .brand h1 {
+    font-size: 30px;
+  }
+  .homeMascot {
+    font-size: 46px;
+  }
+  .homeActs {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .act {
+    font-size: 24px;
+    padding: 6px 10px;
+    flex: 1 1 0;
+    justify-content: center;
+  }
+  .tabs {
+    gap: 6px;
+    padding: 8px 10px 4px;
+    overflow: visible;
+  }
+  .tab {
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 2px;
+    font-size: 13px;
+    border-radius: 16px;
+    border-bottom-width: 5px;
+    min-width: 0;
+  }
+  .tab span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .tab .e {
+    font-size: 26px;
+  }
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 10px 12px 24px;
+  }
+  .card {
+    padding: 12px 4px 10px;
+    gap: 5px;
+    border-radius: 20px;
+  }
+  .cIco {
+    font-size: 46px;
+  }
+  .cName {
+    font-size: 14px;
   }
 }

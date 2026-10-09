@@ -139,7 +139,21 @@
       inp.multiple = multiple;
       inp.style.display = "none";
       document.body.appendChild(inp);
+      let done = false;
+      const cancel = () => {
+        if (done) return;
+        done = true;
+        inp.remove();
+        res([]);
+      };
+      inp.addEventListener("cancel", cancel);
+      // cancel 이벤트가 없는 기기: 창으로 돌아온 뒤에도 파일이 없으면 취소로 봄
+      setTimeout(() => window.addEventListener("focus", () => setTimeout(() => {
+        if (!inp.files || !inp.files.length) cancel();
+      }, 1500), { once: true }), 300);
       inp.addEventListener("change", async () => {
+        if (done) return;
+        done = true;
         const files = [...(inp.files || [])];
         const out = [];
         for (const f of files) {

@@ -32,6 +32,7 @@ const OVERRIDE = {
   "✖️": "multiply",
   "↩️": "right-arrow-curving-left",
   "🦸": "person-superhero",
+  "👢": "womans-boot",
 };
 const CORE = ["kp", "GEN:emoji-map", "GEN:version", "art", "store", "settings", "audio", "voice", "ui", "drag", "celebrate", "home", "pages", "catalog"];
 

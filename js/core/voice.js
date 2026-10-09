@@ -61,7 +61,29 @@
    * @param {{en?:boolean, queue?:boolean, rate?:number, pitch?:number, onend?:Function}} o
    */
   V.say = function (text, o = {}) {
-    if (!text) return;
+    // 말이 끝나면 resolve 되는 Promise (음성이 없어도 글자 수로 대략 기다림)
+    return new Promise((resolve) => {
+      let fin = false;
+      const est = setTimeout(() => {
+        if (!fin) {
+          fin = true;
+          resolve();
+        }
+      }, 900 + String(text || "").length * 170);
+      sayRaw(text, Object.assign({}, o, {
+        onend() {
+          clearTimeout(est);
+          if (!fin) {
+            fin = true;
+            resolve();
+          }
+          if (o.onend) o.onend();
+        },
+      }));
+    });
+  };
+  function sayRaw(text, o) {
+    if (!text) return o.onend && o.onend();
     const vol = volume();
     // 녹음 파일이 등록되어 있으면 녹음 우선
     const clip = V.clips[text];
@@ -99,12 +121,11 @@
       u.onerror = () => done(o.onend);
       current = u;
       speechSynthesis.speak(u);
-      // iOS/크롬에서 가끔 멈춰 있는 경우를 깨움
       if (speechSynthesis.paused) speechSynthesis.resume();
     } catch (e) {
       if (o.onend) setTimeout(o.onend, 300);
     }
-  };
+  }
   V.en = (text, o = {}) => V.say(text, Object.assign({ en: true }, o));
   V.stop = function () {
     try {

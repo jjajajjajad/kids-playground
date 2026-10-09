@@ -164,10 +164,12 @@
       },
       /** 안내 문장 표시 + 읽어주기 */
       say(text, speak = true) {
-        ctx.instr = text;
+        const spoken = typeof speak === "string" ? speak : text;
+        ctx.instr = spoken;
         bubbleTxt.innerHTML = KP.E(text);
         U.replay(bubble, "pop");
-        if (speak) KP.voice.say(text.replace(/\p{Extended_Pictographic}|️/gu, ""));
+        if (speak) return KP.voice.say(spoken.replace(/\p{Extended_Pictographic}|️/gu, ""));
+        return Promise.resolve();
       },
       /** 읽어주기만 (말풍선은 그대로) */
       tell(text, o) {
@@ -278,10 +280,11 @@
         return KP.celebrate(Object.assign({ levelUp: up, ctx }, o)).then(() => ctx._active);
       },
       /** 틀렸을 때: 흔들기 + 부드러운 소리 + (선택) 안내 */
-      miss(el, msg) {
+      miss(el, msg, o = {}) {
         if (el) U.replay(el, "wrong");
         KP.audio.sfx("bad");
         if (msg) KP.voice.say(msg);
+        if (o.soft) return; // 단계 계산에 넣지 않는 가벼운 실수
         const lv = KP.level.get(def.id);
         lv.miss = (lv.miss || 0) + 1;
         lv.streak = 0;
@@ -359,6 +362,10 @@
       ctx._idleAt = Date.now();
       KP.hideHint();
     }, true);
+    // 끄는 동안에도 '멈춰 있음'으로 보지 않기
+    root.addEventListener("pointermove", (e) => {
+      if (e.buttons || e.pointerType !== "mouse") ctx._idleAt = Date.now();
+    }, { capture: true, passive: true });
     return ctx;
   }
 
@@ -374,17 +381,27 @@
     try {
       t = h.getTarget();
     } catch (e) {}
-    if (!t || !t.isConnected) return;
-    const r = t.getBoundingClientRect();
-    if (!r.width) return;
+    if (!t) return;
+    let x, y;
+    if (typeof t.x === "number" && !(t instanceof Element)) {
+      // 캔버스 게임: 화면 좌표 {x, y}
+      x = t.x;
+      y = t.y;
+    } else {
+      if (!t.isConnected) return;
+      const r = t.getBoundingClientRect();
+      if (!r.width) return;
+      x = r.left + r.width / 2;
+      y = r.top + r.height * 0.6;
+      t.classList.add("hintGlow");
+    }
     if (!hand) {
       hand = U.el("div", "hintHand", KP.E("👆"));
       document.body.appendChild(hand);
     }
-    hand.style.left = r.left + r.width / 2 + "px";
-    hand.style.top = r.top + r.height * 0.6 + "px";
+    hand.style.left = x + "px";
+    hand.style.top = y + "px";
     hand.classList.add("show");
-    t.classList.add("hintGlow");
     const txt = h.text || ctx.instr;
     if (txt) KP.voice.say(txt.replace(/\p{Extended_Pictographic}|️/gu, ""));
     h.shown++;

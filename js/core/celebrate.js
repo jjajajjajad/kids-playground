@@ -189,14 +189,14 @@
   function showSticker(ctx, done) {
     const [e, name] = stickers.award();
     layer.innerHTML =
-      '<div class="cBox sticker"><div class="rays"></div><div class="cEm stk">' + KP.E(e) +
+      '<div class="cBox sticker"><div class="rays"></div><div class="cEm cStk">' + KP.E(e) +
       '</div><div class="cTxt">스티커 받았어요!</div><div class="cSub">' + name + "</div></div>";
     layer.className = "celebrate show sticker";
     KP.audio.sfx("sticker");
     KP.voice.say("스티커 받았어요! " + name + "!");
     setTimeout(() => {
       // 스티커가 스티커북 아이콘으로 날아가기
-      const src = layer.querySelector(".stk img, .stk span");
+      const src = layer.querySelector(".cStk img, .cStk span");
       const target = ctx ? ctx.stickerPill : document.querySelector("#home .stickerBtn");
       if (src && target) {
         const a = src.getBoundingClientRect(),

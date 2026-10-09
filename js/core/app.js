@@ -29,7 +29,10 @@
     if (document.hidden) {
       KP.audio.bgm.stop();
       KP.voice.stop();
-    } else if (!first && KP.settings.get().bgm) KP.audio.bgm.start();
+    } else if (!first && KP.settings.get().bgm) {
+      const c = KP.current();
+      if (!(c && c.def.cat === "music")) KP.audio.bgm.start();
+    }
   });
 
   KP.persist();
