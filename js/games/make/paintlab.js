@@ -146,12 +146,12 @@ KP.game({
         const vol = bowl.volume();
         if (vol < 0.6) return;
         // 부은 뒤 가만히 있으면 젓기 안내
-        if (ctx.changed && st.even < 0.84 && now - st.lastPourAt > 2600 && now - st.lastStirAt > 2600 && now - stirTold > 9000) {
+        if (ctx.changed && st.even < 0.78 && now - st.lastPourAt > 2600 && now - st.lastStirAt > 2600 && now - stirTold > 9000) {
           stirTold = now;
           KP.voice.say("숟가락으로 빙글빙글 저어 봐요!");
         }
         // 다 섞이면 색 이름 / 새 색깔 발견
-        if (st.even >= 0.86 && ctx.changed && now - st.lastPourAt > 600) {
+        if (st.even >= 0.8 && ctx.changed && now - st.lastPourAt > 600) {
           ctx.changed = false;
           this.announce(ctx);
         }

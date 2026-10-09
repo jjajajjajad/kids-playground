@@ -416,6 +416,9 @@
         dirty = false;
         const data = img.data;
         const v = [0, 0, 0, 0, 0];
+        // 물감이 적게 퍼져 있으면 진하게 보여 줌 (한두 방울을 넓게 저어도 색이 보이게)
+        const vol = api.volume();
+        const gain = 260 * Math.min(4, Math.max(1, 4 / Math.max(vol, 0.25)));
         for (let k = 0; k < NN; k++) {
           const o = k * 4;
           if (!mask[k]) {
@@ -424,7 +427,7 @@
           }
           let s = 0;
           for (let p = 0; p < 5; p++) s += v[p] = pig[p][k];
-          const al = U.clamp(s * 260, 0, 1); // 그릇 전체(약 1,450칸)에 물감 6쯤이면 꽉 차 보이게
+          const al = U.clamp(s * gain, 0, 1); // 그릇 전체(약 1,450칸)에 물감 4~6이면 꽉 차 보이게
           let r = BOTTOM[0],
             g = BOTTOM[1],
             b = BOTTOM[2];
