@@ -305,7 +305,7 @@ KP.game({
       info.innerHTML =
         "우리 캐릭터 " + photos.length + "개 · " + (saveBad ? '<b class="bad">저장 안 됨(저장공간 부족)</b>' : "<b>" + KP.E("✅") + " 이 기기에 저장됨</b>") + " · ✖ 꾹 누르면 삭제";
       photos.forEach((p) => {
-        const t = U.btn('<img src="' + p.img + '" alt="">', "wp-th" + (cur && cur.photo && cur.photo.id === p.id ? " now" : ""));
+        const t = U.btn('<img src="' + KP.safeImg(p.img) + '" alt="">', "wp-th" + (cur && cur.photo && cur.photo.id === p.id ? " now" : ""));
         t.dataset.id = p.id;
         const del = U.el("span", "wp-del", "✖");
         t.appendChild(del);
@@ -430,7 +430,7 @@ KP.game({
       Object.assign(charEl.style, { left: x + "px", top: y + "px", width: S + "px", height: S + "px", fontSize: S + "px" });
       Object.assign(spot.style, { left: x + S * 0.2 + "px", top: y + S * 0.2 + "px", width: S * 0.6 + "px", height: S * 0.6 + "px" });
       charEl.classList.remove("found");
-      charEl.innerHTML = cur.photo ? '<img class="ph" src="' + cur.photo.img + '" alt="">' : KP.E(cur.em);
+      charEl.innerHTML = cur.photo ? '<img class="ph" src="' + KP.safeImg(cur.photo.img) + '" alt="">' : KP.E(cur.em);
       scene.style.background = theme.scene;
       U.$$(".wp-th", strip).forEach((t) => t.classList.toggle("now", !!(cur.photo && t.dataset.id === cur.photo.id)));
       // 덮개

@@ -45,6 +45,12 @@
   if ("serviceWorker" in navigator && location.protocol === "https:") {
     addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
   }
+  // iPad/iPhone 의 Safari 탭으로 쓰는 중이면 '홈 화면에 추가' 한 번 안내 (기록 보존을 위해)
+  const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (iOS && !U.isApp() && !KP.store.get("a2hsTold", false)) {
+    KP.store.set("a2hsTold", true);
+    setTimeout(() => KP.toast("공유 버튼 → '홈 화면에 추가'로 설치하면 기록이 안전해요"), 2500);
+  }
   // 자동 점검 도구용
   KP.ready = true;
 })(window.KP);

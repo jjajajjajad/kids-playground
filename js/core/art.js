@@ -45,6 +45,36 @@
     return span;
   };
 
+  /* ---- 저장된 SVG 정화: 그림 요소·속성만 남기고 스크립트 여지는 모두 제거 ---- */
+  const OK_TAG = new Set(["svg", "g", "path", "circle", "ellipse", "rect", "line", "polyline", "polygon", "defs", "lineargradient", "radialgradient", "pattern", "stop"]);
+  const OK_ATTR = new Set(["class", "id", "viewbox", "xmlns", "fill", "stroke", "stroke-width", "stroke-linejoin", "stroke-linecap", "opacity", "fill-opacity",
+    "cx", "cy", "r", "rx", "ry", "x", "y", "x1", "y1", "x2", "y2", "width", "height", "d", "points", "transform", "offset", "stop-color", "stop-opacity",
+    "patternunits", "patterntransform", "gradientunits", "data-p", "data-uid"]);
+  KP.sanitizeSvg = (str) => {
+    if (typeof str !== "string" || str.length > 300000) return "";
+    try {
+      const doc = new DOMParser().parseFromString(str, "image/svg+xml");
+      const root = doc.documentElement;
+      if (!root || root.nodeName.toLowerCase() !== "svg" || doc.querySelector("parsererror")) return "";
+      const walk = (el) => {
+        for (const c of [...el.children]) {
+          if (!OK_TAG.has(c.nodeName.toLowerCase())) c.remove();
+          else walk(c);
+        }
+        for (const a of [...el.attributes]) {
+          const n = a.name.toLowerCase(),
+            v = a.value;
+          const bad = !OK_ATTR.has(n) || /javascript:|data:|expression|<|>/i.test(v) || (/url\(/i.test(v) && !/^url\(#[\w-]+\)$/.test(v.trim()));
+          if (bad) el.removeAttribute(a.name);
+        }
+      };
+      walk(root);
+      return new XMLSerializer().serializeToString(root);
+    } catch (e) {
+      return "";
+    }
+  };
+
   /* ---- 캔버스용 이미지 캐시 ---- */
   const cache = new Map();
   KP.eImage = (ch) => {

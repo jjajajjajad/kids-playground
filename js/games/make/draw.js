@@ -707,8 +707,8 @@ KP.game({
         unsaved = false;
         KP.toast("🖼️ 내 작품에 저장했어요!");
         A.sfx("sticker");
+        delete bSave.dataset.busy; // 기다리는 중에 나가도 버튼이 잠기지 않게
         ctx.after(900, async () => {
-          delete bSave.dataset.busy;
           await ctx.win({ msg: "내 작품에 저장했어요!" });
         });
       } else {
@@ -750,9 +750,9 @@ KP.game({
       drawPaper();
       refresh();
     };
-    ctx.markLoaded = (dirty) => {
+    ctx.markLoaded = (dirty, draft = false) => {
       unsaved = dirty;
-      draftDirty = false;
+      draftDirty = draft;
     };
     refresh();
   },
@@ -766,7 +766,7 @@ KP.game({
         KP.pendingDraw = null;
         ctx.setPaper("white");
         ctx.loadInto(pend.img, () => {
-          ctx.markLoaded(true);
+          ctx.markLoaded(false, true); // 이어 그리기: 임시저장은 하고, 그대로 다시 저장해 중복 작품이 생기지는 않게
           ctx.saveDraft();
         });
         KP.voice.say("이어서 그려 봐요!");

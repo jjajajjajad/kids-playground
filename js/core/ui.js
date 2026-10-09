@@ -38,7 +38,13 @@
   /* ---------------- 자동 난이도 ---------------- */
   KP.level = {
     get(id) {
-      return KP.store.get("lv:" + id, { lvl: 1, streak: 0, miss: 0, wins: 0, best: 0, plays: 0 });
+      const d = { lvl: 1, streak: 0, miss: 0, wins: 0, best: 0, plays: 0 };
+      const v = KP.store.get("lv:" + id, d);
+      if (!v || typeof v !== "object") return d;
+      const o = Object.assign({}, d, v);
+      for (const k in d) if (!Number.isFinite(o[k])) o[k] = d[k];
+      o.lvl = Math.max(1, Math.round(o.lvl));
+      return o;
     },
     save(id, v) {
       KP.store.set("lv:" + id, v);
@@ -70,6 +76,7 @@
     U.replay(ctx.root, "enter");
     current = ctx;
     ctx._active = true;
+    ctx._session = (ctx._session || 0) + 1; // 나갔다 다시 들어오면 이전 판의 후속 동작 무효
     ctx._idleAt = Date.now();
     const lv = KP.level.get(id);
     lv.plays++;
@@ -89,6 +96,8 @@
     if (!ctx) return;
     ctx._active = false;
     ctx._clearTimers();
+    KP.cancelCelebrate && KP.cancelCelebrate();
+    KP.audio.newScene();
     ctx.hint(null);
     try {
       ctx.def.stop && ctx.def.stop(ctx);
@@ -277,7 +286,8 @@
         KP.level.save(def.id, lv);
         ctx._updateLevel();
         ctx.hint(null);
-        return KP.celebrate(Object.assign({ levelUp: up, ctx }, o)).then(() => ctx._active);
+        const sess = ctx._session;
+        return KP.celebrate(Object.assign({ levelUp: up, ctx }, o)).then(() => ctx._active && ctx._session === sess);
       },
       /** 틀렸을 때: 흔들기 + 부드러운 소리 + (선택) 안내 */
       miss(el, msg, o = {}) {
@@ -351,8 +361,8 @@
       stickerPill: stPill,
     };
     homeBtn.addEventListener("click", () => {
-      KP.audio.sfx("back");
       KP.home();
+      KP.audio.sfx("back");
     });
     bubble.addEventListener("click", () => {
       if (ctx.instr) KP.voice.say(ctx.instr.replace(/\p{Extended_Pictographic}|️/gu, ""));

@@ -16,7 +16,7 @@ KP.game({
       A = KP.audio;
     KP.css("jigsaw", `
       .jgTools{display:flex;gap:clamp(6px,1.4vw,12px);justify-content:center;align-items:center;padding:2px 10px 8px;flex:0 0 auto;flex-wrap:nowrap}
-      .jgSize{min-width:clamp(62px,9vw,86px);height:clamp(54px,7.4vw,66px);border-radius:18px;background:#fff;box-shadow:0 5px 0 rgba(47,58,102,.14);display:flex;align-items:center;justify-content:center;padding:6px}
+      .jgSize{min-width:clamp(72px,9vw,90px);height:clamp(62px,7.4vw,72px);border-radius:18px;background:#fff;box-shadow:0 5px 0 rgba(47,58,102,.14);display:flex;align-items:center;justify-content:center;padding:6px}
       .jgSize.sel{background:var(--sun);box-shadow:0 5px 0 #d9a000}
       .jgGrid{display:grid;gap:2px;width:clamp(30px,4.2vw,40px);height:clamp(30px,4.2vw,40px)}
       .jgGrid i{background:#6a76a3;border-radius:2px}
@@ -293,8 +293,10 @@ KP.game({
         A.sfx("tap");
         const got = await KP.pickPhotos(false, 800);
         if (!got || !got.length) return;
+        if (!ctx._active) return;
         const rec = { id: KP.newId(), kind: "jigsaw", img: got[0], t: Date.now() };
-        await KP.db.put("photos", rec);
+        const saved = await KP.db.put("photos", rec);
+        if (saved === false) KP.toast("사진을 저장하지 못했어요. 이번에만 쓸 수 있어요");
         KP.persist && KP.persist();
         const p = await photoPic(rec);
         ctx.pics.push(p);
@@ -305,7 +307,7 @@ KP.game({
       });
       list.appendChild(add);
       ctx.pics.forEach((p, k) => {
-        const th = U.el("button", "jgTh" + (k === ctx.picIdx ? " cur" : ""), '<img src="' + p.thumb + '" alt="" draggable="false">');
+        const th = U.el("button", "jgTh" + (k === ctx.picIdx ? " cur" : ""), '<img src="' + KP.safeImg(p.thumb) + '" alt="" draggable="false">');
         if (p.kind === "photo") {
           th.appendChild(U.el("span", "badge", KP.E("📷")));
           // 어른용: 1초 꾹 누르면 지우기 버튼
@@ -723,7 +725,7 @@ KP.game({
     ctx.jgUpdateTools = () => {
       sizeBtns.forEach((b) => b.classList.toggle("sel", +b.dataset.n === st.n));
       const p = ctx.pics[ctx.picIdx];
-      picBtn.innerHTML = (p ? '<img class="th" src="' + p.thumb + '" alt="">' : "") + KP.E("🖼️");
+      picBtn.innerHTML = (p ? '<img class="th" src="' + KP.safeImg(p.thumb) + '" alt="">' : "") + KP.E("🖼️");
     };
   },
   start(ctx) {

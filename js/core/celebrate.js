@@ -138,18 +138,38 @@
   /**
    * @param {{msg?:string, big?:boolean, levelUp?:boolean, ctx?:object, quiet?:boolean, sticker?:boolean}} o
    */
+  /* 축하 도중 화면을 나가면 남은 연출·소리 예약을 모두 취소 */
+  let ctimers = [],
+    pendingRes = null;
+  const later = (fn, ms) => {
+    const t = setTimeout(fn, ms);
+    ctimers.push(t);
+    return t;
+  };
+  KP.cancelCelebrate = function () {
+    ctimers.forEach(clearTimeout);
+    ctimers = [];
+    if (layer) layer.className = "celebrate";
+    U.$$(".flySticker").forEach((e) => e.remove());
+    KP.celebrating = false;
+    const r = pendingRes;
+    pendingRes = null;
+    if (r) r();
+  };
+
   KP.celebrate = function (o = {}) {
     ensureLayer();
+    KP.cancelCelebrate(); // 앞의 축하가 남아 있으면 정리
     KP.celebrating = true;
     KP.hideHint && KP.hideHint();
     const [em, word] = U.pick(PRAISE);
     const msg = o.msg || word;
     layer.innerHTML =
       '<div class="cBox"><div class="cEm">' + KP.E(em) + '</div><div class="cTxt">' + KP.E(msg) + "</div></div>";
-    layer.className = "celebrate show" + (o.big ? " big" : "");
+    layer.className = "celebrate show block" + (o.big ? " big" : "");
     KP.confetti(o.big ? 220 : 120);
-    if (o.big) setTimeout(() => KP.confetti(140, innerWidth * 0.25, innerHeight * 0.3), 350);
-    if (o.big) setTimeout(() => KP.confetti(140, innerWidth * 0.75, innerHeight * 0.3), 650);
+    if (o.big) later(() => KP.confetti(140, innerWidth * 0.25, innerHeight * 0.3), 350);
+    if (o.big) later(() => KP.confetti(140, innerWidth * 0.75, innerHeight * 0.3), 650);
     KP.audio.jingle();
     if (!o.quiet) KP.voice.say(msg.replace(/\p{Extended_Pictographic}|️/gu, ""));
     const base = o.big ? 2100 : 1350;
@@ -159,26 +179,30 @@
     const giveSticker = o.sticker !== false && (o.levelUp || winCount % 3 === 0);
 
     return new Promise((res) => {
+      pendingRes = res;
       let t = base;
-      setTimeout(() => layer.classList.remove("show"), base - 150);
+      later(() => layer.classList.remove("show"), base - 150);
       if (o.levelUp) {
-        setTimeout(() => {
+        later(() => {
           const lv = o.ctx ? o.ctx.level : 2;
           layer.innerHTML =
             '<div class="cBox lvl"><div class="cEm">' + KP.E("🦸") + '</div><div class="cTxt">한 단계 올라갔어요!</div><div class="cSub">' +
             KP.E("⭐") + " " + lv + "단계 형아 도전!</div></div>";
-          layer.className = "celebrate show big";
+          layer.className = "celebrate show block big";
           KP.audio.sfx("levelup");
           KP.confetti(160);
           KP.voice.say("한 단계 올라갔어요! 이제 " + lv + "단계! 형아 최고!");
         }, base);
         t += 2300;
-        setTimeout(() => layer.classList.remove("show"), t - 150);
+        later(() => layer.classList.remove("show"), t - 150);
       }
       if (giveSticker) {
-        setTimeout(() => showSticker(o.ctx, () => finish()), t);
-      } else setTimeout(finish, t);
+        later(() => showSticker(o.ctx, () => finish()), t);
+      } else later(finish, t);
       function finish() {
+        if (pendingRes !== res) return; // 이미 취소됨
+        pendingRes = null;
+        ctimers = [];
         layer.className = "celebrate";
         KP.celebrating = false;
         res();
@@ -191,10 +215,10 @@
     layer.innerHTML =
       '<div class="cBox sticker"><div class="rays"></div><div class="cEm cStk">' + KP.E(e) +
       '</div><div class="cTxt">스티커 받았어요!</div><div class="cSub">' + name + "</div></div>";
-    layer.className = "celebrate show sticker";
+    layer.className = "celebrate show block sticker";
     KP.audio.sfx("sticker");
     KP.voice.say("스티커 받았어요! " + name + "!");
-    setTimeout(() => {
+    later(() => {
       // 스티커가 스티커북 아이콘으로 날아가기
       const src = layer.querySelector(".cStk img, .cStk span");
       const target = ctx ? ctx.stickerPill : document.querySelector("#home .stickerBtn");
@@ -210,7 +234,7 @@
             "translate(" + (b.left + b.width / 2 - a.left - a.width / 2) + "px," + (b.top + b.height / 2 - a.top - a.height / 2) + "px) scale(.2)";
           fly.style.opacity = "0.4";
         });
-        setTimeout(() => {
+        later(() => {
           fly.remove();
           if (ctx) {
             ctx._updateLevel();

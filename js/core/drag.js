@@ -107,6 +107,8 @@
           setTimeout(() => {
             el.style.transition = "";
             el.classList.remove("dragging");
+            // 쏙 들어가는 사이에 상황이 바뀌었으면(두 손가락으로 동시에 넣기 등) 제자리로
+            if (locked || !targets().includes(t) || (o.accept && !o.accept(t, el))) return goHome();
             o.onDrop && o.onDrop(t, el);
           }, 190);
         } else {
@@ -121,6 +123,9 @@
     }
     el.addEventListener("pointerup", end);
     el.addEventListener("pointercancel", end);
+    el.addEventListener("lostpointercapture", (e) => {
+      if (e.pointerId === pid) end(e);
+    });
 
     return {
       lock() {

@@ -138,6 +138,7 @@ KP.game({
         onReject: (t) => ctx.miss(t, "이건 " + col.a + " 사탕이에요. " + target.a + " 사탕을 찾아요!"),
         onDrop: (t) => {
           if (!t) return;
+          if (busy || got >= need) return d.home(); // 이미 다 담았으면 더 받지 않음
           d.lock();
           c.dataset.done = "1";
           got++;

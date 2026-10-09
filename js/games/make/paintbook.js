@@ -396,8 +396,8 @@ KP.game({
         unsaved = false;
         KP.toast("🖼️ 내 작품에 저장했어요!");
         A.sfx("sticker");
+        delete bDone.dataset.busy; // 기다리는 중에 나가도 버튼이 잠기지 않게
         await ctx.wait(900);
-        delete bDone.dataset.busy;
         ctx.round = (ctx.round || 0) + 1;
         await ctx.win({ big: isComplete(), msg: "내 작품에 저장했어요!" });
       } else {

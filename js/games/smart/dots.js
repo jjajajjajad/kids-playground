@@ -10,6 +10,13 @@ KP.game({
   levels: 3,
   score: "⭐",
   setup(ctx) {
+    // 판 도중 화면을 돌리면 풍선이 화면 밖으로 나갈 수 있어 새 판으로 다시 배치
+    let rt = null;
+    addEventListener("resize", () => {
+      if (!ctx._active) return;
+      if (rt) ctx.cancel(rt);
+      rt = ctx.after(350, () => this.next(ctx));
+    });
     const U = KP.u;
     KP.css("dots", `
       .dtBoard{flex:1;min-height:0;position:relative;margin:0 10px 14px;border-radius:28px;background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,.2));overflow:hidden}

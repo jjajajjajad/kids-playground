@@ -17,7 +17,7 @@ KP.game({
     KP.css("piano", `
       .pn{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:0 12px 12px}
       .pn-top{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;flex:0 0 auto}
-      .pn-ib{font-size:clamp(16px,2.2vw,21px);padding:8px 14px;min-height:56px}
+      .pn-ib{font-size:clamp(16px,2.2vw,21px);padding:8px 14px;min-height:62px}
       .pn-ib .e{font-size:1.5em}
       .pn-ib.sel{background:var(--sun);box-shadow:0 6px 0 #d9a000}
       .pn-song{background:var(--cat);color:#fff;box-shadow:0 6px 0 color-mix(in srgb,var(--cat) 60%,#000)}
@@ -57,7 +57,7 @@ KP.game({
         .pn{padding:0 8px 10px;gap:6px}
         .pn-keys{gap:3px;padding:8px}
         .pn-key{border-radius:0 0 12px 12px;font-size:16px;padding-bottom:12px}
-        .pn-ib{padding:6px 10px;min-height:50px;font-size:15px}
+        .pn-ib{padding:6px 10px;min-height:58px;font-size:15px}
         .pn-ib span{display:none}
         .pn-song span{display:inline}
         .pn-cards{grid-template-columns:repeat(2,minmax(0,1fr))}

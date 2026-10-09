@@ -143,7 +143,7 @@ KP.game({
       ctx.fast(b, () => {
         if (busy || b.classList.contains("done")) return;
         if (n !== seq[idx]) {
-          ctx.miss(b, "다음은 " + seq[idx] + "이에요!");
+          ctx.miss(b, "다음은 " + KP.u.josa(KP.u.NAT[seq[idx]] || String(seq[idx]), "이에요/예요") + "!");
           return;
         }
         b.classList.add("done");
@@ -169,7 +169,7 @@ KP.game({
       return b;
     });
     btns[0].classList.add("next");
-    const hint = () => ctx.hint(() => btns[idx], "다음 숫자 " + seq[idx] + "을 눌러요!");
+    const hint = () => ctx.hint(() => btns[idx], "다음 숫자 " + KP.u.josa(KP.u.NAT[seq[idx]] || String(seq[idx]), "을/를") + " 눌러요!");
     hint();
 
     const launch = async () => {

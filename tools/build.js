@@ -135,13 +135,20 @@ self.addEventListener("fetch", (e) => {
   if (url.origin !== location.origin) return;
   // 화면(html)은 인터넷 우선 → 새 버전 즉시 반영, 나머지는 저장본 우선 → 빠르고 오프라인 가능
   if (e.request.mode === "navigate") {
-    e.respondWith(fetch(e.request).then((r) => { caches.open(CACHE).then((c) => c.put("index.html", r.clone())); return r; }).catch(() => caches.match("index.html")));
+    e.respondWith(fetch(e.request).then((r) => {
+      // 정상 응답이고 '이 버전'의 화면일 때만 저장 (와이파이 로그인 화면·오류 페이지·다른 버전 저장 방지)
+      if (r.ok && (r.headers.get("content-type") || "").includes("text/html")) {
+        r.clone().text().then((t) => { if (t.includes("?v=" + VERSION)) caches.open(CACHE).then((c) => c.put("index.html", new Response(t, { headers: { "Content-Type": "text/html; charset=utf-8" } }))); });
+      }
+      return r;
+    }).catch(() => caches.match("index.html")));
     return;
   }
   // 정확히 같은 버전(?v=)이 있으면 저장본, 없으면 인터넷(새 버전), 인터넷도 안 되면 아무 버전 저장본
   e.respondWith(
     caches.match(e.request).then((hit) => hit || fetch(e.request).then((r) => {
-      if (r.ok) { const cp = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, cp)); }
+      const v = url.searchParams.get("v");
+      if (r.ok && (!v || v === VERSION)) { const cp = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, cp)); }
       return r;
     }).catch(() => caches.match(e.request, { ignoreSearch: true })))
   );

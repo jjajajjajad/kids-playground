@@ -1,6 +1,7 @@
-/* 색깔 섞기 — 물감 두 개를 끌어서 그릇에 넣으면 빙글빙글 섞여 새 색이 돼요. "빨강이랑 노랑을 섞으면 주황!"
-   1단계: 물감 2개(정해진 짝) 넣어 보기 / 2단계: 빨강·노랑·파랑 중 마음대로 두 개
-   3단계: "초록을 만들려면?" 퀴즈 (빨강·노랑·파랑·하양 중 알맞은 두 개) */
+/* 색깔 섞기 — 물감을 끌어서 그릇에 넣으면 빙글빙글 섞여 새 색이 돼요. "빨강이랑 노랑을 섞으면 주황!"
+   1단계: 물감 2개(정해진 짝) 넣어 보기
+   2단계: 빨강·노랑·파랑·하양 중 마음대로 최대 3개 (2개 섞은 뒤 '완성' 또는 하나 더)
+   3단계: "초록을 만들려면?" 퀴즈 — "갈색을 만들려면?"처럼 3개가 필요한 문제도 */
 "use strict";
 KP.game({
   id: "mix",
@@ -40,6 +41,8 @@ KP.game({
       .mxPot .mxName{position:absolute;left:0;right:0;bottom:-30px;text-align:center;font-size:clamp(17px,2.2vw,22px)}
       .mxPot.used{visibility:hidden}
       .mxPot.pour{transition:transform .5s,opacity .5s;opacity:0}
+      .mxFin{display:none;font-size:clamp(22px,3vw,30px);padding:12px 26px}
+      .mxFin.on{display:inline-flex;animation:popIn .35s}
     `);
     ctx.wrap = U.el("div", "mxWrap");
     ctx.top = U.el("div", "mxTop");
@@ -49,7 +52,8 @@ KP.game({
     ctx.top.append(ctx.goal, ctx.bowl);
     ctx.line = U.el("div", "mxSay");
     ctx.tray = U.el("div", "mxTray");
-    ctx.wrap.append(ctx.top, ctx.line, ctx.tray);
+    ctx.fin = U.btn(KP.E("✅") + " 완성!", "btn primary mxFin");
+    ctx.wrap.append(ctx.top, ctx.line, ctx.fin, ctx.tray);
     ctx.body.appendChild(ctx.wrap);
     ctx.P = {
       red: { n: "빨강", c: "#ff3b3b" },
@@ -64,8 +68,13 @@ KP.game({
       "red+white": { n: "분홍", c: "#ff8fb6" },
       "blue+white": { n: "하늘색", c: "#7cc4ff" },
       "white+yellow": { n: "연한 노랑", c: "#fff08a" },
+      // 세 가지 섞기
+      "blue+red+yellow": { n: "갈색", c: "#8b5a2b" },
+      "red+white+yellow": { n: "살구색", c: "#ffb07a" },
+      "blue+red+white": { n: "연보라", c: "#b18cff" },
+      "blue+white+yellow": { n: "연두", c: "#9fe07a" },
     };
-    ctx.key = (a, b) => [a, b].sort().join("+");
+    ctx.key = (...ks) => ks.flat().slice().sort().join("+");
     ctx.round = 0;
   },
   start(ctx) {
@@ -77,22 +86,25 @@ KP.game({
     const lv = ctx.level;
     const self = this;
     const P = ctx.P;
-    let pots, goal = null;
+    let pots,
+      goal = null;
     if (lv === 1) {
       const pairs = [["red", "yellow"], ["blue", "yellow"], ["red", "blue"]];
       let p = U.pick(pairs);
       if (ctx.lastPair && p.join() === ctx.lastPair) p = pairs[(pairs.indexOf(p) + 1) % 3];
       ctx.lastPair = p.join();
       pots = U.shuffle([...p]);
-    } else if (lv === 2) pots = ["red", "yellow", "blue"];
+    } else if (lv === 2) pots = ["red", "yellow", "blue", "white"];
     else {
-      const goals = ["red+yellow", "blue+yellow", "blue+red", "red+white", "blue+white"];
+      const goals = ["red+yellow", "blue+yellow", "blue+red", "red+white", "blue+white", "blue+red+yellow", "blue+white+yellow"];
       let g = U.pick(goals);
       if (g === ctx.lastGoal) g = U.pick(goals.filter((x) => x !== g));
       ctx.lastGoal = g;
       goal = g;
       pots = U.shuffle(["red", "yellow", "blue", "white"]);
     }
+    const need = goal ? goal.split("+").length : 0; // 퀴즈에서 필요한 물감 수
+    const maxIn = lv === 1 ? 2 : 3; // 그릇에 넣을 수 있는 최대 개수
     ctx.goalKey = goal;
     ctx.goal.classList.toggle("on", !!goal);
     if (goal) {
@@ -105,11 +117,21 @@ KP.game({
     this.resetBowl(ctx);
     ctx.line.innerHTML = "";
     ctx.tray.innerHTML = "";
+    ctx.fin.classList.remove("on");
     let inBowl = [],
-      busy = false;
+      busy = false,
+      finished = false;
     const ask =
-      lv === 1 ? "두 물감을 끌어서 그릇에 넣어 봐요! 무슨 색이 될까요?" : lv === 2 ? "물감 두 개를 골라서 그릇에 넣어 봐요!" : U.josa(ctx.MIX[goal].n, "을/를") + " 만들려면 어떤 물감을 섞을까요?";
+      lv === 1
+        ? "두 물감을 끌어서 그릇에 넣어 봐요! 무슨 색이 될까요?"
+        : lv === 2
+        ? "물감을 골라서 그릇에 넣어 봐요! 세 개까지 섞을 수 있어요."
+        : U.josa(ctx.MIX[goal].n, "을/를") + " 만들려면 어떤 물감을 섞을까요?" + (need === 3 ? " 세 가지가 필요해요!" : "");
     ctx.say("🎨 " + ask);
+    const lineOf = (ks, res) =>
+      ks.map((k) => '<span class="mxDot" style="--c:' + P[k].c + '"></span>' + P[k].n).join(" + ") +
+      (res ? ' = <span class="mxDot" style="--c:' + res.c + '"></span><b style="font-weight:400;color:' + (res.c === "#fff08a" ? "#c9a400" : res.c) + '">' + res.n + "</b>" : " +");
+
     const potEls = pots.map((k, i) => {
       const p = P[k];
       const el = U.el("div", "mxPot item", '<span class="mxBlob"></span><span class="mxJar"></span><span class="mxName">' + p.n + "</span>");
@@ -118,16 +140,20 @@ KP.game({
       if (!goal || goal.split("+").includes(k)) el.dataset.go = "bowl";
       ctx.tray.appendChild(el);
       const d = KP.drag(el, {
-        targets: () => (busy ? [] : [ctx.bowl]),
+        // 섞는 중이거나 그릇이 가득 차면 더 받지 않음 (동시에 여러 개 넣어도 꼬이지 않게)
+        targets: () => (busy || finished || inBowl.length >= maxIn ? [] : [ctx.bowl]),
         pad: 40,
         onDrop: async (t) => {
           if (!t) return;
+          if (busy || finished || inBowl.length >= maxIn) return d.home();
           d.lock();
           el.dataset.done = "1";
           el.style.transform += " rotate(-60deg)";
           el.classList.add("pour");
           KP.audio.sfx("water");
+          const prevKey = inBowl.length ? ctx.key(inBowl) : null;
           inBowl.push(k);
+          ctx.fin.classList.remove("on");
           ctx.after(450, () => {
             el.classList.remove("pour");
             el.classList.add("used");
@@ -136,35 +162,69 @@ KP.game({
           if (inBowl.length === 1) {
             this.fill(ctx, p.c);
             KP.voice.say(p.n + "!");
-            ctx.line.innerHTML = '<span class="mxDot" style="--c:' + p.c + '"></span>' + p.n + " +";
+            ctx.line.innerHTML = lineOf(inBowl);
             hint();
-          } else {
-            busy = true;
-            await this.swirl(ctx, inBowl[0], k);
-            await done();
+            return;
           }
+          // 지금 그릇의 색(이전 섞인 색 또는 물감 하나)에 새 물감을 더해 섞기
+          busy = true;
+          const prev = inBowl.length === 2 ? P[inBowl[0]] : ctx.MIX[prevKey];
+          const res = ctx.MIX[ctx.key(inBowl)];
+          const ok = await this.swirl(ctx, prev, p, res, inBowl.length === 2);
+          if (!ok) return;
+          ctx.line.innerHTML = lineOf(inBowl, res);
+          busy = false;
+          decide();
         },
       });
       return { el, d, k };
     });
+
+    // 섞은 뒤 어떻게 할지
+    const decide = () => {
+      if (lv === 1) return done(true);
+      if (goal) {
+        if (inBowl.length < need) {
+          // 3가지가 필요한 문제: 하나 더 넣기 (정답으로 가는 중인지는 아직 묻지 않음)
+          KP.voice.say("좋아요! 하나 더 넣어 볼까요?", { queue: true });
+          return hint();
+        }
+        return done(ctx.key(inBowl) === goal);
+      }
+      // 2단계 자유 섞기
+      if (inBowl.length >= maxIn) return done(true);
+      ctx.fin.classList.add("on");
+      KP.voice.say("한 가지 더 넣어도 돼요! 다 섞었으면 완성을 눌러요.", { queue: true });
+      ctx.hint(() => ctx.fin, "다 섞었으면 완성을 눌러요!");
+    };
+    ctx.fin.onclick = () => {
+      if (busy || finished || inBowl.length < 2) return;
+      KP.audio.sfx("select");
+      done(true);
+    };
+
     const hint = () =>
       ctx.hint(() => {
         const left = potEls.filter((x) => !x.el.dataset.done);
         return (left.find((x) => x.el.dataset.go) || left[0] || {}).el;
       }, lv === 3 ? ask : "물감을 끌어서 그릇에 넣어요!");
     hint();
-    const done = async () => {
-      const key = ctx.key(inBowl[0], inBowl[1]);
-      const m = ctx.MIX[key];
-      if (!goal || key === goal) {
+
+    const done = async (right) => {
+      if (finished) return;
+      ctx.fin.classList.remove("on");
+      const m = ctx.MIX[ctx.key(inBowl)];
+      if (right) {
+        finished = true;
         ctx.score.add();
         ctx.round++;
-        await ctx.wait(1600);
+        await ctx.wait(1300);
         const big = ctx.round % 5 === 0;
         const ok = await ctx.win({ big, msg: big ? "색깔 마법사 형아!" : m.n + "!", quiet: !big });
         if (ok) self.next(ctx);
       } else {
-        await ctx.wait(2300);
+        busy = true;
+        await ctx.wait(2000);
         ctx.miss(null, U.josa(ctx.MIX[goal].n, "이/가") + " 아니네요! 다른 물감으로 다시 해 봐요!");
         await ctx.wait(1500);
         if (!ctx._active) return;
@@ -196,30 +256,34 @@ KP.game({
     liq.style.setProperty("--m", c);
     liq.classList.add("on");
   },
-  async swirl(ctx, a, b) {
+  /** prev(지금 그릇 색) 에 add(새 물감) 를 섞어 res 가 되는 연출. 나가면 false */
+  async swirl(ctx, prev, add, res, firstPair) {
     const U = KP.u,
       A = KP.audio;
-    const P = ctx.P;
-    const m = ctx.MIX[ctx.key(a, b)];
     const sw = ctx.bowl.querySelector(".mxSwirl");
-    sw.style.setProperty("--a", P[a].c);
-    sw.style.setProperty("--b", P[b].c);
+    const out = ctx.bowl.querySelector(".mxRes");
+    out.classList.remove("on");
+    sw.style.setProperty("--a", prev.c);
+    sw.style.setProperty("--b", add.c);
     sw.classList.remove("on");
     void sw.offsetWidth;
     sw.classList.add("on");
     A.noise({ bp: 500, bpTo: 1800, q: 1.2, dur: 1.5, vol: 0.12, attack: 0.3 });
     for (let i = 0; i < 6; i++) A.note(A.SCALE[i], { inst: "bell", dur: 0.3, vol: 0.12, when: 0.2 + i * 0.2 });
-    ctx.line.innerHTML =
-      '<span class="mxDot" style="--c:' + P[a].c + '"></span>' + P[a].n + " + " + '<span class="mxDot" style="--c:' + P[b].c + '"></span>' + P[b].n;
     await ctx.wait(1500);
-    this.fill(ctx, m.c);
+    if (!ctx._active) return false;
+    this.fill(ctx, res.c);
     sw.classList.remove("on");
-    const res = ctx.bowl.querySelector(".mxRes");
-    res.textContent = m.n + "!";
-    res.classList.add("on");
-    ctx.line.innerHTML += ' = <span class="mxDot" style="--c:' + m.c + '"></span><b style="font-weight:400;color:' + (m.c === "#fff08a" ? "#c9a400" : m.c) + '">' + m.n + "</b>";
+    out.textContent = res.n + "!";
+    out.style.color = res.c === "#fff08a" || res.c === "#9fe07a" ? "#4a5a2a" : "#fff";
+    out.classList.add("on");
     A.sfx("sparkle");
-    KP.voice.say(U.josa(P[a].n, "이랑/랑") + " " + U.josa(P[b].n, "을/를") + " 섞으면 " + m.n + "!");
+    KP.voice.say(
+      firstPair
+        ? U.josa(prev.n, "이랑/랑") + " " + U.josa(add.n, "을/를") + " 섞으면 " + res.n + "!"
+        : prev.n + "에 " + U.josa(add.n, "을/를") + " 더하면 " + res.n + "!"
+    );
     U.replay(ctx.bowl, "jump");
+    return true;
   },
 });

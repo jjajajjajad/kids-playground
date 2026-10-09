@@ -411,6 +411,11 @@ KP.game({
     }
     ctx.begin = () => {
       busy = false;
+      // 꽃이 핀 직후 나가서 '꽃 핀 상태'로 굳은 화분은 새 씨앗으로 (꽃은 이미 정원에 저장됨)
+      if (pots.some((p) => p.stage >= 4)) {
+        pots = pots.map((p) => (p.stage >= 4 ? newPot() : p));
+        savePots();
+      }
       view.classList.remove("show");
       renderAll();
       updateGardenBtn();

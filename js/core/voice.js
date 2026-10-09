@@ -67,6 +67,7 @@
       const est = setTimeout(() => {
         if (!fin) {
           fin = true;
+          KP.audio && KP.audio.duck(false); // onend 가 안 오는 기기 대비
           resolve();
         }
       }, 900 + String(text || "").length * 170);
@@ -105,7 +106,8 @@
     }
     try {
       if (!voices.length) load();
-      if (!o.queue) speechSynthesis.cancel();
+      const busy = speechSynthesis.speaking || speechSynthesis.pending;
+      if (!o.queue && busy) speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
       const v = o.en ? en : ko;
       if (v) u.voice = v;
@@ -120,7 +122,9 @@
       };
       u.onerror = () => done(o.onend);
       current = u;
-      speechSynthesis.speak(u);
+      // iOS Safari: cancel() 직후 바로 speak() 하면 가끔 무시되므로 살짝 띄움
+      if (!o.queue && busy) setTimeout(() => current === u && speechSynthesis.speak(u), 60);
+      else speechSynthesis.speak(u);
       if (speechSynthesis.paused) speechSynthesis.resume();
     } catch (e) {
       if (o.onend) setTimeout(o.onend, 300);

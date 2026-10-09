@@ -13,13 +13,26 @@
     lastCat: "play", // 마지막으로 본 메뉴
     hints: true, // 손가락 힌트
   };
-  let cur = Object.assign({}, DEF, KP.store.get("settings", {}));
+  function clean(v) {
+    const c = Object.assign({}, DEF, v && typeof v === "object" ? v : {});
+    ["sfx", "music", "voice"].forEach((k) => {
+      if (!Number.isFinite(c[k])) c[k] = DEF[k];
+      c[k] = Math.min(1, Math.max(0, c[k]));
+    });
+    if (!Number.isFinite(c.timer) || c.timer < 0) c.timer = 0;
+    if (!c.hidden || typeof c.hidden !== "object" || Array.isArray(c.hidden)) c.hidden = {};
+    c.bgm = !!c.bgm;
+    c.hints = c.hints !== false;
+    if (typeof c.lastCat !== "string") c.lastCat = DEF.lastCat;
+    return c;
+  }
+  let cur = clean(KP.store.get("settings", {}));
   const subs = [];
   KP.settings = {
     DEF,
     get: () => cur,
     set(patch) {
-      cur = Object.assign({}, cur, patch);
+      cur = clean(Object.assign({}, cur, patch));
       KP.store.set("settings", cur);
       subs.forEach((f) => {
         try {

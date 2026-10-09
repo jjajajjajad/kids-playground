@@ -64,13 +64,19 @@
       ctx.grid.innerHTML = "";
       if (!items.length) {
         const go = U.btn(KP.E("🎨") + " 그림 그리러 가기", "btn big");
+        go.style.gridColumn = "1 / -1";
         go.addEventListener("click", () => KP.open("draw"));
         ctx.grid.appendChild(go);
       }
       items.forEach((it, i) => {
         const c = U.el("button", "galItem");
         c.style.setProperty("--i", i);
-        c.innerHTML = '<img src="' + it.img + '" alt="">' + '<span class="galDate">' + (it.date || "") + "</span>";
+        const im = U.el("img");
+        im.alt = "";
+        im.src = KP.safeImg(it.img);
+        const dt = U.el("span", "galDate");
+        dt.textContent = String(it.date || "");
+        c.append(im, dt);
         c.addEventListener("click", () => open(ctx, it));
         ctx.grid.appendChild(c);
       });
@@ -81,7 +87,7 @@
     const v = ctx.viewer;
     v.innerHTML = "";
     const img = U.el("img", "viewImg");
-    img.src = it.img;
+    img.src = KP.safeImg(it.img);
     const row = U.el("div", "viewRow");
     const bClose = U.btn(KP.E("↩️") + " 돌아가기", "btn");
     const bEdit = U.btn(KP.E("✏️") + " 이어 그리기", "btn primary");
@@ -200,7 +206,9 @@
       const zoo = a.filter((x) => x.kind === "zoo").length;
       info.innerHTML =
         "스티커 " + KP.stickers.count() + "개 · 그림 작품 " + (a.length - zoo) + "개 · 동물원 친구 " + zoo + "마리 · 등록 사진 " + p.length + "장" +
-        "<br>모든 기록은 이 기기 안에만 저장돼요. 기기를 바꾸거나 앱을 지우기 전에는 백업 파일을 내보내 두세요.";
+        "<br>모든 기록은 이 기기 안에만 저장돼요. 기기를 바꾸거나 앱을 지우기 전에는 백업 파일을 내보내 두세요." +
+        "<br>백업 파일에는 등록한 사진과 그림이 들어 있으니, 믿을 수 있는 곳에만 보관하세요." +
+        (KP.u.isApp() ? "" : "<br><b>홈 화면에 추가한 앱으로 쓰면 기록이 더 안전하게 남아요.</b> (Safari 탭으로만 쓰다가 오래 안 열면 기기가 기록을 지울 수 있어요)");
     });
     const dRow = U.el("div", "pChips");
     const bExp = U.btn(KP.E("💾") + " 백업 내보내기", "chip");

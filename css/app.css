@@ -673,6 +673,9 @@ img.e,
   opacity: 0;
   transition: opacity 0.18s;
 }
+.celebrate.block {
+  pointer-events: auto;
+}
 .celebrate.show {
   opacity: 1;
   background: radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.15) 60%);
@@ -1141,4 +1144,17 @@ img.e,
   .cName {
     font-size: 14px;
   }
+}
+
+/* ---------------- 작은 버튼의 '보이지 않는 터치 영역' 넓히기 ----------------
+   모양은 그대로 두고, 손가락이 조금 빗나가도 눌리도록 둘레 7px 를 더 받는다. */
+.swatch, .zpSp, .pb-sw, .dw-sw, .dw-stamp, .pn-ib, .jgSize, .dr-tp, .fc-tab {
+  position: relative;
+}
+.swatch::before, .zpSp::before, .pb-sw::before, .dw-sw::before, .dw-stamp::before,
+.pn-ib::before, .jgSize::before, .dr-tp::before, .fc-tab::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: inherit;
 }

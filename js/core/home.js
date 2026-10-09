@@ -119,6 +119,8 @@
       const lv = KP.level.get(id);
       if (g.levels > 1 && lv.lvl > 1) card.appendChild(U.el("span", "cLv", KP.E("🏅") + Math.min(lv.lvl, g.levels)));
       card.addEventListener("click", () => {
+        if (card.dataset.busy) return; // 연타 시 두 번 열리지 않게
+        card.dataset.busy = "1";
         KP.audio.sfx("open");
         KP.voice.say(g.name);
         U.replay(card, "press");
@@ -146,10 +148,15 @@
   };
 
   /* ---------------- 사용 시간 제한 ---------------- */
-  const today = () => new Date().toISOString().slice(0, 10);
+  // 기기 시간(한국 시간) 기준 날짜 — toISOString 은 UTC 라 아침 9시에 날짜가 바뀌는 문제가 있었음
+  const today = () => {
+    const d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  };
   function usage() {
-    const u = KP.store.get("usage", { d: today(), s: 0, bonus: 0 });
-    if (u.d !== today()) return { d: today(), s: 0, bonus: 0 };
+    const u = KP.store.get("usage", null);
+    if (!u || typeof u !== "object" || u.d !== today() || !Number.isFinite(u.s)) return { d: today(), s: 0, bonus: 0 };
+    if (!Number.isFinite(u.bonus)) u.bonus = 0;
     return u;
   }
   KP.usage = usage;

@@ -18,7 +18,7 @@ KP.game({
       .dr-acc{font-size:clamp(18px,2.4vw,24px);min-height:62px;padding:10px 18px}
       .dr-acc .e{font-size:1.5em}
       .dr-acc.on{background:var(--grass);color:#fff;box-shadow:0 7px 0 #1d7f45}
-      .dr-tp{width:58px;height:58px;border-radius:50%;background:#fff;box-shadow:var(--shadow);font-size:32px;display:flex;align-items:center;justify-content:center}
+      .dr-tp{width:64px;height:64px;border-radius:50%;background:#fff;box-shadow:var(--shadow);font-size:32px;display:flex;align-items:center;justify-content:center}
       .dr-tp.sel{background:var(--sun);box-shadow:0 6px 0 #d9a000}
       .dr-lights{display:flex;gap:8px;align-items:center}
       .dr-light{width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 3px #d6dcef;transition:background .08s}
@@ -46,7 +46,7 @@ KP.game({
         .dr-pad svg{height:66%}
         .dr-pad span{font-size:15px}
         .dr-acc{min-height:54px;padding:8px 12px;font-size:16px}
-        .dr-tp{width:48px;height:48px;font-size:26px}
+        .dr-tp{width:56px;height:56px;font-size:28px}
         .dr-top{gap:7px}
         .dr-lights{gap:5px}
         .dr-light{width:14px;height:14px}

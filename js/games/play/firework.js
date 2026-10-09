@@ -68,14 +68,18 @@ KP.game({
       idle = 2.2;
     };
     function fit() {
-      const r = board.getBoundingClientRect(),
-        d = Math.min(devicePixelRatio || 1, 2);
+      const r = board.getBoundingClientRect();
       W = r.width;
       H = r.height;
-      cv.width = W * d;
-      cv.height = H * d;
+      // 큰 화면에서 화소 수가 너무 많아지지 않게 (약 130만 화소 이하)
+      // 배율은 정수만 (소수 배율은 확대·축소 계산이 매 프레임 붙어 오히려 느려짐을 측정으로 확인)
+      // 화소가 많은 큰 화면(태블릿)은 1배, 작은 화면은 기기 배율(최대 2)
+      const dpr = Math.min(2, Math.round(devicePixelRatio || 1)) || 1;
+      const d = W * H * dpr * dpr > 1.6e6 ? 1 : dpr;
+      cv.width = Math.round(W * d);
+      cv.height = Math.round(H * d);
       cx.setTransform(d, 0, 0, d, 0, 0);
-      stars = Array.from({ length: Math.round((W * H) / 9000) }, () => ({
+      stars = Array.from({ length: Math.min(70, Math.round((W * H) / 12000)) }, () => ({
         x: Math.random() * W,
         y: Math.random() * H * 0.75,
         r: Math.random() * 1.5 + 0.4,
@@ -94,14 +98,38 @@ KP.game({
       A.noise({ dur: 0.6, vol: 0.13, lp: 1600 });
       // 반짝이는 오르골 소리
       const base = A.hz(U.pick(["C5", "D5", "E5", "G5", "A5"]));
-      [1, 1.25, 1.5, 2].forEach((m, i) => A.note(base * m, { inst: "bell", dur: 0.6, vol: 0.06, when: 0.05 + i * 0.05 }));
+      [1, 1.5].forEach((m, i) => A.note(base * m, { inst: "marimba", dur: 0.6, vol: 0.08, when: 0.05 + i * 0.07 }));
     };
     const crackle = () => {
-      for (let i = 0; i < 6; i++) A.noise({ dur: 0.03, vol: 0.06, hp: 3000, when: 0.25 + Math.random() * 0.5 });
+      for (let i = 0; i < 3; i++) A.noise({ dur: 0.03, vol: 0.07, hp: 3000, when: 0.25 + Math.random() * 0.5 });
     };
 
     /* ---------- 입자 ---------- */
+    let q = 1; // 화질 계수 (버벅이면 자동으로 낮아짐)
+    let ema = 16;
+    // 색 문자열 미리 만들어 두기 (매 프레임 수천 번 만들지 않게)
+    const COL = new Map();
+    const col = (h, l) => {
+      const key = (Math.round(h / 10) % 36) * 10 + Math.round((l - 55) / 6);
+      let c = COL.get(key);
+      if (!c) COL.set(key, (c = "hsl(" + (Math.round(h / 10) % 36) * 10 + ",100%," + l.toFixed(0) + "%)"));
+      return c;
+    };
+    // 번쩍임용 빛 덩어리 그림 (한 번만 만들기)
+    const glow = document.createElement("canvas");
+    glow.width = glow.height = 128;
+    {
+      const g = glow.getContext("2d");
+      const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+      gr.addColorStop(0, "rgba(255,250,235,1)");
+      gr.addColorStop(0.35, "rgba(255,230,180,.45)");
+      gr.addColorStop(1, "rgba(255,200,120,0)");
+      g.fillStyle = gr;
+      g.fillRect(0, 0, 128, 128);
+    }
     function P(x, y, vx, vy, hue, o) {
+      // 부가 입자(꼬리·잔불)는 기기가 버거우면 덜 만든다
+      if (o && o.extra && Math.random() > q) return;
       parts.push(Object.assign({ x, y, vx, vy, hue, life: 1, decay: 0.009 + Math.random() * 0.007, size: 2.2 + Math.random() * 2, grav: 0.04, glitter: false, crackle: false, trail: false }, o || {}));
     }
     function shapeBurst(x, y, pts, scale, hue, opt) {
@@ -187,7 +215,7 @@ KP.game({
           break;
         }
         case "willow":
-          for (let i = 0; i < 80; i++) {
+          for (let i = 0, n = Math.round(80 * (0.5 + 0.5 * q)); i < n; i++) {
             const a = Math.random() * 6.28,
               s = (0.3 + Math.random() * 0.75) * sc;
             P(x, y, Math.cos(a) * s, Math.sin(a) * s, 42, { decay: 0.0045, grav: 0.03, glitter: true, trail: true, size: 1.8 });
@@ -212,7 +240,7 @@ KP.game({
           }
           break;
         default: // peony
-          for (let i = 0; i < 90; i++) {
+          for (let i = 0, n = Math.round(90 * (0.5 + 0.5 * q)); i < n; i++) {
             const a = Math.random() * 6.28,
               s = Math.random() * sc * 1.1;
             P(x, y, Math.cos(a) * s, Math.sin(a) * s, hue + U.rand(40), { glitter: Math.random() < 0.3, crackle: Math.random() < 0.1 });
@@ -263,20 +291,25 @@ KP.game({
 
     /* ---------- 그리기 ---------- */
     ctx.frame = (dt) => {
+      // 기기 속도 측정 → 버벅이면 입자 수 줄이기, 여유 있으면 다시 늘리기
+      ema = ema * 0.94 + dt * 1000 * 0.06;
+      if (ema > 24) q = Math.max(0.35, q - 0.02);
+      else if (ema < 18) q = Math.min(1, q + 0.005);
+      const k = Math.min(3, dt * 60); // 60Hz 기준 걸음 (120Hz 화면에서도 같은 속도)
+      const damp = Math.pow(0.986, k);
+
       cx.globalCompositeOperation = "source-over";
-      cx.fillStyle = "rgba(11,16,48,0.22)";
+      cx.globalAlpha = 1;
+      cx.fillStyle = "rgba(11,16,48," + Math.min(0.6, 0.22 * k).toFixed(3) + ")";
       cx.fillRect(0, 0, W, H);
-      // 별
+      // 별 (작은 네모가 원보다 훨씬 빠름)
       const t = performance.now() / 1000;
       cx.fillStyle = "#fff";
-      stars.forEach((s) => {
-        cx.globalAlpha = 0.35 + Math.sin(t * 2 + s.t) * 0.3;
-        cx.beginPath();
-        cx.arc(s.x, s.y, s.r, 0, 6.28);
-        cx.fill();
-      });
+      for (const st of stars) {
+        cx.globalAlpha = 0.35 + Math.sin(t * 2 + st.t) * 0.3;
+        cx.fillRect(st.x, st.y, st.r * 1.6, st.r * 1.6);
+      }
       cx.globalAlpha = 1;
-      // 도시 실루엣
       cx.fillStyle = "#141a44";
       const bw = W / 14;
       for (let i = 0; i < 15; i++) {
@@ -286,47 +319,41 @@ KP.game({
       cx.fillStyle = "rgba(255,220,120,.5)";
       for (let i = 0; i < 15; i++) {
         const bh = 30 + ((i * 53) % 70);
-        for (let k = 12; k < bh - 8; k += 16) if ((i * 7 + k) % 3) cx.fillRect(i * bw + 8, H - bh + k, 5, 6);
+        for (let kk = 12; kk < bh - 8; kk += 16) if ((i * 7 + kk) % 3) cx.fillRect(i * bw + 8, H - bh + kk, 5, 6);
       }
 
       cx.globalCompositeOperation = "lighter";
       rockets = rockets.filter((r) => {
-        r.y += r.vy;
-        r.wob += 0.3;
+        r.y += r.vy * k;
+        r.wob += 0.3 * k;
         const x = r.x + Math.sin(r.wob) * 1.5;
-        P(x, r.y + 6, (Math.random() - 0.5) * 0.6, 1 + Math.random(), 40, { decay: 0.05, size: 1.8, grav: 0.01 });
-        cx.fillStyle = "hsl(" + r.hue + ",90%,85%)";
-        cx.beginPath();
-        cx.arc(x, r.y, 3.2, 0, 6.28);
-        cx.fill();
+        P(x, r.y + 6, (Math.random() - 0.5) * 0.6, 1 + Math.random(), 40, { decay: 0.05, size: 1.8, grav: 0.01, extra: true });
+        cx.fillStyle = col(r.hue, 85);
+        cx.fillRect(x - 3, r.y - 3, 6, 6);
         if (r.y <= r.ty) {
           explode(x, r.ty, r.type, r.hue);
           return false;
         }
         return true;
       });
-      if (parts.length > 1400) parts.splice(0, parts.length - 1400);
+      const cap = Math.round(500 + 800 * q);
+      if (parts.length > cap) parts.splice(0, parts.length - cap);
       const next = [];
       for (const p of parts) {
         if (p.flash) {
-          p.life -= p.decay;
+          p.life -= p.decay * k;
           if (p.life > 0) {
-            const g = cx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
-            g.addColorStop(0, "hsla(" + p.hue + ",100%,90%," + p.life * 0.5 + ")");
-            g.addColorStop(1, "hsla(" + p.hue + ",100%,60%,0)");
-            cx.fillStyle = g;
-            cx.beginPath();
-            cx.arc(p.x, p.y, p.r, 0, 6.28);
-            cx.fill();
+            cx.globalAlpha = p.life * 0.55;
+            cx.drawImage(glow, p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
             next.push(p);
           }
           continue;
         }
-        p.vx *= 0.986;
-        p.vy = p.vy * 0.986 + p.grav;
-        p.x += p.vx;
-        p.y += p.vy;
-        p.life -= p.decay;
+        p.vx *= damp;
+        p.vy = p.vy * damp + p.grav * k;
+        p.x += p.vx * k;
+        p.y += p.vy * k;
+        p.life -= p.decay * k;
         if (p.life <= 0) continue;
         if (p.split && p.life < 0.55) {
           p.split = false;
@@ -334,31 +361,29 @@ KP.game({
             const a = Math.random() * 6.28;
             P(p.x, p.y, Math.cos(a) * 2.2, Math.sin(a) * 2.2, (p.hue + 40) % 360, { decay: 0.02, glitter: true });
           }
-          A.noise({ dur: 0.04, vol: 0.05, hp: 3000 });
+          if (Math.random() < 0.5) A.noise({ dur: 0.04, vol: 0.05, hp: 3000 });
           continue;
         }
         if (p.crackle && p.life < 0.4) {
           p.crackle = false;
           for (let i = 0; i < 5; i++) {
             const a = Math.random() * 6.28;
-            P(p.x, p.y, Math.cos(a) * 1.4, Math.sin(a) * 1.4, p.hue, { decay: 0.035, size: 1.4 });
+            P(p.x, p.y, Math.cos(a) * 1.4, Math.sin(a) * 1.4, p.hue, { decay: 0.035, size: 1.4, extra: true });
           }
         }
-        if (p.trail && Math.random() < 0.25) P(p.x, p.y, 0, 0.3, p.hue, { decay: 0.04, size: 1.1, grav: 0.01 });
+        if (p.trail && Math.random() < 0.25) P(p.x, p.y, 0, 0.3, p.hue, { decay: 0.04, size: 1.1, grav: 0.01, extra: true });
         if (p.emoji) {
           cx.globalCompositeOperation = "source-over";
           cx.globalAlpha = Math.min(1, p.life * 1.6);
-          p.rot += p.vr;
+          p.rot += p.vr * k;
           KP.drawE(cx, p.emoji, p.x, p.y, p.size, p.rot);
-          cx.globalAlpha = 1;
           cx.globalCompositeOperation = "lighter";
         } else {
           const al = p.glitter ? (Math.random() < 0.5 ? p.life : p.life * 0.15) : p.life;
-          cx.globalAlpha = Math.max(0, al);
-          cx.fillStyle = "hsl(" + p.hue + ",100%," + (58 + p.life * 25) + "%)";
-          cx.beginPath();
-          cx.arc(p.x, p.y, p.size * (0.6 + p.life * 0.4), 0, 6.28);
-          cx.fill();
+          cx.globalAlpha = al > 0 ? al : 0;
+          cx.fillStyle = col(p.hue, 58 + p.life * 25);
+          const z = p.size * (0.7 + p.life * 0.5);
+          cx.fillRect(p.x - z / 2, p.y - z / 2, z, z);
         }
         next.push(p);
       }

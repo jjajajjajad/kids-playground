@@ -245,7 +245,8 @@
   /** 저장된 SVG 를 새 uid 로 (같은 동물 여러 마리여도 무늬 id 충돌 없게) */
   function freshSvg(item) {
     const nu = "z" + KP.newId();
-    return item.svg.split(item.uid).join(nu);
+    const safe = KP.sanitizeSvg(String(item.svg || "")); // 백업 파일 등으로 들어온 값 방어
+    return item.uid ? safe.split(String(item.uid)).join(nu) : safe;
   }
 
   /* =================================================================
@@ -444,6 +445,23 @@
       });
       ["pointerup", "pointercancel", "pointerleave"].forEach((ev) => paper.addEventListener(ev, () => (down = false)));
     },
+    /* 칠하던 그림 보관 (기기 저장 → 앱을 껐다 켜도 남음) */
+    keepDraft(ctx, tid, svg, uid) {
+      ctx.drafts[tid] = { svg, uid };
+      KP.db.put("photos", { id: "zoodraft-" + tid, kind: "zoodraft", tid, svg, uid, t: Date.now() });
+    },
+    dropDraft(ctx, tid) {
+      if (!tid) return;
+      delete ctx.drafts[tid];
+      KP.db.del("photos", "zoodraft-" + tid);
+    },
+    /** 지금 그림판의 그림을 보관(칠한 게 있으면) 또는 보관본 삭제(다 지웠으면) */
+    keepCurrent(ctx) {
+      const cur = ctx.paper.querySelector("svg");
+      if (!cur || !ctx.tid || ctx.sending) return;
+      if ([...cur.querySelectorAll(".fb")].some((e) => !isWhite(e))) this.keepDraft(ctx, ctx.tid, cur.outerHTML, ctx.uid);
+      else this.dropDraft(ctx, ctx.tid);
+    },
     /* ① 동물 고르기 */
     showChoose(ctx) {
       this.stash(ctx);
@@ -453,7 +471,9 @@
       ctx.choose.innerHTML = "";
       const cards = ORDER.map((tid, i) => {
         const d = ctx.drafts[tid];
-        const c = U.btn('<div class="zpThumb">' + (d ? d.svg.replace(/viewBox="[^"]*"/, 'viewBox="0 0 200 170"') : makeSvg(tid, "thumb" + tid, T[tid].sample)) + "</div><b>" + T[tid].name + "</b>", "zpCard");
+        // 썸네일은 무늬 id 를 바꿔 넣어야 그림판과 id 가 겹치지 않음(겹치면 무늬가 하얗게 보임)
+        const th = d ? d.svg.split(d.uid).join("th" + tid).replace(/viewBox="[^"]*"/, 'viewBox="0 0 200 170"') : makeSvg(tid, "thumb" + tid, T[tid].sample);
+        const c = U.btn('<div class="zpThumb">' + th + "</div><b>" + T[tid].name + "</b>", "zpCard");
         c.style.setProperty("--i", i);
         if (d) c.appendChild(U.el("span", "zpDraft", "칠하던 중"));
         c.addEventListener("click", () => {
@@ -468,8 +488,7 @@
     },
     /* 칠하던 그림 임시 보관 */
     stash(ctx) {
-      const cur = ctx.paper.querySelector("svg");
-      if (cur && ctx.tid && [...cur.querySelectorAll(".fb")].some((e) => !isWhite(e))) ctx.drafts[ctx.tid] = { svg: ctx.paper.innerHTML, uid: ctx.uid };
+      this.keepCurrent(ctx);
       ctx.paper.innerHTML = "";
       ctx.tid = null;
     },
@@ -488,6 +507,7 @@
         ctx.paper.innerHTML = makeSvg(tid, ctx.uid);
       }
       ctx.choose.style.display = "none";
+      ctx.choose.innerHTML = "";
       ctx.work.style.display = "";
       ctx.bubble.style.display = "none"; // 그림판 공간 확보 (안내는 목소리로)
       // 도안 둘레 여백 잘라내기 → 동물이 그림판을 꽉 채움
@@ -516,6 +536,7 @@
       }
     },
     async send(ctx) {
+      if (ctx.sending || !ctx.tid) return; // 두 번 눌러도 한 번만 저장
       const fbs = [...ctx.paper.querySelectorAll(".fb")];
       if (!fbs.some((e) => !isWhite(e))) {
         ctx.miss(ctx.bSend, "먼저 예쁘게 색칠해 봐요!", { soft: true });
@@ -529,25 +550,50 @@
       svg.setAttribute("viewBox", vb);
       const d = new Date();
       const item = { id: KP.newId(), kind: "zoo", tid: ctx.tid, uid: ctx.uid, svg: html, t: Date.now(), date: d.getMonth() + 1 + "월 " + d.getDate() + "일" };
-      await KP.db.put("art", item);
+      ctx.sending = true; // 보내는 동안은 나가도 '칠하던 그림'으로 보관하지 않음
+      const tid = ctx.tid;
+      const saved = await KP.db.put("art", item);
+      if (saved === false) {
+        ctx.sending = false;
+        KP.toast("저장하지 못했어요. 기기 저장공간을 확인해 주세요");
+        ctx.miss(ctx.bSend, "앗, 저장이 안 됐어요. 다시 눌러 볼까요?", { soft: true });
+        return;
+      }
+      this.dropDraft(ctx, tid);
+      ctx.tid = null;
+      ctx.undo = [];
       KP.zooNew = item.id;
-      delete ctx.drafts[ctx.tid];
       ctx.paper.classList.add("fly");
       KP.audio.sfx("whoosh");
-      const nm = T[ctx.tid].name;
-      const ok = await ctx.win({ msg: nm + " 출발!", big: true });
+      const ok = await ctx.win({ msg: T[tid].name + " 출발!", big: true });
       ctx.paper.innerHTML = "";
-      ctx.tid = null;
+      ctx.paper.classList.remove("fly");
+      ctx.sending = false;
       if (ok) KP.open("zoo");
     },
-    start(ctx) {
+    async start(ctx) {
+      if (!ctx.draftsLoaded) {
+        // 앱을 다시 켰을 때 칠하던 그림 불러오기
+        ctx.draftsLoaded = true;
+        const list = (await KP.db.all("photos")).filter((x) => x.kind === "zoodraft" && T[x.tid]);
+        list.forEach((x) => {
+          const svg = KP.sanitizeSvg(String(x.svg || "").replace(/^<div[^>]*>|<\/div>$/g, ""));
+          if (svg) ctx.drafts[x.tid] = { svg, uid: String(x.uid || "") };
+        });
+        if (!ctx._active) return;
+      }
+      if (ctx.sending) {
+        // 보내는 도중 나갔다 다시 들어온 경우
+        ctx.sending = false;
+        ctx.paper.innerHTML = "";
+        ctx.paper.classList.remove("fly");
+      }
       if (ctx.tid) this.load(ctx, ctx.tid);
       else this.showChoose(ctx);
     },
     stop(ctx) {
-      // 나갔다 와도 칠하던 그림은 남겨 둠
-      const cur = ctx.paper.querySelector("svg");
-      if (cur && ctx.tid) ctx.drafts[ctx.tid] = { svg: ctx.paper.innerHTML, uid: ctx.uid };
+      // 나갔다 와도 칠하던 그림은 남겨 둠 (보내는 중인 그림 제외, 다 지운 그림은 보관본도 삭제)
+      this.keepCurrent(ctx);
     },
   });
 
@@ -782,7 +828,7 @@
     poke(ctx, a) {
       U.replay(a.el, "jump");
       const nm = a.t.name;
-      KP.voice.say(nm + "! " + a.t.cry + " 내가 색칠한 " + nm + "예요!");
+      KP.voice.say(nm + "! " + a.t.cry + " 내가 색칠한 " + U.josa(nm, "이에요/예요") + "!");
       KP.audio.sfx(U.pick(["boing", "pop", "tap2"]));
       this.hearts(ctx, a, 2);
     },

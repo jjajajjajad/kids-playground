@@ -45,7 +45,7 @@ KP.game({
         .fc-tabs{grid-template-columns:repeat(8,minmax(0,1fr));gap:4px}
         .fc-colors{gap:6px}
         .fc-col{width:min(calc((100vw - 92px) / 8),42px);height:min(calc((100vw - 92px) / 8),42px);border-width:3px}
-        .fc-tab{height:46px;font-size:28px;border-radius:14px}
+        .fc-tab{height:56px;font-size:30px;border-radius:14px}
         .fc-opts{grid-auto-rows:clamp(62px,9vh,84px);flex:0 0 auto;padding:6px;gap:6px}
         .fc-act{min-height:56px;padding:8px 16px}
       }
@@ -335,8 +335,8 @@ KP.game({
         unsaved = false;
         KP.toast("🖼️ 내 작품에 저장했어요!");
         A.sfx("sticker");
+        delete bPhoto.dataset.busy; // 기다리는 중에 나가도 버튼이 잠기지 않게
         await ctx.wait(900);
-        delete bPhoto.dataset.busy;
         await ctx.win({ msg: "찰칵! 내 작품에 저장했어요!" });
       } else {
         delete bPhoto.dataset.busy;

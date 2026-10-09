@@ -15,7 +15,9 @@
     get(k, def) {
       try {
         const v = localStorage.getItem(PFX + k);
-        return v == null ? (k in mem ? mem[k] : def) : JSON.parse(v);
+        if (v == null) return k in mem ? mem[k] : def;
+        const p = JSON.parse(v);
+        return p == null ? def : p; // 저장된 "null" 방어
       } catch (e) {
         return k in mem ? mem[k] : def;
       }
@@ -67,15 +69,27 @@
             if (!r.result.objectStoreNames.contains(s)) r.result.createObjectStore(s, { keyPath: "id" });
           });
         };
-        r.onsuccess = () => res(r.result);
-        r.onerror = () => rej(r.error);
+        r.onsuccess = () => {
+          const db = r.result;
+          // iPad 가 오래 쉬었다 깨어나며 연결을 끊으면 다음 사용 때 새로 연결
+          db.onclose = () => (dbp = null);
+          db.onversionchange = () => {
+            db.close();
+            dbp = null;
+          };
+          res(db);
+        };
+        r.onerror = () => {
+          dbp = null;
+          rej(r.error);
+        };
       } catch (e) {
         rej(e);
       }
     });
     return dbp;
   }
-  function tx(s, mode, fn) {
+  function tx1(s, mode, fn) {
     return open().then(
       (db) =>
         new Promise((res, rej) => {
@@ -84,8 +98,16 @@
           const r = fn(os);
           t.oncomplete = () => res(r && r.result);
           t.onerror = () => rej(t.error);
+          t.onabort = () => rej(t.error || new Error("abort"));
         })
     );
+  }
+  // 연결이 끊겨 실패하면 한 번 새로 연결해서 다시 시도
+  function tx(s, mode, fn) {
+    return tx1(s, mode, fn).catch(() => {
+      dbp = null;
+      return tx1(s, mode, fn);
+    });
   }
   KP.db = {
     /** 항목 저장: {id, ...} */
@@ -99,6 +121,8 @@
         .catch(() => []),
     clear: (s) => tx(s, "readwrite", (os) => os.clear()).catch(() => false),
   };
+  /** 그림 주소가 안전한 이미지 dataURL 인지 (아니면 빈 문자열) */
+  KP.safeImg = (u) => (typeof u === "string" && /^data:image\/(png|jpe?g|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(u) ? u : "");
   /** 새 id */
   KP.newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
@@ -150,7 +174,7 @@
       // cancel 이벤트가 없는 기기: 창으로 돌아온 뒤에도 파일이 없으면 취소로 봄
       setTimeout(() => window.addEventListener("focus", () => setTimeout(() => {
         if (!inp.files || !inp.files.length) cancel();
-      }, 1500), { once: true }), 300);
+      }, 3500), { once: true }), 300); // iCloud 사진 내려받기 등으로 늦게 오는 경우 대비
       inp.addEventListener("change", async () => {
         if (done) return;
         done = true;
@@ -176,14 +200,25 @@
       const a = document.createElement("a");
       const d = new Date();
       const stamp = d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0");
+      const name = "아이놀이터_백업_" + stamp + ".json";
+      // iPad·iPhone 홈 화면 앱에서는 다운로드가 잘 안 되므로 '공유' 창(파일에 저장, 카톡 등)을 우선 사용
+      try {
+        const file = new File([blob], name, { type: "application/json" });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: "아이 놀이터 백업" });
+          return;
+        }
+      } catch (e) {
+        if (e && e.name === "AbortError") return; // 사용자가 취소
+      }
       a.href = URL.createObjectURL(blob);
-      a.download = "아이놀이터_백업_" + stamp + ".json";
+      a.download = name;
       document.body.appendChild(a);
       a.click();
       setTimeout(() => {
         URL.revokeObjectURL(a.href);
         a.remove();
-      }, 2000);
+      }, 60000);
     },
     import() {
       return new Promise((res) => {
@@ -200,9 +235,27 @@
           rd.onload = async () => {
             try {
               const data = JSON.parse(rd.result);
-              if (data.app !== "kids-playground") return res(false);
-              Object.entries(data.local || {}).forEach(([k, v]) => store.set(k, v));
-              for (const s of STORES) for (const it of (data.db && data.db[s]) || []) await KP.db.put(s, it);
+              if (!data || data.app !== "kids-playground") return res(false);
+              // 받아들일 값만 골라서 넣기 (조작된 파일 방어)
+              const okKey = (k) => /^(settings|stickers|lastSticker|winCount|usage|lastGame)$/.test(k) || /^lv:[a-z0-9]+$/.test(k) || /^[a-z0-9]+:[\w:-]{1,40}$/.test(k);
+              Object.entries(data.local && typeof data.local === "object" ? data.local : {}).forEach(([k, v]) => {
+                if (okKey(k) && v !== null && JSON.stringify(v).length < 200000) store.set(k, v);
+              });
+              for (const s of STORES) {
+                const list = data.db && Array.isArray(data.db[s]) ? data.db[s] : [];
+                for (const it of list) {
+                  if (!it || typeof it !== "object" || (typeof it.id !== "string" && typeof it.id !== "number")) continue;
+                  if (typeof it.kind !== "string" || it.kind.length > 20) continue;
+                  const clean = Object.assign({}, it);
+                  for (const f of ["img", "thumb", "ink"]) if (f in clean) clean[f] = KP.safeImg(clean[f]);
+                  if ("img" in it && !clean.img) continue;
+                  if ("svg" in clean) {
+                    clean.svg = KP.sanitizeSvg ? KP.sanitizeSvg(clean.svg) : "";
+                    if (!clean.svg) continue;
+                  }
+                  await KP.db.put(s, clean);
+                }
+              }
               res(true);
             } catch (e) {
               res(false);

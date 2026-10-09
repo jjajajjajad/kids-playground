@@ -165,7 +165,7 @@ KP.game({
           put(rel === "옆" ? r.side || "옆R" : rel);
         } else {
           d.home();
-          if (r.rel && supports.includes(r.rel)) ctx.miss(ch, "거기는 " + pName + " " + r.rel + "예요! " + ask);
+          if (r.rel && supports.includes(r.rel)) ctx.miss(ch, "거기는 " + pName + " " + KP.u.josa(r.rel, "이에요/예요") + "! " + ask);
           else ctx.miss(ch, ask);
         }
       },

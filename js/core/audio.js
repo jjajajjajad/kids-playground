@@ -37,7 +37,7 @@
       });
       A.applyVolumes();
     }
-    if (ctx.state === "suspended") ctx.resume().catch(() => {});
+    if (ctx.state !== "running") ctx.resume().catch(() => {}); // iOS: suspended / interrupted
     return ctx;
   };
   A.applyVolumes = function () {
@@ -87,9 +87,28 @@
   A.SOLFA = ["도", "레", "미", "파", "솔", "라", "시", "도", "레", "미", "파", "솔"];
 
   /* ---------------- 기본 부품 ---------------- */
+  /* 효과음은 '화면 묶음'을 거쳐 나간다. 화면을 나가면 묶음을 끊어서
+     미리 예약해 둔 노래(생일 노래 등)까지 함께 멈춘다. */
+  let scene = null;
   function out(b) {
-    return bus[b || "sfx"];
+    if (b === "music") return bus.music;
+    if (!scene) {
+      scene = ctx.createGain();
+      scene.connect(bus.sfx);
+    }
+    return scene;
   }
+  A.newScene = function () {
+    if (!ctx || !scene) return;
+    const old = scene;
+    scene = null;
+    old.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.04);
+    setTimeout(() => {
+      try {
+        old.disconnect();
+      } catch (e) {}
+    }, 400);
+  };
   function osc(type, f, t, dur, peak, dest, attack = 0.004, detune = 0) {
     const o = ctx.createOscillator(),
       g = ctx.createGain();
