@@ -46,24 +46,39 @@
     cx = null,
     parts = [],
     running = false;
+  let CW = 0,
+    CH = 0; // 색종이 판의 실제 화면 크기
   const COLORS = ["#ff5b6e", "#ffb020", "#ffe14d", "#3fd17a", "#33b7ff", "#8a63ee", "#ff7ac6"];
   function ensureCanvas() {
     if (cv) return;
     cv = U.el("canvas", "confetti");
     document.body.appendChild(cv);
     cx = cv.getContext("2d");
-    const fit = () => {
-      const d = Math.min(window.devicePixelRatio || 1, 2);
-      cv.width = innerWidth * d;
-      cv.height = innerHeight * d;
-      cx.setTransform(d, 0, 0, d, 0, 0);
-    };
-    fit();
-    addEventListener("resize", fit);
+    fitCanvas();
+    addEventListener("resize", fitCanvas);
+  }
+  /* iPad 앱(전체 화면)에서는 innerHeight 가 실제 화면보다 작게 잡힐 때가 있어,
+     창 크기 대신 판의 실제 크기로 맞추고 지울 때도 판 전체를 지운다.
+     (예전엔 화면 맨 아래 띠가 지워지지 않아 색종이 자국이 줄처럼 남았음) */
+  function fitCanvas() {
+    if (!cv) return;
+    const d = Math.min(window.devicePixelRatio || 1, 2);
+    CW = cv.clientWidth || innerWidth;
+    CH = cv.clientHeight || innerHeight;
+    cv.width = Math.round(CW * d);
+    cv.height = Math.round(CH * d);
+    cx.setTransform(d, 0, 0, d, 0, 0);
+  }
+  function clearAll() {
+    cx.save();
+    cx.setTransform(1, 0, 0, 1, 0, 0);
+    cx.clearRect(0, 0, cv.width, cv.height);
+    cx.restore();
   }
   KP.confetti = function (n = 140, x = innerWidth / 2, y = innerHeight * 0.38) {
     ensureCanvas();
     if (!cx) return;
+    if (cv.clientWidth !== CW || cv.clientHeight !== CH) fitCanvas();
     for (let i = 0; i < n; i++) {
       const a = U.randf(0, Math.PI * 2),
         sp = U.randf(4, 14);
@@ -85,8 +100,8 @@
     }
   };
   function tick() {
-    cx.clearRect(0, 0, innerWidth, innerHeight);
-    parts = parts.filter((p) => p.life > 0 && p.y < innerHeight + 40);
+    clearAll();
+    parts = parts.filter((p) => p.life > 0 && p.y < CH + 40);
     for (const p of parts) {
       p.vx *= 0.985;
       p.vy = p.vy * 0.985 + 0.32;
@@ -118,7 +133,7 @@
     if (parts.length) requestAnimationFrame(tick);
     else {
       running = false;
-      cx.clearRect(0, 0, innerWidth, innerHeight);
+      clearAll();
     }
   }
 
