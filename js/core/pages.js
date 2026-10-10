@@ -156,18 +156,33 @@
     nc.addEventListener("change", () => KP.settings.set({ natural: nc.checked }));
     nRow.appendChild(nc);
     sSnd.appendChild(nRow);
-    const nInfo = U.el("p", "pNote", "");
-    const showN = () => (nInfo.textContent = "준비된 자연 음성 " + KP.voice.natCount() + "개 · 이 기기에 받아 둔 것 " + KP.voice.natStats.ok + "개" + (KP.voice.natStats.fail ? " · 받기 실패 " + KP.voice.natStats.fail + "번 (인터넷 연결 확인)" : "") + ". 없는 문장은 기기 목소리로 읽어요.");
+    const nInfo = U.el("p", "pNote natInfo", "");
+    const showN = async (extra) => {
+      const r = await KP.voice.natReport();
+      let t;
+      if (r.stored >= r.total && r.total) t = "✅ 자연 음성 " + r.total + "개 모두 이 기기에 저장됨 — 인터넷 없어도 나와요.";
+      else if (r.nocors && !r.stored) t = "🌐 자연 음성은 인터넷이 될 때만 나와요 (파일 서버가 기기 저장을 막음). 오프라인일 땐 기기 목소리.";
+      else if (r.stored) t = "⏳ " + r.total + "개 중 " + r.stored + "개 저장됨" + (r.failed ? " · 못 받은 것 " + r.failed + "개" : "") + " — 아래 버튼을 다시 눌러 주세요.";
+      else if (!r.online) t = "📴 인터넷이 꺼져 있어요. 연결한 뒤 아래 버튼을 눌러 주세요.";
+      else t = "아직 받지 않았어요 (" + r.total + "개). 아래 버튼을 눌러 주세요.";
+      nInfo.textContent = t + (extra ? " " + extra : "") + " 준비 안 된 문장은 기기 목소리로 읽어요.";
+    };
     showN();
     sSnd.appendChild(nInfo);
     const bNat = U.btn(KP.E("⬇️") + " 지금 받아 두기 / 들어 보기", "chip");
     bNat.addEventListener("click", async () => {
+      if (bNat.disabled) return;
       bNat.disabled = true;
       KP.audio.unlock();
-      await KP.voice.prefetch();
-      showN();
+      KP.voice.unlockEl && KP.voice.unlockEl();
+      await KP.voice.prefetch((i, n) => (bNat.textContent = "받는 중… " + i + " / " + n));
+      bNat.innerHTML = KP.E("⬇️") + " 지금 받아 두기 / 들어 보기";
       bNat.disabled = false;
-      KP.voice.say("기역! 기차의 기!");
+      await showN();
+      KP.voice.lastVia = "";
+      await KP.voice.say("기역! 기차의 기!");
+      const v = KP.voice.lastVia;
+      showN(v === "natural" ? "▶ 방금 소리: 자연 음성 ✓" : v === "el" ? "▶ 방금 소리: 자연 음성 ✓ (인터넷으로 재생)" : v === "tts" ? "▶ 방금 소리: 기기 목소리 (자연 음성 아님)" : "▶ 소리 크기가 0이거나 소리가 꺼져 있어요.");
     });
     sSnd.appendChild(bNat);
     const vName = KP.voice.koName();

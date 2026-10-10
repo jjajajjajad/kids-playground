@@ -112,6 +112,7 @@
     speakTTS(text, o, vol);
   }
   function speakTTS(text, o, vol) {
+    V.lastVia = "tts";
     if (!has) {
       if (o.onend) setTimeout(o.onend, 300);
       return;
@@ -177,7 +178,9 @@
   const bufs = new Map(),
     loading = new Map(),
     nocors = new Set(); // 내려받기(CORS)가 막힌 주소 → 소리만 바로 재생(인터넷 필요)
+  const failed = new Set();
   V.natStats = { ok: 0, fail: 0 };
+  V.lastVia = ""; // 방금 말한 방식: natural(자연 음성) · el(자연 음성, 저장 안 됨) · tts(기기 음성)
   function loadBuf(url) {
     if (bufs.has(url)) return Promise.resolve(bufs.get(url));
     if (loading.has(url)) return loading.get(url);
@@ -207,13 +210,15 @@
         if (pr && pr.catch) pr.catch(rej);
       });
       bufs.set(url, b);
+      failed.delete(url);
       V.natStats.ok = bufs.size;
       return b;
     })();
     loading.set(url, p);
     p.catch((e) => {
       loading.delete(url);
-      V.natStats.fail++;
+      failed.add(url);
+      V.natStats.fail = failed.size;
       if (e && /fetch|network|cors|load failed/i.test(String(e.message || e)) && navigator.onLine !== false) nocors.add(url);
     });
     return p;
@@ -232,6 +237,7 @@
   function playEl(text, urls, o, vol, tok) {
     if (!el) return speakTTS(text, o, vol);
     let i = 0;
+    V.lastVia = "el";
     KP.audio.duck(true);
     const next = () => {
       if (tok !== natTok) return;
@@ -268,6 +274,7 @@
         try {
           if (has) speechSynthesis.cancel();
         } catch (e) {}
+        V.lastVia = "natural";
         KP.audio.duck(true);
         const g = c.createGain();
         g.gain.value = Math.min(1, vol * 1.1);
@@ -309,15 +316,27 @@
     natEnd = 0;
   }
   /** 자연 음성 파일을 미리 받아 두기 (첫 터치 뒤 한가할 때) */
-  V.prefetch = async function () {
-    const M = KP.VOICE_CLIPS || {};
-    for (const u of Object.values(M)) {
+  V.prefetch = async function (onProg) {
+    const L = Object.values(KP.VOICE_CLIPS || {});
+    for (let i = 0; i < L.length; i++) {
       try {
-        await loadBuf(u);
+        await loadBuf(L[i]);
       } catch (e) {}
+      if (onProg) onProg(i + 1, L.length);
       await new Promise((r) => setTimeout(r, 40));
     }
     return V.natStats;
+  };
+  /** 상태 보고: 전체 · 기기 저장소에 있는 것 · 못 받은 것 · 저장은 막혔지만 바로 재생 가능한 것 */
+  V.natReport = async function () {
+    const L = Object.values(KP.VOICE_CLIPS || {});
+    let stored = 0;
+    try {
+      const c = await caches.open(VCACHE);
+      const keys = new Set((await c.keys()).map((r) => r.url));
+      stored = L.filter((u) => keys.has(u)).length;
+    } catch (e) {}
+    return { total: L.length, stored, ready: bufs.size, failed: failed.size, nocors: nocors.size, online: navigator.onLine !== false };
   };
   V.natCount = () => Object.keys(KP.VOICE_CLIPS || {}).length;
 
