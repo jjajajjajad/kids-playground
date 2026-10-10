@@ -203,6 +203,31 @@
       lChips.appendChild(b);
     });
     sLock.appendChild(lChips);
+    // 아이용 문지기 퀴즈
+    const kRow = U.el("label", "pRow", "<span>아이가 문제를 맞히면 잠시 열기 (문지기 퀴즈)</span>");
+    const kc = U.el("input");
+    kc.type = "checkbox";
+    kc.checked = s.kidGate;
+    kc.addEventListener("change", () => KP.settings.set({ kidGate: kc.checked }));
+    kRow.appendChild(kc);
+    sLock.appendChild(kRow);
+    const chipRow = (label, key, vals, fmt) => {
+      const row = U.el("div", "pChips");
+      row.appendChild(U.el("span", "pNote", label));
+      vals.forEach((v) => {
+        const c = U.btn(fmt(v), "chip" + (KP.settings.get()[key] === v ? " sel" : ""));
+        c.addEventListener("click", () => {
+          KP.settings.set({ [key]: v });
+          U.$$(".chip", row).forEach((x) => x.classList.remove("sel"));
+          c.classList.add("sel");
+        });
+        row.appendChild(c);
+      });
+      sLock.appendChild(row);
+    };
+    chipRow("맞힐 문제", "kidQ", [2, 3, 5], (v) => v + "개");
+    chipRow("열리는 시간", "kidMin", [10, 20, 30], (v) => v + "분");
+    sLock.appendChild(U.el("p", "pNote", "문지기 퀴즈는 한글 자음·모음, 숫자(1~20), 알파벳을 소리로 묻고, 한 번에 맞힌 문제만 세요. 시간이 끝나면 다시 잠기고 놀던 놀이에서 홈으로 나와요."));
     const bRelock = U.btn("지금 다시 잠그기", "chip");
     bRelock.addEventListener("click", () => {
       KP.gate.relock();

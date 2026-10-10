@@ -49,15 +49,24 @@
     } catch (e) {}
     return new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10).replace(/-/g, "");
   };
-  let openedOn = ""; // 잠금을 푼 날짜(한국 시간). 날짜가 바뀌면 다시 잠김
+  let openedOn = ""; // 어른이 날짜로 연 날(한국 시간). 날짜가 바뀌면 다시 잠김
+  // 아이가 문지기 퀴즈로 연 경우: 정해진 시간까지만 (앱을 껐다 켜도 그 시간까지는 유지)
+  let kidUntil = +KP.store.get("gate:until", 0) || 0;
   const gate = (KP.gate = {
     today: todayKST,
-    unlocked: () => openedOn === todayKST(),
+    unlocked: () => openedOn === todayKST() || Date.now() < kidUntil,
+    kidLeft: () => Math.max(0, kidUntil - Date.now()),
     unlock() {
       openedOn = todayKST();
     },
+    unlockFor(min) {
+      kidUntil = Date.now() + min * 60000;
+      KP.store.set("gate:until", kidUntil);
+    },
     relock() {
       openedOn = "";
+      kidUntil = 0;
+      KP.store.set("gate:until", 0);
     },
     /** 이 카테고리가 지금 잠겨 있나 */
     locked(cat) {
@@ -120,11 +129,138 @@
       keys.appendChild(b);
     });
     box.append(slots, keys);
+    const st = KP.settings.get();
+    if (st.kidGate) {
+      const kid = U.btn(KP.E("🐻") + " 형아: 문제 " + st.kidQ + "개 맞히고 열기", "gateKid");
+      kid.addEventListener("click", () => {
+        KP.audio.sfx("open");
+        kidQuiz(box, then, close);
+      });
+      box.appendChild(kid);
+    }
     pad.appendChild(box);
     pad.addEventListener("click", (e) => e.target === pad && close());
     document.body.appendChild(pad);
     draw();
   }
+  /* ---------- 문지기 퀴즈: 아이가 배운 것(한글·숫자·알파벳)을 맞히면 정해진 시간 동안 열림 ----------
+     한 번에 맞힌 문제만 셈(틀리면 새 문제). 소리로만 묻고 보기는 글자·숫자·그림. */
+  const GQ = {
+    C: [["ㄱ", "기역", "🚂", "기차"], ["ㄴ", "니은", "🦋", "나비"], ["ㄷ", "디귿", "🐿️", "다람쥐"], ["ㄹ", "리을", "📻", "라디오"], ["ㅁ", "미음", "🎩", "모자"],
+      ["ㅂ", "비읍", "🍌", "바나나"], ["ㅅ", "시옷", "🦁", "사자"], ["ㅇ", "이응", "🦆", "오리"], ["ㅈ", "지읒", "🚲", "자전거"], ["ㅊ", "치읓", "🧀", "치즈"],
+      ["ㅋ", "키읔", "🐘", "코끼리"], ["ㅌ", "티읕", "🐰", "토끼"], ["ㅍ", "피읖", "🍇", "포도"], ["ㅎ", "히읗", "🦛", "하마"]],
+    V: [["ㅏ", "아"], ["ㅑ", "야"], ["ㅓ", "어"], ["ㅕ", "여"], ["ㅗ", "오"], ["ㅛ", "요"], ["ㅜ", "우"], ["ㅠ", "유"], ["ㅡ", "으"], ["ㅣ", "이"]],
+    A: [["A", "에이"], ["B", "비"], ["C", "씨"], ["D", "디"], ["E", "이"], ["F", "에프"], ["G", "지"], ["H", "에이치"], ["K", "케이"], ["L", "엘"], ["M", "엠"],
+      ["N", "엔"], ["O", "오"], ["P", "피"], ["R", "알"], ["S", "에스"], ["T", "티"], ["W", "더블유"], ["X", "엑스"], ["Z", "제트"]],
+  };
+  function makeQ() {
+    const t = U.pick(["cons", "cons", "pic", "vow", "num", "num", "abc"]);
+    if (t === "cons" || t === "pic") {
+      const opts = U.sample(GQ.C, 3);
+      const ans = opts[0];
+      if (t === "pic") return { show: ans[2], say: ans[3] + "! 무슨 글자로 시작할까요?", opts: U.shuffle(opts.map((o) => o[0])), ans: ans[0], right: ans[3] + "! " + ans[1] + "!" };
+      return { show: "👂", say: U.josa(ans[1], "을/를") + " 찾아요!", opts: U.shuffle(opts.map((o) => o[0])), ans: ans[0], right: ans[1] + "!" };
+    }
+    if (t === "vow") {
+      const opts = U.sample(GQ.V, 3);
+      return { show: "👂", say: U.josa(opts[0][1], "을/를") + " 찾아요!", opts: U.shuffle(opts.map((o) => o[0])), ans: opts[0][0], right: opts[0][1] + "!" };
+    }
+    if (t === "abc") {
+      const opts = U.sample(GQ.A, 3);
+      return { show: "👂", say: U.josa(opts[0][1], "을/를") + " 찾아요!", en: "Find " + opts[0][0] + "!", opts: U.shuffle(opts.map((o) => o[0])), ans: opts[0][0], right: opts[0][1] + "!" };
+    }
+    const n = 1 + U.rand(20);
+    const set = new Set([n]);
+    while (set.size < 3) {
+      const x = Math.max(1, Math.min(20, n + U.pick([-2, -1, 1, 2, 10, -10]) ));
+      set.add(x === n ? 1 + U.rand(20) : x);
+    }
+    return { show: "👂", say: U.josa(U.numSino(n), "을/를") + " 찾아요! " + U.numNative(n) + "!", opts: U.shuffle([...set].map(String)), ans: String(n), right: U.numSino(n) + "!" };
+  }
+  function kidQuiz(box, then, close) {
+    const need = KP.settings.get().kidQ;
+    let got = 0,
+      q = null;
+    box.innerHTML = "";
+    const title = U.el("div", "gateTitle", KP.E("🐻") + " 문제를 맞히면 문이 열려요!");
+    const dots = U.el("div", "gateDots");
+    const ask = U.btn("", "gateAsk");
+    const opts = U.el("div", "gateOpts");
+    const back = U.btn("닫기", "gateKey fn gateBack");
+    box.append(title, dots, ask, opts, back);
+    back.addEventListener("click", () => {
+      KP.audio.sfx("back");
+      KP.voice.stop();
+      close();
+    });
+    const drawDots = () => (dots.innerHTML = Array.from({ length: need }, (_, i) => "<i class='" + (i < got ? "on" : "") + "'></i>").join(""));
+    const speak = () => {
+      if (q.en) {
+        KP.voice.en(q.en);
+        KP.voice.say(q.say, { queue: true });
+      } else KP.voice.say(q.say);
+    };
+    ask.addEventListener("click", () => speak());
+    const next = () => {
+      q = gate.cur = makeQ(); // gate.cur: 자동 점검용
+      ask.innerHTML = KP.E(q.show);
+      opts.innerHTML = "";
+      let tried = false,
+        busy = false;
+      q.opts.forEach((o) => {
+        const b = U.btn(o, "gateOpt");
+        b.addEventListener("click", () => {
+          if (busy) return;
+          KP.audio.unlock();
+          if (o !== q.ans) {
+            tried = true;
+            U.replay(b, "wrong");
+            KP.audio.sfx("bad");
+            busy = true;
+            KP.voice.say("아니에요! 다른 문제를 줄게요.");
+            setTimeout(() => pad && next(), 1300);
+            return;
+          }
+          busy = true;
+          b.classList.add("right");
+          KP.audio.sfx("good");
+          KP.voice.say(q.right);
+          if (!tried) got++;
+          drawDots();
+          setTimeout(() => {
+            if (!pad) return;
+            if (got >= need) {
+              const min = KP.settings.get().kidMin;
+              gate.unlockFor(min);
+              KP.audio.sfx("sparkle");
+              KP.confetti && KP.confetti(140);
+              KP.voice.say("문이 열렸어요! " + min + "분 동안 놀 수 있어요!");
+              close();
+              KP.renderHome();
+              then && then();
+            } else next();
+          }, 1100);
+        });
+        opts.appendChild(b);
+      });
+      speak();
+    };
+    drawDots();
+    next();
+  }
+  // 문지기로 연 시간이 끝나면: 홈은 다시 잠그고, 잠긴 놀이 중이면 홈으로
+  setInterval(() => {
+    if (!kidUntil || Date.now() < kidUntil) return;
+    kidUntil = 0;
+    KP.store.set("gate:until", 0);
+    if (gate.unlocked()) return; // 어른이 날짜로 연 날은 그대로
+    const c = KP.current();
+    KP.toast("⏰ 놀이 시간 끝! 공부하고 또 열어요");
+    KP.voice.say("놀이 시간이 끝났어요! 공부 놀이를 하고 또 열어요.");
+    if (c && gate.locked(c.def.cat)) setTimeout(() => KP.current() === c && KP.home(), 3500);
+    else if (!c) KP.renderHome();
+  }, 5000);
+
   // 어떤 길로 놀이를 열든(홈 카드, 작품 '이어 그리기' 등) 잠금 확인
   const rawOpen = KP.open;
   KP.open = function (id) {

@@ -68,6 +68,22 @@ window.KP = window.KP || {};
     );
   /** 한국어 숫자(고유어) */
   U.NAT = ["영", "하나", "둘", "셋", "넷", "다섯", "여섯", "일곱", "여덟", "아홉", "열"];
+  /** 1~100 읽기 — 한자어: 23 → "이십삼", 고유어: 23 → "스물셋" (100은 둘 다 "백") */
+  const SINO = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
+  U.numSino = (n) => {
+    if (n === 0) return "영";
+    if (n === 100) return "백";
+    const t = Math.floor(n / 10),
+      o = n % 10;
+    return (t ? (t > 1 ? SINO[t] : "") + "십" : "") + SINO[o];
+  };
+  const NT = ["", "열", "스물", "서른", "마흔", "쉰", "예순", "일흔", "여든", "아흔"];
+  const NO = ["", "하나", "둘", "셋", "넷", "다섯", "여섯", "일곱", "여덟", "아홉"];
+  U.numNative = (n) => {
+    if (n === 0) return "영";
+    if (n === 100) return "백";
+    return NT[Math.floor(n / 10)] + NO[n % 10];
+  };
   /** 게임 전용 CSS 넣기 (같은 id 는 한 번만) */
   KP.css = (id, text) => {
     if (document.getElementById("css-" + id)) return;

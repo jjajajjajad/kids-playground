@@ -14,7 +14,8 @@ KP.game({
   setup(ctx) {
     const U = KP.u;
     KP.css("abc", `
-      .abModes{display:flex;gap:10px;justify-content:center;padding:0 10px 6px;flex:0 0 auto}
+      .abModes{display:flex;gap:10px;justify-content:center;padding:8px 10px 6px;flex:0 0 auto;flex-wrap:wrap}
+      @media (max-width:560px){.abModes{gap:5px;padding:8px 4px 4px;flex-wrap:nowrap}.abMode{font-size:14px !important;padding:3px 9px !important;min-height:44px !important;white-space:nowrap}.abMode .e{display:none}}
       .abMode{font-size:clamp(18px,2.4vw,24px);background:rgba(255,255,255,.7);border-radius:999px;padding:8px 22px;min-height:52px;display:flex;align-items:center;gap:8px;border-bottom:5px solid transparent}
       .abMode .e{font-size:1.4em}
       .abMode.sel{background:#fff;border-bottom-color:var(--cat);color:var(--cat);box-shadow:var(--shadow)}
@@ -45,6 +46,17 @@ KP.game({
       .abAns{--sz:var(--szl);display:grid;grid-template-columns:repeat(var(--cl),auto);gap:clamp(12px,2.4vw,26px)}
       @media (max-aspect-ratio:1/1){.abAns{--sz:var(--szp);grid-template-columns:repeat(var(--cp),auto)}}
       .abOpt{font-size:var(--sz);border-radius:28px;color:var(--c);min-width:calc(var(--sz) * 1.5)}
+      /* 단어 만들기 */
+      .abSp{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(12px,3vh,28px);padding:6px 12px 18px}
+      .abSpPic{font-size:clamp(90px,min(16vw,22vh),170px);line-height:1;background:#fff;border-radius:34px;padding:10px 28px;box-shadow:var(--shadow);cursor:pointer}
+      .abSpPic.yay{animation:jumpA .5s 2}
+      .abSlots{display:flex;gap:clamp(8px,1.6vw,16px)}
+      .abSlot{width:clamp(64px,min(10vw,13vh),104px);aspect-ratio:1;border-radius:20px;border:4px dashed rgba(47,58,102,.25);background:rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;font-size:clamp(46px,min(7vw,9vh),76px);line-height:1;color:rgba(47,58,102,.18)}
+      .abSlot.full{border:4px solid #fff;background:#fff;color:var(--c);box-shadow:0 5px 0 rgba(47,58,102,.12);animation:popIn .3s}
+      .abSlot.next{border-color:var(--star)}
+      .abTiles{display:flex;gap:clamp(8px,1.6vw,16px);flex-wrap:wrap;justify-content:center}
+      .abTile{width:clamp(64px,min(10vw,13vh),100px);aspect-ratio:1;border-radius:22px;background:#fff;font-size:clamp(44px,min(6.4vw,8.5vh),70px);color:var(--c);box-shadow:0 6px 0 color-mix(in srgb,var(--c) 45%,#fff);border:3px solid color-mix(in srgb,var(--c) 30%,#fff);line-height:1}
+      .abTile.used{visibility:hidden}
     `);
     // [글자, 한국어로 읽기, [[낱말, 그림], ...]]
     ctx.L = [
@@ -68,7 +80,16 @@ KP.game({
     const modes = U.el("div", "abModes");
     ctx.bLearn = U.btn(KP.E("📖") + "배우기", "abMode");
     ctx.bQuiz = U.btn(KP.E("❓") + "퀴즈", "abMode");
-    modes.append(ctx.bLearn, ctx.bQuiz);
+    ctx.bSpell = U.btn(KP.E("🧩") + "단어 만들기", "abMode");
+    ctx.bWrite = U.btn(KP.E("🖊️") + "쓰기", "abMode");
+    modes.append(ctx.bLearn, ctx.bSpell, ctx.bWrite, ctx.bQuiz);
+    ctx.tap(ctx.bSpell, () => this.mode(ctx, "spell"));
+    ctx.tap(ctx.bWrite, () => {
+      KP.audio.sfx("open");
+      // 마지막으로 본 알파벳이 있으면 쓰기 공책에서 그 글자로 바로
+      if (ctx.lastSeen != null) KP.nbWant = { id: "awrite", ch: ctx.L[ctx.lastSeen][0] };
+      KP.open("awrite");
+    });
     ctx.tap(ctx.bLearn, () => this.mode(ctx, "learn"));
     ctx.tap(ctx.bQuiz, () => this.mode(ctx, "quiz"));
     ctx.vLearn = U.el("div", "abView");
@@ -87,7 +108,15 @@ KP.game({
     ctx.vQuiz = U.el("div", "abView");
     ctx.q = U.el("div", "abQ");
     ctx.vQuiz.appendChild(ctx.q);
-    ctx.body.append(modes, ctx.vLearn, ctx.vQuiz);
+    // 단어 만들기
+    ctx.vSpell = U.el("div", "abView");
+    ctx.sp = U.el("div", "abSp");
+    ctx.vSpell.appendChild(ctx.sp);
+    ctx.WORDS = [
+      ["cat", "🐱"], ["dog", "🐶"], ["sun", "☀️"], ["pig", "🐷"], ["bus", "🚌"], ["hat", "🎩"], ["egg", "🥚"], ["fox", "🦊"],
+      ["bee", "🐝"], ["cow", "🐮"], ["car", "🚗"], ["box", "📦"], ["fish", "🐟"], ["frog", "🐸"], ["duck", "🦆"], ["star", "⭐"],
+    ];
+    ctx.body.append(modes, ctx.vLearn, ctx.vSpell, ctx.vQuiz);
   },
   start(ctx) {
     ctx.round = 0;
@@ -98,16 +127,20 @@ KP.game({
   },
   mode(ctx, m, first) {
     ctx.m = m;
+    ctx.spTok = (ctx.spTok || 0) + 1;
     ctx.bLearn.classList.toggle("sel", m === "learn");
     ctx.bQuiz.classList.toggle("sel", m === "quiz");
+    ctx.bSpell.classList.toggle("sel", m === "spell");
     ctx.vLearn.classList.toggle("on", m === "learn");
     ctx.vQuiz.classList.toggle("on", m === "quiz");
+    ctx.vSpell.classList.toggle("on", m === "spell");
     if (!first) KP.audio.sfx("select");
     if (m === "learn") {
       ctx.say("🔤 알파벳을 눌러 봐요! 영어로 말해 줘요!");
       ctx.cards.forEach((c, i) => c.classList.toggle("seen", ctx.seen.has(i)));
       ctx.hint(() => ctx.cards.find((c, i) => !ctx.seen.has(i)), "알파벳을 눌러 봐요!");
-    } else this.quiz(ctx);
+    } else if (m === "spell") this.spell(ctx);
+    else this.quiz(ctx);
   },
   learn(ctx, i, card) {
     const U = KP.u;
@@ -116,6 +149,7 @@ KP.game({
     const [w, em] = ws[k];
     const col = ctx.CC[i % ctx.CC.length];
     ctx.seen.add(i);
+    ctx.lastSeen = i;
     card.classList.add("seen");
     U.replay(card, "wig");
     KP.audio.note(KP.audio.SCALE[i % 8], { inst: "marimba", dur: 0.3, vol: 0.25 });
@@ -136,6 +170,87 @@ KP.game({
       });
     }
     ctx.hint(() => ctx.cards.find((x, j) => !ctx.seen.has(j)) || null, "다른 알파벳도 눌러 봐요!");
+  },
+  /* ---------- 단어 만들기: 그림을 보고 글자를 차례로 골라 단어 완성 ----------
+     1단계: 칸에 흐린 글자가 보임, 남는 글자 없음 / 2단계: 흐린 글자 + 남는 글자 1개
+     3단계: 빈 칸 + 남는 글자 2개 (소리와 그림만 보고) */
+  spell(ctx) {
+    const U = KP.u;
+    const lv = ctx.level;
+    const tk = ctx.spTok;
+    let w = U.pick(ctx.WORDS);
+    if (lv === 1) w = U.pick(ctx.WORDS.filter((x) => x[0].length === 3));
+    if (ctx.lastSpell && w[0] === ctx.lastSpell) w = ctx.WORDS[(ctx.WORDS.indexOf(w) + 1) % ctx.WORDS.length];
+    ctx.lastSpell = w[0];
+    const word = w[0];
+    const color = ctx.CC[U.rand(ctx.CC.length)];
+    ctx.sp.innerHTML = "";
+    ctx.sp.style.setProperty("--c", color);
+    const pic = U.btn(KP.E(w[1]), "abSpPic");
+    const slots = U.el("div", "abSlots");
+    const tiles = U.el("div", "abTiles");
+    ctx.sp.append(pic, slots, tiles);
+    const slotEls = [...word].map((ch) => {
+      const e = U.el("div", "abSlot", lv < 3 ? ch : "");
+      slots.appendChild(e);
+      return e;
+    });
+    const extra = lv === 1 ? 0 : lv === 2 ? 1 : 2;
+    const pool = "abcdefghijklmnoprstuwy".split("").filter((x) => !word.includes(x));
+    const letters = U.shuffle([...word, ...U.sample(pool, extra)]);
+    let pos = 0;
+    const mark = () => slotEls.forEach((e, i) => e.classList.toggle("next", i === pos));
+    mark();
+    const spellOut = () => KP.voice.en(word);
+    const intro = () => {
+      KP.voice.en(word + "!");
+      KP.voice.say("글자를 차례대로 골라서 만들어요!", { queue: true });
+    };
+    ctx.say("🧩 그림을 보고 단어를 만들어요!", false);
+    ctx.instr = "글자를 차례대로 골라요!";
+    intro();
+    ctx.tap(pic, () => {
+      U.replay(pic, "pop");
+      spellOut();
+    });
+    const tileEls = letters.map((ch) => {
+      const t = U.btn(ch, "abTile");
+      t.style.setProperty("--c", ctx.CC[(ch.charCodeAt(0) * 7) % ctx.CC.length]);
+      ctx.tap(t, async () => {
+        if (pos >= word.length || t.classList.contains("used")) return;
+        if (ch !== word[pos]) {
+          ctx.miss(t, null, { soft: true });
+          KP.voice.en(ch.toUpperCase());
+          return;
+        }
+        t.classList.add("used");
+        slotEls[pos].textContent = ch;
+        slotEls[pos].classList.add("full");
+        KP.audio.note(KP.audio.SCALE[pos % 8], { inst: "marimba", dur: 0.25, vol: 0.25 });
+        KP.voice.en(ch.toUpperCase());
+        pos++;
+        mark();
+        if (pos < word.length) {
+          ctx.hint(() => tileEls.find((x) => !x.classList.contains("used") && x.textContent === word[pos]), "다음 글자를 찾아요!");
+          return;
+        }
+        // 완성: 한 글자씩 읽고 단어 읽기
+        ctx.hint(null);
+        U.replay(pic, "yay");
+        KP.audio.sfx("good");
+        KP.voice.en([...word].map((x) => x.toUpperCase()).join(", ") + ". " + word + "!");
+        ctx.score.add();
+        ctx.round = (ctx.round || 0) + 1;
+        await ctx.wait(2200);
+        if (tk !== ctx.spTok) return;
+        const bg = ctx.round % 5 === 0;
+        const ok = await ctx.win({ big: bg, msg: bg ? "영어 박사 형아!" : "딩동댕!", quiet: !bg });
+        if (ok && ctx.m === "spell" && tk === ctx.spTok) this.spell(ctx);
+      });
+      tiles.appendChild(t);
+      return t;
+    });
+    ctx.hint(() => tileEls.find((x) => !x.classList.contains("used") && x.textContent === word[pos]), "첫 글자를 찾아요!");
   },
   quiz(ctx) {
     const U = KP.u;

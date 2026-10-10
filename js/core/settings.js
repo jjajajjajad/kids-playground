@@ -14,6 +14,9 @@
     hints: true, // 손가락 힌트
     lock: true, // 게임 잠금: 오늘 날짜(한국 시간 8자리)를 넣어야 열림
     lockCats: ["play", "make", "music", "smart", "bigkid"], // 잠글 카테고리 (공부 놀이는 바로)
+    kidGate: true, // 아이용 문지기 퀴즈로도 열기
+    kidQ: 3, // 맞혀야 할 문제 수
+    kidMin: 20, // 열리는 시간(분)
   };
   function clean(v) {
     const c = Object.assign({}, DEF, v && typeof v === "object" ? v : {});
@@ -29,6 +32,9 @@
     c.lock = c.lock !== false;
     if (!Array.isArray(c.lockCats)) c.lockCats = DEF.lockCats.slice();
     c.lockCats = c.lockCats.filter((x) => typeof x === "string");
+    c.kidGate = c.kidGate !== false;
+    if (![2, 3, 5].includes(c.kidQ)) c.kidQ = DEF.kidQ;
+    if (![10, 20, 30].includes(c.kidMin)) c.kidMin = DEF.kidMin;
     return c;
   }
   let cur = clean(KP.store.get("settings", {}));

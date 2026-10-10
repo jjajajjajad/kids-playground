@@ -14,7 +14,7 @@
     // 똑똑 놀이
     "color", "mix", "shape", "animals", "listen", "feed", "odd", "shadow", "size", "memory", "candy",
     // 공부 놀이 (글자·숫자)
-    "hangul", "hwrite", "count", "numbers", "dots", "more", "abc",
+    "hangul", "hwrite", "abc", "awrite", "numbers", "nwrite", "n100", "count", "dots", "more",
     // 형아 도전
     "maze", "colororder", "jigsaw", "sorter", "trace", "dotdot", "pattern", "sort", "missing", "sequence", "train", "connect", "spatial", "emotion", "dress",
   ];

@@ -14,7 +14,8 @@ KP.game({
   setup(ctx) {
     const U = KP.u;
     KP.css("numbers", `
-      .nbModes{display:flex;gap:10px;justify-content:center;padding:0 10px 6px;flex:0 0 auto}
+      .nbModes{display:flex;gap:10px;justify-content:center;padding:8px 10px 6px;flex:0 0 auto;flex-wrap:wrap}
+      @media (max-width:560px){.nbModes{gap:5px;padding:8px 4px 4px;flex-wrap:nowrap}.nbMode{font-size:14px !important;padding:3px 9px !important;min-height:44px !important;white-space:nowrap}.nbMode .e{display:none}}
       .nbMode{font-size:clamp(18px,2.4vw,24px);background:rgba(255,255,255,.7);border-radius:999px;padding:8px 22px;min-height:52px;display:flex;align-items:center;gap:8px;border-bottom:5px solid transparent}
       .nbMode .e{font-size:1.4em}
       .nbMode.sel{background:#fff;border-bottom-color:var(--cat);color:var(--cat);box-shadow:var(--shadow)}
@@ -64,7 +65,18 @@ KP.game({
     const modes = U.el("div", "nbModes");
     ctx.bLearn = U.btn(KP.E("📖") + "배우기", "nbMode");
     ctx.bQuiz = U.btn(KP.E("❓") + "퀴즈", "nbMode");
-    modes.append(ctx.bLearn, ctx.bQuiz);
+    ctx.bWrite = U.btn(KP.E("📝") + "쓰기 공책", "nbMode");
+    ctx.b100 = U.btn(KP.E("🧮") + "100까지", "nbMode");
+    modes.append(ctx.bLearn, ctx.bQuiz, ctx.bWrite, ctx.b100);
+    ctx.tap(ctx.bWrite, () => {
+      KP.audio.sfx("open");
+      if (ctx.lastN) KP.nbWant = { id: "nwrite", ch: String(ctx.lastN) };
+      KP.open("nwrite");
+    });
+    ctx.tap(ctx.b100, () => {
+      KP.audio.sfx("open");
+      KP.open("n100");
+    });
     ctx.tap(ctx.bLearn, () => this.mode(ctx, "learn"));
     ctx.tap(ctx.bQuiz, () => this.mode(ctx, "quiz"));
     // 배우기 화면
@@ -152,6 +164,7 @@ KP.game({
   },
   /* ---------------- 배우기 ---------------- */
   learn(ctx, n) {
+    ctx.lastN = n;
     const U = KP.u,
       A = KP.audio;
     ctx.token = (ctx.token || 0) + 1;

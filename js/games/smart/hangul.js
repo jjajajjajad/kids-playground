@@ -307,7 +307,7 @@ KP.game({
     ctx.tap(pic, () => KP.voice.say(w + "! " + w[0] + "!"));
     ctx.tap(bNext, () => this.learn(ctx, kind, i, card));
     ctx.tap(bWrite, () => {
-      KP.hwriteWant = c; // 쓰기 공책에서 이 글자로 바로
+      KP.nbWant = { id: "hwrite", ch: c }; // 쓰기 공책에서 이 글자로 바로
       KP.open("hwrite");
     });
     // "기역! 기차의 기!" / "아! 아기의 아!"
