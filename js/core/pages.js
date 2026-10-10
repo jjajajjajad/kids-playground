@@ -149,6 +149,27 @@
       row.appendChild(r);
       sSnd.appendChild(row);
     });
+    const nRow = U.el("label", "pRow", "<span>자연스러운 목소리 쓰기 (미리 만든 음성)</span>");
+    const nc = U.el("input");
+    nc.type = "checkbox";
+    nc.checked = s.natural;
+    nc.addEventListener("change", () => KP.settings.set({ natural: nc.checked }));
+    nRow.appendChild(nc);
+    sSnd.appendChild(nRow);
+    const nInfo = U.el("p", "pNote", "");
+    const showN = () => (nInfo.textContent = "준비된 자연 음성 " + KP.voice.natCount() + "개 · 이 기기에 받아 둔 것 " + KP.voice.natStats.ok + "개" + (KP.voice.natStats.fail ? " · 받기 실패 " + KP.voice.natStats.fail + "번 (인터넷 연결 확인)" : "") + ". 없는 문장은 기기 목소리로 읽어요.");
+    showN();
+    sSnd.appendChild(nInfo);
+    const bNat = U.btn(KP.E("⬇️") + " 지금 받아 두기 / 들어 보기", "chip");
+    bNat.addEventListener("click", async () => {
+      bNat.disabled = true;
+      KP.audio.unlock();
+      await KP.voice.prefetch();
+      showN();
+      bNat.disabled = false;
+      KP.voice.say("기역! 기차의 기!");
+    });
+    sSnd.appendChild(bNat);
     const vName = KP.voice.koName();
     sSnd.appendChild(U.el("p", "pNote", vName ? "사용 중인 목소리: " + vName : "이 기기에서 한국어 음성을 찾지 못했어요. 기기 설정 > 손쉬운 사용 > 음성 콘텐츠에서 한국어 음성을 내려받으면 안내 목소리가 나와요."));
 

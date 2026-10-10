@@ -34,7 +34,7 @@ const OVERRIDE = {
   "🦸": "person-superhero",
   "👢": "womans-boot",
 };
-const CORE = ["kp", "GEN:emoji-map", "GEN:version", "art", "store", "settings", "audio", "voice", "ui", "drag", "paint", "notebook", "celebrate", "home", "pages", "catalog"];
+const CORE = ["kp", "GEN:emoji-map", "GEN:version", "art", "store", "settings", "audio", "voice", "GEN:clips", "ui", "drag", "paint", "notebook", "celebrate", "home", "pages", "catalog"];
 
 const srcFiles = [...walk(P("js"), [".js"]).filter((f) => !f.includes(path.join("js", "gen"))), ...walk(P("css"), [".css"])];
 const RE = /(?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:️|⃣|[\u{1F3FB}-\u{1F3FF}]|‍(?:\p{Extended_Pictographic}|[♀♂])️?)*|[#*0-9]️⃣/gu;
@@ -72,6 +72,17 @@ for (const e of [...used].sort()) {
   fs.writeFileSync(P("assets", "e", slug + ".svg"), svg);
 }
 fs.mkdirSync(P("js", "gen"), { recursive: true });
+// 자연 음성(미리 만든 음성 파일) 목록: tools/voice-clips.tsv → js/gen/clips.js  (문장 → 주소)
+{
+  const tsv = fs.existsSync(P("tools", "voice-clips.tsv")) ? fs.readFileSync(P("tools", "voice-clips.tsv"), "utf8") : "";
+  const clips = {};
+  tsv.split("\n").forEach((l) => {
+    const [t, , url] = l.split("\t");
+    if (t && url && /^https:\/\/[\w.-]+\.cloudfront\.net\//.test(url.trim())) clips[t.trim()] = url.trim();
+  });
+  fs.writeFileSync(P("js", "gen", "clips.js"), "/* 자동 생성 — tools/voice-clips.tsv (ElevenLabs 음성, Higgsfield 생성) */\nKP.VOICE_CLIPS=" + JSON.stringify(clips) + ";\n");
+  console.log(" 자연 음성 " + Object.keys(clips).length + "개");
+}
 fs.writeFileSync(P("js", "gen", "emoji-map.js"), "/* 자동 생성 — tools/build.js */\nKP.EMAP=" + JSON.stringify(map) + ";\n");
 
 /* ---------- 2) 폰트 ---------- */
@@ -127,7 +138,7 @@ self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: "reload" })))).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", (e) => {
-  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE && !k.startsWith("kp-voice")).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;

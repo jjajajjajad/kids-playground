@@ -29,6 +29,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   try {
     for (const vp of VPS) {
       const ctx = await browser.newContext({ viewport: vp.viewport, hasTouch: true, deviceScaleFactor: 1 });
+      // 자연 음성 파일 서버(외부)는 점검 중에는 짧은 무음 파일로 대신 (외부 접속 없이 같은 흐름 확인)
+      const SILENT = Buffer.from("UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZGF0YQAAAAA=", "base64");
+      await ctx.route("https://*.cloudfront.net/**", (r) => r.fulfill({ status: 200, body: SILENT, headers: { "Content-Type": "audio/wav", "Access-Control-Allow-Origin": "*" } }));
       const page = await ctx.newPage();
       const errs = [];
       page.on("pageerror", (e) => errs.push("pageerror: " + e.message));

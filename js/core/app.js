@@ -17,9 +17,12 @@
     "pointerdown",
     () => {
       KP.audio.unlock();
+      KP.voice.unlockEl && KP.voice.unlockEl();
       if (first) {
         first = false;
         if (KP.settings.get().bgm) KP.audio.bgm.start();
+        // 자연 음성 파일을 한가할 때 미리 받아 두기
+        setTimeout(() => KP.voice.prefetch && KP.voice.prefetch(), 2500);
       }
     },
     true

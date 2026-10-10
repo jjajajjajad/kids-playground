@@ -12,6 +12,7 @@
     hidden: {}, // 숨긴 게임 {id:true}
     lastCat: "play", // 마지막으로 본 메뉴
     hints: true, // 손가락 힌트
+    natural: true, // 자연 음성(미리 만든 음성 파일) 쓰기
     lock: true, // 게임 잠금: 오늘 날짜(한국 시간 8자리)를 넣어야 열림
     lockCats: ["play", "make", "music", "smart", "bigkid"], // 잠글 카테고리 (공부 놀이는 바로)
     kidGate: true, // 아이용 문지기 퀴즈로도 열기
@@ -28,6 +29,7 @@
     if (!c.hidden || typeof c.hidden !== "object" || Array.isArray(c.hidden)) c.hidden = {};
     c.bgm = !!c.bgm;
     c.hints = c.hints !== false;
+    c.natural = c.natural !== false;
     if (typeof c.lastCat !== "string") c.lastCat = DEF.lastCat;
     c.lock = c.lock !== false;
     if (!Array.isArray(c.lockCats)) c.lockCats = DEF.lockCats.slice();
