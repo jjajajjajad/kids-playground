@@ -358,7 +358,8 @@
       const say = cell.mode === "dot" ? (cell.demo ? "잘 봐요! 이렇게 써요." : "점선을 따라 써요!") : cell.mode === "faint" ? "흐린 글씨를 따라 써요!" : "이번엔 혼자 써 볼까요? 옆의 글자를 보고 써요!";
       ctx.say((it.kind === "line" ? "〰️ " : "✍️ ") + step.replace(/^. /, "") + (it.kind === "word" ? " · " + cell.ch : ""), false);
       ctx.instr = say;
-      if (cell.demo && (ctx.ci === 0 || it.kind === "word")) ctx.after(it.kind === "word" && ctx.ci > 0 ? 200 : 900, () => this.demo(ctx));
+      const stok = ctx.tok;
+      if (cell.demo && (ctx.ci === 0 || it.kind === "word")) ctx.after(it.kind === "word" && ctx.ci > 0 ? 200 : 900, () => stok === ctx.tok && ctx.cell === cell && this.demo(ctx));
       else KP.voice.say(say);
       ctx.hint(() => this.startPoint(ctx), cell.mode === "alone" ? "옆의 글자를 보고 써요!" : "노란 동그라미에서 시작해요!");
     },
@@ -707,13 +708,17 @@
       const T = ctx.T,
         c = ctx.cell;
       if (T.done) return;
-      const R = c.syl ? 7.5 : c.mode === "alone" ? 12 : 10;
+      // 판정 범위: 안내 글씨 굵기 정도만 (넓으면 옆으로 지나가도 된 걸로 쳐져서 일찍 넘어감)
+      const R = c.syl ? 5.5 : c.mode === "alone" ? 8.5 : 7.5;
       for (const q of T.pts) if (!q.hit && (q.x - p.x) ** 2 + (q.y - p.y) ** 2 < R * R) q.hit = true;
       let changed = false;
       for (let si = 0; si < T.n; si++) {
         if (T.sdone[si]) continue;
         const mine = T.pts.filter((q) => q.s === si);
-        if (mine.filter((q) => q.hit).length / mine.length >= 0.85) {
+        // 획의 95% 이상을 지나고, 시작점과 끝점까지 닿아야 그 획 완성
+        const full = mine.filter((q) => q.hit).length / mine.length >= 0.95;
+        const ends = mine[0].hit && mine[mine.length - 1].hit && (mine.length < 3 || mine[mine.length - 2].hit);
+        if (full && ends) {
           T.sdone[si] = true;
           changed = true;
           if (c.mode !== "alone") KP.audio.note(KP.audio.SCALE[(si * 2) % 8], { inst: "marimba", dur: 0.22, vol: 0.2 });
@@ -746,9 +751,16 @@
       const U = KP.u;
       const T = ctx.T;
       if (T.done || T.demoing || !ctx.cell) return;
-      if (byButton && T.ink.length < 8) {
-        KP.voice.say("먼저 써 볼까요? 동그라미에서 시작해요!");
-        return;
+      if (byButton) {
+        // [다 썼어요]는 막혔을 때 넘어가는 용도 — 덜 썼으면 조금 더 쓰도록 안내
+        const cov = T.pts.length ? T.pts.filter((q) => q.hit).length / T.pts.length : 0;
+        const need = ctx.cell.mode === "alone" ? 0.6 : 0.75;
+        if (T.ink.length < 8 || cov < need) {
+          KP.audio.sfx("tap");
+          KP.voice.say(T.ink.length < 8 ? "먼저 써 볼까요? 동그라미에서 시작해요!" : "아직 덜 썼어요! 회색 길을 끝까지 따라가요.");
+          if (ctx.cell.mode !== "alone") ctx.hint(() => this.startPoint(ctx), "끝까지 따라가요!");
+          return;
+        }
       }
       T.done = true;
       T.pid = null;
