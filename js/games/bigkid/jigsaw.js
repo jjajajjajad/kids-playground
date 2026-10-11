@@ -1,7 +1,8 @@
 /* 조각 퍼즐 — 진짜 직소 조각을 끌어다 맞추기
    - 바탕판에 흐린 밑그림과 조각 자리 선, 맞는 자리 근처에 놓으면 착!
    - 크기 2×2 / 3×3 / 4×4 : 단계와 연동(1→2×2, 2→3×3, 3→4×4), 버튼으로도 고를 수 있음
-   - 그림: 내장 장면 6개(일러스트로 그린 장면) + 📷 내 사진(영구 저장, 썸네일 목록)
+   - 그림: 📷 내 사진(영구 저장) + 🎨 내 작품(그림 그리기·색칠 놀이에서 저장한 그림) + 내장 장면 6개
+   - 내 작품 화면의 "🧩 퍼즐로" 단추로 바로 그 그림 퍼즐 시작 (KP.pendingPuzzle)
    - 조각은 볼록/오목 탭이 있는 직소 모양, 완성하면 경계선이 스르륵 사라지며 큰 축하 */
 "use strict";
 KP.game({
@@ -31,13 +32,18 @@ KP.game({
       .jgPickTop{display:flex;justify-content:space-between;align-items:center;font-size:clamp(20px,3vw,28px);padding:0 4px 8px}
       .jgPickList{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(100px,16vw,160px),1fr));gap:clamp(10px,1.8vw,18px);align-content:start;padding:6px;-webkit-overflow-scrolling:touch;touch-action:pan-y}
       .jgTh{position:relative;aspect-ratio:1;border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 6px 0 rgba(47,58,102,.14);border:4px solid #fff}
-      .jgTh img{width:100%;height:100%;object-fit:cover;display:block}
+      .jgTh>img{width:100%;height:100%;object-fit:cover;display:block}
+      .jgTh .badge img,.jgTh .del img{width:1em;height:1em;display:block}
+      .jgTh.add>img{width:52%;height:auto}
       .jgTh.cur{border-color:var(--sun)}
       .jgTh.add{display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:clamp(36px,5.4vw,56px);gap:2px;background:#e9f6ff;padding:4px}
       .jgTh.add span{font-size:clamp(17px,2.4vw,22px);color:var(--ocean)}
       .jgTh .del{position:absolute;right:6px;top:6px;width:48px;height:48px;border-radius:50%;background:#fff;font-size:28px;display:none;align-items:center;justify-content:center;box-shadow:0 3px 0 rgba(0,0,0,.15)}
       .jgTh.armed .del{display:flex}
       .jgTh .badge{position:absolute;left:6px;bottom:6px;font-size:26px;line-height:1}
+      .jgSec{grid-column:1/-1;font-size:clamp(17px,2.3vw,21px);color:#6a5a3a;padding:6px 4px 0}
+      .jgPicBtn .lb{white-space:nowrap}
+      @media (max-width:520px){.jgPicBtn .lb{display:none}}
     `);
 
     /* ---------- 화면 ---------- */
@@ -267,6 +273,44 @@ KP.game({
       const photos = (await KP.db.all("photos")).filter((p) => p.kind === "jigsaw");
       for (const p of photos) ctx.pics.push(await photoPic(p));
     });
+    /** 내 작품(4:3 등)은 잘리지 않게 흰 종이 가운데에 맞춰 정사각형으로 — 고를 때 만듦(메모리 절약) */
+    function artPic(a) {
+      const o = { id: "art:" + a.id, kind: "art", name: "내 작품", src: null, thumb: a.img };
+      o.load = () =>
+        o.src
+          ? Promise.resolve(o)
+          : new Promise((res) => {
+              const im = new Image();
+              im.onload = () => {
+                const c = document.createElement("canvas");
+                c.width = c.height = SZ;
+                const g = c.getContext("2d");
+                g.fillStyle = "#fffdf6";
+                g.fillRect(0, 0, SZ, SZ);
+                const k = Math.min(SZ / im.width, SZ / im.height);
+                g.drawImage(im, (SZ - im.width * k) / 2, (SZ - im.height * k) / 2, im.width * k, im.height * k);
+                o.src = c;
+                res(o);
+              };
+              im.onerror = () => res(null);
+              im.src = KP.safeImg(a.img);
+            });
+      return o;
+    }
+    /** 내 작품 목록 새로 고침 (다른 놀이에서 새로 저장했을 수 있음) */
+    ctx.jgRefreshArt = async () => {
+      let arts = [];
+      try {
+        arts = (await KP.db.all("art")).filter((x) => x.kind !== "zoo" && KP.safeImg(x.img));
+      } catch (e) {}
+      const have = new Set(ctx.pics.filter((p) => p.kind === "art").map((p) => p.id));
+      const ids = new Set(arts.map((a) => "art:" + a.id));
+      const cur = ctx.pics[ctx.picIdx];
+      ctx.pics = ctx.pics.filter((p) => p.kind !== "art" || ids.has(p.id)); // 지운 작품 빼기
+      arts.reverse().forEach((a) => !have.has("art:" + a.id) && ctx.pics.push(artPic(a)));
+      const i = cur ? ctx.pics.indexOf(cur) : -1;
+      ctx.picIdx = i >= 0 ? i : 0;
+    };
     function photoPic(p) {
       return new Promise((res) => {
         const im = new Image();
@@ -278,7 +322,9 @@ KP.game({
     }
 
     /* ---------- 그림 고르기 ---------- */
-    function openPicker() {
+    async function openPicker() {
+      await ctx.jgRefreshArt();
+      if (!ctx._active) return;
       pick.innerHTML = "";
       const top = U.el("div", "jgPickTop", "<span>" + KP.E("🖼️") + " 어떤 그림으로 할까요?</span>");
       const close = U.btn(KP.E("✖️"), "barBtn");
@@ -306,7 +352,15 @@ KP.game({
         ctx.def.next(ctx, true);
       });
       list.appendChild(add);
-      ctx.pics.forEach((p, k) => {
+      const SEC = { photo: KP.E("📷") + " 내 사진", art: KP.E("🎨") + " 내가 그린 그림", scene: KP.E("🖼️") + " 그림 나라" };
+      const order = ["photo", "art", "scene"];
+      const sorted = ctx.pics.map((p, k) => [p, k]).sort((a, b) => order.indexOf(a[0].kind) - order.indexOf(b[0].kind) || a[1] - b[1]);
+      let lastKind = "";
+      sorted.forEach(([p, k]) => {
+        if (p.kind !== lastKind) {
+          lastKind = p.kind;
+          if (p.kind !== "photo") list.appendChild(U.el("div", "jgSec", SEC[p.kind]));
+        }
         const th = U.el("button", "jgTh" + (k === ctx.picIdx ? " cur" : ""), '<img src="' + KP.safeImg(p.thumb) + '" alt="" draggable="false">');
         if (p.kind === "photo") {
           th.appendChild(U.el("span", "badge", KP.E("📷")));
@@ -326,12 +380,13 @@ KP.game({
             openPicker();
           });
         }
+        if (p.kind === "art") th.appendChild(U.el("span", "badge", KP.E("🎨")));
         ctx.tap(th, () => {
           if (th.classList.contains("armed")) return;
           A.sfx("select");
           ctx.picIdx = k;
           pick.classList.remove("on");
-          KP.voice.say(p.kind === "photo" ? "내 사진 퍼즐!" : p.name + " 퍼즐!");
+          KP.voice.say(p.kind === "photo" ? "내 사진 퍼즐!" : p.kind === "art" ? "내가 그린 그림 퍼즐!" : p.name + " 퍼즐!");
           ctx.def.next(ctx, true);
         });
         list.appendChild(th);
@@ -725,7 +780,7 @@ KP.game({
     ctx.jgUpdateTools = () => {
       sizeBtns.forEach((b) => b.classList.toggle("sel", +b.dataset.n === st.n));
       const p = ctx.pics[ctx.picIdx];
-      picBtn.innerHTML = (p ? '<img class="th" src="' + KP.safeImg(p.thumb) + '" alt="">' : "") + KP.E("🖼️");
+      picBtn.innerHTML = (p ? '<img class="th" src="' + KP.safeImg(p.thumb) + '" alt="">' : "") + KP.E("🖼️") + '<span class="lb">그림 바꾸기</span>';
     };
   },
   start(ctx) {
@@ -733,10 +788,19 @@ KP.game({
     ctx.sizePick = 0;
     ctx.jgClosePicker();
     ctx.jg.ready = false;
-    ctx.picsReady.then(() => {
-      if (!ctx._active) return;
-      this.next(ctx);
-    });
+    ctx.picsReady
+      .then(() => ctx.jgRefreshArt())
+      .then(() => {
+        if (!ctx._active) return;
+        const want = KP.pendingPuzzle;
+        KP.pendingPuzzle = null;
+        if (want) {
+          const i = ctx.pics.findIndex((p) => p.id === "art:" + want);
+          if (i >= 0) ctx.picIdx = i;
+        }
+        this.next(ctx);
+        if (want) KP.voice.say("내가 그린 그림 퍼즐이에요!");
+      });
     ctx.loop((dt, now) => ctx.jgDraw(now, dt));
   },
   next(ctx, manual) {
@@ -750,7 +814,20 @@ KP.game({
     }
     const n = ctx.sizePick || ctx.level + 1;
     st.n = n;
-    st.img = ctx.pics[ctx.picIdx % ctx.pics.length].src;
+    const pic = ctx.pics[ctx.picIdx % ctx.pics.length];
+    if (!pic.src) {
+      // 내 작품: 처음 고를 때 정사각형 그림으로 만들기
+      pic.load().then((o) => {
+        if (!ctx._active) return;
+        if (!o) {
+          ctx.pics.splice(ctx.pics.indexOf(pic), 1);
+          ctx.picIdx = 0;
+        }
+        this.next(ctx, manual);
+      });
+      return;
+    }
+    st.img = pic.src;
     st.done = false;
     st.drag = null;
     const H = [],

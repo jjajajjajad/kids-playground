@@ -156,8 +156,13 @@
     const bEdit = U.btn(KP.E("✏️") + " 이어 그리기", "btn primary");
     const bDel = U.btn(KP.E("🗑️") + " 지우기(꾹)", "btn danger");
     const bPrint = U.btn(KP.E("🖨️") + " 출력", "btn");
+    const bPuz = U.btn(KP.E("🧩") + " 퍼즐로", "btn");
+    bPuz.addEventListener("click", () => {
+      KP.pendingPuzzle = it.id;
+      KP.open("jigsaw");
+    });
     bPrint.addEventListener("click", () => KP.printImg(it.img, "내 작품 " + String(it.date || "")));
-    row.append(bClose, bEdit, bPrint, bDel);
+    row.append(bClose, bEdit, bPuz, bPrint, bDel);
     v.append(img, row);
     v.classList.add("show");
     bClose.addEventListener("click", () => v.classList.remove("show"));
