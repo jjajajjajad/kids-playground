@@ -60,7 +60,30 @@
    * @param {string} text
    * @param {{en?:boolean, queue?:boolean, rate?:number, pitch?:number, onend?:Function}} o
    */
+  /* 놀이 카드를 누르면 이름을 읽는데, 곧바로 열리는 놀이 화면이 그 소리를 끊지 않게:
+     이름을 다 읽을 때까지(최대 3초) 다른 말은 이름 뒤로 미루고, 멈춤 요청도 무시 */
+  let holdP = null,
+    holdUntil = 0;
+  V.hold = function (text) {
+    holdUntil = performance.now() + 3000;
+    const p = (holdP = sayNow(text, {}));
+    p.then(() => {
+      if (holdP === p) {
+        holdP = null;
+        holdUntil = 0;
+      }
+    });
+    return p;
+  };
+  const holding = () => holdP && performance.now() < holdUntil;
   V.say = function (text, o = {}) {
+    if (holding() && !o.queue) {
+      const p = holdP;
+      return p.then(() => sayNow(text, o));
+    }
+    return sayNow(text, o);
+  };
+  function sayNow(text, o = {}) {
     // 말이 끝나면 resolve 되는 Promise (음성이 없어도 글자 수로 대략 기다림)
     return new Promise((resolve) => {
       let fin = false;
@@ -82,7 +105,7 @@
         },
       }));
     });
-  };
+  }
   function sayRaw(text, o) {
     if (!text) return o.onend && o.onend();
     const vol = volume();
@@ -390,6 +413,7 @@
   };
 
   V.stop = function () {
+    if (holding()) return; // 놀이 이름을 읽는 중
     stopNatural();
     try {
       if (has) speechSynthesis.cancel();

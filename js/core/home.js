@@ -389,7 +389,7 @@
         if (card.dataset.busy) return; // 연타 시 두 번 열리지 않게
         card.dataset.busy = "1";
         KP.audio.sfx("open");
-        KP.voice.say(isHero ? "오늘의 도전! " + g.name : g.name);
+        KP.voice.hold(isHero ? "오늘의 도전! " + g.name : g.name); // 이름을 끝까지 읽고 놀이 안내가 이어짐
         U.replay(card, "press");
         setTimeout(() => KP.open(id), 140);
       });

@@ -48,6 +48,10 @@
   };
   /** iOS 등에서 첫 터치 때 소리 잠금 해제 */
   A.unlock = function () {
+    // iPhone: 무음 스위치가 켜져 있으면 웹 오디오(효과음·자연 음성)가 안 들림 → '재생' 종류로 지정하면 들림 (Safari 16.4+)
+    try {
+      if (navigator.audioSession && navigator.audioSession.type !== "playback") navigator.audioSession.type = "playback";
+    } catch (e) {}
     const c = A.ctx();
     if (!c) return;
     try {
