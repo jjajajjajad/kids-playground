@@ -82,6 +82,69 @@
       });
     },
   });
+  /** 그림 한 장 출력
+      - iPad/iPhone: 홈 화면 앱에서는 인쇄 창이 안 뜰 수 있어 공유 창을 띄움 → 거기서 '프린트' (또는 '이미지 저장')
+      - 그 밖(안드로이드·PC): 브라우저 인쇄 창 (A4 가로, 그림만 한 장) */
+  KP.printImg = async function (dataUrl, title) {
+    const src = KP.safeImg(dataUrl);
+    if (!src) return;
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if (ios && navigator.share && navigator.canShare) {
+      try {
+        // data: 주소를 직접 바이트로 (fetch 는 보안 설정상 data: 를 못 씀)
+        const [head, b64] = src.split(",");
+        const bin = atob(b64);
+        const u8 = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+        const blob = new Blob([u8], { type: head.slice(5, head.indexOf(";")) });
+        const file = new File([blob], (title || "그림").replace(/[\\/:*?"<>|]/g, "") + ".jpg", { type: blob.type || "image/jpeg" });
+        if (navigator.canShare({ files: [file] })) {
+          KP.toast("🖨️ 아래 목록에서 '프린트'를 눌러 주세요");
+          await navigator.share({ files: [file] });
+          return;
+        }
+      } catch (e) {
+        if (e && e.name === "AbortError") return; // 공유 창을 닫음
+      }
+    }
+    KP.css("printImg", `
+      #printArea{display:none}
+      @media print{
+        @page{size:A4 landscape;margin:10mm}
+        html,body{background:#fff!important;height:auto!important;overflow:visible!important}
+        body>*:not(#printArea){display:none!important}
+        #printArea{display:flex!important;position:static;width:100%;height:180mm;align-items:center;justify-content:center}
+        #printArea img{max-width:100%;max-height:100%;object-fit:contain}
+      }`);
+    let pa = document.getElementById("printArea");
+    if (!pa) {
+      pa = document.createElement("div");
+      pa.id = "printArea";
+      document.body.appendChild(pa);
+    }
+    pa.innerHTML = "";
+    const im = new Image();
+    im.alt = "";
+    pa.appendChild(im);
+    await new Promise((r) => {
+      im.onload = im.onerror = r;
+      im.src = src;
+    });
+    const t0 = document.title;
+    if (title) document.title = title;
+    const fin = () => {
+      document.title = t0;
+      pa.innerHTML = "";
+      removeEventListener("afterprint", fin);
+    };
+    addEventListener("afterprint", fin);
+    try {
+      window.print();
+    } catch (e) {
+      fin();
+      KP.toast("이 기기에서는 출력할 수 없어요");
+    }
+  };
   function open(ctx, it) {
     KP.audio.sfx("open");
     const v = ctx.viewer;
@@ -92,7 +155,9 @@
     const bClose = U.btn(KP.E("↩️") + " 돌아가기", "btn");
     const bEdit = U.btn(KP.E("✏️") + " 이어 그리기", "btn primary");
     const bDel = U.btn(KP.E("🗑️") + " 지우기(꾹)", "btn danger");
-    row.append(bClose, bEdit, bDel);
+    const bPrint = U.btn(KP.E("🖨️") + " 출력", "btn");
+    bPrint.addEventListener("click", () => KP.printImg(it.img, "내 작품 " + String(it.date || "")));
+    row.append(bClose, bEdit, bPrint, bDel);
     v.append(img, row);
     v.classList.add("show");
     bClose.addEventListener("click", () => v.classList.remove("show"));

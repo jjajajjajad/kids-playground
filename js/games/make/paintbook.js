@@ -2,7 +2,8 @@
    - 장면 8개(집·꽃·물고기·자동차·성·로켓·공룡·나비), 장면 고르기는 썸네일 창
    - 색 12가지 + 무지개·반짝이 특수색, 되돌리기, 처음처럼(꾹)
    - 칠한 상태는 장면마다 자동 저장(KP.store "paintbook:fills") → 껐다 켜도 그대로
-   - ✅ 완성 → 내 작품(kind "paint") 저장 + 축하 */
+   - ✅ 완성 → 내 작품(kind "paint") 저장 + 축하 → 도안은 다시 하얗게
+   - 🖨️ 장면 고르기 화면에서 빈 도안 출력(종이에 크레파스로 칠하기) */
 "use strict";
 KP.game({
   id: "paintbook",
@@ -360,6 +361,16 @@ KP.game({
     /* ---------- 장면 고르기 ---------- */
     function openPicker() {
       picker.innerHTML = "<h3>" + KP.E("🖼️") + " 어떤 그림을 칠할까요?</h3>";
+      const bPrint = U.btn(KP.E("🖨️") + " 지금 그림 빈 도안 출력", "btn");
+      bPrint.style.cssText = "position:absolute;right:14px;top:10px;font-size:clamp(14px,1.8vw,18px)";
+      ctx.tap(bPrint, async () => {
+        const sc = SCENES.find((s) => s.id === sceneId);
+        const tmp = U.el("div");
+        tmp.innerHTML = svgFor(sc);
+        const img = await toJpeg(tmp.firstChild);
+        if (img) KP.printImg(img, "색칠 도안 - " + sc.name);
+      });
+      picker.appendChild(bPrint);
       const grid = U.el("div", "pb-grid");
       SCENES.forEach((sc, i) => {
         const c = U.btn(svgFor(sc) + "<span>" + KP.E(sc.em) + " " + sc.name + "</span>", "pb-card" + (sc.id === sceneId ? " now" : ""));
@@ -409,12 +420,20 @@ KP.game({
       flyAway(img, board);
       if (ok) {
         unsaved = false;
+        const full = isComplete();
+        // 작품으로 보냈으니 도안은 새 종이처럼 하얗게 (칠한 기록도 비움)
+        regions.forEach((t) => t.setAttribute("fill", "#ffffff"));
+        delete fills[sceneId];
+        KP.store.set("paintbook:fills", fills);
+        undo = [];
+        updateUndo();
+        doneSaid = false;
         KP.toast("🖼️ 내 작품에 저장했어요!");
         A.sfx("sticker");
         delete bDone.dataset.busy; // 기다리는 중에 나가도 버튼이 잠기지 않게
         await ctx.wait(900);
         ctx.round = (ctx.round || 0) + 1;
-        await ctx.win({ big: isComplete(), msg: "내 작품에 저장했어요!" });
+        await ctx.win({ big: full, msg: "내 작품에 저장했어요! 새 종이가 준비됐어요." });
       } else {
         delete bDone.dataset.busy;
         KP.toast("저장하지 못했어요. 저장공간을 확인해 주세요");
