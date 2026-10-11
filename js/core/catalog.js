@@ -10,7 +10,7 @@
     // 만들기
     "zoo", "zoopaint", "paintlab", "decal", "draw", "wipe", "paintbook", "face", "icecream", "grow",
     // 음악
-    "piano", "xylo", "drum", "musicbox", "simon", "inst",
+    "piano", "realpiano", "xylo", "drum", "musicbox", "simon", "inst",
     // 똑똑 놀이
     "color", "mix", "shape", "animals", "listen", "feed", "odd", "shadow", "size", "memory", "candy",
     // 공부 놀이 (글자·숫자)

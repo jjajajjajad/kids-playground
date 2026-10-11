@@ -339,6 +339,16 @@
     return { total: L.length, stored, ready: bufs.size, failed: failed.size, nocors: nocors.size, online: navigator.onLine !== false };
   };
   V.natCount = () => Object.keys(KP.VOICE_CLIPS || {}).length;
+  /** 지금 말하는 중인지 (마이크 놀이에서 앱 목소리를 아이 소리로 잘못 듣지 않게) */
+  V.busy = function () {
+    try {
+      if (has && (speechSynthesis.speaking || speechSynthesis.pending)) return true;
+    } catch (e) {}
+    if (natSrcs.length) return true;
+    if (el && !el.paused && !el.ended) return true;
+    if (clipAudio && !clipAudio.paused && !clipAudio.ended) return true;
+    return false;
+  };
 
   V.stop = function () {
     stopNatural();
