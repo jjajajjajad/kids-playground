@@ -210,6 +210,8 @@
         if (pr && pr.catch) pr.catch(rej);
       });
       bufs.set(url, b);
+      // 풀어 둔 소리는 최근 60개만 (982개를 다 풀면 메모리를 수백 MB 차지)
+      if (bufs.size > 60) bufs.delete(bufs.keys().next().value);
       failed.delete(url);
       V.natStats.ok = bufs.size;
       return b;
@@ -316,16 +318,53 @@
     natEnd = 0;
   }
   /** 자연 음성 파일을 미리 받아 두기 (첫 터치 뒤 한가할 때) */
-  V.prefetch = async function (onProg) {
-    const L = Object.values(KP.VOICE_CLIPS || {});
-    for (let i = 0; i < L.length; i++) {
+  /** 파일만 기기 저장소에 받아 두기(풀지는 않음) — 4개씩 동시에 */
+  async function store(url, cache) {
+    if (cache && (await cache.match(url))) return true;
+    const r = await fetch(url, { mode: "cors", credentials: "omit" });
+    if (!r.ok) throw new Error("http " + r.status);
+    if (cache) await cache.put(url, r);
+    return true;
+  }
+  let prefetching = null;
+  V.prefetch = function (onProg) {
+    if (prefetching && !onProg) return prefetching;
+    const run = async () => {
+      const L = Object.values(KP.VOICE_CLIPS || {});
+      let cache = null;
       try {
-        await loadBuf(L[i]);
+        cache = await caches.open(VCACHE);
       } catch (e) {}
-      if (onProg) onProg(i + 1, L.length);
-      await new Promise((r) => setTimeout(r, 40));
-    }
-    return V.natStats;
+      if (!cache) return V.natStats;
+      let i = 0,
+        done = 0,
+        corsFail = 0;
+      const worker = async () => {
+        while (i < L.length) {
+          const u = L[i++];
+          try {
+            await store(u, cache);
+            failed.delete(u);
+          } catch (e) {
+            failed.add(u);
+            if (/fetch|network|cors|load failed/i.test(String(e.message || e)) && navigator.onLine !== false) {
+              nocors.add(u);
+              corsFail++;
+            }
+          }
+          done++;
+          if (onProg) onProg(done, L.length);
+          // 처음 몇 개가 모두 막히면(서버가 저장을 막음) 더 받지 않음
+          if (done === 8 && corsFail === 8) i = L.length;
+        }
+      };
+      await Promise.all([worker(), worker(), worker(), worker()]);
+      V.natStats.fail = failed.size;
+      return V.natStats;
+    };
+    const p = run().finally(() => prefetching === p && (prefetching = null));
+    prefetching = p;
+    return p;
   };
   /** 상태 보고: 전체 · 기기 저장소에 있는 것 · 못 받은 것 · 저장은 막혔지만 바로 재생 가능한 것 */
   V.natReport = async function () {
