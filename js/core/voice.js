@@ -127,6 +127,17 @@
       if (o.onend) setTimeout(o.onend, 300);
       return;
     }
+    // 새 말이 시작되면 이전 말(자연 음성·녹음·받는 중인 것)을 먼저 멈춤 → 두 목소리가 겹치지 않게
+    if (!o.queue) {
+      stopNatural();
+      try {
+        if (clipAudio) clipAudio.pause();
+      } catch (e) {}
+    } else if (natSrcs.length && KP.audio.ctx()) {
+      // 이어 말하기인데 자연 음성이 아직 나오는 중이면 끝난 뒤에
+      const wait = Math.max(0, (natEnd - KP.audio.ctx().currentTime) * 1000);
+      if (wait > 30 && !(natOn() && !o.en && natUrls(text))) return void setTimeout(() => speakTTS(text, o, vol), wait + 60);
+    }
     // 자연 음성(미리 만든 음성 파일): 문장의 모든 조각이 있으면 그걸로
     if (!o.en && natOn()) {
       const urls = natUrls(text);
