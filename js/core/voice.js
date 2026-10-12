@@ -136,10 +136,11 @@
     } else if (natSrcs.length && KP.audio.ctx()) {
       // 이어 말하기인데 자연 음성이 아직 나오는 중이면 끝난 뒤에
       const wait = Math.max(0, (natEnd - KP.audio.ctx().currentTime) * 1000);
-      if (wait > 30 && !(natOn() && !o.en && natUrls(text))) return void setTimeout(() => speakTTS(text, o, vol), wait + 60);
+      if (wait > 30 && !(natOn() && natUrls(text))) return void setTimeout(() => speakTTS(text, o, vol), wait + 60);
     }
     // 자연 음성(미리 만든 음성 파일): 문장의 모든 조각이 있으면 그걸로
-    if (!o.en && natOn()) {
+    if (natOn()) {
+      // 영어 낱말도 미리 만든 음성이 있으면 그것으로 ("A! Apple!")
       const urls = natUrls(text);
       if (urls) return playNatural(text, urls, o, vol);
     }
@@ -211,6 +212,9 @@
   function lookup(k) {
     const M = KP.VOICE_CLIPS;
     if (M[k]) return M[k];
+    // 숫자만 있으면 한자어 읽기로 ("3" → "삼")
+    const dm = /^(\d{1,3})([!?.]?)$/.exec(k);
+    if (dm && KP.u && KP.u.numSino && +dm[1] > 0 && +dm[1] <= 100) return lookup(KP.u.numSino(+dm[1]) + "!");
     if (bareFor !== M) {
       bareFor = M;
       bareMap = new Map();
@@ -280,6 +284,20 @@
     loading = new Map(),
     nocors = new Set(); // 내려받기(CORS)가 막힌 주소 → 소리만 바로 재생(인터넷 필요)
   const failed = new Set();
+  // 기기 저장소에 이미 받아 둔 주소 (있으면 인터넷 없이 금방 풀 수 있음 → 기기 목소리로 바꾸지 않고 기다림)
+  const stored = new Set();
+  let storedReady = null;
+  function loadStored() {
+    if (!storedReady)
+      storedReady = (async () => {
+        try {
+          const c = await caches.open(VCACHE);
+          (await c.keys()).forEach((r) => stored.add(r.url));
+        } catch (e) {}
+      })();
+    return storedReady;
+  }
+  V.loadStored = loadStored;
   V.natStats = { ok: 0, fail: 0 };
   V.lastVia = ""; // 방금 말한 방식: natural(자연 음성) · el(자연 음성, 저장 안 됨) · tts(기기 음성)
   function loadBuf(url) {
@@ -300,6 +318,7 @@
         if (cache) {
           try {
             await cache.put(url, r.clone());
+            stored.add(url);
           } catch (e) {}
         }
         resp = r;
@@ -371,12 +390,19 @@
       return playEl(text, urls, o, vol, tok);
     }
     const ready = urls.every((u) => bufs.has(u));
+    const onDisk = urls.every((u) => bufs.has(u) || stored.has(u));
     const all = Promise.all(urls.map(loadBuf));
-    const late = new Promise((res) => setTimeout(() => res("late"), ready ? 0 : 1200));
+    // 기기에 저장된 파일이면 풀 때까지 기다림(최대 4초), 인터넷에서 받아야 하면 1.2초 넘으면 이번만 기기 목소리
+    const late = new Promise((res) => setTimeout(() => res("late"), ready ? 0 : onDisk ? 4000 : 1200));
     Promise.race([all, late])
       .then((list) => {
         if (tok !== natTok) return;
         if (list === "late") return speakTTS(text, o, vol); // 이번엔 기계 음성, 파일은 계속 받는 중
+        if (o.queue && has && (speechSynthesis.speaking || speechSynthesis.pending) && !(o._w > 80)) {
+          // 이어 말하기: 기기 목소리가 끝날 때까지 기다렸다가(최대 8초) — 끊지도 겹치지도 않게
+          o._w = (o._w || 0) + 1;
+          return setTimeout(() => tok === natTok && playNatural(text, urls, o, vol), 100);
+        }
         try {
           if (has) speechSynthesis.cancel();
         } catch (e) {}
@@ -424,16 +450,21 @@
   /** 자연 음성 파일을 미리 받아 두기 (첫 터치 뒤 한가할 때) */
   /** 파일만 기기 저장소에 받아 두기(풀지는 않음) — 4개씩 동시에 */
   async function store(url, cache) {
-    if (cache && (await cache.match(url))) return true;
+    if (stored.has(url)) return true;
+    if (cache && (await cache.match(url))) return (stored.add(url), true);
     const r = await fetch(url, { mode: "cors", credentials: "omit" });
     if (!r.ok) throw new Error("http " + r.status);
-    if (cache) await cache.put(url, r);
+    if (cache) {
+      await cache.put(url, r);
+      stored.add(url);
+    }
     return true;
   }
   let prefetching = null;
   V.prefetch = function (onProg) {
     if (prefetching && !onProg) return prefetching;
     const run = async () => {
+      await loadStored();
       const L = Object.values(KP.VOICE_CLIPS || {});
       let cache = null;
       try {

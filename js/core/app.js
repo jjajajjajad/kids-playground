@@ -55,5 +55,6 @@
     setTimeout(() => KP.toast("공유 버튼 → '홈 화면에 추가'로 설치하면 기록이 안전해요"), 2500);
   }
   // 자동 점검 도구용
+  KP.voice.loadStored && KP.voice.loadStored(); // 기기에 받아 둔 자연 음성 목록
   KP.ready = true;
 })(window.KP);

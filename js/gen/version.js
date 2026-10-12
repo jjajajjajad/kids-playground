@@ -1,2 +1,2 @@
 /* 자동 생성 */
-KP.VERSION="adfafe33 (2026-10-12 19:21 KST)";
+KP.VERSION="9ff4ef25 (2026-10-12 23:01 KST)";
