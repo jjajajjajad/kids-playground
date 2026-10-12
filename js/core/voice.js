@@ -201,13 +201,80 @@
     if (cur.trim()) out.push(cur.trim());
     return out;
   }
+  /* 문장 → 음성 파일 목록. 각 문장 조각(! ? . 로 끊은 것)마다
+       ① 통째로 있으면 그것 ② 끝 문장부호만 다른 것("오리!" ↔ "오리")
+       ③ 낱말 단위로 나눠 가장 적은 조각으로 이어 붙이기("토끼를" + "상자 안에 쏙 넣어 줘!")
+     하나라도 못 찾으면 null(→ 기기 목소리로 문장 전체). 조각 사이 쉼: 문장 사이 0.08초, 낱말 사이 0.02초 */
+  const bare = (t) => t.replace(/[!?.…~,\s]+$/u, "");
+  let bareMap = null,
+    bareFor = null;
+  function lookup(k) {
+    const M = KP.VOICE_CLIPS;
+    if (M[k]) return M[k];
+    if (bareFor !== M) {
+      bareFor = M;
+      bareMap = new Map();
+      for (const key in M) {
+        const b = bare(key);
+        if (b && !bareMap.has(b)) bareMap.set(b, M[key]);
+      }
+    }
+    return bareMap.get(bare(k)) || null;
+  }
+  function splitWords(seg) {
+    const w = seg.split(" ");
+    const n = w.length;
+    // best[i] = w[i..] 를 덮는 가장 적은 조각 목록
+    const best = new Array(n + 1);
+    best[n] = [];
+    for (let i = n - 1; i >= 0; i--) {
+      for (let j = n; j > i; j--) {
+        if (!best[j]) continue;
+        const u = lookup(w.slice(i, j).join(" "));
+        if (u && (!best[i] || best[j].length + 1 < best[i].length)) best[i] = [u].concat(best[j]);
+      }
+    }
+    return best[0] || null;
+  }
   function natUrls(text) {
     const M = KP.VOICE_CLIPS;
     if (!M) return null;
     const ss = segs(norm(text));
     if (!ss.length) return null;
-    const u = ss.map((x) => M[x]);
-    return u.every(Boolean) ? u : null;
+    const out = [],
+      gaps = [];
+    for (let k = 0; k < ss.length; k++) {
+      const one = lookup(ss[k]);
+      const parts = one ? [one] : splitWords(ss[k]);
+      if (!parts) return null;
+      parts.forEach((u, i) => {
+        out.push(u);
+        gaps.push(i < parts.length - 1 ? 0.02 : 0.08);
+      });
+    }
+    out.gaps = gaps;
+    return out;
+  }
+  V._natUrls = natUrls; // 점검용
+  /** 앞뒤 빈 소리 잘라내기(조각을 이어 붙일 때 덜 끊기게) — 앞뒤 0.03초만 남김 */
+  function trim(c, b) {
+    try {
+      const d = b.getChannelData(0),
+        th = 0.012,
+        pad = Math.round(b.sampleRate * 0.03);
+      let a = 0,
+        z = d.length - 1;
+      while (a < d.length && Math.abs(d[a]) < th) a++;
+      while (z > a && Math.abs(d[z]) < th) z--;
+      a = Math.max(0, a - pad);
+      z = Math.min(d.length - 1, z + pad);
+      if (z - a < b.sampleRate * 0.05 || (a < pad * 2 && d.length - 1 - z < pad * 2)) return b;
+      const nb = c.createBuffer(b.numberOfChannels, z - a + 1, b.sampleRate);
+      for (let ch = 0; ch < b.numberOfChannels; ch++) nb.getChannelData(ch).set(b.getChannelData(ch).subarray(a, z + 1));
+      return nb;
+    } catch (e) {
+      return b;
+    }
   }
   const bufs = new Map(),
     loading = new Map(),
@@ -239,10 +306,13 @@
       }
       const ab = await resp.arrayBuffer();
       // 옛 Safari 는 콜백만, 요즘 브라우저는 Promise 도 돌려줌 → 둘 다 받아 처리(실패가 밖으로 새지 않게)
-      const b = await new Promise((res, rej) => {
-        const pr = c.decodeAudioData(ab, res, rej);
-        if (pr && pr.catch) pr.catch(rej);
-      });
+      const b = trim(
+        c,
+        await new Promise((res, rej) => {
+          const pr = c.decodeAudioData(ab, res, rej);
+          if (pr && pr.catch) pr.catch(rej);
+        })
+      );
       bufs.set(url, b);
       // 풀어 둔 소리는 최근 60개만 (982개를 다 풀면 메모리를 수백 MB 차지)
       if (bufs.size > 60) bufs.delete(bufs.keys().next().value);
@@ -322,7 +392,7 @@
           src.buffer = b;
           src.connect(g);
           src.start(t);
-          t += b.duration + (i < list.length - 1 ? 0.08 : 0);
+          t += b.duration + (i < list.length - 1 ? (urls.gaps ? urls.gaps[i] : 0.08) : 0);
           mine.push(src);
           natSrcs.push(src);
         });
