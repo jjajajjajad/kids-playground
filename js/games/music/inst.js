@@ -26,6 +26,15 @@ KP.game({
       .in-ch span{font-size:clamp(17px,2.2vw,22px)}
       .in-ch.play{animation:wig .4s 2}
       @media (max-aspect-ratio:1/1){ .in-ch{min-width:clamp(120px,40vw,170px);min-height:clamp(110px,16vh,150px)} .in-ch .e,.in-ch svg{width:64px;height:64px} }
+      @media (orientation:landscape) and (max-height:500px){
+        .in-stage{padding-top:10px}
+        .in-listen{width:104px;height:104px;gap:2px;font-size:15px;box-shadow:0 6px 0 color-mix(in srgb,var(--cat) 45%,#fff),0 0 0 6px color-mix(in srgb,var(--cat) 18%,transparent)}
+        .in-listen .e{font-size:46px}
+        .in-ch{min-width:96px;min-height:96px}
+        .in-ch .e,.in-ch svg{width:56px;height:56px}
+        .in-ch span{font-size:15px}
+        .qAns{padding:4px 12px 10px}
+      }
     `);
     const K = "#4a3a50";
     const SVG = {

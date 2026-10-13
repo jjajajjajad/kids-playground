@@ -52,6 +52,11 @@ KP.game({
         .pb-pal,.pb-pal.mine3{grid-template-columns:repeat(7,var(--sw));gap:8px}
         .pb-grid{grid-template-columns:repeat(2,1fr);gap:10px}
       }
+      @media (orientation:landscape) and (max-height:500px){
+        .pb{gap:8px;padding:2px 10px 8px;--sw:42px;--ab:52px}
+        .pb-acts{gap:8px}
+        .pb-pal,.pb-pal.mine3{grid-template-columns:repeat(4,var(--sw));gap:9px;align-content:center}
+      }
     `);
 
     /* ---------- 장면 ---------- */

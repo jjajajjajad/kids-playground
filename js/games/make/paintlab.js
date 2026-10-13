@@ -43,6 +43,26 @@ KP.game({
         .plB{min-width:96px;min-height:72px;font-size:15px}
         .plB .e{font-size:34px}
       }
+      @media (orientation:portrait) and (max-width:480px){
+        .plW{padding:0 8px 8px;gap:8px}
+        .plJarsCell{max-width:100%}
+        .plJarsCell .psJars{flex-wrap:nowrap;gap:6px}
+        .plJarsCell .psJar{width:clamp(52px,16vw,64px);height:84px;flex:0 0 auto}
+        .plJarsCell .psJar .jn{left:-3px;right:-3px;font-size:13px}
+        .plActs{flex-wrap:nowrap;gap:6px;max-width:100%;width:100%}
+        .plB.main{flex:1.7 1 0}
+        .plB{min-width:0;flex:1 1 0;min-height:66px;padding:6px 2px;font-size:12px;word-break:keep-all;white-space:nowrap}
+      }
+      @media (orientation:landscape) and (max-height:500px){
+        .plW{grid-template-areas:"bowl jars" "bowl acts" "bowl mine";grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto;align-content:center;padding:0 12px 8px;gap:8px 14px}
+        .plBowlCell{grid-row:1/4;align-self:stretch}
+        .plJarsCell .psJars{flex-wrap:nowrap;gap:8px}
+        .plJarsCell .psJar{width:62px;height:76px}
+        .plActs{flex-wrap:nowrap;gap:6px}
+        .plB{min-width:76px;min-height:60px;font-size:13px;padding:4px 6px}
+        .plB .e{font-size:26px}
+        .plMine{justify-self:stretch}
+      }
       /* 도감 */
       .dxPanel{position:absolute;inset:0;z-index:30;background:rgba(238,249,255,.97);display:none;flex-direction:column;padding:10px 16px 16px}
       .dxPanel.on{display:flex;animation:enter .3s}

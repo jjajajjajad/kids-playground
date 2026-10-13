@@ -56,6 +56,19 @@ KP.game({
         .dw-pal,.dw-pal.mine3{grid-template-columns:repeat(7,var(--sw));gap:8px}
         .dw-acts{grid-template-columns:repeat(4,var(--ab));gap:8px;justify-content:end}
       }
+      @media (orientation:portrait) and (max-width:480px){
+        .dw{--ab:42px}
+        .dw-sizes{gap:4px}
+        .dw-acts{gap:4px}
+      }
+      @media (orientation:landscape) and (max-height:500px){
+        .dw{gap:6px 8px;padding:2px 10px 8px;--tb:46px;--sw:44px;--ab:44px}
+        .dw-tools{display:grid;grid-template-columns:repeat(3,var(--tb));gap:8px;align-content:center;justify-content:center}
+        .dw-tool{border-radius:16px}
+        .dw-sizes{flex-direction:row;gap:8px}
+        .dw-pal,.dw-pal.mine3{grid-template-columns:repeat(4,var(--sw));gap:6px}
+        .dw-acts{grid-template-columns:repeat(4,var(--ab));gap:6px}
+      }
     `);
 
     const COLORS = [

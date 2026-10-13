@@ -57,6 +57,32 @@ KP.game({
       .n1Ask.yay{animation:jumpA .5s 2}
       .n1Ask .n1Blocks{min-height:0}
       .n1Q .choice{font-size:clamp(40px,6.4vw,74px);min-width:clamp(96px,14vw,150px);color:var(--ocean)}
+      @media (orientation:portrait) and (max-width:480px){
+        .n1Modes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}
+        .n1Mode{font-size:16px;padding:4px 12px;min-height:44px;flex:1 1 auto;justify-content:center;border-width:3px}
+        .n1Learn{padding:2px 4px 8px;gap:8px}
+        .n1Chart{gap:2px}
+        .n1N{font-size:calc(var(--cw) / 21);border-radius:5px}
+        .n1Learn{align-items:flex-start;justify-content:flex-start}
+        .n1Panel{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;align-items:center;justify-items:center}
+        .n1Big{grid-row:1 / 4;font-size:64px;padding:6px 14px;border-radius:20px;min-width:0}
+        .n1Panel .n1Say{font-size:20px}
+        .n1Blocks{min-height:0;gap:3px}
+        .n1Ten i{height:5px;width:9px}
+        .n1One{width:12px;height:12px}
+      }
+      @media (orientation:landscape) and (max-height:500px){
+        .n1Body{flex-direction:row}
+        .n1Body .n1Modes{flex-direction:column;flex-wrap:nowrap;justify-content:center;gap:6px;padding:4px 2px 4px 6px;width:108px}
+        .n1Body .n1Mode{font-size:16px;padding:4px 6px;min-height:46px;justify-content:center;border-width:3px;border-radius:16px}
+        .n1Body .n1Mode .e{display:none}
+        .n1Learn{padding:4px 8px 4px 4px;gap:10px}
+        .n1Chart{gap:2px;aspect-ratio:auto;width:var(--cw);height:var(--ch)}
+        .n1N{font-size:calc(var(--ch) / 17);border-radius:4px}
+        .n1Panel{gap:6px}
+        .n1Big{font-size:clamp(56px,20vh,90px);padding:4px 18px;border-radius:22px}
+        .n1Blocks{min-height:0}
+      }
     `);
     ctx.CC = ["#ff5b6e", "#ff9f1c", "#e6a700", "#3fbf6a", "#14b8a6", "#2f95f5", "#5b7cfa", "#8a63ee", "#d94fc2", "#ff7452"];
     ctx.colorOf = (n) => ctx.CC[Math.floor((n - 1) / 10) % 10];
@@ -110,6 +136,7 @@ KP.game({
     ctx.vQuiz = U.el("div", "n1View");
     ctx.q = U.el("div", "n1Q");
     ctx.vQuiz.appendChild(ctx.q);
+    ctx.body.classList.add("n1Body");
     ctx.body.append(modes, ctx.vChart, ctx.vTens, ctx.vQuiz);
     addEventListener("resize", () => ctx._active && ctx.m === "chart" && self.fit(ctx));
   },
@@ -150,7 +177,15 @@ KP.game({
     const v = ctx.vChart.getBoundingClientRect();
     if (!v.width) return;
     const port = v.height > v.width;
-    const cw = port ? Math.min(v.width - 24, v.height * 0.62) : Math.min(v.height - 20, v.width * 0.6);
+    const phoneP = port && matchMedia("(max-width:480px)").matches;
+    const phoneL = !port && matchMedia("(max-height:500px)").matches;
+    const cw = port ? Math.min(v.width - (phoneP ? 8 : 24), v.height * 0.62) : Math.min(v.height - (phoneL ? 8 : 20), v.width * (phoneL ? 0.58 : 0.6));
+    if (phoneL) {
+      const ch = Math.floor(v.height - 8);
+      ctx.chart.style.setProperty("--ch", ch + "px");
+      ctx.chart.style.setProperty("--cw", Math.max(220, Math.floor(Math.min(v.width - 250, ch * 1.5))) + "px");
+      return;
+    }
     ctx.chart.style.setProperty("--cw", Math.max(220, Math.floor(cw)) + "px");
   },
   /** 십 막대·낱개 블록 */

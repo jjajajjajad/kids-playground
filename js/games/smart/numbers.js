@@ -19,6 +19,7 @@ KP.game({
       .nbMode{font-size:clamp(18px,2.4vw,24px);background:rgba(255,255,255,.7);border-radius:999px;padding:8px 22px;min-height:52px;display:flex;align-items:center;gap:8px;border-bottom:5px solid transparent}
       .nbMode .e{font-size:1.4em}
       .nbMode.sel{background:#fff;border-bottom-color:var(--cat);color:var(--cat);box-shadow:var(--shadow)}
+      @media (orientation:portrait) and (max-width:480px){.nbModes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}.nbMode{font-size:16px !important;padding:4px 12px !important;min-height:44px !important;flex:1 1 auto;justify-content:center}}
       .nbMode.glow{animation:glow 1s ease-in-out 3}
       .nbView{flex:1;min-height:0;display:none;flex-direction:column}
       .nbView.on{display:flex}

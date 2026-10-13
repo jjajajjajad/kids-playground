@@ -60,6 +60,9 @@ KP.game({
         .pn-ib{padding:6px 10px;min-height:58px;font-size:15px}
         .pn-ib span{display:none}
         .pn-song span{display:inline}
+        .pn-top{gap:6px}
+        .pn-ib{flex:0 0 auto;min-width:48px}
+        .pn-song{padding:6px 12px}
         .pn-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
       }
     `);

@@ -20,6 +20,7 @@ KP.game({
       .sqWrap.n4{--cw:clamp(76px,20.5vw,180px)}
       @media (orientation:portrait){.sqWrap{--cw:min(27vw,200px)}.sqWrap.n4{--cw:min(19.5vw,180px)}.sqRow{gap:3px}.sqTray .sqCard{width:calc(var(--cw)*1.2);height:calc(var(--cw)*1.2)}.sqArrow{font-size:14px}}
       @media (max-height:700px) and (orientation:landscape){.sqWrap{--cw:clamp(96px,23vh,180px)}.sqWrap.n4{--cw:clamp(86px,23vh,170px)}}
+      @media (orientation:portrait) and (max-width:480px){.sqWrap{--cw:min(24vw,200px)}.sqWrap.n4{--cw:min(16.5vw,180px)}.sqRow{gap:2px}.sqArrow{font-size:12px}.sqTray{gap:10px}}
       .sqSlot{width:var(--cw);height:var(--cw);position:relative;border-radius:24px;flex:0 0 auto}
       .sqNum{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:calc(var(--cw)*.42);color:rgba(47,58,102,.22);line-height:1}
       .sqSlot.filled .sqNum{display:none}

@@ -49,6 +49,13 @@ KP.game({
         .fc-opts{grid-auto-rows:clamp(62px,9vh,84px);flex:0 0 auto;padding:6px;gap:6px}
         .fc-act{min-height:56px;padding:8px 16px}
       }
+      @media (orientation:portrait) and (max-width:480px){
+        .fc-tabs{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+        .fc-tab{height:48px;font-size:28px}
+      }
+      @media (orientation:landscape) and (max-height:500px){
+        .fc-opts{grid-auto-rows:minmax(46px,1fr);overflow-y:auto}
+      }
     `);
 
     const INK = "#3b3552";

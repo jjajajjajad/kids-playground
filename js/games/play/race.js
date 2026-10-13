@@ -58,6 +58,16 @@ KP.game({
         font-size:clamp(17px,2.2vw,22px);animation:itemIn .4s backwards cubic-bezier(.2,1.4,.4,1);animation-delay:calc(var(--i)*70ms)}
       .rc-opt .rc-car{position:relative;--cw:clamp(118px,calc(17vw - 22px),168px)}
       .rc-opt:active{transform:translateY(5px)}
+      @media (orientation: portrait) and (max-width: 480px){
+        .rc-pick{justify-content:flex-start;overflow-y:auto;padding:20px 8px 16px;gap:12px}
+        .rc-pick h2{font-size:26px;flex:0 0 auto;text-align:center}
+        .rc-opts{gap:10px}
+        .rc-opt{width:calc(50% - 6px);padding:8px 6px 8px;font-size:16px}
+        .rc-opt .rc-car{--cw:104px}
+      }
+      @media (orientation: landscape) and (max-height: 500px){
+        .rc-pick h2{font-size:28px}
+      }
       .rc-opt.sel{background:#fff5c9;box-shadow:0 0 0 5px #ffc531,0 7px 0 rgba(47,58,102,.14)}
     `);
     // 차 그리기 (오른쪽을 보는 옆모습, viewBox 200x100)

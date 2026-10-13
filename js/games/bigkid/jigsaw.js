@@ -44,6 +44,7 @@ KP.game({
       .jgSec{grid-column:1/-1;font-size:clamp(17px,2.3vw,21px);color:#6a5a3a;padding:6px 4px 0}
       .jgPicBtn .lb{white-space:nowrap}
       @media (max-width:520px){.jgPicBtn .lb{display:none}}
+      @media (orientation: portrait) and (max-width: 480px), (orientation: landscape) and (max-height: 500px){.jgPicBtn{flex:0 0 auto;min-width:54px;min-height:54px;padding:5px}.jgPicBtn img.th{width:44px;height:44px;flex:0 0 auto}}
     `);
 
     /* ---------- 화면 ---------- */

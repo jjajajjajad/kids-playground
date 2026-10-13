@@ -62,6 +62,20 @@ KP.game({
         .ic-cust{width:44%;bottom:24%}
         .ic-animal{font-size:clamp(80px,11vh,120px)}
       }
+      @media (orientation:landscape) and (max-height:500px){
+        .ic{gap:8px;padding:0 10px 8px}
+        .ic-ctl{width:clamp(360px,46vw,420px);gap:8px}
+        .ic-fl{grid-template-columns:repeat(6,1fr);gap:6px}
+        .ic-mix{display:grid;grid-template-columns:2fr 3fr;gap:6px}
+        .ic-ac{gap:6px}
+        .ic-b{min-height:60px;border-radius:16px;font-size:13px;padding:4px 2px}
+        .ic-b svg{width:32px;height:32px}
+        .ic-b .e{font-size:28px}
+        .ic-bub{max-width:70%;font-size:16px;padding:6px 10px;top:12%}
+        .ic-bub svg{height:48px}
+        .ic-cust{width:46%}
+        .ic-animal{font-size:clamp(70px,22vh,100px)}
+      }
     `);
 
     const FLAVORS = [

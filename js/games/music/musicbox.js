@@ -50,6 +50,11 @@ KP.game({
         .mb-card .e{font-size:30px;flex:0 0 auto}
         .mb-mode{min-height:54px;padding:8px 14px;font-size:17px}
         .mb-box{height:auto;width:72%}
+      }
+      @media (orientation: portrait) and (max-width: 480px){
+        .mb-songs{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+        .mb-card{min-height:48px;font-size:15px;padding:4px 8px}
+        .mb-card .e{font-size:28px}
         .mb-band span{font-size:54px}
       }
     `);

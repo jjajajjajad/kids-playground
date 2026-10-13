@@ -25,6 +25,7 @@ KP.game({
       .hgTabCh{font-weight:400;font-size:1.3em;color:var(--coral)}
       .hgMode.sel .hgTabCh{color:var(--star)}
       .hgMode.sel{background:var(--night);border-color:var(--night);color:#fff;box-shadow:0 5px 0 var(--deep)}
+      @media (orientation:portrait) and (max-width:480px){.hgModes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}.hgMode{font-size:16px;padding:4px 10px;min-height:44px;border-width:3px;gap:3px;flex:1 1 auto;justify-content:center}}
       .hgMode.glow{animation:glow 1s ease-in-out 3}
       @media (max-width:520px){.hgModes{gap:5px;padding:8px 6px 4px;flex-wrap:nowrap}.hgMode{font-size:14px;padding:3px 7px;min-height:44px;border-width:3px;gap:3px;white-space:nowrap}.hgMode .e{display:none}}
       .hgView{flex:1;min-height:0;display:none;flex-direction:column;position:relative}
