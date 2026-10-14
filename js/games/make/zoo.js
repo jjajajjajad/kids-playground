@@ -791,6 +791,12 @@
         .zBar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:0 10px 12px;flex:0 0 auto}
         .zEmpty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;z-index:9700;font-size:clamp(20px,3vw,30px);color:#2f3a66;text-shadow:0 2px 0 #fff}
         .zDel{position:absolute;z-index:9999;background:#fff;border-radius:999px;padding:8px 14px;font-size:18px;box-shadow:0 4px 0 rgba(0,0,0,.15);color:#c62828}
+        .z3Canvas{position:absolute;inset:0;width:100%;height:100%;display:none;touch-action:none;z-index:1}
+        .zooW.mode3d .z3Canvas{display:block}
+        .zooW.mode3d>.zSky,.zooW.mode3d>.zFar,.zooW.mode3d>.zGround,.zooW.mode3d>.zSun,.zooW.mode3d>.zStar,.zooW.mode3d>.zCloud,.zooW.mode3d>.zSign,.zooW.mode3d>.zPond,.zooW.mode3d>.zFence,.zooW.mode3d>.zProps,.zooW.mode3d>.zVig,.zooW.mode3d>.zTint,.zooW.mode3d>.zA,.zooW.mode3d>.zTreat{display:none}
+        .z3Home{position:absolute;left:10px;top:8px;z-index:9600;display:none;background:rgba(255,255,255,.85);border-radius:999px;padding:4px 12px;font-size:clamp(15px,2vw,19px);min-height:40px}
+        .zooW.mode3d.turned .z3Home{display:block}
+        .z3Tip{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:9600;background:rgba(255,255,255,.8);border-radius:999px;padding:4px 14px;font-size:clamp(13px,1.8vw,17px);color:#2f3a66;pointer-events:none;transition:opacity .6s;white-space:nowrap}
         .zCount{position:absolute;right:10px;top:8px;z-index:9600;background:rgba(255,255,255,.85);border-radius:999px;padding:4px 12px;font-size:clamp(16px,2.2vw,20px)}
       `);
       if (!document.querySelector(".zDefs")) document.body.insertAdjacentHTML("beforeend", SHADE_DEFS);
@@ -813,14 +819,25 @@
       const bPaint = U.btn(KP.E("🖌️") + " 새 친구 색칠하기", "btn primary");
       const bTreat = U.btn(KP.E("🍎") + " 간식 주기", "btn");
       const bCall = U.btn(KP.E("📣") + " 모두 모여라", "btn");
-      bar.append(bPaint, bTreat, bCall);
+      const bMode = U.btn("", "btn");
+      bar.append(bPaint, bTreat, bCall, bMode);
       ctx.bPaint = bPaint;
+      ctx.bMode = bMode;
+      bMode.addEventListener("click", () => {
+        try {
+          localStorage.setItem("kp-zoo-mode", ctx.use3d ? "2d" : "3d");
+        } catch (e) {}
+        this.start(ctx);
+      });
+      const home = U.btn(KP.E("🎥") + " 처음 자리로", "z3Home");
+      W.appendChild(home);
+      home.addEventListener("click", () => ctx.z3 && ctx.z3.resetView());
       bPaint.addEventListener("click", () => KP.open("zoopaint"));
       bTreat.addEventListener("click", () => this.treats(ctx));
       bCall.addEventListener("click", () => this.callAll(ctx));
       // 빈 땅을 누르면 그곳에 간식
       W.addEventListener("pointerdown", (e) => {
-        if (e.target.closest(".zA,.zDel,.zEmpty,.btn")) return;
+        if (W.classList.contains("mode3d") || e.target.closest(".zA,.zDel,.zEmpty,.btn")) return;
         const r = W.getBoundingClientRect();
         const x = e.clientX - r.left,
           y = e.clientY - r.top;
@@ -832,7 +849,7 @@
         let rt = 0;
         new ResizeObserver(() => {
           clearTimeout(rt);
-          rt = setTimeout(() => ctx._active && this.layout(ctx), 120);
+          rt = setTimeout(() => ctx._active && !ctx.use3d && this.layout(ctx), 120);
         }).observe(W);
       }
     },
@@ -988,24 +1005,56 @@
     },
     async start(ctx) {
       const W = ctx.W;
+      const tok = (ctx._tok = (ctx._tok || 0) + 1);
       const h = new Date().getHours();
       const night = h >= 19 || h < 6;
       W.classList.toggle("night", night);
       U.$(".zSun", W).innerHTML = KP.E(night ? "🌙" : "☀️");
       U.$$(".zStar", W).forEach((e) => (e.style.display = night ? "" : "none"));
-      U.$$(".zA,.zTreat,.zEmpty,.zDel", W).forEach((e) => e.remove());
+      U.$$(".zA,.zTreat,.zEmpty,.zDel,.zHeart,.z3Tip", W).forEach((e) => e.remove());
       ctx.animals = [];
       ctx.treatsArr = [];
-      ctx.g = null;
-      this.layout(ctx);
-      if (!ctx.g) {
-        await ctx.wait(150);
+      // 진짜 3D (WebGL) — 안 되면 2.5D
+      let pref = "3d";
+      try {
+        pref = localStorage.getItem("kp-zoo-mode") || "3d";
+      } catch (e) {}
+      let use3d = false;
+      if (pref !== "2d" && KP.zoo3d && KP.zoo3d.supported()) {
+        try {
+          await KP.zoo3d.load();
+          if (tok !== ctx._tok || !ctx._active) return;
+          if (!ctx.z3 || ctx.z3.lost) {
+            if (ctx.z3) ctx.z3.renderer.domElement.remove();
+            ctx.z3 = KP.zoo3d.create(ctx, W, T);
+            ctx.z3.onDelete = (a) => this.askDelete3(ctx, a);
+          }
+          use3d = true;
+        } catch (e) {
+          use3d = false;
+        }
+      }
+      ctx.use3d = use3d;
+      W.classList.toggle("mode3d", use3d);
+      W.classList.remove("turned");
+      ctx.bMode.innerHTML = use3d ? KP.E("🖼️") + " 그림 동물원" : KP.E("🧊") + " 3D 동물원";
+      ctx.bMode.style.display = KP.zoo3d && KP.zoo3d.supported() ? "" : "none";
+      if (use3d) {
+        ctx.z3.clear();
+        ctx.z3.setNight(night);
+        ctx.z3.resize();
+      } else {
+        ctx.g = null;
         this.layout(ctx);
-        if (!ctx.g) return;
+        if (!ctx.g) {
+          await ctx.wait(150);
+          this.layout(ctx);
+          if (!ctx.g) return;
+        }
       }
       const items = (await KP.db.all("art")).filter((x) => x.kind === "zoo" && T[x.tid]).slice(-30);
-      if (!ctx._active) return;
-      if (!ctx.g || ctx.g.w !== W.clientWidth || ctx.g.h !== W.clientHeight) this.layout(ctx);
+      if (!ctx._active || tok !== ctx._tok) return;
+      if (!use3d && (!ctx.g || ctx.g.w !== W.clientWidth || ctx.g.h !== W.clientHeight)) this.layout(ctx);
       ctx.count.innerHTML = KP.E("🐾") + " " + items.length + "마리";
       if (!items.length) {
         ctx.say("아직 동물원이 비어 있어요. 색칠 공방에서 동물을 색칠해서 보내 주세요!");
@@ -1015,20 +1064,56 @@
         em.appendChild(go);
         W.appendChild(em);
         ctx.hint(() => go);
+        if (use3d) ctx.loop((dt) => (tok === ctx._tok ? (ctx.z3.tick(dt), true) : false));
         return;
       }
       const newId = KP.zooNew;
       KP.zooNew = null;
-      items.forEach((it) => this.add(ctx, it, it.id === newId));
-      if (newId) {
-        const a = ctx.animals.find((x) => x.item.id === newId);
-        if (a) {
-          ctx.say("새 친구 " + U.josa(T[a.item.tid].name, "이/가") + " 동물원에 왔어요! 환영해!");
-          ctx.after(600, () => KP.confetti(140));
-        }
+      let newcomer = null;
+      if (use3d) {
+        items.forEach((it) => {
+          const a = ctx.z3.addAnimal(it, it.id === newId);
+          if (it.id === newId) newcomer = a;
+        });
+      } else {
+        items.forEach((it) => this.add(ctx, it, it.id === newId));
+        newcomer = ctx.animals.find((x) => x.item.id === newId);
+      }
+      if (newcomer) {
+        ctx.say("새 친구 " + U.josa(T[newcomer.item.tid].name, "이/가") + " 동물원에 왔어요! 환영해!");
+        ctx.after(600, () => KP.confetti(140));
       } else ctx.say(U.pick(["동물 친구들을 콕 눌러 보세요!", "빈 땅을 누르면 간식을 줄 수 있어요!", "내가 색칠한 친구들이 놀고 있어요!"]));
-      ctx.hint(() => (ctx.animals[0] ? ctx.animals[0].el : null), "동물 친구를 콕 눌러 보세요!");
-      ctx.loop((dt, now) => this.tick(ctx, dt, now));
+      if (use3d) {
+        const tip = U.el("div", "z3Tip", KP.E("👆") + " 끌면 빙글 · 두 손가락으로 크게");
+        W.appendChild(tip);
+        ctx.after(6000, () => (tip.style.opacity = "0"));
+        ctx.after(7000, () => tip.remove());
+        ctx.loop((dt) => {
+          if (tok !== ctx._tok) return false;
+          ctx.z3.tick(dt);
+          const c = ctx.z3.cam;
+          W.classList.toggle("turned", Math.abs(c.taz - (c.baseAz || 0)) > 0.08 || Math.abs(c.tzoom - 1) > 0.08);
+        });
+      } else {
+        ctx.hint(() => (ctx.animals[0] ? ctx.animals[0].el : null), "동물 친구를 콕 눌러 보세요!");
+        ctx.loop((dt, now) => (tok === ctx._tok ? this.tick(ctx, dt, now) : false));
+      }
+    },
+    askDelete3(ctx, a) {
+      U.$$(".zDel", ctx.W).forEach((e) => e.remove());
+      const p = ctx.z3.toScreen(a, 1.2);
+      const b = U.btn(KP.E("👋") + " 집으로 보내기(꾹)", "zDel");
+      b.style.left = U.clamp(p.x - 90, 4, ctx.W.clientWidth - 200) + "px";
+      b.style.top = U.clamp(p.y - 60, 4, ctx.W.clientHeight - 60) + "px";
+      ctx.W.appendChild(b);
+      KP.hold(b, 1500, async () => {
+        await KP.db.del("art", a.item.id);
+        ctx.z3.remove(a);
+        b.remove();
+        ctx.count.innerHTML = KP.E("🐾") + " " + ctx.z3.animals.length + "마리";
+        KP.voice.say("안녕! 또 만나!");
+      });
+      ctx.after(4000, () => b.remove());
     },
     sizeAnimal(ctx, a) {
       const g = ctx.g,
@@ -1240,6 +1325,12 @@
       KP.voice.say(U.pick(["냠냠! 맛있다!", "고마워요!", "냠냠냠!"]));
     },
     treats(ctx) {
+      if (ctx.use3d) {
+        if (!ctx.z3.animals.length) return;
+        ctx.z3.treatTime();
+        KP.voice.say("간식 시간이에요!");
+        return;
+      }
       if (!ctx.animals.length) return;
       for (let i = 0; i < 3; i++)
         ctx.after(i * 250, () => {
@@ -1249,6 +1340,20 @@
       KP.voice.say("간식 시간이에요!");
     },
     callAll(ctx) {
+      if (ctx.use3d) {
+        const z = ctx.z3;
+        if (!z.animals.length) return;
+        KP.audio.sfx("levelup");
+        KP.voice.say("모두 모여라! 하나, 둘, 셋!");
+        z.resetView();
+        z.callAll();
+        ctx.after(4200, () => {
+          z.animals.forEach((a, i) => ctx.after(i * 90, () => (a.jump = 0.65)));
+          KP.confetti(100);
+          KP.audio.jingle();
+        });
+        return;
+      }
       if (!ctx.animals.length) return;
       const g = ctx.g;
       KP.audio.sfx("levelup");
