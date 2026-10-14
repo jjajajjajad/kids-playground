@@ -630,8 +630,114 @@
   });
 
   /* =================================================================
-     내 동물원
+     내 동물원 (2.5D)
+     - 원근 바닥(소실점 잔디 줄무늬·흙길)·지평선 안개·먼 산/언덕
+     - 나무·덤불·울타리·연못을 그라데이션 SVG 로 그려 입체감, 깊이(y)로 동물과 앞뒤 정렬
+     - 아이가 칠한 색은 그대로 두고, 렌더할 때만 부위마다 빛(왼쪽 위)·그늘(오른쪽 아래) 덧칠
+       (저장된 SVG 는 건드리지 않음)
+     - 땅 그림자는 몸과 분리돼 깡충·폴짝 때 작아짐
   ================================================================= */
+  const SHADE_DEFS =
+    '<svg class="zDefs" aria-hidden="true" width="0" height="0" style="position:absolute;width:0;height:0;overflow:hidden"><defs>' +
+    // 부위 입체 음영 (objectBoundingBox: 부위마다 자기 모양 기준)
+    '<radialGradient id="zShG" cx=".38" cy=".3" r=".78" fx=".3" fy=".2">' +
+    '<stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".22" stop-color="#fff" stop-opacity=".16"/>' +
+    '<stop offset=".5" stop-color="#1a1040" stop-opacity="0"/><stop offset=".82" stop-color="#1a1040" stop-opacity=".16"/>' +
+    '<stop offset="1" stop-color="#1a1040" stop-opacity=".32"/></radialGradient>' +
+    // 뒤쪽 다리: 조금 더 어둡게 → 앞뒤 깊이
+    '<radialGradient id="zShB" cx=".38" cy=".3" r=".78" fx=".3" fy=".2">' +
+    '<stop offset="0" stop-color="#fff" stop-opacity=".25"/><stop offset=".3" stop-color="#1a1040" stop-opacity=".14"/>' +
+    '<stop offset="1" stop-color="#1a1040" stop-opacity=".42"/></radialGradient>' +
+    // 나무
+    '<radialGradient id="zLeaf" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#b6ef7c"/><stop offset=".55" stop-color="#5fbf4a"/><stop offset="1" stop-color="#2f8a3a"/></radialGradient>' +
+    '<radialGradient id="zLeaf2" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#9fe28a"/><stop offset=".6" stop-color="#3ea35a"/><stop offset="1" stop-color="#22703f"/></radialGradient>' +
+    '<linearGradient id="zTrunk" x1="0" x2="1"><stop offset="0" stop-color="#b9824f"/><stop offset=".55" stop-color="#8a5a33"/><stop offset="1" stop-color="#5e3b1f"/></linearGradient>' +
+    '<radialGradient id="zRock" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#f1f3f7"/><stop offset=".6" stop-color="#b9c0cc"/><stop offset="1" stop-color="#7d8597"/></radialGradient>' +
+    '<radialGradient id="zGShadow"><stop offset="0" stop-color="#1d4a12" stop-opacity=".42"/><stop offset=".6" stop-color="#1d4a12" stop-opacity=".18"/><stop offset="1" stop-color="#1d4a12" stop-opacity="0"/></radialGradient>' +
+    // 울타리
+    '<linearGradient id="zWood" x1="0" x2="1"><stop offset="0" stop-color="#f0bb78"/><stop offset=".5" stop-color="#d0904c"/><stop offset="1" stop-color="#9d6431"/></linearGradient>' +
+    '<linearGradient id="zRail" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eab06c"/><stop offset="1" stop-color="#a86d37"/></linearGradient>' +
+    // 연못
+    '<radialGradient id="zWater" cx=".5" cy=".62" r=".6"><stop offset="0" stop-color="#8fdcff"/><stop offset=".6" stop-color="#4fb4ec"/><stop offset="1" stop-color="#2a7fc4"/></radialGradient>' +
+    '<linearGradient id="zSand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f3e2b0"/><stop offset="1" stop-color="#c9a76a"/></linearGradient>' +
+    '<radialGradient id="zPad" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#9be27a"/><stop offset="1" stop-color="#3f9a3c"/></radialGradient>' +
+    "</defs></svg>";
+
+  // 먼 산·언덕 (지평선 위 띠, 가로로 늘려도 괜찮은 모양)
+  const FAR_SVG =
+    '<svg class="zFar" viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true">' +
+    '<defs><linearGradient id="zHillG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b3e48d"/><stop offset="1" stop-color="#a2dc7f"/></linearGradient></defs>' +
+    '<path d="M0 20 L0 9 Q8 3 16 8 Q24 1 34 7 Q44 2 52 8 Q62 0 72 6 Q82 2 90 8 Q96 5 100 7 L100 20Z" fill="#b9dcf0"/>' +
+    '<path d="M0 20 L0 10 Q10 6 18 10 Q30 4 40 9 Q52 5 62 10 Q74 4 86 9 Q94 6 100 9 L100 20Z" fill="#a9d7ea" opacity=".8"/>' +
+    '<path d="M0 20 L0 14 Q15 8 30 13 Q45 17 58 12 Q75 7 100 13 L100 20Z" fill="url(#zHillG)"/></svg>';
+
+  // 원근 바닥: 소실점으로 모이는 잔디 줄무늬 + 흙길 + 지평선 안개
+  function groundSvg() {
+    let s = '<svg class="zGround" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><defs>' +
+      '<linearGradient id="zGr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b6e38e"/><stop offset=".35" stop-color="#97d46c"/><stop offset="1" stop-color="#6cbd4c"/></linearGradient>' +
+      '<linearGradient id="zPath" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#efe0b4"/><stop offset="1" stop-color="#d9b676"/></linearGradient>' +
+      '<linearGradient id="zHaze" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eefaff" stop-opacity=".7"/><stop offset="1" stop-color="#eefaff" stop-opacity="0"/></linearGradient>' +
+      '<linearGradient id="zNear" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d4a12" stop-opacity="0"/><stop offset="1" stop-color="#1d4a12" stop-opacity=".16"/></linearGradient>' +
+      '</defs><rect width="100" height="100" fill="url(#zGr)"/>';
+    const k = 60 / 160; // 소실점 (50,-60)
+    for (let i = -12; i < 12; i += 2) {
+      const b0 = 50 + i * 9, b1 = 50 + (i + 1) * 9;
+      s += '<polygon points="' + (50 + (b0 - 50) * k).toFixed(2) + ",0 " + (50 + (b1 - 50) * k).toFixed(2) + ",0 " + b1 + ",100 " + b0 + ',100" fill="#fff" opacity=".07"/>';
+    }
+    s += '<path d="M46.5 0 Q41 42 24 100 L50 100 Q51 44 52.5 0 Z" fill="url(#zPath)" stroke="#c8a463" stroke-width="1.5" vector-effect="non-scaling-stroke"/>';
+    s += '<rect width="100" height="22" fill="url(#zHaze)"/><rect y="70" width="100" height="30" fill="url(#zNear)"/></svg>';
+    return s;
+  }
+
+  // 소품 (나무·덤불·바위·꽃) — viewBox 0 0 100 120, 발바닥 = (50,112)
+  const outlineBlobs = (cs, fill, ink) =>
+    cs.map((c) => '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + c[2] + '" fill="' + ink + '" stroke="' + ink + '" stroke-width="5"/>').join("") +
+    cs.map((c) => '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="' + c[2] + '" fill="' + fill + '"/>').join("");
+  const PROP = {
+    tree: () =>
+      '<ellipse cx="50" cy="112" rx="34" ry="7" fill="url(#zGShadow)"/>' +
+      '<path d="M43 112 L45 70 L55 70 L57 112 Z" fill="url(#zTrunk)" stroke="#4a2f1a" stroke-width="2.5" stroke-linejoin="round"/>' +
+      outlineBlobs([[50, 38, 26], [30, 58, 20], [70, 58, 20], [50, 64, 22]], "url(#zLeaf)", "#2d6b2f") +
+      '<ellipse cx="40" cy="30" rx="9" ry="6" fill="#fff" opacity=".28"/>',
+    pine: () =>
+      '<ellipse cx="50" cy="112" rx="28" ry="6" fill="url(#zGShadow)"/>' +
+      '<rect x="45" y="88" width="10" height="24" rx="3" fill="url(#zTrunk)" stroke="#4a2f1a" stroke-width="2.5"/>' +
+      [[96, 40, 70], [74, 32, 50], [52, 24, 30]].map((p) => '<path d="M50 ' + (p[2] - 6) + " L" + (50 + p[1]) + " " + p[0] + " Q50 " + (p[0] + 6) + " " + (50 - p[1]) + " " + p[0] + ' Z" fill="url(#zLeaf2)" stroke="#1f5a33" stroke-width="2.5" stroke-linejoin="round"/>').join("") +
+      '<path d="M50 22 L40 44" stroke="#fff" stroke-width="3" opacity=".25" stroke-linecap="round"/>',
+    bush: () =>
+      '<ellipse cx="50" cy="112" rx="40" ry="7" fill="url(#zGShadow)"/>' +
+      outlineBlobs([[30, 96, 16], [50, 88, 20], [70, 96, 16]], "url(#zLeaf)", "#2d6b2f") +
+      '<circle cx="42" cy="84" r="3.5" fill="#ff7a96"/><circle cx="62" cy="92" r="3.5" fill="#ffd34d"/><circle cx="30" cy="98" r="3" fill="#fff"/>',
+    rock: () =>
+      '<ellipse cx="50" cy="112" rx="30" ry="6" fill="url(#zGShadow)"/>' +
+      '<path d="M24 110 Q22 88 40 84 Q52 74 66 86 Q80 92 76 110 Z" fill="url(#zRock)" stroke="#5c6476" stroke-width="2.5" stroke-linejoin="round"/>',
+    flower: () =>
+      '<path d="M50 112 Q48 100 50 90" stroke="#3f9a3c" stroke-width="3" fill="none"/><ellipse cx="44" cy="104" rx="6" ry="3" fill="#5fbf4a" transform="rotate(-30 44 104)"/>' +
+      [0, 72, 144, 216, 288].map((a) => '<circle cx="' + (50 + Math.cos((a * Math.PI) / 180) * 6).toFixed(1) + '" cy="' + (86 + Math.sin((a * Math.PI) / 180) * 6).toFixed(1) + '" r="5" fill="#ff8fb1" stroke="#c9507a" stroke-width="1.2"/>').join("") +
+      '<circle cx="50" cy="86" r="4" fill="#ffd34d"/>',
+    flower2: () =>
+      '<path d="M50 112 Q52 100 50 92" stroke="#3f9a3c" stroke-width="3" fill="none"/>' +
+      [0, 60, 120, 180, 240, 300].map((a) => '<ellipse cx="' + (50 + Math.cos((a * Math.PI) / 180) * 6).toFixed(1) + '" cy="' + (88 + Math.sin((a * Math.PI) / 180) * 6).toFixed(1) + '" rx="4.5" ry="4.5" fill="#fff" stroke="#c9c9de" stroke-width="1"/>').join("") +
+      '<circle cx="50" cy="88" r="4" fill="#ffb23d"/>',
+  };
+  const propSvg = (k) => '<svg viewBox="0 0 100 120" aria-hidden="true">' + PROP[k]() + "</svg>";
+
+  /** 저장된 SVG 에 렌더 전용 음영을 덧입힘 (아이 색·무늬 그대로, 저장본은 그대로) */
+  function shadeSvg(str) {
+    const box = document.createElement("div");
+    box.innerHTML = str;
+    const svg = box.firstElementChild;
+    if (!svg) return str;
+    svg.querySelectorAll(".fb").forEach((e) => {
+      const c = e.cloneNode(false);
+      c.setAttribute("class", "zSh");
+      c.removeAttribute("data-p");
+      c.setAttribute("fill", e.closest(".l2,.l4") ? "url(#zShB)" : "url(#zShG)");
+      e.after(c);
+    });
+    return box.innerHTML;
+  }
+
   KP.game({
     id: "zoo",
     icon: "🦁",
@@ -640,56 +746,67 @@
     badge: "NEW",
     setup(ctx) {
       KP.css("zoo", `
-        .zooW{flex:1;min-height:0;position:relative;margin:0 12px 10px;border-radius:26px;overflow:hidden;box-shadow:0 8px 0 rgba(47,58,102,.12);
-          background:linear-gradient(180deg,#9fdcff 0%,#d8f3ff 34%,#c7ef9a 34.2%,#9ad86c 100%)}
-        .zooW.night{background:linear-gradient(180deg,#1d2457 0%,#3c4b8a 34%,#4f8a4a 34.2%,#3e7a3b 100%)}
-        .zHill{position:absolute;bottom:63%;width:60%;height:22%;border-radius:50% 50% 0 0;background:#b7e58a;opacity:.9}
-        .zooW.night .zHill{background:#3f7244}
-        .zSun{position:absolute;right:6%;top:5%;font-size:clamp(40px,6vw,64px);animation:bob 5s ease-in-out infinite}
-        .zCloud{position:absolute;font-size:clamp(40px,7vw,80px);opacity:.95;animation:zCl 50s linear infinite}
+        .zooW{flex:1;min-height:0;position:relative;margin:0 12px 10px;border-radius:26px;overflow:hidden;box-shadow:0 8px 0 rgba(47,58,102,.12);background:#9fd77a;isolation:isolate}
+        .zSky{position:absolute;left:0;right:0;top:0;height:calc(var(--hz,34%) + 2px);background:linear-gradient(180deg,#6fc3f3 0%,#a9dcfa 55%,#e2f6ff 100%)}
+        .zooW.night .zSky{background:linear-gradient(180deg,#141a46 0%,#2c3a78 60%,#4a5c9a 100%)}
+        .zFar{position:absolute;left:0;width:100%;top:calc(var(--hz,34%) - 13%);height:13.4%;display:block}
+        .zGround{position:absolute;left:0;width:100%;top:var(--hz,34%);height:calc(100% - var(--hz,34%));display:block}
+        .zSun{position:absolute;right:7%;top:6%;width:clamp(56px,8vw,96px);height:clamp(56px,8vw,96px);display:flex;align-items:center;justify-content:center;font-size:clamp(40px,6vw,64px);z-index:9050;animation:bob 5s ease-in-out infinite;pointer-events:none}
+        .zSun::before{content:"";position:absolute;inset:-45%;border-radius:50%;background:radial-gradient(circle,rgba(255,240,170,.75) 0%,rgba(255,240,170,.25) 40%,transparent 70%);z-index:-1}
+        .zooW.night .zSun::before{background:radial-gradient(circle,rgba(220,230,255,.45) 0%,transparent 65%)}
+        .zCloud{position:absolute;font-size:clamp(40px,7vw,80px);opacity:.95;animation:zCl 50s linear infinite;pointer-events:none;filter:drop-shadow(0 6px 4px rgba(40,90,140,.18))}
         @keyframes zCl{from{transform:translateX(-30vw)}to{transform:translateX(110vw)}}
-        .zPond{position:absolute;right:4%;bottom:5%;width:36%;height:22%;border-radius:50%;background:radial-gradient(ellipse at 40% 35%,#9be3ff,#3fa8e6 70%);border:6px solid #d8c08a;box-shadow:inset 0 6px 12px rgba(0,60,120,.25)}
-        .zPond::after{content:"";position:absolute;inset:18% 20%;border-radius:50%;border:3px solid rgba(255,255,255,.35);animation:zRip 2.6s ease-in-out infinite}
-        @keyframes zRip{50%{transform:scale(1.15);opacity:.3}}
-        .zDeco{position:absolute;line-height:1;pointer-events:none}
-        .zFence{position:absolute;left:0;right:0;top:31%;height:7%;background:repeating-linear-gradient(90deg,#c98f4a 0 10px,transparent 10px 34px),linear-gradient(transparent 30%,#c98f4a 30% 42%,transparent 42% 70%,#c98f4a 70% 82%,transparent 82%);opacity:.8;pointer-events:none}
-        .zSign{position:absolute;left:3%;top:18%;background:#ffefc2;border:4px solid #b9773a;border-radius:14px;padding:4px 12px;font-size:clamp(16px,2.4vw,24px);color:#7a4a1e;box-shadow:0 4px 0 rgba(0,0,0,.12);z-index:1}
+        .zooW.night .zCloud{opacity:.45}
+        .zStar{position:absolute;line-height:1;pointer-events:none;z-index:9050}
+        .zP{position:absolute;left:0;top:0;pointer-events:none;transform-origin:50% 100%}
+        .zP svg{width:100%;height:100%;display:block;overflow:visible}
+        .zProps{display:contents}
+        .zFence{position:absolute;left:0;pointer-events:none}
+        .zFence svg{display:block}
+        .zPond{position:absolute;pointer-events:none;z-index:2}
+        .zPond svg{display:block;overflow:visible}
+        .zPond .zRip{transform-box:fill-box;transform-origin:50% 50%;animation:zRip 2.8s ease-in-out infinite}
+        @keyframes zRip{0%{transform:scale(.6);opacity:.7}100%{transform:scale(1.25);opacity:0}}
+        .zTint{position:absolute;inset:0;background:rgba(14,22,74,.36);pointer-events:none;z-index:9000;display:none}
+        .zooW.night .zTint{display:block}
+        .zVig{position:absolute;inset:0;pointer-events:none;z-index:8990;box-shadow:inset 0 0 60px rgba(20,60,30,.22);border-radius:inherit}
+        .zSign{position:absolute;left:3%;top:calc(var(--hz,34%) - 21%);background:linear-gradient(180deg,#fff4cf,#f6dea0);border:4px solid #b9773a;border-radius:14px;padding:4px 12px;font-size:clamp(16px,2.4vw,24px);color:#7a4a1e;box-shadow:0 5px 0 #8a5528,0 9px 10px rgba(0,0,0,.18);z-index:8000;pointer-events:none}
         .zA{position:absolute;left:0;top:0;transform-origin:50% 100%;will-change:transform;cursor:pointer;touch-action:none}
-        .zA .zIn{width:100%;height:100%;transition:transform .2s}
+        .zA .zLift,.zA .zIn,.zA .zBob{width:100%;height:100%}
+        .zA .zIn{transition:transform .22s ease-in-out}
         .zA.left .zIn{transform:scaleX(-1)}
-        .zA .zBob{width:100%;height:100%}
+        .zA .zBob{transform-origin:50% 92%}
         .zA.walking .zBob{animation:zBob .21s ease-in-out infinite alternate}
-        @keyframes zBob{to{transform:translateY(-4%)}}
+        @keyframes zBob{from{transform:translateY(0) scale(1.02,.98)}to{transform:translateY(-4%) scale(.98,1.02)}}
         .zA.jump .zBob{animation:zJump .6s ease-out}
-        @keyframes zJump{30%{transform:translateY(-38%) scale(1.06)}60%{transform:translateY(0) scale(1.08,.92)}}
+        @keyframes zJump{25%{transform:translateY(-6%) scale(1.08,.9)}45%{transform:translateY(-38%) scale(.94,1.08)}75%{transform:translateY(0) scale(1.1,.9)}}
         .zA.new .zBob{filter:drop-shadow(0 0 12px #fff6a8)}
-        .zShadow{position:absolute;left:12%;right:12%;bottom:-4%;height:10%;border-radius:50%;background:rgba(0,40,0,.18)}
-        .zHeart{position:absolute;pointer-events:none;font-size:28px;animation:zHeart 1.2s ease-out forwards;z-index:999}
+        .zShadow{position:absolute;left:4%;right:4%;bottom:3%;height:18%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(20,50,10,.42) 0%,rgba(20,50,10,.2) 45%,rgba(20,50,10,0) 70%);transform:translateX(-5%)}
+        .zA.jump .zShadow{animation:zShJ .6s ease-out}
+        @keyframes zShJ{45%{transform:translateX(-5%) scale(.55);opacity:.55}}
+        .zA .zSh{pointer-events:none}
+        .zHeart{position:absolute;pointer-events:none;font-size:28px;animation:zHeart 1.2s ease-out forwards;z-index:9500}
         @keyframes zHeart{to{transform:translateY(-70px) scale(1.3);opacity:0}}
-        .zTreat{position:absolute;font-size:clamp(30px,4.4vw,44px);line-height:1;pointer-events:none;transition:top .7s cubic-bezier(.4,1.6,.6,1)}
+        .zTreat{position:absolute;font-size:clamp(30px,4.4vw,44px);line-height:1;pointer-events:none;transition:top .7s cubic-bezier(.4,1.6,.6,1);filter:drop-shadow(0 4px 2px rgba(20,50,10,.3))}
         .zBar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:0 10px 12px;flex:0 0 auto}
-        .zEmpty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;z-index:5;font-size:clamp(20px,3vw,30px);color:#2f3a66;text-shadow:0 2px 0 #fff}
-        .zDel{position:absolute;z-index:1000;background:#fff;border-radius:999px;padding:8px 14px;font-size:18px;box-shadow:0 4px 0 rgba(0,0,0,.15);color:#c62828}
-        .zCount{position:absolute;right:10px;top:8px;z-index:2;background:rgba(255,255,255,.85);border-radius:999px;padding:4px 12px;font-size:clamp(16px,2.2vw,20px)}
+        .zEmpty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;z-index:9700;font-size:clamp(20px,3vw,30px);color:#2f3a66;text-shadow:0 2px 0 #fff}
+        .zDel{position:absolute;z-index:9999;background:#fff;border-radius:999px;padding:8px 14px;font-size:18px;box-shadow:0 4px 0 rgba(0,0,0,.15);color:#c62828}
+        .zCount{position:absolute;right:10px;top:8px;z-index:9600;background:rgba(255,255,255,.85);border-radius:999px;padding:4px 12px;font-size:clamp(16px,2.2vw,20px)}
       `);
+      if (!document.querySelector(".zDefs")) document.body.insertAdjacentHTML("beforeend", SHADE_DEFS);
       const W = U.el("div", "zooW");
       const bar = U.el("div", "zBar");
       ctx.body.append(W, bar);
       ctx.W = W;
-      // 배경
+      // 배경 (하늘·먼 산·원근 바닥은 고정, 소품·울타리·연못은 layout 에서 크기 맞춰 배치)
       W.innerHTML =
-        '<div class="zHill" style="left:-10%"></div><div class="zHill" style="left:45%;width:70%;height:18%"></div>' +
+        '<div class="zSky"></div>' + FAR_SVG + groundSvg() +
         '<div class="zSun">' + KP.E("☀️") + "</div>" +
-        Array.from({ length: 14 }, (_, i) => '<div class="zDeco zStar" style="left:' + ((i * 37) % 96 + 2) + "%;top:" + ((i * 13) % 26 + 2) + '%;font-size:' + (10 + (i % 3) * 5) + 'px">' + KP.E("✨") + "</div>").join("") +
-        '<div class="zCloud" style="top:4%">' + KP.E("☁️") + '</div><div class="zCloud" style="top:12%;animation-duration:75s;animation-delay:-30s">' + KP.E("☁️") + "</div>" +
-        '<div class="zFence"></div><div class="zSign">' + KP.E("🎪") + " 우리 동물원</div>" +
-        '<div class="zPond"></div>' +
-        '<div class="zDeco" style="left:2%;top:26%;font-size:clamp(60px,9vw,110px)">' + KP.E("🌳") + "</div>" +
-        '<div class="zDeco" style="left:30%;top:24%;font-size:clamp(46px,7vw,84px)">' + KP.E("🌲") + "</div>" +
-        '<div class="zDeco" style="left:58%;top:25%;font-size:clamp(54px,8vw,96px)">' + KP.E("🌳") + "</div>" +
-        '<div class="zDeco" style="left:6%;bottom:6%;font-size:clamp(30px,4vw,44px)">' + KP.E("🌷") + "</div>" +
-        '<div class="zDeco" style="left:44%;bottom:3%;font-size:clamp(28px,4vw,42px)">' + KP.E("🌼") + "</div>" +
-        '<div class="zDeco" style="right:40%;bottom:30%;font-size:clamp(26px,3.6vw,38px)">' + KP.E("🍄") + "</div>";
+        Array.from({ length: 14 }, (_, i) => '<div class="zStar" style="left:' + ((i * 37) % 96 + 2) + "%;top:" + ((i * 13) % 22 + 2) + '%;font-size:' + (10 + (i % 3) * 5) + 'px">' + KP.E("✨") + "</div>").join("") +
+        '<div class="zCloud" style="top:4%">' + KP.E("☁️") + '</div><div class="zCloud" style="top:13%;animation-duration:75s;animation-delay:-30s;font-size:clamp(30px,5vw,60px)">' + KP.E("☁️") + "</div>" +
+        '<div class="zSign">' + KP.E("🎪") + " 우리 동물원</div>" +
+        '<div class="zPond"></div><div class="zFence"></div><div class="zProps"></div>' +
+        '<div class="zVig"></div><div class="zTint"></div>';
       ctx.count = U.el("div", "zCount");
       W.appendChild(ctx.count);
 
@@ -707,8 +824,167 @@
         const r = W.getBoundingClientRect();
         const x = e.clientX - r.left,
           y = e.clientY - r.top;
-        if (y > r.height * 0.4 && ctx.animals && ctx.animals.length) this.dropTreat(ctx, x, y);
+        const g = ctx.g;
+        if (g && y > g.y0 - g.h * 0.06 && ctx.animals && ctx.animals.length) this.dropTreat(ctx, x, y);
       });
+      // 화면 크기가 바뀌면(회전 등) 배경·동물 위치를 비율대로 다시 맞춤
+      if (window.ResizeObserver) {
+        let rt = 0;
+        new ResizeObserver(() => {
+          clearTimeout(rt);
+          rt = setTimeout(() => ctx._active && this.layout(ctx), 120);
+        }).observe(W);
+      }
+    },
+    /* --- 크기·지평선·연못·소품 배치 --- */
+    layout(ctx) {
+      const W = ctx.W,
+        w = W.clientWidth,
+        h = W.clientHeight;
+      if (!w || !h) return;
+      const old = ctx.g;
+      if (old && old.w === w && old.h === h) return;
+      const tall = w / h < 0.75;
+      const hzf = tall ? 0.27 : 0.34;
+      W.style.setProperty("--hz", hzf * 100 + "%");
+      const hz = h * hzf,
+        y0 = h * (hzf + 0.13),
+        y1 = h * 0.95;
+      const rx = Math.min(w * (tall ? 0.24 : 0.19), h * 0.3),
+        ry = rx * (tall ? 0.46 : 0.38);
+      const pond = { cx: w * (tall ? 0.7 : 0.76), cy: y0 + (y1 - y0) * (tall ? 0.8 : 0.74), rx, ry };
+      pond.cy = Math.min(pond.cy, h - ry * 1.25);
+      const g = (ctx.g = { w, h, hz, y0, y1, pond, base: U.clamp(Math.min(w, h * 1.5) * 0.2, 90, 200) });
+      this.drawPond(ctx);
+      this.drawFence(ctx);
+      this.drawProps(ctx);
+      // 동물 크기·위치 다시 맞춤
+      if (old && ctx.animals) {
+        const fx = w / old.w,
+          fy = (v) => g.hz + ((v - old.hz) / (old.h - old.hz)) * (h - g.hz);
+        for (const a of ctx.animals) {
+          if (a.t.move === "swim") {
+            const p = this.randPos(ctx, "swim");
+            a.x = a.tx = p.x;
+            a.y = a.ty = p.y;
+          } else if (a.t.move === "fly") {
+            a.x *= fx; a.tx *= fx;
+            a.y = (a.y / old.h) * h; a.ty = (a.ty / old.h) * h;
+          } else {
+            a.x *= fx; a.tx *= fx;
+            a.y = fy(a.y); a.ty = fy(a.ty);
+          }
+          this.sizeAnimal(ctx, a);
+          this.place(ctx, a);
+        }
+      }
+    },
+    /** 깊이(y) → 크기 배율: 지평선 쪽은 작게, 앞쪽은 크게 */
+    sc(ctx, y) {
+      const g = ctx.g;
+      return 0.34 + 0.78 * U.clamp((y - g.hz) / (g.y1 - g.hz), 0, 1);
+    },
+    inPond(ctx, x, y, m = 1) {
+      const p = ctx.g.pond;
+      const dx = (x - p.cx) / (p.rx * 1.12 * m),
+        dy = (y - p.cy) / (p.ry * 1.35 * m);
+      return dx * dx + dy * dy < 1;
+    },
+    crossPond(ctx, x0, y0, x1, y1) {
+      for (let i = 1; i <= 10; i++) {
+        const t = i / 10;
+        if (this.inPond(ctx, x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)) return true;
+      }
+      return false;
+    },
+    drawPond(ctx) {
+      const p = ctx.g.pond,
+        el = U.$(".zPond", ctx.W);
+      const R = p.rx * 1.1,
+        Ry = p.ry * 1.22,
+        Wv = R * 2,
+        Hv = Ry * 2;
+      el.style.left = p.cx - R + "px";
+      el.style.top = p.cy - Ry + "px";
+      let rocks = "";
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2 + 0.2,
+          rr = 0.92 + ((i * 7) % 3) * 0.03;
+        const x = R + Math.cos(a) * R * rr,
+          y = Ry + Math.sin(a) * Ry * rr;
+        const s = (0.07 + ((i * 5) % 4) * 0.012) * R * (0.75 + 0.25 * Math.sin(a));
+        rocks += '<ellipse cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" rx="' + s.toFixed(1) + '" ry="' + (s * 0.7).toFixed(1) + '" fill="url(#zRock)" stroke="#6d7588" stroke-width="1.5"/>';
+      }
+      const wx = p.rx * 0.9,
+        wy = p.ry * 0.86;
+      el.innerHTML =
+        '<svg width="' + Wv + '" height="' + Hv + '" viewBox="0 0 ' + Wv + " " + Hv + '">' +
+        '<ellipse cx="' + R + '" cy="' + (Ry + Ry * 0.08) + '" rx="' + R + '" ry="' + Ry + '" fill="rgba(29,74,18,.18)"/>' +
+        '<ellipse cx="' + R + '" cy="' + Ry + '" rx="' + R * 0.97 + '" ry="' + Ry * 0.95 + '" fill="url(#zSand)"/>' +
+        '<ellipse cx="' + R + '" cy="' + Ry + '" rx="' + wx + '" ry="' + wy + '" fill="url(#zWater)" stroke="#2a6fa8" stroke-width="2"/>' +
+        // 먼 쪽 둑 그늘
+        '<path d="M' + (R - wx) + " " + Ry + " A" + wx + " " + wy + " 0 0 1 " + (R + wx) + " " + Ry + " A" + wx + " " + wy * 0.72 + " 0 0 0 " + (R - wx) + " " + Ry + 'Z" fill="#1d5f99" opacity=".28"/>' +
+        '<ellipse cx="' + (R - wx * 0.35) + '" cy="' + (Ry + wy * 0.25) + '" rx="' + wx * 0.28 + '" ry="' + wy * 0.1 + '" fill="#fff" opacity=".45"/>' +
+        '<ellipse cx="' + (R + wx * 0.3) + '" cy="' + (Ry + wy * 0.5) + '" rx="' + wx * 0.15 + '" ry="' + wy * 0.06 + '" fill="#fff" opacity=".35"/>' +
+        '<ellipse class="zRip" cx="' + R + '" cy="' + (Ry + wy * 0.1) + '" rx="' + wx * 0.45 + '" ry="' + wy * 0.42 + '" fill="none" stroke="#fff" stroke-width="2.5"/>' +
+        // 연잎·연꽃
+        '<ellipse cx="' + (R + wx * 0.45) + '" cy="' + (Ry - wy * 0.25) + '" rx="' + wx * 0.12 + '" ry="' + wy * 0.12 + '" fill="url(#zPad)" stroke="#2d6b2f" stroke-width="1.5"/>' +
+        '<path d="M' + (R + wx * 0.45) + " " + (Ry - wy * 0.25) + " l" + wx * 0.12 + " " + -wy * 0.04 + " l0 " + wy * 0.08 + ' z" fill="#4f9fd9"/>' +
+        '<ellipse cx="' + (R - wx * 0.6) + '" cy="' + (Ry + wy * 0.05) + '" rx="' + wx * 0.11 + '" ry="' + wy * 0.11 + '" fill="url(#zPad)" stroke="#2d6b2f" stroke-width="1.5"/>' +
+        '<circle cx="' + (R - wx * 0.6) + '" cy="' + (Ry - wy * 0.02) + '" r="' + Math.max(3, wx * 0.035) + '" fill="#ff8fb1" stroke="#c9507a" stroke-width="1"/>' +
+        rocks + "</svg>";
+    },
+    drawFence(ctx) {
+      const g = ctx.g,
+        el = U.$(".zFence", ctx.W);
+      const fh = U.clamp(g.h * 0.075, 26, 64),
+        w = g.w;
+      const bottom = g.hz + g.h * 0.035;
+      el.style.top = bottom - fh + "px";
+      el.style.width = w + "px";
+      el.style.zIndex = Math.round(bottom);
+      const gap = U.clamp(fh * 1.15, 28, 60);
+      let s = '<svg width="' + w + '" height="' + fh + '" viewBox="0 0 ' + w + " " + fh + '">';
+      s += '<rect x="0" y="' + fh * 0.84 + '" width="' + w + '" height="' + fh * 0.16 + '" fill="rgba(29,74,18,.18)"/>';
+      s += '<rect x="0" y="' + fh * 0.28 + '" width="' + w + '" height="' + fh * 0.14 + '" rx="3" fill="url(#zRail)" stroke="#7a4a1e" stroke-width="1.5"/>';
+      s += '<rect x="0" y="' + fh * 0.58 + '" width="' + w + '" height="' + fh * 0.14 + '" rx="3" fill="url(#zRail)" stroke="#7a4a1e" stroke-width="1.5"/>';
+      const pw = fh * 0.22;
+      for (let x = gap * 0.4; x < w; x += gap)
+        s += '<path d="M' + (x - pw / 2) + " " + fh * 0.9 + " L" + (x - pw / 2) + " " + fh * 0.12 + " L" + x + " 1 L" + (x + pw / 2) + " " + fh * 0.12 + " L" + (x + pw / 2) + " " + fh * 0.9 + ' Z" fill="url(#zWood)" stroke="#7a4a1e" stroke-width="1.5" stroke-linejoin="round"/>';
+      el.innerHTML = s + "</svg>";
+    },
+    drawProps(ctx) {
+      const g = ctx.g,
+        box = U.$(".zProps", ctx.W);
+      box.innerHTML = "";
+      const big = Math.min(g.w * 0.42, g.h * 0.6);
+      const back = g.hz + g.h * 0.02,
+        mid = (f) => g.y0 + (g.y1 - g.y0) * f;
+      const list = [
+        // 울타리 너머 먼 나무 (울타리보다 뒤)
+        ["tree", 0.04, back, 1], ["pine", 0.15, back - 2, 0.9], ["tree", 0.3, back, 0.85], ["pine", 0.44, back - 1, 0.8],
+        ["tree", 0.6, back, 0.95], ["pine", 0.72, back - 2, 0.85], ["tree", 0.86, back, 0.9], ["pine", 0.97, back, 1],
+        // 울타리 앞 덤불·바위
+        ["bush", 0.24, g.hz + g.h * 0.07, 0.55], ["bush", 0.55, g.hz + g.h * 0.065, 0.5], ["rock", 0.83, g.hz + g.h * 0.08, 0.45],
+        // 옆 나무 (동물이 앞뒤로 지나감)
+        ["tree", 0.025, mid(0.3), 1], ["pine", 0.975, mid(0.08), 1],
+        // 꽃
+        ["flower", 0.14, mid(0.55), 0.3], ["flower2", 0.19, mid(0.62), 0.28], ["flower", 0.5, mid(0.95), 0.3], ["flower2", 0.36, mid(0.2), 0.26],
+        ["rock", 0.42, mid(0.45), 0.32], ["flower2", 0.62, mid(0.35), 0.26],
+        // 맨 앞 덤불 (화면 밖으로 살짝 잘림 → 가까움)
+        ["bush", 0.03, g.h * 1.03, 0.75],
+      ];
+      let html = "";
+      for (const [k, fx, y, f] of list) {
+        const x = fx * g.w;
+        if (this.inPond(ctx, x, y, 1.1)) continue;
+        const ph = big * f * this.sc(ctx, y),
+          pw = ph * (100 / 120);
+        // 발바닥(50,112)/120 → 바닥 기준
+        const top = y - ph * (112 / 120);
+        html += '<div class="zP" style="width:' + pw.toFixed(1) + "px;height:" + ph.toFixed(1) + "px;transform:translate(" + (x - pw / 2).toFixed(1) + "px," + top.toFixed(1) + "px);z-index:" + Math.round(y) + '">' + propSvg(k) + "</div>";
+      }
+      box.innerHTML = html;
     },
     async start(ctx) {
       const W = ctx.W;
@@ -720,8 +996,16 @@
       U.$$(".zA,.zTreat,.zEmpty,.zDel", W).forEach((e) => e.remove());
       ctx.animals = [];
       ctx.treatsArr = [];
+      ctx.g = null;
+      this.layout(ctx);
+      if (!ctx.g) {
+        await ctx.wait(150);
+        this.layout(ctx);
+        if (!ctx.g) return;
+      }
       const items = (await KP.db.all("art")).filter((x) => x.kind === "zoo" && T[x.tid]).slice(-30);
       if (!ctx._active) return;
+      if (!ctx.g || ctx.g.w !== W.clientWidth || ctx.g.h !== W.clientHeight) this.layout(ctx);
       ctx.count.innerHTML = KP.E("🐾") + " " + items.length + "마리";
       if (!items.length) {
         ctx.say("아직 동물원이 비어 있어요. 색칠 공방에서 동물을 색칠해서 보내 주세요!");
@@ -746,35 +1030,42 @@
       ctx.hint(() => (ctx.animals[0] ? ctx.animals[0].el : null), "동물 친구를 콕 눌러 보세요!");
       ctx.loop((dt, now) => this.tick(ctx, dt, now));
     },
+    sizeAnimal(ctx, a) {
+      const g = ctx.g,
+        t = a.t,
+        base = g.base;
+      a.size = t.move === "swim" ? Math.min(base * 0.62, g.pond.rx * 0.85) : t.move === "fly" ? base * 0.7 : t.slow ? base * 0.8 : base;
+      a.el.style.width = a.size + "px";
+      a.el.style.height = a.size * 0.85 + "px";
+    },
     /* --- 동물 하나 배치 --- */
     add(ctx, item, isNew) {
       const W = ctx.W,
-        Wd = W.clientWidth,
-        Ht = W.clientHeight;
+        g = ctx.g;
       const t = T[item.tid];
       const el = U.el("div", "zA");
-      el.innerHTML = '<div class="zIn"><div class="zBob">' + (t.move === "walk" || t.move === "hop" ? '<div class="zShadow"></div>' : "") + freshSvg(item) + "</div></div>";
-      const base = U.clamp(Math.min(Wd, Ht * 1.5) * 0.2, 90, 200);
-      const size = t.move === "swim" ? base * 0.62 : t.move === "fly" ? base * 0.7 : t.slow ? base * 0.8 : base;
-      el.style.width = size + "px";
-      el.style.height = size * 0.85 + "px";
+      const ground = t.move === "walk" || t.move === "hop";
+      el.innerHTML = (ground ? '<div class="zShadow"></div>' : "") + '<div class="zLift"><div class="zIn"><div class="zBob">' + shadeSvg(freshSvg(item)) + "</div></div></div>";
       W.appendChild(el);
-      const a = { el, item, t, size, x: 0, y: 0, tx: 0, ty: 0, state: "idle", wait: Math.random() * 2, dir: 1, ph: Math.random() * 6, treat: null };
-      const p = this.randPos(ctx, t.move);
+      const a = { el, item, t, size: 0, s: 1, x: 0, y: 0, tx: 0, ty: 0, state: "idle", wait: Math.random() * 2, dir: 1, ph: Math.random() * 6, treat: null, lift: el.querySelector(".zLift"), shadow: el.querySelector(".zShadow"), z: -1, lv: -1 };
+      this.sizeAnimal(ctx, a);
+      ctx.animals.push(a);
+      const p = this.randPos(ctx, t.move, a);
       a.x = p.x;
       a.y = p.y;
       if (isNew && t.move !== "swim") {
-        // 새 친구는 왼쪽 문에서 걸어 들어옴
-        a.x = -size;
-        a.y = Ht * 0.7;
+        // 새 친구는 왼쪽 먼 곳에서 앞쪽으로 걸어 들어옴 (점점 커짐)
+        a.x = -a.size * 0.5;
+        a.y = t.move === "fly" ? g.hz * 0.6 : g.y0 + (g.y1 - g.y0) * 0.2;
         a.state = "walk";
-        a.tx = Wd * 0.3;
-        a.ty = Ht * 0.7;
+        a.tx = g.w * 0.3;
+        a.ty = t.move === "fly" ? g.hz * 0.5 : g.y0 + (g.y1 - g.y0) * 0.75;
         el.classList.add("new");
         setTimeout(() => el.classList.remove("new"), 6000);
+      } else {
+        a.tx = a.x;
+        a.ty = a.y;
       }
-      a.tx = a.tx || a.x;
-      a.ty = a.ty || a.y;
       // 누르기 / 길게 누르기(보내기)
       let lp = 0;
       el.addEventListener("pointerdown", (e) => {
@@ -786,51 +1077,76 @@
         lp = setTimeout(() => this.askDelete(ctx, a), 1800);
       });
       ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => el.addEventListener(ev, () => clearTimeout(lp)));
-      ctx.animals.push(a);
       this.place(ctx, a);
       return a;
     },
-    randPos(ctx, move) {
-      const Wd = ctx.W.clientWidth,
-        Ht = ctx.W.clientHeight;
-      if (move === "fly") return { x: U.randf(0.1, 0.9) * Wd, y: U.randf(0.12, 0.3) * Ht };
+    randPos(ctx, move, self) {
+      const g = ctx.g,
+        w = g.w;
+      if (move === "fly") return { x: U.randf(0.1, 0.9) * w, y: U.randf(Math.max(0.1 * g.h, g.hz * 0.3), g.hz + g.h * 0.04) };
       if (move === "swim") {
-        const a = U.randf(0, 6.28),
-          rr = Math.sqrt(Math.random()) * 0.7;
-        return { x: Wd * (0.78 + Math.cos(a) * 0.16 * rr), y: Ht * (0.84 + Math.sin(a) * 0.09 * rr) };
+        const p = g.pond,
+          a = U.randf(0, 6.28),
+          rr = Math.sqrt(Math.random()) * 0.6;
+        return { x: p.cx + Math.cos(a) * p.rx * 0.8 * rr, y: p.cy + Math.sin(a) * p.ry * 0.7 * rr };
       }
-      for (let i = 0; i < 20; i++) {
-        const x = U.randf(0.08, 0.92) * Wd,
-          y = U.randf(0.5, 0.95) * Ht;
-        // 연못 피하기
-        const dx = (x / Wd - 0.78) / 0.2,
-          dy = (y / Ht - 0.84) / 0.13;
-        if (dx * dx + dy * dy > 1) return { x, y };
+      let best = null,
+        bestD = -1;
+      for (let i = 0; i < 30; i++) {
+        const x = U.randf(0.08, 0.92) * w,
+          y = U.randf(g.y0, g.y1);
+        if (this.inPond(ctx, x, y)) continue;
+        if (self && !this.inPond(ctx, self.x, self.y) && this.crossPond(ctx, self.x, self.y, x, y)) continue;
+        // 다른 친구들과 너무 붙지 않게 (뭉침 방지)
+        let d = 1e9;
+        for (const o of ctx.animals || []) {
+          if (o === self || o.t.move === "fly" || o.t.move === "swim") continue;
+          d = Math.min(d, Math.hypot(o.tx - x, (o.ty - y) * 1.6), Math.hypot(o.x - x, (o.y - y) * 1.6));
+        }
+        if (d > g.base * 0.75) return { x, y };
+        if (d > bestD) {
+          bestD = d;
+          best = { x, y };
+        }
       }
-      return { x: 0.2 * Wd, y: 0.7 * Ht };
+      return best || { x: 0.2 * w, y: (g.y0 + g.y1) / 2 };
     },
     place(ctx, a) {
-      const Ht = ctx.W.clientHeight;
+      const g = ctx.g;
       let s = 1;
-      if (a.t.move === "walk" || a.t.move === "hop") s = 0.62 + 0.48 * U.clamp((a.y / Ht - 0.45) / 0.5, 0, 1);
+      if (a.t.move === "walk" || a.t.move === "hop") s = this.sc(ctx, a.y);
+      a.s = s;
       let lift = 0;
       if (a.t.move === "hop" && a.state === "walk") lift = Math.abs(Math.sin(a.ph * 2.2)) * a.size * 0.18;
       if (a.t.move === "fly") lift = Math.sin(a.ph * 1.6) * 10;
       // 땅 동물은 발(아래 가운데), 물고기·새는 몸 가운데를 기준점으로
       const anchorY = a.t.move === "swim" || a.t.move === "fly" ? a.size * 0.425 : a.size * 0.85;
-      a.el.style.transform = "translate(" + (a.x - a.size / 2) + "px," + (a.y - anchorY - lift) + "px) scale(" + s + ")";
-      a.el.style.zIndex = a.t.move === "fly" ? 900 : Math.round(a.y);
+      a.el.style.transform = "translate(" + (a.x - a.size / 2).toFixed(1) + "px," + (a.y - anchorY).toFixed(1) + "px) scale(" + s.toFixed(3) + ")";
+      const lv = Math.round(lift);
+      if (lv !== a.lv) {
+        a.lv = lv;
+        a.lift.style.transform = lv ? "translateY(" + -lv + "px)" : "";
+        if (a.shadow) {
+          const k = 1 - Math.min(0.5, lv / a.size);
+          a.shadow.style.transform = "translateX(-5%) scale(" + k.toFixed(2) + ")";
+          a.shadow.style.opacity = k.toFixed(2);
+        }
+      }
+      const z = a.t.move === "fly" ? 5000 : Math.round(a.y);
+      if (z !== a.z) a.el.style.zIndex = a.z = z;
     },
     tick(ctx, dt) {
+      if (!ctx.g) return;
       for (const a of ctx.animals) {
         a.ph += dt * 4;
-        const speed = (a.t.move === "fly" ? 70 : a.t.move === "swim" ? 30 : a.t.slow ? 16 : a.t.move === "hop" ? 60 : 46) * (a.treat ? 1.8 : 1);
+        // 먼 곳(작게 보이는 곳)에서는 화면상 속도도 느리게 → 원근감
+        const speed = (a.t.move === "fly" ? 70 : a.t.move === "swim" ? 30 : a.t.slow ? 16 : a.t.move === "hop" ? 60 : 46) * (a.treat ? 1.8 : 1) * (a.t.move === "walk" || a.t.move === "hop" ? 0.35 + 0.65 * a.s : 1);
         if (a.state === "idle") {
           a.wait -= dt;
           a.el.classList.remove("walking");
           if (a.t.move === "fly") a.el.classList.add("flying");
           if (a.wait <= 0) {
-            const p = a.treat || this.randPos(ctx, a.t.move);
+            const p = a.treat || this.randPos(ctx, a.t.move, a);
             a.tx = p.x;
             a.ty = p.y;
             a.state = "walk";
@@ -847,10 +1163,7 @@
             const st = Math.min(d, speed * dt);
             a.x += (dx / d) * st;
             a.y += (dy / d) * st;
-            if (Math.abs(dx) > 2) {
-              const left = dx < 0;
-              a.el.classList.toggle("left", left);
-            }
+            if (Math.abs(dx) > 2) a.el.classList.toggle("left", dx < 0);
             a.el.classList.add(a.t.move === "fly" ? "flying" : "walking");
           }
         }
@@ -869,20 +1182,38 @@
       for (let i = 0; i < n; i++) {
         const h = U.el("div", "zHeart", KP.E(U.pick(["💖", "💕", "⭐"])));
         h.style.left = a.x - 14 + U.randf(-20, 20) + "px";
-        h.style.top = a.y - a.size * 0.9 + "px";
+        h.style.top = a.y - a.size * 0.9 * (a.s || 1) + "px";
         h.style.animationDelay = i * 0.15 + "s";
         W.appendChild(h);
         setTimeout(() => h.remove(), 1500);
       }
     },
     dropTreat(ctx, x, y) {
-      const W = ctx.W;
+      const W = ctx.W,
+        g = ctx.g;
+      y = U.clamp(y, g.y0, g.y1);
+      // 연못 안이면 연못 가장자리 밖으로
+      if (this.inPond(ctx, x, y)) {
+        const p = g.pond;
+        let dx = (x - p.cx) / p.rx,
+          dy = (y - p.cy) / p.ry;
+        if (!dx && !dy) dx = -1;
+        const k = 1 / Math.hypot(dx, dy);
+        x = p.cx + dx * k * p.rx * 1.2;
+        y = p.cy + dy * k * p.ry * 1.45;
+        if (y > g.y1) {
+          y = p.cy - p.ry * 1.45;
+        }
+      }
       const em = U.pick(["🍎", "🥕", "🍌", "🐟", "🍖", "🌽"]);
       const t = U.el("div", "zTreat", KP.E(em));
+      const sc = this.sc(ctx, y);
       t.style.left = x - 20 + "px";
       t.style.top = "-50px";
+      t.style.zIndex = Math.round(y) - 1;
+      t.style.transform = "scale(" + sc.toFixed(2) + ")";
       W.appendChild(t);
-      requestAnimationFrame(() => (t.style.top = y - 30 + "px"));
+      requestAnimationFrame(() => (t.style.top = y - 34 + "px"));
       KP.audio.sfx("drop");
       const tr = { x, y, el: t, taken: false };
       ctx.treatsArr.push(tr);
@@ -909,29 +1240,46 @@
       KP.voice.say(U.pick(["냠냠! 맛있다!", "고마워요!", "냠냠냠!"]));
     },
     treats(ctx) {
-      const Wd = ctx.W.clientWidth,
-        Ht = ctx.W.clientHeight;
       if (!ctx.animals.length) return;
-      for (let i = 0; i < 3; i++) ctx.after(i * 250, () => {
-        const p = this.randPos(ctx, "walk");
-        this.dropTreat(ctx, p.x, p.y);
-      });
+      for (let i = 0; i < 3; i++)
+        ctx.after(i * 250, () => {
+          const p = this.randPos(ctx, "walk");
+          this.dropTreat(ctx, p.x, p.y);
+        });
       KP.voice.say("간식 시간이에요!");
     },
     callAll(ctx) {
       if (!ctx.animals.length) return;
-      const Wd = ctx.W.clientWidth,
-        Ht = ctx.W.clientHeight;
+      const g = ctx.g;
       KP.audio.sfx("levelup");
       KP.voice.say("모두 모여라! 하나, 둘, 셋!");
-      ctx.animals.forEach((a, i) => {
+      // 화면 앞쪽(가까운 곳)으로 모여 → 걸어오며 커짐
+      const land = ctx.animals.filter((a) => a.t.move !== "swim" && a.t.move !== "fly");
+      const cx = g.w * 0.42,
+        cy = g.y0 + (g.y1 - g.y0) * 0.66;
+      ctx.animals.forEach((a) => {
         if (a.t.move === "swim") return;
-        a.treat = null;
-        const ang = (i / ctx.animals.length) * Math.PI * 2;
-        a.tx = Wd * 0.42 + Math.cos(ang) * Wd * 0.2;
-        a.ty = a.t.move === "fly" ? Ht * 0.22 : Ht * 0.68 + Math.sin(ang) * Ht * 0.12;
+        if (a.treat) {
+          // 먹으러 가던 간식은 치움
+          a.treat.taken = true;
+          a.treat.el.remove();
+          a.treat = null;
+        }
+        if (a.t.move === "fly") {
+          a.tx = U.randf(0.3, 0.6) * g.w;
+          a.ty = g.hz * 0.6;
+        } else {
+          const i = land.indexOf(a),
+            ang = Math.PI * (0.1 + (0.8 * (i + 0.5)) / land.length);
+          let x = cx + Math.cos(ang) * g.w * 0.28,
+            y = cy + Math.sin(ang) * (g.y1 - g.y0) * 0.26 - (g.y1 - g.y0) * 0.1;
+          for (let k = 0; k < 20 && this.inPond(ctx, x, y); k++) x -= g.w * 0.03;
+          a.tx = x;
+          a.ty = y;
+        }
         a.state = "walk";
       });
+      ctx.treatsArr = ctx.treatsArr.filter((t) => !t.taken);
       ctx.after(3200, () => {
         ctx.animals.forEach((a, i) => ctx.after(i * 80, () => U.replay(a.el, "jump")));
         KP.confetti(100);
@@ -942,11 +1290,11 @@
       U.$$(".zDel", ctx.W).forEach((e) => e.remove());
       const b = U.btn(KP.E("👋") + " 집으로 보내기(꾹)", "zDel");
       b.style.left = U.clamp(a.x - 80, 4, ctx.W.clientWidth - 200) + "px";
-      b.style.top = Math.max(4, a.y - a.size - 50) + "px";
+      b.style.top = Math.max(4, a.y - a.size * (a.s || 1) - 50) + "px";
       ctx.W.appendChild(b);
       KP.hold(b, 1500, async () => {
         await KP.db.del("art", a.item.id);
-        a.el.style.transition = "opacity .5s, transform .5s";
+        a.el.style.transition = "opacity .5s";
         a.el.style.opacity = "0";
         ctx.animals = ctx.animals.filter((x) => x !== a);
         setTimeout(() => a.el.remove(), 520);
