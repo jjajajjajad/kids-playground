@@ -504,6 +504,11 @@
     this.treats = [];
     this.raycaster = new THREE.Raycaster();
     this.buildWorld();
+    // 자동 화질: 지난번에 정한 단계에서 시작 (7일이 지나면 한 단계 올려 다시 시도)
+    const qs = KP.store.get("zoo3d:q", null);
+    this.q = qs && Number.isFinite(qs.q) ? qs.q : 0;
+    if (qs && this.q > 0 && Date.now() - (qs.t || 0) > 7 * 864e5) this.q--;
+    this.applyQ(this.q);
     this.bindInput();
     this.resize();
     if (window.ResizeObserver) new ResizeObserver(() => this.resize()).observe(host);
@@ -1357,8 +1362,50 @@
     void dt;
   };
 
+  /** 화질 단계: 0 고화질 그림자 · 1 해상도↓ · 2 그림자 끔 · 3 최저 */
+  W3.applyQ = function (q) {
+    this.q = q;
+    const dpr = window.devicePixelRatio || 1;
+    this.renderer.setPixelRatio(Math.min(dpr, [2, 1.5, 1.25, 1][q]));
+    const sh = q < 2;
+    if (this.renderer.shadowMap.enabled !== sh) {
+      this.renderer.shadowMap.enabled = sh;
+      this.sun.castShadow = sh;
+      this.scene.traverse((o) => {
+        if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => (m.needsUpdate = true));
+      });
+    }
+    if (q === 1 && this.sun.shadow.mapSize.x > 1024) {
+      this.sun.shadow.mapSize.set(1024, 1024);
+      if (this.sun.shadow.map) {
+        this.sun.shadow.map.dispose();
+        this.sun.shadow.map = null;
+      }
+    }
+    if (this.w) this.renderer.setSize(this.w, this.h, false); // 새 해상도로 다시 맞춤
+  };
+  /** 느린 기기면 화질을 한 단계씩 낮춤 (초당 약 28장 미만이 이어질 때) */
+  W3.measure = function () {
+    const now = performance.now();
+    if (!this._warm) this._warm = now + 3000; // 처음 3초(불러오기)는 빼고
+    const f = now - (this._lt || now);
+    this._lt = now;
+    if (now < this._warm || f <= 0 || f > 3000) return; // 3초 넘는 틈은 화면이 가려졌던 것
+    this._fs = (this._fs || 0) + f;
+    this._fn = (this._fn || 0) + 1;
+    if (this._fs < 4000 || this._fn < 8) return; // 약 4초마다 판단
+    const avg = this._fs / this._fn;
+    this._fs = this._fn = 0;
+    this.fps = Math.round(1000 / avg);
+    if (avg > 36 && this.q < 3) {
+      this.applyQ(this.q + 1);
+      KP.store.set("zoo3d:q", { q: this.q, t: Date.now() });
+      this._warm = now + 1500;
+    }
+  };
   W3.tick = function (dt) {
     if (this.lost) return;
+    this.measure();
     const cam = this.cam;
     cam.az += (cam.taz - cam.az) * Math.min(1, dt * 8);
     cam.el += (cam.tel - cam.el) * Math.min(1, dt * 8);

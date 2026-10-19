@@ -7,7 +7,11 @@
 
   // 길게 누르기 메뉴·글자 선택·확대 제스처 차단
   document.addEventListener("contextmenu", (e) => e.preventDefault());
-  document.addEventListener("selectstart", (e) => e.preventDefault());
+  document.addEventListener("selectstart", (e) => {
+    const t = e.target && e.target.nodeType === 1 ? e.target : e.target && e.target.parentElement;
+    if (t && t.closest && t.closest("input,textarea")) return; // 입력칸(부모 비밀번호)은 허용
+    e.preventDefault();
+  });
   document.addEventListener("gesturestart", (e) => e.preventDefault());
   document.addEventListener("dblclick", (e) => e.preventDefault());
 

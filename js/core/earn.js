@@ -75,8 +75,7 @@
       s.used += min;
       save(s);
       KP.gate.unlockFor(min, "earn");
-      KP.audio.sfx("levelup");
-      KP.confetti && KP.confetti(180);
+      doorScene();
       KP.voice.say("문이 열렸어요! 신나게 놀아요!");
       E.render();
       KP.renderHome();
@@ -170,6 +169,25 @@
     paint(document.querySelector("#home .keyBtn"));
   }
   setInterval(() => !document.hidden && render(), 1000);
+
+  /** 문이 열리는 장면: 별 다섯 개가 열쇠 구멍으로 → 문이 활짝 → 빛과 꽃가루 */
+  function doorScene() {
+    const n = cfg().earnStars;
+    const ov = U.el("div", "doorScene");
+    ov.innerHTML =
+      '<div class="dsFrame"><div class="dsLight"></div><div class="dsDoor"><span class="dsKnob"></span><span class="dsHole"></span></div></div>' +
+      '<div class="dsStars">' + Array.from({ length: n }, (_, i) => '<span style="--i:' + i + '">' + KP.E("⭐") + "</span>").join("") + "</div>";
+    document.body.appendChild(ov);
+    KP.audio.sfx("sparkle");
+    setTimeout(() => {
+      ov.classList.add("open");
+      KP.audio.sfx("levelup");
+    }, 1100);
+    setTimeout(() => KP.confetti && KP.confetti(200), 1500);
+    setTimeout(() => ov.classList.add("bye"), 2900);
+    setTimeout(() => ov.remove(), 3400);
+    ov.addEventListener("click", () => ov.remove());
+  }
 
   /** 별이 열쇠 칸으로 날아가기 */
   function flyStar(ctx, n) {

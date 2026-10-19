@@ -437,6 +437,53 @@
     sLock.appendChild(U.el("p", "pNote", "어른이 날짜로 열 때 '30분만' 또는 '오늘 계속'을 고를 수 있어요. 공부 놀이처럼 잠그지 않은 카테고리는 바로 들어갈 수 있어요."));
     sLock.appendChild(bRelock);
 
+    // 부모 비밀번호
+    const sPin = sec(KP.E("🔐") + " 부모 비밀번호");
+    const pinNote = U.el("p", "pNote");
+    const drawPin = () =>
+      (pinNote.textContent = KP.settings.get().pin
+        ? "켜짐: 잠금·설정을 열 때 비밀번호 4자리를 물어요. 잊으면 입력판의 '잊었어요'를 5초 꾹 → 오늘 날짜로 열 수 있어요."
+        : "꺼짐: 지금은 오늘 날짜 8자리로 열어요. 아이가 숫자·날짜를 읽기 시작하면 비밀번호를 정해 주세요.");
+    const pinRow = U.el("div", "pChips");
+    const pinIn = U.el("input", "pinIn");
+    pinIn.type = "password";
+    pinIn.inputMode = "numeric";
+    pinIn.maxLength = 4;
+    pinIn.placeholder = "숫자 4자리";
+    pinIn.autocomplete = "off";
+    const bPin = U.btn("저장", "chip");
+    bPin.addEventListener("click", () => {
+      const v = pinIn.value.trim();
+      if (!/^\d{4}$/.test(v)) return KP.toast("숫자 4자리를 넣어 주세요");
+      if (/^(\d)\1{3}$/.test(v) || "0123456789".includes(v) || "9876543210".includes(v)) return KP.toast("너무 쉬운 번호예요 (1111, 1234 같은 번호)");
+      KP.settings.set({ pin: v });
+      pinIn.value = "";
+      KP.toast("비밀번호를 정했어요");
+      drawPin();
+    });
+    const bPinOff = U.btn("지우기(날짜로)", "chip");
+    bPinOff.addEventListener("click", () => {
+      KP.settings.set({ pin: "" });
+      KP.toast("오늘 날짜로 여는 방식으로 돌아갔어요");
+      drawPin();
+    });
+    pinRow.append(pinIn, bPin, bPinOff);
+    sPin.append(pinRow, pinNote);
+    drawPin();
+
+    // 앱 밖으로 못 나가게 하기 (기기 기능)
+    const sPinApp = sec(KP.E("📌") + " 앱 밖으로 못 나가게 하기");
+    sPinApp.appendChild(
+      U.el(
+        "p",
+        "pNote",
+        "놀이터 안의 잠금·시간 제한은 이 앱 안에서만 지켜져요. 아이가 다른 앱으로 나가지 못하게 하려면 기기 기능을 함께 쓰세요.<br>" +
+          "<b>아이패드·아이폰 – 사용법 유도</b>: 설정 → 손쉬운 사용 → 사용법 유도 켜기(암호 설정) → 놀이터를 연 뒤 측면(또는 홈) 버튼을 세 번 누르고 '시작'. 끝낼 때도 세 번 누르고 암호.<br>" +
+          "<b>안드로이드 – 앱 고정</b>: 설정 → 보안(또는 생체 인식 및 보안) → 기타 보안 설정 → 앱 고정 켜기 → 최근 앱 화면에서 놀이터 아이콘을 눌러 '이 앱 고정'.<br>" +
+          "<small>기기와 버전에 따라 메뉴 이름이 조금 다를 수 있어요.</small>"
+      )
+    );
+
     // 게임 보이기
     const sGames = sec("보여줄 놀이 고르기");
     KP.CATS.forEach((c) => {

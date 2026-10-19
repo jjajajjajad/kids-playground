@@ -94,16 +94,23 @@
     if (pad) pad.remove();
     KP.voice.stop();
     let val = "";
+    // 부모 비밀번호(4자리)를 정해 두었으면 그걸로, 아니면 오늘 날짜 8자리
+    const pin = KP.settings.get().pin;
+    const usePin = !!pin && !opt.dateMode;
+    const N = usePin ? 4 : 8;
+    const answer = () => (usePin ? pin : todayKST());
     pad = U.el("div", "gatePad" + (opt.adultOnly ? " top" : ""));
     const box = U.el("div", "gateBox");
     box.innerHTML =
       '<div class="gateTitle">' + KP.E("🔒") + " 어른이 열어 주세요</div>" +
-      '<div class="gateSub">오늘 날짜 8자리를 눌러 주세요 <small>(예: 2026년 1월 5일 → 20260105)</small></div>';
-    const slots = U.el("div", "gateSlots");
-    for (let i = 0; i < 8; i++) slots.appendChild(U.el("span", "gateSlot" + (i === 3 || i === 5 ? " gap" : "")));
+      (usePin
+        ? '<div class="gateSub">부모 비밀번호 4자리를 눌러 주세요</div>'
+        : '<div class="gateSub">오늘 날짜 8자리를 눌러 주세요 <small>(예: 2026년 1월 5일 → 20260105)</small></div>');
+    const slots = U.el("div", "gateSlots" + (usePin ? " pin" : ""));
+    for (let i = 0; i < N; i++) slots.appendChild(U.el("span", "gateSlot" + (!usePin && (i === 3 || i === 5) ? " gap" : "")));
     const keys = U.el("div", "gateKeys");
     const draw = () => U.$$(".gateSlot", slots).forEach((el, i) => {
-      el.textContent = val[i] || "";
+      el.textContent = val[i] ? (usePin ? "●" : val[i]) : "";
       el.classList.toggle("on", i === val.length);
     });
     const close = () => {
@@ -113,11 +120,11 @@
     const press = (k) => {
       KP.audio.unlock();
       if (k === "del") val = val.slice(0, -1);
-      else if (val.length < 8) val += k;
+      else if (val.length < N) val += k;
       KP.audio.sfx("tap");
       draw();
-      if (val.length === 8) {
-        if (val === todayKST()) {
+      if (val.length === N) {
+        if (val === answer()) {
           KP.audio.sfx("good");
           if (opt.adultOnly) {
             close();
@@ -156,6 +163,12 @@
       keys.appendChild(b);
     });
     box.append(slots, keys);
+    if (usePin) {
+      // 비밀번호를 잊었을 때: 5초 꾹 → 오늘 날짜로 열기
+      const forgot = U.btn("비밀번호를 잊었어요 (5초 꾹)", "gateForgot");
+      KP.hold(forgot, 5000, () => showPad(then, Object.assign({}, opt, { dateMode: true })));
+      box.appendChild(forgot);
+    }
     const st = KP.settings.get();
     // 아이에게: 별 모으기 안내
     if (!opt.adultOnly && KP.earn && KP.earn.active()) {

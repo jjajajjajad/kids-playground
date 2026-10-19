@@ -25,6 +25,7 @@
     earnCapMin: 45, // 하루에 별로 열 수 있는 최대 시간(분), 0 = 제한 없음
     earnPerGame: 3, // 같은 놀이에서 하루에 받을 수 있는 별
     oneMore: true, // 끝날 때 '한 번만 더'(하루 1번, 2분)
+    pin: "", // 부모 비밀번호 4자리 ("" = 오늘 날짜 8자리 사용)
     ver: 2,
   };
   function clean(v) {
@@ -52,6 +53,7 @@
     if (![0, 30, 45, 60].includes(c.earnCapMin)) c.earnCapMin = DEF.earnCapMin;
     if (![2, 3, 5].includes(c.earnPerGame)) c.earnPerGame = DEF.earnPerGame;
     c.oneMore = c.oneMore !== false;
+    c.pin = /^\d{4}$/.test(String(c.pin || "")) ? String(c.pin) : "";
     return c;
   }
   const raw = KP.store.get("settings", {}) || {};
