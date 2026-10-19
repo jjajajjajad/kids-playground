@@ -272,7 +272,34 @@
     });
     sTime.appendChild(tRow);
     const u = KP.usage();
-    sTime.appendChild(U.el("p", "pNote", "오늘 사용: " + Math.floor(u.s / 60) + "분. 시간이 되면 '잘 시간' 화면이 나오고, 어른이 3초 꾹 누르면 10분 더 놀 수 있어요."));
+    sTime.appendChild(U.el("p", "pNote", "오늘 사용: " + Math.floor(u.s / 60) + "분. 5분 전·1분 전에 미리 알려 주고, 시간이 되면 '잘 시간' 화면으로 잠겨요. 더 놀게 하려면 어른이 오늘 날짜 8자리를 넣어요."));
+    // 이번만 타이머
+    const sSess = sec("이번만 타이머 (지금부터)");
+    const sRow = U.el("div", "pChips");
+    const sNote = U.el("p", "pNote");
+    const drawSess = () => {
+      const su = KP.session.until();
+      const left = su ? Math.max(0, Math.ceil((su - Date.now()) / 60000)) : 0;
+      sNote.textContent = su ? "켜짐: 약 " + left + "분 뒤 잠겨요. (앱을 껐다 켜도 유지)" : "꺼짐. 아이에게 건네기 전에 눌러 두면 그 시간이 지나 잠겨요.";
+    };
+    [10, 15, 20, 30, 45].forEach((m) => {
+      const c = U.btn(m + "분", "chip");
+      c.addEventListener("click", () => {
+        KP.session.start(m);
+        KP.toast("지금부터 " + m + "분 타이머를 켰어요");
+        drawSess();
+      });
+      sRow.appendChild(c);
+    });
+    const cOff = U.btn("끄기", "chip");
+    cOff.addEventListener("click", () => {
+      KP.session.stop();
+      KP.toast("이번만 타이머를 껐어요");
+      drawSess();
+    });
+    sRow.appendChild(cOff);
+    sSess.append(sRow, sNote);
+    drawSess();
 
     // 힌트
     const sHint = sec("도움말");

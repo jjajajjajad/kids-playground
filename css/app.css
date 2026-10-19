@@ -1538,3 +1538,26 @@ img.e,
   .bubbleMascot { font-size: 26px; padding: 5px; }
   .bubbleTxt { font-size: 17px; }
 }
+
+/* ---------------- 남은 놀이 시간 ---------------- */
+.gatePad.top { z-index: 110; }
+.bedMore { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; padding: 0 16px; }
+.timePill {
+  position: fixed;
+  left: calc(10px + var(--safe-l, 0px));
+  bottom: calc(10px + var(--safe-b));
+  z-index: 90;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: #2f3a66;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: clamp(15px, 2vw, 19px);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.4s, transform 0.4s;
+}
+.timePill.show { opacity: 1; transform: none; }
+.timePill.soon { background: #ffe0e0; color: #c62828; animation: pillPulse 1s ease-in-out infinite; }
+@keyframes pillPulse { 50% { transform: scale(1.08); } }
