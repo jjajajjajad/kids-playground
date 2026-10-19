@@ -462,8 +462,9 @@
     let left = Infinity,
       why = "";
     const lim = KP.settings.get().timer;
-    if (lim > 0) {
-      const u = usage();
+    const u = usage();
+    if (lim > 0 && !(u.bonus >= 100000)) {
+      // "오늘은 제한 없이"를 고른 날은 하루 제한을 보지 않음
       left = (lim + (u.bonus || 0)) * 60 - u.s;
       why = "day";
     }
