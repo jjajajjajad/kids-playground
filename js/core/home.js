@@ -59,10 +59,16 @@
     unlock() {
       openedOn = todayKST();
     },
-    unlockFor(min) {
+    /** 어른이 날짜로 '오늘 계속' 연 상태 */
+    adultOpen: () => openedOn === todayKST(),
+    /** 정해진 시간만 열기. src: "earn"(별) | "quiz"(문지기) | "adult"(어른 30분) */
+    unlockFor(min, src = "quiz") {
       kidUntil = Date.now() + min * 60000;
       KP.store.set("gate:until", kidUntil);
+      KP.store.set("gate:len", min * 60000);
+      KP.store.set("gate:src", src);
     },
+    src: () => KP.store.get("gate:src", "quiz"),
     relock() {
       openedOn = "";
       kidUntil = 0;
@@ -112,11 +118,28 @@
       draw();
       if (val.length === 8) {
         if (val === todayKST()) {
-          if (!opt.adultOnly) gate.unlock();
           KP.audio.sfx("good");
-          close();
-          if (!opt.adultOnly) KP.renderHome();
-          then && then();
+          if (opt.adultOnly) {
+            close();
+            then && then();
+            return;
+          }
+          // 어른: 오늘 계속 열기 / 30분만 열기
+          box.innerHTML = '<div class="gateTitle">' + KP.E("🔓") + " 얼마나 열까요?</div>";
+          const row = U.el("div", "gateChoice");
+          const bAll = U.btn(KP.E("☀️") + " 오늘 계속", "gateKid");
+          const b30 = U.btn(KP.E("⏰") + " 30분만", "gateKid");
+          row.append(b30, bAll);
+          box.appendChild(row);
+          const done = (min) => {
+            if (min) gate.unlockFor(min, "adult");
+            else gate.unlock();
+            close();
+            KP.renderHome();
+            then && then();
+          };
+          b30.addEventListener("click", () => done(30));
+          bAll.addEventListener("click", () => done(0));
         } else {
           U.replay(slots, "wrong");
           KP.audio.sfx("bad");
@@ -134,7 +157,30 @@
     });
     box.append(slots, keys);
     const st = KP.settings.get();
-    if (st.kidGate && !opt.adultOnly) {
+    // 아이에게: 별 모으기 안내
+    if (!opt.adultOnly && KP.earn && KP.earn.active()) {
+      const es = KP.earn.state();
+      const need = Math.max(0, st.earnStars - es.stars);
+      const go = U.btn(
+        KP.earn.capDone() ? KP.E("💤") + " 오늘은 문을 다 열었어요" : need ? KP.E("⭐") + " 별 " + need + "개 더 모으러 가기" : KP.E("🚪") + " 별을 다 모았어요! 문 열기",
+        "gateKid gateEarn"
+      );
+      go.addEventListener("click", () => {
+        KP.audio.sfx("open");
+        close();
+        if (KP.earn.capDone()) return KP.voice.say("오늘은 문을 다 열었어요. 내일 또 열어요!");
+        if (!need) return KP.earn.open();
+        KP.voice.say("공부 놀이에서 별을 모으면 문이 열려요!");
+        if (KP.current()) KP.home();
+        KP.settings.set({ lastCat: (KP.CATS.find((c) => !st.lockCats.includes(c.id)) || {}).id || st.lastCat });
+        KP.renderHome();
+      });
+      box.appendChild(go);
+    }
+    const quiz = KP.store.get("gate:quiz", {});
+    const quizLeft = quiz.d === todayKST() ? Math.max(0, st.kidQuizMax - (quiz.n || 0)) : st.kidQuizMax;
+    if (st.kidGate && !opt.adultOnly && quizLeft <= 0) box.appendChild(U.el("div", "gateSub", KP.E("🐻") + " 문지기 퀴즈는 오늘 다 했어요"));
+    if (st.kidGate && !opt.adultOnly && quizLeft > 0) {
       const kid = U.btn(KP.E("🐻") + " 형아: 문제 " + st.kidQ + "개 맞히고 열기", "gateKid");
       kid.addEventListener("click", () => {
         KP.audio.sfx("open");
@@ -235,7 +281,9 @@
             if (!pad) return;
             if (got >= need) {
               const min = KP.settings.get().kidMin;
-              gate.unlockFor(min);
+              const q0 = KP.store.get("gate:quiz", {});
+              KP.store.set("gate:quiz", { d: todayKST(), n: (q0.d === todayKST() ? q0.n || 0 : 0) + 1 });
+              gate.unlockFor(min, "quiz");
               KP.audio.sfx("sparkle");
               KP.confetti && KP.confetti(140);
               KP.voice.say("문이 열렸어요! " + min + "분 동안 놀 수 있어요!");
@@ -265,11 +313,68 @@
     KP.store.set("gate:until", 0);
     if (gate.unlocked()) return; // 어른이 날짜로 연 날은 그대로
     const c = KP.current();
-    KP.toast("⏰ 놀이 시간 끝! 공부하고 또 열어요");
-    KP.voice.say("놀이 시간이 끝났어요! 공부 놀이를 하고 또 열어요.");
-    if (c && gate.locked(c.def.cat)) setTimeout(() => KP.current() === c && KP.home(), 3500);
-    else if (!c) KP.renderHome();
-  }, 5000);
+    if (c && gate.locked(c.def.cat)) KP.lastRound(() => doorClosed());
+    else {
+      if (!c) KP.renderHome();
+      KP.toast("🚪 문이 닫혔어요");
+    }
+  }, 2000);
+  /** 문이 닫힘: 곰이 안내 + 큰 버튼 (공부 놀이로 / 한 번만 더) */
+  function doorClosed() {
+    if (KP.current()) KP.home();
+    const ov = U.el("div", "doorOv");
+    const earnOn = KP.earn && KP.earn.active();
+    ov.innerHTML = '<div class="doorBox"><div class="doorEm">' + KP.E("🐻") + KP.E("🚪") + '</div><div class="doorTxt">문이 닫혔어요<br><small>' + (earnOn ? "별을 모으면 또 열려요" : "공부 놀이를 하고 또 열어요") + "</small></div></div>";
+    const box = ov.firstChild;
+    const row = U.el("div", "doorBtns");
+    const bGo = U.btn(KP.E("📚") + (earnOn ? " 별 모으러 가기" : " 공부 놀이로"), "btn big primary");
+    row.appendChild(bGo);
+    if (KP.earn && KP.earn.canOneMore()) {
+      const bOne = U.btn(KP.E("☝️") + " 한 번만 더", "btn big");
+      bOne.addEventListener("click", () => {
+        if (!KP.earn.useOneMore()) return;
+        gate.unlockFor(2, "quiz");
+        KP.voice.say("딱 한 번만 더!");
+        ov.remove();
+        KP.renderHome();
+      });
+      row.appendChild(bOne);
+    }
+    box.appendChild(row);
+    bGo.addEventListener("click", () => {
+      KP.audio.sfx("open");
+      ov.remove();
+      const st = KP.settings.get();
+      KP.settings.set({ lastCat: (KP.CATS.find((c) => !st.lockCats.includes(c.id)) || {}).id || st.lastCat });
+      KP.renderHome();
+    });
+    document.body.appendChild(ov);
+    KP.audio.sfx("back");
+    KP.voice.say(earnOn ? "문이 닫혔어요. 별을 모으면 또 열려요!" : "놀이 시간이 끝났어요! 공부 놀이를 하고 또 열어요.");
+    KP.renderHome();
+  }
+
+  /* 마지막 판: 놀이 중이면 바로 끊지 않고, 이번 판이 끝날 때(성공 연출 뒤) 또는 최대 90초 뒤에 fn */
+  let lastFn = null,
+    lastT = 0;
+  KP.lastRound = function (fn) {
+    const c = KP.current();
+    if (!c) return fn();
+    if (lastFn) return; // 이미 기다리는 중
+    // 판(성공)이 있는 놀이만 판 끝까지 기다림. 자유 놀이(그리기·피아노 등)는 20초 뒤 마무리
+    const rounds = (KP.level.get(c.id).wins || 0) > 0;
+    KP.toast(rounds ? "⏳ 이번 판이 마지막이에요" : "⏳ 곧 문이 닫혀요");
+    if (rounds) KP.voice.say("이번 판이 마지막이에요!", { queue: true });
+    lastFn = fn;
+    lastT = setTimeout(KP.lastRoundNow, rounds ? 90000 : 20000);
+  };
+  KP.lastRoundNow = function () {
+    const f = lastFn;
+    lastFn = null;
+    clearTimeout(lastT);
+    if (f) f();
+  };
+  KP.lastRoundWaiting = () => !!lastFn;
 
   // 어떤 길로 놀이를 열든(홈 카드, 작품 '이어 그리기' 등) 잠금 확인
   const rawOpen = KP.open;
@@ -290,12 +395,25 @@
     mascot.setAttribute("aria-label", "곰돌이");
     brand.append(U.el("h1", "", "아이 놀이터"));
     const acts = U.el("div", "homeActs");
+    const bKey = U.btn("", "act keyBtn");
+    bKey.addEventListener("click", () => {
+      KP.audio.unlock();
+      const E = KP.earn;
+      if (gate.unlocked()) return KP.voice.say("문이 열려 있어요! 신나게 놀아요!");
+      if (E.capDone()) return KP.voice.say("오늘은 문을 다 열었어요. 내일 또 열어요!");
+      if (E.full()) return E.open();
+      KP.audio.sfx("tap");
+      const st = KP.settings.get();
+      KP.voice.say("공부 놀이에서 별을 모으면 문이 열려요!");
+      KP.settings.set({ lastCat: (KP.CATS.find((c) => !st.lockCats.includes(c.id)) || {}).id || st.lastCat });
+      KP.renderHome();
+    });
     const bSt = U.btn(KP.E("📒") + "<b>0</b>", "act stickerBtn");
     const bGal = U.btn(KP.E("🖼️"), "act galBtn");
     const bMusic = U.btn(KP.E("🎵"), "act musicBtn");
     const bFs = U.btn(KP.E("📺"), "act fsBtn");
     const bSet = U.btn(KP.E("⚙️"), "act setBtn");
-    acts.append(bSt, bGal, bMusic, bFs, bSet);
+    acts.append(bKey, bSt, bGal, bMusic, bFs, bSet);
     top.append(brand, acts);
 
     const tabs = U.el("nav", "tabs");
@@ -335,8 +453,8 @@
       bSet,
       2000,
       // 시간 제한이 켜져 있으면 아이가 끄지 못하게 날짜 확인을 한 번 더
-      () => (KP.timeLeft && KP.timeLeft().left !== Infinity ? KP.gate.adult(() => KP.openSettings()) : KP.openSettings()),
-      () => KP.toast("어른은 2초 동안 꾹 누르세요")
+      () => KP.gate.adult(() => KP.openSettings()), // 늘 오늘 날짜로 한 번 더 확인 (아이가 잠금을 끄지 못하게)
+      () => KP.toast("어른용 버튼이에요")
     );
 
     KP.CATS.forEach((c) => {
@@ -361,6 +479,16 @@
       tabs.appendChild(t);
     });
   };
+  /** 오늘의 도전: 날짜와 카테고리로 정해지는 하루 한 놀이 */
+  KP.heroOf = function (cat) {
+    const s = KP.settings.get();
+    const ids = KP.ORDER.filter((id) => KP.GAMES[id].cat === cat && !s.hidden[id]);
+    if (ids.length < 2) return null;
+    const key = today() + cat;
+    let hsh = 0;
+    for (let k = 0; k < key.length; k++) hsh = (hsh * 31 + key.charCodeAt(k)) >>> 0;
+    return ids[hsh % ids.length];
+  };
   KP.renderHome = function () {
     const s = KP.settings.get();
     let cat = KP.CATS.find((c) => c.id === s.lastCat) ? s.lastCat : KP.CATS[0].id;
@@ -377,12 +505,8 @@
     grid.innerHTML = "";
     const ids = KP.ORDER.filter((id) => KP.GAMES[id].cat === cat && !s.hidden[id]);
     // 오늘의 도전: 날짜와 카테고리로 정해지는 하루 한 놀이 (하루 동안은 그대로)
-    let hero = null;
-    if (ids.length > 1) {
-      const key = today() + cat;
-      let hsh = 0;
-      for (let k = 0; k < key.length; k++) hsh = (hsh * 31 + key.charCodeAt(k)) >>> 0;
-      hero = ids[hsh % ids.length];
+    const hero = KP.heroOf(cat);
+    if (hero && ids.includes(hero)) {
       ids.splice(ids.indexOf(hero), 1);
       ids.unshift(hero);
     }
@@ -412,6 +536,7 @@
       grid.appendChild(card);
     });
     U.$(".stickerBtn b", home).textContent = KP.stickers.count();
+    KP.earn && KP.earn.render();
     U.$(".musicBtn", home).classList.toggle("off", !s.bgm);
   };
   KP.homeEl = home;
@@ -433,8 +558,8 @@
   /* ---------------- 사용 시간 제한 ---------------- */
   // 기기 시간(한국 시간) 기준 날짜 — toISOString 은 UTC 라 아침 9시에 날짜가 바뀌는 문제가 있었음
   const today = () => {
-    const d = new Date();
-    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+    const t = todayKST(); // 잠금과 같은 한국 날짜 기준
+    return t.slice(0, 4) + "-" + t.slice(4, 6) + "-" + t.slice(6);
   };
   function usage() {
     const u = KP.store.get("usage", null);
@@ -480,9 +605,20 @@
   }
   KP.timeLeft = timeLeft;
 
-  let bed = null;
+  let bed = null,
+    bedWait = false;
   function showBedtime(why) {
-    if (bed) return;
+    if (bed || bedWait) return;
+    // 놀이 중이면 이번 판을 마치고
+    if (KP.current() && !KP.lastRoundWaiting()) {
+      bedWait = true;
+      return KP.lastRound(() => {
+        bedWait = false;
+        if (KP.current()) KP.home();
+        showBedtime(why);
+      });
+    }
+    if (KP.lastRoundWaiting()) return;
     KP.voice.stop();
     if (KP.current()) KP.home();
     const sess = why === "session";
@@ -492,6 +628,16 @@
       '<span class="zzz">Z z z</span></div><div class="bedTxt">' + (sess ? "놀이 시간 끝!<br>눈을 쉬고 또 놀아요" : "오늘은 여기까지!<br>내일 또 놀자") + "</div></div>";
     const unlock = U.btn(KP.E("🔒") + " 어른 확인", "bedUnlock");
     bed.appendChild(unlock);
+    // 아이: 하루 한 번만 "한 번만 더" (2분)
+    if (KP.earn && KP.earn.canOneMore()) {
+      const one = U.btn(KP.E("☝️") + " 한 번만 더", "bedUnlock bedOne");
+      one.addEventListener("click", () => {
+        if (!KP.earn.useOneMore()) return;
+        KP.voice.say("딱 한 번만 더!");
+        extend(2, true);
+      });
+      bed.appendChild(one);
+    }
     document.body.appendChild(bed);
     KP.audio.bgm.stop();
     KP.audio.melody(KP.audio.SONGS.twinkle.notes.slice(0, 14), { beat: 0.5, vol: 0.14 });
@@ -514,7 +660,7 @@
       });
     });
   }
-  function extend(min) {
+  function extend(min, quiet) {
     const u = usage(),
       lim = KP.settings.get().timer;
     if (min < 0) {
@@ -528,7 +674,7 @@
     warned = { 5: 0, 1: 0 };
     if (bed) bed.remove();
     bed = null;
-    KP.toast(min < 0 ? "오늘은 시간 제한 없이 놀아요" : min + "분 더 놀 수 있어요");
+    if (!quiet) KP.toast(min < 0 ? "오늘은 시간 제한 없이 놀아요" : min + "분 더 놀 수 있어요");
     if (KP.settings.get().bgm) KP.audio.bgm.start();
     tick();
   }
@@ -543,7 +689,8 @@
       return;
     }
     if (left <= 0) {
-      pill.classList.remove("show", "soon");
+      pill.classList.toggle("show", bedWait);
+      if (bedWait) pill.innerHTML = KP.E("⏳") + " 마지막 판";
       showBedtime(why);
       return;
     }
@@ -567,8 +714,12 @@
     }
     if (left > 310) warned = { 5: 0, 1: 0 };
   }
+  // 아무도 만지지 않고 2분이 지나면 하루 사용 시간을 세지 않음 (켜 두고 자리를 비운 경우)
+  let lastTouch = Date.now();
+  ["pointerdown", "keydown"].forEach((ev) => document.addEventListener(ev, () => (lastTouch = Date.now()), true));
   setInterval(() => {
-    if (document.hidden) return;
+    if (document.hidden || bed) return;
+    if (Date.now() - lastTouch > 120000) return;
     const u = usage();
     u.s += 5;
     KP.store.set("usage", u);

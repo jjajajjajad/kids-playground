@@ -1561,3 +1561,59 @@ img.e,
 .timePill.show { opacity: 1; transform: none; }
 .timePill.soon { background: #ffe0e0; color: #c62828; animation: pillPulse 1s ease-in-out infinite; }
 @keyframes pillPulse { 50% { transform: scale(1.08); } }
+
+/* ---------------- 열쇠 별 · 문 ---------------- */
+.act.keyBtn { background: #fff4c7; }
+.kStars { display: inline-flex; gap: 2px; align-items: center; }
+.kStars i {
+  width: 0.78em; height: 0.78em; border-radius: 50%;
+  background: rgba(47, 58, 102, 0.12); box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.08);
+  display: inline-flex; align-items: center; justify-content: center; font-style: normal;
+}
+.kStars i.on { background: none; box-shadow: none; }
+.kStars i img, .kStars i span { width: 0.9em; height: 0.9em; font-size: 0.9em; }
+.keyPill .kStars i { width: 0.7em; height: 0.7em; }
+.kBar {
+  display: inline-block; width: clamp(54px, 9vw, 96px); height: 0.55em; border-radius: 999px;
+  background: rgba(47, 58, 102, 0.15); overflow: hidden; vertical-align: middle;
+}
+.kBar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #ff8a65, #ffd54a 40%, #6fd27a); transition: width 1s linear; }
+.keyBtn.full, .keyPill.full { background: #ffe066; animation: keyGlow 1.2s ease-in-out infinite; }
+@keyframes keyGlow { 50% { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(255, 214, 0, 0.45), 0 5px 0 var(--deep); } }
+.keyBtn.done, .keyPill.done { opacity: 0.7; }
+.kZz { font-size: 0.7em; }
+.flyStar {
+  position: fixed; z-index: 120; width: 60px; height: 60px; font-size: 52px; line-height: 60px; text-align: center;
+  pointer-events: none; transition: transform 0.85s cubic-bezier(0.5, -0.3, 0.6, 1); filter: drop-shadow(0 4px 8px rgba(255, 190, 0, 0.6));
+}
+.flyStar img { width: 100%; height: 100%; }
+.gateChoice { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+.gateKid.gateEarn { background: #fff4c7; }
+.doorOv {
+  position: fixed; inset: 0; z-index: 95; display: flex; align-items: center; justify-content: center;
+  background: rgba(30, 36, 70, 0.55); animation: enter 0.4s;
+}
+.doorBox {
+  background: #fff; border-radius: 30px; padding: 26px 28px; text-align: center; max-width: min(520px, 92vw);
+  box-shadow: 0 10px 0 rgba(0, 0, 0, 0.15);
+}
+.doorEm { font-size: clamp(64px, 12vw, 110px); line-height: 1.1; }
+.doorTxt { font-size: clamp(26px, 4.4vw, 40px); color: var(--night); margin: 8px 0 16px; }
+.doorTxt small { font-size: 0.6em; color: #6a6f99; }
+.doorBtns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.bedOne { background: rgba(255, 224, 102, 0.35); }
+@media (max-width: 640px) {
+  .homeActs { flex-wrap: nowrap; gap: 6px; }
+  .act { font-size: 21px; padding: 4px 6px; min-width: 0; }
+  .act.keyBtn { flex: 2.4 1 0; gap: 3px; }
+  .act.keyBtn .kStars { gap: 1px; }
+  .act.keyBtn .kStars i { width: 0.55em; height: 0.55em; }
+  .act.keyBtn .kBar { width: 100%; min-width: 40px; }
+  .keyPill .kStars i { width: 0.55em; height: 0.55em; }
+  .keyPill .kBar { width: 44px; }
+}
+@media (orientation: portrait) and (max-width: 480px) {
+  /* 열쇠 칸이 들어갈 자리: 단계 점·단계 배지는 좁은 폰에서 숨김 */
+  .bar.hasKey .lvDots, .bar.hasKey .lvPill { display: none !important; }
+  .bar .keyPill { padding: 3px 7px; }
+}

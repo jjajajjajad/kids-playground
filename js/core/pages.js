@@ -336,6 +336,73 @@
       lChips.appendChild(b);
     });
     sLock.appendChild(lChips);
+    // 열쇠 별 모으기
+    const sEarn = sec(KP.E("🔑") + " 열쇠 별 모으기");
+    const eRow = U.el("label", "pRow", "<span>잠그지 않은 놀이(공부 놀이)에서 한 번에 맞히면 별 — 별을 다 모으면 아이가 문을 열어요</span>");
+    const ec = U.el("input");
+    ec.type = "checkbox";
+    ec.checked = s.earnOn;
+    ec.addEventListener("change", () => {
+      KP.settings.set({ earnOn: ec.checked });
+      KP.earn.render();
+    });
+    eRow.appendChild(ec);
+    sEarn.appendChild(eRow);
+    const eChips = (label, key, vals, fmt) => {
+      const row = U.el("div", "pChips");
+      row.appendChild(U.el("span", "pNote", label));
+      vals.forEach((v) => {
+        const c = U.btn(fmt(v), "chip" + (KP.settings.get()[key] === v ? " sel" : ""));
+        c.addEventListener("click", () => {
+          KP.settings.set({ [key]: v });
+          U.$$(".chip", row).forEach((x) => x.classList.remove("sel"));
+          c.classList.add("sel");
+          KP.earn.render();
+          drawEarn();
+        });
+        row.appendChild(c);
+      });
+      sEarn.appendChild(row);
+    };
+    eChips("필요한 별", "earnStars", [3, 5, 7], (v) => v + "개");
+    eChips("열리는 시간", "earnMin", [10, 15, 20], (v) => v + "분");
+    eChips("하루 최대", "earnCapMin", [30, 45, 60, 0], (v) => (v ? v + "분" : "제한 없음"));
+    eChips("같은 놀이 별", "earnPerGame", [2, 3, 5], (v) => "하루 " + v + "개");
+    const oRow = U.el("label", "pRow", "<span>끝날 때 '한 번만 더' 버튼 (하루 1번, 2분)</span>");
+    const oc = U.el("input");
+    oc.type = "checkbox";
+    oc.checked = s.oneMore;
+    oc.addEventListener("change", () => KP.settings.set({ oneMore: oc.checked }));
+    oRow.appendChild(oc);
+    sEarn.appendChild(oRow);
+    const eNote = U.el("p", "pNote");
+    const drawEarn = () => {
+      const es = KP.earn.state(),
+        c = KP.settings.get();
+      const per = Object.entries(es.per)
+        .map(([id, n]) => (KP.GAMES[id] ? KP.GAMES[id].name : id) + " " + n)
+        .join(", ");
+      eNote.textContent =
+        "오늘: 별 " + es.stars + "/" + c.earnStars + " · 별로 연 시간 " + es.used + "분" + (c.earnCapMin ? "/" + c.earnCapMin + "분" : "") + (per ? " · 놀이별 " + per : "") +
+        ". 틀렸다가 맞힌 문제, 6초 안에 연달아 맞힌 문제, 같은 놀이 상한을 넘긴 판은 별을 주지 않아요. 오늘의 도전 놀이는 별 2개.";
+    };
+    drawEarn();
+    sEarn.appendChild(eNote);
+    const eAct = U.el("div", "pChips");
+    const bGift = U.btn(KP.E("⭐") + " 별 하나 선물", "chip");
+    bGift.addEventListener("click", () => {
+      KP.earn.gift(1);
+      KP.toast("별 하나를 선물했어요");
+      drawEarn();
+    });
+    const b30 = U.btn(KP.E("⏰") + " 지금 30분 열기", "chip");
+    b30.addEventListener("click", () => {
+      KP.gate.unlockFor(30, "adult");
+      KP.toast("30분 동안 열었어요");
+      KP.earn.render();
+    });
+    eAct.append(bGift, b30);
+    sEarn.appendChild(eAct);
     // 아이용 문지기 퀴즈
     const kRow = U.el("label", "pRow", "<span>아이가 문제를 맞히면 잠시 열기 (문지기 퀴즈)</span>");
     const kc = U.el("input");
@@ -360,13 +427,14 @@
     };
     chipRow("맞힐 문제", "kidQ", [2, 3, 5], (v) => v + "개");
     chipRow("열리는 시간", "kidMin", [10, 20, 30], (v) => v + "분");
-    sLock.appendChild(U.el("p", "pNote", "문지기 퀴즈는 한글 자음·모음, 숫자(1~20), 알파벳을 소리로 묻고, 한 번에 맞힌 문제만 세요. 시간이 끝나면 다시 잠기고 놀던 놀이에서 홈으로 나와요."));
+    chipRow("하루 횟수", "kidQuizMax", [1, 2, 3], (v) => v + "번");
+    sLock.appendChild(U.el("p", "pNote", "문지기 퀴즈는 한글 자음·모음, 숫자(1~20), 알파벳을 소리로 묻고, 한 번에 맞힌 문제만 세요. 보기가 3개라 아무거나 눌러도 통과될 수 있어서 기본으로 꺼 두었어요(열쇠 별 모으기 권장). 시간이 끝나면 이번 판을 마치고 홈으로 나와요."));
     const bRelock = U.btn("지금 다시 잠그기", "chip");
     bRelock.addEventListener("click", () => {
       KP.gate.relock();
       KP.toast("다시 잠갔어요");
     });
-    sLock.appendChild(U.el("p", "pNote", "한 번 열면 앱을 껐다 켜거나 날짜가 바뀔 때까지 열려 있어요. 공부 놀이처럼 잠그지 않은 카테고리는 바로 들어갈 수 있어요."));
+    sLock.appendChild(U.el("p", "pNote", "어른이 날짜로 열 때 '30분만' 또는 '오늘 계속'을 고를 수 있어요. 공부 놀이처럼 잠그지 않은 카테고리는 바로 들어갈 수 있어요."));
     sLock.appendChild(bRelock);
 
     // 게임 보이기

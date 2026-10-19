@@ -81,6 +81,9 @@
     ctx._active = true;
     ctx._session = (ctx._session || 0) + 1; // 나갔다 다시 들어오면 이전 판의 후속 동작 무효
     ctx._idleAt = Date.now();
+    ctx._missed = false;
+    ctx._softMiss = 0;
+    KP.earn && setTimeout(() => KP.earn.render(), 0);
     const lv = KP.level.get(id);
     lv.plays++;
     KP.level.save(id, lv);
@@ -115,6 +118,8 @@
       }
     }
     current = null;
+    // '마지막 판'을 기다리던 중 놀이에서 나가면 바로 마무리 (다른 놀이에서 엉뚱하게 터지지 않게)
+    if (KP.lastRoundWaiting && KP.lastRoundWaiting()) setTimeout(() => KP.lastRoundNow(), 0);
   }
   KP.home = function () {
     leave();
@@ -143,8 +148,10 @@
     const lvBadge = U.el("div", "pill lvPill");
     const scorePill = U.el("div", "pill scorePill", KP.E(def.score || "⭐") + "<b>0</b>");
     const stPill = U.el("div", "pill stickerPill", KP.E("📒") + "<b>0</b>");
+    const keyPill = U.el("div", "pill keyPill"); // 열쇠 별 / 문 남은 시간
+    keyPill.style.display = "none";
     if (!def.score) scorePill.style.display = "none";
-    right.append(lvDots, lvBadge, scorePill, stPill);
+    right.append(lvDots, lvBadge, scorePill, keyPill, stPill);
     bar.append(homeBtn, title, right);
 
     const bubble = U.el("div", "bubble");
@@ -279,6 +286,12 @@
        * @returns Promise (연출이 끝나면 resolve)
        */
       win(o = {}) {
+        // 열쇠 별: 이번 문제를 한 번에 맞혔나 (틀린 적 있으면 별 없음)
+        // 가벼운 실수(soft)는 1번까지 봐줌 — 글자 타일을 아무거나 눌러 채우는 것 방지
+        const clean = !ctx._missed && (ctx._softMiss || 0) <= 1;
+        ctx._missed = false;
+        ctx._softMiss = 0;
+        KP.earn && KP.earn.onWin(ctx, clean);
         const lv = KP.level.get(def.id);
         lv.wins = (lv.wins || 0) + 1;
         lv.streak = (lv.streak || 0) + 1;
@@ -293,14 +306,25 @@
         ctx._updateLevel();
         ctx.hint(null);
         const sess = ctx._session;
-        return KP.celebrate(Object.assign({ levelUp: up, ctx }, o)).then(() => ctx._active && ctx._session === sess);
+        return KP.celebrate(Object.assign({ levelUp: up, ctx }, o)).then(() => {
+          // 시간이 끝나 '마지막 판'을 기다리는 중이면 지금 마무리
+          if (KP.lastRoundWaiting && KP.lastRoundWaiting()) {
+            setTimeout(() => KP.lastRoundNow(), 300);
+            return false;
+          }
+          return ctx._active && ctx._session === sess;
+        });
       },
       /** 틀렸을 때: 흔들기 + 부드러운 소리 + (선택) 안내 */
       miss(el, msg, o = {}) {
         if (el) U.replay(el, "wrong");
         KP.audio.sfx("bad");
         if (msg) KP.voice.say(msg);
-        if (o.soft) return; // 단계 계산에 넣지 않는 가벼운 실수
+        if (o.soft) {
+          ctx._softMiss = (ctx._softMiss || 0) + 1;
+          return; // 단계 계산에 넣지 않는 가벼운 실수
+        }
+        ctx._missed = true;
         const lv = KP.level.get(def.id);
         lv.miss = (lv.miss || 0) + 1;
         lv.streak = 0;
@@ -375,6 +399,7 @@
         stPill.querySelector("b").textContent = KP.stickers ? KP.stickers.count() : 0;
       },
       stickerPill: stPill,
+      keyPill,
     };
     homeBtn.addEventListener("click", () => {
       KP.home();

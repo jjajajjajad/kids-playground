@@ -723,6 +723,7 @@
         const it = ctx.it;
         const avg = ctx.cellStars.reduce((a, b) => a + b, 0) / ctx.cellStars.length;
         const stars = Math.max(1, Math.min(3, Math.round(avg)));
+        KP.earn && KP.earn.onNotebook(ctx, stars);
         const prev = ctx.stars[it.id] || 0;
         ctx.stars[it.id] = Math.max(prev, stars);
         KP.store.set(cfg.key, ctx.stars);
