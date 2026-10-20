@@ -585,7 +585,9 @@
       .zcCard.sel{border-color:#e5484d;background:#ffecec}
       .zcCard.sel::after{content:"✔";position:absolute;right:4px;top:2px;color:#e5484d;font-size:20px}
     `);
+    let zLoading = false;
     bZoo.addEventListener("click", async () => {
+      if (zLoading) return; // 불러오는 중 다시 누르면 무시
       if (zBox.childElementCount) return (zBox.innerHTML = ""); // 다시 누르면 닫기
       const sizeOf = (x) => {
         try {
@@ -596,7 +598,9 @@
       };
       const sel = new Set();
       const draw = async () => {
+        zLoading = true;
         const list = (await KP.db.all("art")).filter((x) => x && x.kind === "zoo").sort((a, b) => (a.t || 0) - (b.t || 0));
+        zLoading = false;
         const total = list.reduce((n, x) => n + sizeOf(x), 0);
         const rest = list.filter((x) => x.rest).length;
         zBox.innerHTML = "";
@@ -605,7 +609,11 @@
         );
         const grid = U.el("div", "zcGrid");
         list.forEach((x) => {
-          const c = U.btn((KP.zooThumb ? KP.zooThumb(x) : "") + "<span>" + (x.date || "") + (x.rest ? " 💤" : "") + (x.fav ? " 👑" : "") + "</span>", "zcCard" + (sel.has(x.id) ? " sel" : ""));
+          const c = U.btn(KP.zooThumb ? KP.zooThumb(x) : "", "zcCard" + (sel.has(x.id) ? " sel" : ""));
+          // 날짜는 글자로만 (백업 파일로 들어온 값이 화면 코드로 해석되지 않게)
+          const cap = document.createElement("span");
+          cap.textContent = String(x.date || "").slice(0, 12) + (x.rest ? " 💤" : "") + (x.fav ? " 👑" : "");
+          c.appendChild(cap);
           c.addEventListener("click", () => {
             sel.has(x.id) ? sel.delete(x.id) : sel.add(x.id);
             c.classList.toggle("sel", sel.has(x.id));

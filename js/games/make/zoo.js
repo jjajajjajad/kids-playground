@@ -1134,7 +1134,8 @@
         const on = list.filter((x) => !x.rest && (T[x.tid].move === "swim") === pond);
         let over = on.length - (pond ? KEEP.POND : KEEP.cap());
         if (over <= 0) continue;
-        const cand = on.filter((x) => !x.fav && x.id !== keep).sort((a, b) => KEEP.outAt(a) - KEEP.outAt(b));
+        // 단짝이 아닌 친구가 먼저, 단짝만으로도 넘치면 오래 논 단짝부터 (아이가 모두 👑 해도 상한은 지킴)
+        const cand = on.filter((x) => x.id !== keep).sort((a, b) => !!a.fav - !!b.fav || KEEP.outAt(a) - KEEP.outAt(b));
         for (const x of cand) {
           if (over <= 0) break;
           x.rest = true;
@@ -1289,8 +1290,9 @@
       W.appendChild(home);
       home.addEventListener("click", () => ctx.z3 && ctx.z3.resetView());
       bPaint.addEventListener("click", () => KP.open("zoopaint"));
-      bTreat.addEventListener("click", () => this.treats(ctx));
-      bCall.addEventListener("click", () => this.callAll(ctx));
+      const houseOpen = () => !!U.$(".zHouse", W);
+      bTreat.addEventListener("click", () => !houseOpen() && this.treats(ctx));
+      bCall.addEventListener("click", () => !houseOpen() && this.callAll(ctx));
       // 빈 땅을 누르면 그곳에 간식
       W.addEventListener("pointerdown", (e) => {
         if (W.classList.contains("mode3d") || e.target.closest(".zA,.zDel,.zEmpty,.btn,.zCount,.zHouse")) return;
@@ -1580,11 +1582,15 @@
     /* 🏠 동물 친구 집: 저장된 친구 모두(쉬는 친구 포함)
        카드 콕 → 나가 놀기 ↔ 집에서 쉬기 / 👑 → 단짝(자리가 꽉 차도 쉬러 가지 않음). 지우기는 부모 설정에서만 */
     async openHouse(ctx) {
-      U.$$(".zHouse,.zDel", ctx.W).forEach((e) => e.remove());
+      if (ctx.houseBusy || U.$(".zHouse", ctx.W)) return; // 연타해도 한 번만
+      U.$$(".zDel", ctx.W).forEach((e) => e.remove());
       ctx.hint(null);
-      const all = await KEEP.list();
-      if (!ctx._active) return;
-      ctx.allZoo = all;
+      const tok = ctx._tok;
+      // 동물원에 나와 있는 친구들과 같은 기록을 씀 (따로 불러오면 👑·쉬기가 서로 어긋남)
+      ctx.houseBusy = true;
+      const all = ctx.allZoo || (ctx.allZoo = await KEEP.list());
+      ctx.houseBusy = false;
+      if (!ctx._active || tok !== ctx._tok || U.$(".zHouse", ctx.W)) return;
       const EM = { dino: "🦖", lion: "🦁", elephant: "🐘", rabbit: "🐰", bear: "🐻", pig: "🐷", dog: "🐶", fish: "🐟", bird: "🐦", butterfly: "🦋", turtle: "🐢" };
       const box = U.el("div", "zHouse");
       const top = U.el("div", "zhTop", '<div class="zhTitle">' + KP.E("🏠") + " 동물 친구 집</div>");
@@ -1676,7 +1682,10 @@
       b.addEventListener("click", async () => {
         if (b.dataset.busy) return;
         b.dataset.busy = "1";
-        if ((await KEEP.setRest(a.item, true, ctx.allZoo || [])) === null) {
+        // 집 화면과 같은 기록으로 (👑 단짝 표시가 옛 기록으로 덮어써지지 않게)
+        const it = (ctx.allZoo || []).find((x) => x.id === a.item.id) || a.item;
+        a.item = it;
+        if ((await KEEP.setRest(it, true, ctx.allZoo || [])) === null) {
           b.remove();
           return KP.toast("저장하지 못했어요. 기기 저장공간을 확인해 주세요");
         }
@@ -1684,6 +1693,8 @@
         b.remove();
         this.drawCount(ctx);
         KP.voice.say("코 자자~");
+        // 마지막 친구까지 쉬러 가면 "집에서 데려오기" 화면으로
+        if (!(ctx.allZoo || []).some((x) => !x.rest)) ctx.after(900, () => this.start(ctx));
       });
       ctx.after(4000, () => b.remove());
     },
@@ -1984,6 +1995,12 @@
     },
     askDelete(ctx, a) {
       this.restButton(ctx, a, U.clamp(a.x - 80, 4, ctx.W.clientWidth - 180), Math.max(4, a.y - a.size * (a.s || 1) - 50), () => {
+        // 먹으러 가던 간식이 있으면 같이 치움 (안 치우면 화면에 영영 남음)
+        if (a.treat) {
+          a.treat.taken = true;
+          if (a.treat.el) a.treat.el.remove();
+          a.treat = null;
+        }
         a.el.style.transition = "opacity .5s";
         a.el.style.opacity = "0";
         ctx.animals = ctx.animals.filter((x) => x !== a);
