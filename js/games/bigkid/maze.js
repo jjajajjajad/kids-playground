@@ -2,7 +2,10 @@
    - 미로는 격자 기반 자동 생성(깊이 우선 탐색 → 막다른 길이 있는 완전 미로)
    - 1단계 3×3 / 2단계 4×5 / 3단계 6×7 (가로 화면이면 가로·세로를 바꿔 넓게)
    - 벽에 닿으면 더 못 가고 살짝 튕김(벌칙 없음), 지나온 길에 발자국
-   - 판마다 캐릭터와 목표가 바뀜, 한참 멈춰 있으면 갈 길이 반짝 */
+   - 판마다 캐릭터와 목표가 바뀜, 한참 멈춰 있으면 갈 길이 반짝
+   - 2·3단계 '술래 도전': 출발점에서 귀여운 친구가 같이 놀자며 쫓아옴(가장 짧은 길로 칸을 따라)
+     잡히면 꼭 안아 주고 술래는 출발점으로 돌아가 잠깐 쉼(아이는 그 자리에서 계속),
+     잡히면 술래가 조금 느려지고 쉽게 이기면 조금 빨라짐 */
 "use strict";
 KP.game({
   id: "maze",
@@ -18,10 +21,17 @@ KP.game({
       .mzBoard{background:linear-gradient(180deg,#a8e08f,#86cf6d)}
       .board .mzSpot{position:absolute;border-radius:50%;pointer-events:none;left:0;top:0}
     `);
+    KP.css("maze-chase", `
+      .mzChase{position:absolute;right:10px;top:10px;z-index:3;background:rgba(255,255,255,.9);border-radius:999px;padding:6px 14px;font-size:clamp(16px,2.2vw,20px);box-shadow:0 4px 0 rgba(0,0,0,.12)}
+      .mzChase.on{background:#ffd54a;animation:bump .4s}
+      .mzBoard.near{box-shadow:inset 0 0 0 6px rgba(255,120,80,.55)}
+    `);
     const board = U.el("div", "board mzBoard");
     const cv = U.el("canvas");
     const spot = U.el("div", "mzSpot");
-    board.append(cv, spot);
+    const bChase = U.btn("", "mzChase");
+    board.append(cv, spot, bChase);
+    ctx.bChase = bChase;
     ctx.body.appendChild(board);
     const cx = cv.getContext("2d");
 
@@ -37,7 +47,12 @@ KP.game({
       ["🦖", "공룡", "🥚", "알"],
       ["🐱", "고양이", "🥛", "우유"],
     ];
-    KP.loadE(ctx.PAIRS.flatMap((p) => [p[0], p[2]]).concat(["🐾", "✨", "🏠"]));
+    // 술래(같이 놀자며 쫓아오는 친구) — 짝마다
+    ctx.CHASERS = {
+      강아지: ["🐱", "아기 고양이"], 토끼: ["🦊", "아기 여우"], 생쥐: ["🐱", "아기 고양이"], 꿀벌: ["🐻", "아기 곰"], 원숭이: ["🐯", "아기 호랑이"],
+      펭귄: ["🦭", "아기 물개"], 곰: ["🐝", "꿀벌"], 다람쥐: ["🦉", "아기 부엉이"], 공룡: ["🐊", "아기 악어"], 고양이: ["🐶", "강아지"],
+    };
+    KP.loadE(ctx.PAIRS.flatMap((p) => [p[0], p[2]]).concat(["🐾", "✨", "🏠", "🏃", "❗", "💕"], Object.values(ctx.CHASERS).map((c) => c[0])));
 
     const N = 1, E = 2, S = 4, W_ = 8;
     const DIRS = [
@@ -324,6 +339,31 @@ KP.game({
       cx.fill();
       cx.restore();
       KP.drawE(cx, st.pair[2], px(g.x), py(g.y) + Math.sin(t * 3) * s * 0.03, s * 0.6 * gb);
+      // 술래
+      const ch = st.ch;
+      if (ch && ch.shown) {
+        const bob = ch.active ? Math.abs(Math.sin(t * 8)) * s * 0.06 : Math.sin(t * 2) * s * 0.02;
+        cx.fillStyle = "rgba(0,0,0,.13)";
+        cx.beginPath();
+        cx.ellipse(px(ch.x), py(ch.y) + s * 0.28, s * 0.24, s * 0.07, 0, 0, 7);
+        cx.fill();
+        if (ch.hug > 0) KP.drawE(cx, "💕", px(ch.x), py(ch.y) - s * 0.55, s * 0.4);
+        else if (ch.near && ch.active) KP.drawE(cx, "❗", px(ch.x) + s * 0.28, py(ch.y) - s * 0.42, s * 0.3);
+        cx.globalAlpha = ch.rest > 0 ? 0.6 : 1;
+        KP.drawE(cx, ch.e, px(ch.x), py(ch.y) - bob, s * 0.68);
+        cx.globalAlpha = 1;
+        if (ch.count > 0) {
+          cx.fillStyle = "#fff";
+          cx.strokeStyle = "rgba(47,58,102,.8)";
+          cx.lineWidth = s * 0.06;
+          cx.font = "bold " + Math.round(s * 0.5) + "px Jua, sans-serif";
+          cx.textAlign = "center";
+          cx.textBaseline = "middle";
+          const n = String(Math.ceil(ch.count));
+          cx.strokeText(n, px(ch.x), py(ch.y) - s * 0.62);
+          cx.fillText(n, px(ch.x), py(ch.y) - s * 0.62);
+        }
+      }
       // 캐릭터 (튕김 효과)
       let bx = 0,
         by = 0;
@@ -453,12 +493,119 @@ KP.game({
       await ctx.wait(900);
       if (!ctx._active) return;
       const big = ctx.round % 4 === 0;
-      const ok = await ctx.win({ big, msg: big ? "미로 대장 형아!" : "미로 탈출 성공!" });
+      const chase = st.ch && st.ch.active;
+      if (chase) ctx.chaseResult(true);
+      const ok = await ctx.win({ big, msg: chase ? "술래보다 먼저 도착!" : big ? "미로 대장 형아!" : "미로 탈출 성공!" });
       if (ok) ctx.def.next(ctx);
     };
 
+    /* ---------- 술래 ---------- */
+    const cellOf = (o) => Math.min(st.rows - 1, Math.max(0, Math.floor(o.y))) * st.cols + Math.min(st.cols - 1, Math.max(0, Math.floor(o.x)));
+    const center = (c) => ({ x: (c % st.cols) + 0.5, y: ((c / st.cols) | 0) + 0.5 });
+    let stepT = 0;
+    function chaseTick(dt) {
+      const ch = st.ch;
+      if (!ch || st.won) return;
+      if (ch.hug > 0) ch.hug -= dt;
+      if (ch.rest > 0) {
+        ch.rest -= dt;
+        if (ch.rest <= 0) {
+          ch.active = true;
+          ch.count = 0;
+        } else {
+          const n = Math.ceil(ch.rest);
+          if (ch.rest < 3.2) ch.count = ch.rest;
+          if (ch.lastN !== n && n <= 3) {
+            ch.lastN = n;
+            A.note(["G5", "E5", "C5"][3 - n] || "C5", { inst: "marimba", dur: 0.15, vol: 0.15 });
+          }
+        }
+        return;
+      }
+      if (!ch.active) {
+        // 아이가 한 칸 넘게 떠나면 셋 세고 출발
+        if (Math.hypot(st.p.x - ch.x, st.p.y - ch.y) > 1.1) {
+          ch.rest = 3.2;
+          ch.lastN = 0;
+          KP.voice.say("하나, 둘, 셋! " + U.josa(ch.name, "이/가") + " 잡으러 와요!");
+        }
+        return;
+      }
+      // 칸 가운데를 따라 가장 짧은 길로
+      const pc = cellOf(st.p),
+        cc = cellOf(ch);
+      let tx, ty;
+      if (pc === cc) {
+        tx = st.p.x;
+        ty = st.p.y;
+      } else {
+        const here = center(cc);
+        const off = Math.hypot(ch.x - here.x, ch.y - here.y);
+        const path = ctx.mzSolve(cc, pc);
+        const nx = path[1] !== undefined ? center(path[1]) : here;
+        // 칸 가운데를 지나서 꺾기 (벽을 가로지르지 않게)
+        const sameRow = Math.abs(nx.y - here.y) < 0.01;
+        const aligned = sameRow ? Math.abs(ch.y - here.y) < 0.02 : Math.abs(ch.x - here.x) < 0.02;
+        if (aligned || off < 0.02) {
+          tx = nx.x;
+          ty = nx.y;
+        } else {
+          tx = here.x;
+          ty = here.y;
+        }
+      }
+      const sp = ch.speed * dt;
+      const dx = tx - ch.x,
+        dy = ty - ch.y,
+        d = Math.hypot(dx, dy);
+      if (d > 0.0001) {
+        const k = Math.min(1, sp / d);
+        ch.x += dx * k;
+        ch.y += dy * k;
+      }
+      // 거리(길 따라 칸 수)로 가까움 판단 → 발소리·테두리
+      const dist = Math.hypot(st.p.x - ch.x, st.p.y - ch.y);
+      const steps = ctx.mzSolve(cc, pc).length - 1;
+      ch.near = steps <= 1;
+      board.classList.toggle("near", ch.near);
+      stepT -= dt;
+      if (stepT <= 0) {
+        stepT = 0.42;
+        const vol = Math.max(0.03, 0.22 - steps * 0.05);
+        A.note(ch.foot ? "C3" : "G2", { inst: "marimba", dur: 0.07, vol });
+        ch.foot = !ch.foot;
+      }
+      if (dist < 0.42 && performance.now() > ch.grace) caught();
+    }
+    function caught() {
+      const ch = st.ch;
+      ch.catches++;
+      ch.hug = 1.6;
+      ch.active = false;
+      ch.near = false;
+      board.classList.remove("near");
+      st.bump = 1;
+      st.bumpDir = { x: 0, y: 1 };
+      A.sfx("boing");
+      KP.voice.say(U.pick(["잡았다! 꼭 안아 줄게!", "잡았다! 간지럼 간지럼!", "잡았다! 다시 도망가 봐!"]));
+      ctx.chaseResult(false);
+      // 술래는 출발점으로 돌아가 잠깐 쉬었다가 다시 셋 세고 출발 (아이는 그 자리에서 계속)
+      ctx.after(1500, () => {
+        if (st.ch !== ch || st.won) return;
+        const c0 = center(ch.home);
+        ch.x = c0.x;
+        ch.y = c0.y;
+        ch.rest = 4.2;
+        ch.lastN = 0;
+        ch.grace = performance.now() + 6500;
+        ch.speed = ctx.chaseSpeed();
+      });
+    }
+    ctx.mzChaseTick = chaseTick;
+
     ctx.mzDraw = draw;
     ctx.mzTick = (dt, now) => {
+      chaseTick(dt);
       if (st.bump > 0) st.bump = Math.max(0, st.bump - dt * 4);
       // 오래 멈춰 있으면 갈 길을 반짝
       if (st.ready && !st.won && !st.dragging && now - st.lastMove > 10000 && !(st.glowUntil > now)) {
@@ -475,6 +622,35 @@ KP.game({
   },
   start(ctx) {
     ctx.round = 0;
+    const U = KP.u;
+    // 술래 속도 배율: 잡히면 느리게, 쉽게 이기면 조금 빠르게 (기기에 기억)
+    ctx.chaseK = +KP.store.get("maze:chaseK", 1) || 1;
+    ctx.chaseSpeed = () => [0, 0.85, 0.95, 1.15][ctx.level] * ctx.chaseK;
+    ctx.chaseResult = (won) => {
+      const ch = ctx.mz.ch;
+      if (won) ctx.chaseK = Math.min(1.6, ctx.chaseK * (ch && ch.catches ? 1.0 : 1.08));
+      else ctx.chaseK = Math.max(0.5, ctx.chaseK * 0.85);
+      KP.store.set("maze:chaseK", ctx.chaseK);
+    };
+    const paint = () => {
+      const on = KP.store.get("maze:chase", false);
+      ctx.bChase.innerHTML = KP.E("🏃") + (on ? " 술래잡기 중" : " 술래 도전");
+      ctx.bChase.classList.toggle("on", !!on);
+      ctx.bChase.style.display = ctx.level >= 2 ? "" : "none";
+    };
+    ctx.paintChase = paint;
+    if (!ctx.bChase._bound) {
+      ctx.bChase._bound = true;
+      ctx.bChase.addEventListener("click", () => {
+        KP.audio.unlock();
+        const on = !KP.store.get("maze:chase", false);
+        KP.store.set("maze:chase", on);
+        KP.audio.sfx(on ? "levelup" : "pop");
+        KP.voice.say(on ? "술래잡기 도전! 친구가 쫓아와요. 먼저 도착해요!" : "술래잡기 끝! 천천히 가요.");
+        this.next(ctx);
+      });
+    }
+    void U;
     ctx.pairIdx = KP.u.rand(ctx.PAIRS.length);
     this.next(ctx);
     ctx.loop((dt, now) => ctx.mzTick(dt, now));
@@ -511,10 +687,20 @@ KP.game({
     st.lastMove = performance.now();
     ctx.pairIdx = (ctx.pairIdx + 1) % ctx.PAIRS.length;
     st.pair = ctx.PAIRS[ctx.pairIdx];
+    // 술래
+    st.ch = null;
+    const chaseOn = KP.store.get("maze:chase", false) && ctx.level >= 2;
+    if (chaseOn) {
+      const cs = ctx.CHASERS[st.pair[1]] || ["🐶", "강아지"];
+      const home = sy * cols + sx;
+      st.ch = { e: cs[0], name: cs[1], x: sx + 0.5, y: sy + 0.5, home, shown: true, active: false, rest: 0, count: 0, hug: 0, near: false, catches: 0, grace: performance.now() + 4000, speed: ctx.chaseSpeed(), foot: false };
+    }
+    ctx.paintChase && ctx.paintChase();
     st.ready = true;
     ctx.mzLayout();
     const [, cn, , gn] = st.pair;
-    ctx.say(st.pair[0] + " " + U.josa(cn, "을/를") + " 끌어서 " + st.pair[2] + " " + gn + "까지 데려다 줘요!");
+    if (st.ch) ctx.say(st.ch.e + " " + U.josa(st.ch.name, "이/가") + " 쫓아와요! " + st.pair[0] + " " + U.josa(cn, "을/를") + " " + gn + "까지 먼저 데려가요!");
+    else ctx.say(st.pair[0] + " " + U.josa(cn, "을/를") + " 끌어서 " + st.pair[2] + " " + gn + "까지 데려다 줘요!");
     ctx.mzSetHint();
   },
 });

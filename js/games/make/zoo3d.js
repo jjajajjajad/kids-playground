@@ -99,19 +99,24 @@
   }
   /** 저장된 SVG → {part: [채우기...], legs: {1:채우기..}} */
   function readColors(svgStr) {
-    const out = { parts: {}, legs: {} };
+    const out = { parts: {}, legs: {}, gidx: {}, legIdx: {} };
     let doc;
     try {
       doc = new DOMParser().parseFromString(KP.sanitizeSvg(String(svgStr || "")), "image/svg+xml");
     } catch (e) {
       return out;
     }
-    doc.querySelectorAll("[data-p]").forEach((e) => {
+    // gi = 도안 안 부위 순서(색칠 공방에서 크레파스 그림을 저장할 때 쓰는 번호와 같음)
+    doc.querySelectorAll("[data-p]").forEach((e, gi) => {
       const p = e.getAttribute("data-p"),
         f = (e.getAttribute("fill") || "#ffffff").trim();
       (out.parts[p] = out.parts[p] || []).push(f);
+      (out.gidx[p] = out.gidx[p] || []).push(gi);
       const lg = e.parentNode && e.parentNode.getAttribute && /\bl(\d)\b/.exec(e.parentNode.getAttribute("class") || "");
-      if (lg) out.legs[lg[1]] = f;
+      if (lg) {
+        out.legs[lg[1]] = f;
+        out.legIdx[lg[1]] = gi;
+      }
     });
     return out;
   }
@@ -172,10 +177,82 @@
   }
 
   /* ---------------- 동물 모델 (모두 +x 쪽을 봄, 발바닥 y=0) ---------------- */
-  function Builder(colors) {
+  /* 크레파스 그림 → 3D 부위: 그 부위 색(또는 무늬) 위에 아이 그림을 겹친 그림판을 만들어
+     옆에서 비추듯(평면 투영) 입힘. 양쪽 옆면에 같은 그림이 들어감 */
+  function paintMat(gi, fill, pp, cache) {
+    const key = "pp" + gi;
+    if (cache.has(key)) return cache.get(key);
+    const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, normalMap: clayNormal(), normalScale: new THREE.Vector2(0.4, 0.4) });
+    m.userData.gi = gi;
+    m.userData.pp = pp;
+    const im = new Image();
+    im.onload = () => {
+      const c = document.createElement("canvas");
+      const sc = Math.min(1, 256 / Math.max(im.width, im.height)); // 3D 용은 작게 (기기 부담)
+      c.width = Math.max(8, Math.round(im.width * sc));
+      c.height = Math.max(8, Math.round(im.height * sc));
+      const g = c.getContext("2d");
+      const u = /^url\(#([\w-]+)\)$/.exec(fill);
+      if (u) {
+        const k = /-(rainbow|glitter|dots|stripes)(?:-([0-9a-f]{6}))?$/i.exec(u[1]);
+        const t = patternTex(k ? k[1] : "rainbow", k && k[2] ? "#" + k[2] : "#ffffff");
+        g.fillStyle = g.createPattern(t.image, "repeat");
+      } else g.fillStyle = /^#[0-9a-f]{3,8}$/i.test(fill) ? fill : "#ffffff";
+      g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(im, 0, 0, c.width, c.height);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 4;
+      m.map = tex;
+      m.needsUpdate = true;
+    };
+    im.src = pp.src;
+    cache.set(key, m);
+    return m;
+  }
+  /** 부위 모양(자기 좌표, 크기만 반영)을 옆에서 본 사각형에 맞춰 그림 좌표를 줌 */
+  function projectUV(mesh) {
+    const pp = mesh.material.userData.pp;
+    const g = mesh.geometry.clone();
+    const p = g.attributes.position;
+    const sx = mesh.scale.x,
+      sy = mesh.scale.y;
+    let x0 = Infinity,
+      x1 = -Infinity,
+      y0 = Infinity,
+      y1 = -Infinity;
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i) * sx,
+        y = p.getY(i) * sy;
+      x0 = Math.min(x0, x);
+      x1 = Math.max(x1, x);
+      y0 = Math.min(y0, y);
+      y1 = Math.max(y1, y);
+    }
+    // 그림판(pp)은 부위 크기 둘레로 3단위 여백이 있음
+    const PAD = 3,
+      bx = pp.x + PAD,
+      by = pp.y + PAD,
+      bw = Math.max(1, pp.w - PAD * 2),
+      bh = Math.max(1, pp.h - PAD * 2);
+    const uv = new Float32Array(p.count * 2);
+    for (let i = 0; i < p.count; i++) {
+      const u = (p.getX(i) * sx - x0) / (x1 - x0 || 1),
+        v = (p.getY(i) * sy - y0) / (y1 - y0 || 1); // v=1 위
+      const ex = bx + u * bw,
+        ey = by + (1 - v) * bh; // 도안은 y 가 아래로
+      uv[i * 2] = (ex - pp.x) / pp.w;
+      uv[i * 2 + 1] = 1 - (ey - pp.y) / pp.h;
+    }
+    g.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+    mesh.geometry = g;
+    mesh.userData.ownGeo = true;
+  }
+  function Builder(colors, paint) {
     const cache = new Map();
     const count = {};
     const meshes = [];
+    const painted = (gi) => paint && gi !== undefined && paint[gi];
     const B = {
       legs: [],
       parts: {},
@@ -183,6 +260,9 @@
         const list = colors.parts[part];
         const i = idx !== undefined ? idx : (count[part] = (count[part] || 0) + 1) - 1;
         const f = list && list.length ? list[i % list.length] : "#ffffff";
+        const gl = colors.gidx[part];
+        const gi = gl && gl.length ? gl[i % gl.length] : undefined;
+        if (painted(gi)) return paintMat(gi, f, paint[gi], cache);
         return fillToMat(f, cache);
       },
       add(parent, geo, mat, pos, scl, rot) {
@@ -190,6 +270,7 @@
         if (pos) m.position.set(pos[0], pos[1], pos[2]);
         if (scl) m.scale.set(scl[0], scl[1], scl[2]);
         if (rot) m.rotation.set(rot[0], rot[1], rot[2]);
+        if (mat && mat.userData && mat.userData.pp) projectUV(m);
         parent.add(m);
         meshes.push(m);
         return m;
@@ -206,7 +287,8 @@
         piv.position.set(x, hipY === undefined ? len : hipY, z);
         parent.add(piv);
         const f = colors.legs[n] || (colors.parts.leg || [])[0] || "#ffffff";
-        const m = B.add(piv, capsule(r, len), fillToMat(f, cache), [0, -len / 2 + r * 0.15, 0]);
+        const gi = colors.legIdx[n] !== undefined ? colors.legIdx[n] : (colors.gidx.leg || [])[0];
+        const m = B.add(piv, capsule(r, len), painted(gi) ? paintMat(gi, f, paint[gi], cache) : fillToMat(f, cache), [0, -len / 2 + r * 0.15, 0]);
         // 발바닥 살짝 납작하게
         m.scale.set(1, 1, 1);
         B.legs.push({ piv, ph: n === 1 || n === 4 ? 0 : Math.PI });
@@ -249,7 +331,7 @@
     }
     const parts = { lit: [], flat: [] };
     for (const m of [...group.children]) {
-      if (!m.isMesh || !m.material || m.material.map || m.material.transparent || m.material.visible === false) continue;
+      if (!m.isMesh || !m.material || m.material.map || m.material.userData.pp || m.material.transparent || m.material.visible === false) continue;
       m.updateMatrix();
       (m.material.isMeshBasicMaterial ? parts.flat : parts.lit).push({ geo: m.geometry, matrix: m.matrix.clone(), color: m.material.color });
       group.remove(m);
@@ -1225,7 +1307,16 @@
   W3.clear = function () {
     for (const a of this.animals) {
       this.scene.remove(a.root);
-      a.root.traverse((o) => o.isMesh && o.geometry && o.geometry.attributes.color && o.geometry.dispose());
+      a.root.traverse((o) => {
+        if (!o.isMesh) return;
+        if (o.geometry && (o.geometry.attributes.color || o.userData.ownGeo)) o.geometry.dispose();
+        const m = o.material;
+        if (m && m.userData && m.userData.pp && !m._gone) {
+          m._gone = true;
+          if (m.map) m.map.dispose();
+          m.dispose();
+        }
+      });
     }
     for (const t of this.treats) this.scene.remove(t.obj);
     this.animals = [];
@@ -1235,7 +1326,7 @@
   W3.addAnimal = function (item, isNew) {
     const t = this.T[item.tid];
     const colors = readColors(item.svg);
-    const B = Builder(colors);
+    const B = Builder(colors, KP.zooCleanPaint ? KP.zooCleanPaint(item.paint) : null);
     const root = new THREE.Group();
     const bob = new THREE.Group();
     root.add(bob);

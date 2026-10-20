@@ -250,6 +250,185 @@
   }
 
   /* =================================================================
+     직접 칠하기(붓) 공통
+     - 부위(.fb)마다 자기 좌표계의 그림판(캔버스)을 따로 둠 → 칠은 그 부위 안에만,
+       나중 부위가 앞 부위를 가리는 순서도 그대로, 동물원에서 다리가 움직여도 그림이 따라감
+     - 저장: item.paint = { 부위번호: {x,y,w,h,src(PNG data URL)} } (SVG 는 그대로 → 예전 그림과 호환)
+  ================================================================= */
+  const PK = 4; // 도안 1단위 = 4px
+  const NS = "http://www.w3.org/2000/svg";
+  /** 요소 자기 좌표계의 모양 (Path2D) */
+  function elPath(el) {
+    const t = el.tagName.toLowerCase(),
+      n = (a) => +el.getAttribute(a) || 0;
+    if (t === "path") return new Path2D(el.getAttribute("d") || "");
+    const p = new Path2D();
+    if (t === "ellipse") p.ellipse(n("cx"), n("cy"), n("rx"), n("ry"), 0, 0, Math.PI * 2);
+    else if (t === "circle") p.arc(n("cx"), n("cy"), n("r"), 0, Math.PI * 2);
+    else if (t === "rect") {
+      const r = Math.min(n("rx") || n("ry"), n("width") / 2, n("height") / 2);
+      if (p.roundRect) p.roundRect(n("x"), n("y"), n("width"), n("height"), r);
+      else p.rect(n("x"), n("y"), n("width"), n("height"));
+    } else if (t === "polygon") {
+      const v = String(el.getAttribute("points") || "").trim().split(/[\s,]+/).map(Number);
+      if (v.length >= 4) {
+        p.moveTo(v[0], v[1]);
+        for (let i = 2; i + 1 < v.length; i += 2) p.lineTo(v[i], v[i + 1]);
+        p.closePath();
+      }
+    }
+    return p;
+  }
+  /** 저장된 칠 자료 검사 (백업 파일 등 바깥에서 들어온 값 방어) */
+  function cleanPaint(pt) {
+    const out = {};
+    if (!pt || typeof pt !== "object") return out;
+    for (const [k, v] of Object.entries(pt)) {
+      if (!/^\d{1,3}$/.test(k) || !v || typeof v !== "object") continue;
+      if (typeof v.src !== "string" || !/^data:image\/(png|webp|jpeg);base64,[A-Za-z0-9+/=]+$/.test(v.src) || v.src.length > 2e6) continue;
+      const nums = ["x", "y", "w", "h"].map((q) => +v[q]);
+      if (!nums.every(Number.isFinite) || nums[2] <= 0 || nums[3] <= 0 || nums[2] > 400 || nums[3] > 400) continue;
+      out[k] = { x: nums[0], y: nums[1], w: nums[2], h: nums[3], src: v.src };
+    }
+    return out;
+  }
+  KP.zooCleanPaint = cleanPaint;
+  /** SVG 안 각 부위 바로 뒤에 그 부위의 그림을 끼워 넣음 (부위 모양으로 잘라서) */
+  function applyPaint(svg, paints, pre, only) {
+    if (!svg || !paints) return;
+    let defs = svg.querySelector("defs");
+    if (!defs) {
+      defs = document.createElementNS(NS, "defs");
+      svg.insertBefore(defs, svg.firstChild);
+    }
+    svg.querySelectorAll(".fb").forEach((el, i) => {
+      if (only !== undefined && only !== i) return;
+      // 예전에 끼운 것 지우기
+      while (el.nextElementSibling && /\bpp\b|\bppo\b/.test(el.nextElementSibling.getAttribute("class") || "")) el.nextElementSibling.remove();
+      const pp = paints[i];
+      if (!pp) return;
+      const id = pre + "-cp" + i;
+      let cp = defs.querySelector("#" + CSS.escape(id));
+      if (!cp) {
+        cp = document.createElementNS(NS, "clipPath");
+        cp.setAttribute("id", id);
+        defs.appendChild(cp);
+      }
+      cp.innerHTML = "";
+      const sh = el.cloneNode(false);
+      ["transform", "class", "data-p", "stroke", "stroke-width"].forEach((a) => sh.removeAttribute(a));
+      cp.appendChild(sh);
+      const im = document.createElementNS(NS, "image");
+      im.setAttribute("class", "pp");
+      im.setAttribute("x", pp.x);
+      im.setAttribute("y", pp.y);
+      im.setAttribute("width", pp.w);
+      im.setAttribute("height", pp.h);
+      im.setAttribute("preserveAspectRatio", "none");
+      im.setAttribute("href", pp.src);
+      im.setAttribute("clip-path", "url(#" + id + ")");
+      im.setAttribute("pointer-events", "none");
+      const tr = el.getAttribute("transform");
+      if (tr) im.setAttribute("transform", tr);
+      // 테두리는 그림 위에 다시 (칠이 선을 덮지 않게)
+      const ol = el.cloneNode(false);
+      ol.setAttribute("class", "ppo");
+      ol.removeAttribute("data-p");
+      ol.setAttribute("fill", "none");
+      ol.setAttribute("pointer-events", "none");
+      el.after(im, ol);
+    });
+  }
+  KP.zooApplyPaint = applyPaint;
+  /** 저장용: 화면에 끼워 넣은 칠(그림·잘라내기·테두리)을 뺀 원래 도안 */
+  function plainSvg(svg) {
+    const c = svg.cloneNode(true);
+    c.querySelectorAll(".pp,.ppo").forEach((e) => e.remove());
+    c.querySelectorAll("clipPath").forEach((e) => /-cp\d+$/.test(e.id) && e.remove());
+    return c.outerHTML;
+  }
+  function packPaint(pp) {
+    const o = {};
+    for (const [k, v] of Object.entries(pp || {})) if (v && v.src) o[k] = { x: v.x, y: v.y, w: v.w, h: v.h, src: v.src };
+    return o;
+  }
+  /** 붓 무늬 (무지개는 칠하면서 색이 바뀌고, 반짝이·물방울·줄무늬는 무늬 붓) */
+  const brushTiles = new Map();
+  function brushTile(kind, base) {
+    const key = kind + base;
+    if (brushTiles.has(key)) return brushTiles.get(key);
+    const c = document.createElement("canvas");
+    c.width = c.height = 40;
+    const g = c.getContext("2d");
+    if (kind === "glitter") {
+      g.fillStyle = "#ffd66b";
+      g.fillRect(0, 0, 40, 40);
+      [["#fff", 8, 8, 3], ["#ff8ad8", 26, 18, 2.5], ["#8ad1ff", 14, 30, 2.6], ["#fff", 32, 34, 2]].forEach(([col, x, y, r]) => {
+        g.fillStyle = col;
+        g.beginPath();
+        g.arc(x, y, r, 0, 7);
+        g.fill();
+      });
+    } else if (kind === "dots") {
+      g.fillStyle = base;
+      g.fillRect(0, 0, 40, 40);
+      g.fillStyle = "rgba(255,255,255,.88)";
+      [[10, 10], [30, 30]].forEach(([x, y]) => {
+        g.beginPath();
+        g.arc(x, y, 6, 0, 7);
+        g.fill();
+      });
+    } else {
+      g.fillStyle = base;
+      g.fillRect(0, 0, 40, 40);
+      g.strokeStyle = "rgba(255,255,255,.6)";
+      g.lineWidth = 8;
+      for (let k = -40; k < 80; k += 20) {
+        g.beginPath();
+        g.moveTo(k, 0);
+        g.lineTo(k + 40, 40);
+        g.stroke();
+      }
+    }
+    brushTiles.set(key, c);
+    return c;
+  }
+  /** 붓 한 획을 그리기 (점 목록, 요소 좌표) */
+  function drawStroke(g, pts, paint, width, from = 1) {
+    g.lineCap = "round";
+    g.lineJoin = "round";
+    g.lineWidth = width;
+    if (paint.kind === "rainbow") {
+      // 길이에 따라 색이 바뀌는 무지개 붓
+      let len = paint._len || 0;
+      for (let i = Math.max(1, from); i < pts.length; i++) {
+        const a = pts[i - 1],
+          b = pts[i];
+        len += Math.hypot(b.x - a.x, b.y - a.y);
+        g.strokeStyle = "hsl(" + ((len * 4) % 360) + ",90%,62%)";
+        g.beginPath();
+        g.moveTo(a.x, a.y);
+        g.lineTo(b.x, b.y);
+        g.stroke();
+      }
+      if (pts.length === 1) {
+        g.fillStyle = "hsl(0,90%,62%)";
+        g.beginPath();
+        g.arc(pts[0].x, pts[0].y, width / 2, 0, 7);
+        g.fill();
+      }
+      return len;
+    }
+    g.strokeStyle = paint.kind === "color" ? paint.color : g.createPattern(brushTile(paint.kind, paint.base || "#5cc6ff"), "repeat");
+    g.beginPath();
+    g.moveTo(pts[Math.max(0, from - 1)].x, pts[Math.max(0, from - 1)].y);
+    for (let i = from; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
+    if (pts.length === 1) g.lineTo(pts[0].x + 0.01, pts[0].y);
+    g.stroke();
+    return 0;
+  }
+
+  /* =================================================================
      색칠 공방
      ① 동물 고르기 화면(큰 카드) → ② 색칠 화면(그림판이 화면을 꽉 채움)
      - 태블릿 가로: 색은 왼쪽 세로줄, 버튼은 오른쪽 세로줄
@@ -293,6 +472,15 @@
         .zpB:active{transform:translateY(4px)}
         .zpB.send{background:var(--cat);color:#fff;box-shadow:0 6px 0 color-mix(in srgb,var(--cat) 60%,#000);min-width:110px}
         .zpSpark{position:absolute;pointer-events:none;font-size:30px;animation:zpSpark .6s forwards;z-index:2}
+        .zpLive{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+        .zpTools{flex:0 0 100%;display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap;grid-column:1/-1;margin-bottom:2px}
+        .zpTool{background:#fff;border-radius:16px;box-shadow:0 4px 0 rgba(47,58,102,.13);padding:4px 8px;display:flex;flex-direction:column;align-items:center;font-size:12px;line-height:1.1;min-width:52px}
+        .zpTool .e{font-size:26px}
+        .zpTool.sel{background:#ffe79a;box-shadow:0 0 0 3px var(--ink),0 4px 0 rgba(47,58,102,.13)}
+        .zpSize{width:40px;height:40px;border-radius:50%;background:#fff;box-shadow:0 3px 0 rgba(47,58,102,.13);display:flex;align-items:center;justify-content:center}
+        .zpSize i{display:block;border-radius:50%;background:var(--ink)}
+        .zpSize.sel{background:#ffe79a;box-shadow:0 0 0 3px var(--ink)}
+        .zpTools.noSize .zpSize{display:none}
         @keyframes zpSpark{to{transform:translateY(-34px) scale(.4);opacity:0}}
         /* 가로 화면(태블릿): 색은 왼쪽, 버튼은 오른쪽 세로줄 → 그림판이 높이를 다 씀 */
         @media (orientation:landscape) and (min-height:500px){
@@ -301,6 +489,8 @@
           .zpPal.mine3{grid-template-columns:repeat(3,auto)}
           .zpSep{grid-column:1/-1;height:3px}
           .zpSp{width:clamp(44px,5.2vh,58px);height:clamp(44px,5.2vh,58px);font-size:26px}
+          .zpTools{display:grid;grid-template-columns:repeat(3,auto);justify-content:center}
+          .zpTool{min-width:0;padding:4px 6px}
           .zpAct{flex-direction:column;flex-wrap:nowrap;justify-content:center}
           .zpB{min-width:96px;padding:8px 10px;font-size:15px}
           .zpB .e{font-size:34px}
@@ -309,6 +499,9 @@
         /* 폰처럼 좁은 세로 화면 */
         @media (max-width:500px){
           .zpSp{width:36px;height:36px;font-size:18px;border-width:3px}
+          .zpTool{min-width:44px;padding:3px 5px;font-size:11px}
+          .zpTool .e{font-size:22px}
+          .zpSize{width:34px;height:34px}
           .zpPal{gap:6px}
           .zpB{min-width:0;flex:1;padding:5px 4px;font-size:12.5px}
           .zpB .e{font-size:26px}
@@ -322,7 +515,8 @@
       const act = U.el("div", "zpAct");
       work.append(paper, pal, act);
       ctx.body.append(choose, work);
-      Object.assign(ctx, { choose, work, paper, pal, act, drafts: {}, undo: [] });
+      Object.assign(ctx, { choose, work, paper, pal, act, drafts: {}, undo: [], pp: {}, tool: "brush", size: 1 });
+      const SIZES = [4, 8, 14]; // 붓 굵기 (도안 단위)
 
       /* 색 + 특수 색 */
       ctx.paint = { kind: "color", color: COLORS[0] };
@@ -339,6 +533,28 @@
           ? KP.paint.mine().map((m) => ({ hex: m.hex.toLowerCase(), n: m.n })).filter((m) => !COLORS.includes(m.hex)).slice(0, 6)
           : [];
         pal.classList.toggle("mine3", mine.length > 2);
+        // 도구: 크레파스(직접 칠하기) · 붓기(부위 한 번에) · 지우개 + 굵기
+        const tools = U.el("div", "zpTools" + (ctx.tool === "fill" ? " noSize" : ""));
+        [["brush", "🖍️", "크레파스"], ["fill", "🪣", "붓기"], ["erase", "🧽", "지우개"]].forEach(([k, em, nm]) => {
+          const b = U.btn(KP.E(em) + "<span>" + nm + "</span>", "zpTool" + (ctx.tool === k ? " sel" : ""));
+          b.addEventListener("click", () => {
+            ctx.tool = k;
+            KP.audio.sfx("tap");
+            KP.voice.say(nm + "!");
+            ctx.renderPal();
+          });
+          tools.appendChild(b);
+        });
+        SIZES.forEach((w, k) => {
+          const b = U.btn('<i style="width:' + (6 + k * 7) + "px;height:" + (6 + k * 7) + 'px"></i>', "zpSize" + (ctx.size === k ? " sel" : ""));
+          b.addEventListener("click", () => {
+            ctx.size = k;
+            KP.audio.sfx("tap");
+            ctx.renderPal();
+          });
+          tools.appendChild(b);
+        });
+        pal.appendChild(tools);
         const cur = ctx.paint.kind === "color" ? ctx.paint.color : null;
         if (cur && !COLORS.includes(cur) && !mine.some((m) => m.hex === cur)) ctx.paint = { kind: "color", color: COLORS[0] };
         mine.forEach((m) => {
@@ -347,6 +563,10 @@
           b.addEventListener("click", () => {
             ctx.paint = { kind: "color", color: m.hex };
             sel(b);
+            if (ctx.tool === "erase") {
+              ctx.tool = "brush";
+              ctx.renderPal();
+            }
             KP.audio.sfx("tap");
             KP.voice.say("내가 만든 " + (m.n || "물감"));
           });
@@ -362,6 +582,10 @@
             ctx.paint = { kind: "color", color: c };
             sel(b);
             KP.audio.sfx("tap");
+            if (ctx.tool === "erase") {
+              ctx.tool = "brush";
+              ctx.renderPal();
+            }
           });
           pal.appendChild(b);
           sw.push(b);
@@ -373,6 +597,10 @@
             const base = ctx.paint.kind === "color" ? ctx.paint.color : ctx.paint.base || "#5cc6ff";
             ctx.paint = { kind: k, base: base === "#ffffff" ? "#5cc6ff" : base };
             sel(b);
+            if (ctx.tool === "erase") {
+              ctx.tool = "brush";
+              ctx.renderPal();
+            }
             KP.audio.sfx("sparkle");
             KP.voice.say(nm + "!");
           });
@@ -387,7 +615,7 @@
       const bBack = mk("🐾", "다른 동물");
       const bUndo = mk("↩️", "되돌리기");
       const bMagic = mk("🪄", "마법 색칠");
-      const bClear = mk("🧽", "처음부터");
+      const bClear = mk("🗑️", "처음부터");
       const bSend = mk("🦁", "동물원에 보내기", "send");
       act.append(bBack, bUndo, bMagic, bClear, bSend);
       ctx.bSend = bSend;
@@ -398,7 +626,16 @@
       bUndo.addEventListener("click", () => {
         const u = ctx.undo.pop();
         if (!u) return KP.audio.sfx("bad");
-        u.el.setAttribute("fill", u.prev);
+        const svg = paper.querySelector("svg");
+        const back = (e) => {
+          if (e.el) e.el.setAttribute("fill", e.prev);
+          if (e.i !== undefined) {
+            if (e.prevPaint) ctx.pp[e.i] = Object.assign({}, e.prevPaint, { cv: null });
+            else delete ctx.pp[e.i];
+            applyPaint(svg, ctx.pp, ctx.uid, e.i);
+          }
+        };
+        (u.many || [u]).forEach(back);
         KP.audio.sfx("slide");
       });
       bMagic.addEventListener("click", () => {
@@ -416,10 +653,15 @@
         this.checkDone(ctx);
       });
       bClear.addEventListener("click", () => {
-        paper.querySelectorAll(".fb").forEach((e) => {
-          ctx.undo.push({ el: e, prev: e.getAttribute("fill") });
+        const svg = paper.querySelector("svg");
+        const many = [];
+        paper.querySelectorAll(".fb").forEach((e, i) => {
+          many.push({ el: e, prev: e.getAttribute("fill"), i, prevPaint: ctx.pp[i] ? { x: ctx.pp[i].x, y: ctx.pp[i].y, w: ctx.pp[i].w, h: ctx.pp[i].h, src: ctx.pp[i].src } : null });
           e.setAttribute("fill", "#ffffff");
         });
+        ctx.undo.push({ many });
+        ctx.pp = {};
+        applyPaint(svg, ctx.pp, ctx.uid);
         ctx.toldDone = false;
         KP.audio.sfx("whoosh");
       });
@@ -443,13 +685,21 @@
         }
         return null;
       };
+      const idxOf = (t) => [...paper.querySelectorAll(".fb")].indexOf(t);
+      const ppCopy = (i) => (ctx.pp[i] ? { x: ctx.pp[i].x, y: ctx.pp[i].y, w: ctx.pp[i].w, h: ctx.pp[i].h, src: ctx.pp[i].src } : null);
       const fillPart = (t, x, y, quiet) => {
         const svg = paper.querySelector("svg");
         const fill = ctx.paint.kind === "color" ? ctx.paint.color : ensureDef(svg, ctx.uid, ctx.paint.kind, ctx.paint.base);
-        if (t.getAttribute("fill") === fill) return;
-        ctx.undo.push({ el: t, prev: t.getAttribute("fill") });
+        const i = idxOf(t);
+        if (t.getAttribute("fill") === fill && !ctx.pp[i]) return;
+        // 붓기는 그 부위 전체를 새로 칠함 (크레파스로 칠한 것도 덮음)
+        ctx.undo.push({ el: t, prev: t.getAttribute("fill"), i, prevPaint: ppCopy(i) });
         if (ctx.undo.length > 80) ctx.undo.shift();
         t.setAttribute("fill", fill);
+        if (ctx.pp[i]) {
+          delete ctx.pp[i];
+          applyPaint(svg, ctx.pp, ctx.uid, i);
+        }
         KP.audio.note(U.pick(KP.audio.SCALE.slice(4, 11)), { inst: "marimba", dur: 0.3, vol: quiet ? 0.12 : 0.22 });
         const r = paper.getBoundingClientRect();
         const sp = U.el("div", "zpSpark", KP.E(ctx.paint.kind === "color" ? "✨" : "🌟"));
@@ -459,27 +709,131 @@
         setTimeout(() => sp.remove(), 650);
         this.checkDone(ctx);
       };
-      let down = false;
+      /* 크레파스·지우개: 획을 시작한 부위 안에만 칠해짐 (선 밖으로 안 나감) */
+      let down = false,
+        stroke = null;
+      const live = () => {
+        let c = paper.querySelector(".zpLive");
+        if (!c) {
+          c = U.el("canvas", "zpLive");
+          paper.appendChild(c);
+        }
+        return c;
+      };
+      const toEl = (el, x, y) => new DOMPoint(x, y).matrixTransform(el.getScreenCTM().inverse());
+      const liveDraw = () => {
+        const c = live(),
+          r = paper.getBoundingClientRect(),
+          d = Math.min(devicePixelRatio || 1, 2);
+        if (c.width !== Math.round(r.width * d) || c.height !== Math.round(r.height * d)) {
+          c.width = Math.round(r.width * d);
+          c.height = Math.round(r.height * d);
+        }
+        const g = c.getContext("2d");
+        const M = stroke.el.getScreenCTM();
+        g.save();
+        g.setTransform(d * M.a, d * M.b, d * M.c, d * M.d, d * (M.e - r.left), d * (M.f - r.top));
+        g.clip(elPath(stroke.el));
+        const pt = stroke.erase ? { kind: "color", color: "rgba(255,255,255,.92)" } : stroke.paint;
+        if (pt.kind === "rainbow") pt._len = stroke.len;
+        const len = drawStroke(g, stroke.pts, pt, stroke.width, stroke.drawn);
+        if (pt.kind === "rainbow") stroke.len = len;
+        stroke.drawn = stroke.pts.length;
+        g.restore();
+      };
+      const loadCv = (pp) =>
+        new Promise((res) => {
+          pp.cv = document.createElement("canvas");
+          pp.cv.width = Math.max(1, Math.ceil(pp.w * PK));
+          pp.cv.height = Math.max(1, Math.ceil(pp.h * PK));
+          if (!pp.src) return res();
+          const im = new Image();
+          im.onload = () => {
+            pp.cv.getContext("2d").drawImage(im, 0, 0, pp.cv.width, pp.cv.height);
+            res();
+          };
+          im.onerror = () => res();
+          im.src = pp.src;
+        });
+      const commit = async (st) => {
+        const svg = paper.querySelector("svg");
+        if (!svg || !st.el.isConnected) return;
+        const i = st.i;
+        if (st.erase && !ctx.pp[i]) {
+          // 크레파스 칠이 없는 부위를 지우개로 문지른 경우: 지울 것 없음
+          const c = paper.querySelector(".zpLive");
+          if (c && !stroke) c.getContext("2d").clearRect(0, 0, c.width, c.height);
+          return;
+        }
+        const prevPaint = ppCopy(i);
+        let pp = ctx.pp[i];
+        if (!pp) {
+          const bb = st.el.getBBox(),
+            pad = 3;
+          pp = ctx.pp[i] = { x: +(bb.x - pad).toFixed(2), y: +(bb.y - pad).toFixed(2), w: +(bb.width + pad * 2).toFixed(2), h: +(bb.height + pad * 2).toFixed(2), src: "" };
+        }
+        if (!pp.cv) await loadCv(pp);
+        const g = pp.cv.getContext("2d");
+        g.save();
+        g.setTransform(PK, 0, 0, PK, -pp.x * PK, -pp.y * PK);
+        g.clip(elPath(st.el));
+        if (st.erase) g.globalCompositeOperation = "destination-out";
+        const pt = st.erase ? { kind: "color", color: "#000" } : Object.assign({}, st.paint, { _len: 0 });
+        drawStroke(g, st.pts, pt, st.width, 1);
+        g.restore();
+        pp.src = pp.cv.toDataURL("image/png");
+        ctx.undo.push({ i, prevPaint });
+        if (ctx.undo.length > 80) ctx.undo.shift();
+        applyPaint(svg, ctx.pp, ctx.uid, i);
+        const c = paper.querySelector(".zpLive");
+        if (c && !stroke) c.getContext("2d").clearRect(0, 0, c.width, c.height);
+        this.checkDone(ctx);
+      };
       paper.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         KP.audio.unlock();
         down = true;
         const t = partAt(e.clientX, e.clientY);
-        if (t) fillPart(t, e.clientX, e.clientY);
+        if (!t) return;
+        if (ctx.tool === "fill") return fillPart(t, e.clientX, e.clientY);
+        try {
+          paper.setPointerCapture(e.pointerId);
+        } catch (_) {}
+        const q = toEl(t, e.clientX, e.clientY);
+        stroke = { el: t, i: idxOf(t), pts: [{ x: q.x, y: q.y }], paint: Object.assign({}, ctx.paint), width: SIZES[ctx.size] * (ctx.tool === "erase" ? 1.6 : 1), erase: ctx.tool === "erase", drawn: 0, len: 0 };
+        liveDraw();
+        KP.audio.note(U.pick(KP.audio.SCALE.slice(4, 11)), { inst: "marimba", dur: 0.2, vol: 0.12 });
       });
-      // 쓱쓱 문질러 칠하기
       paper.addEventListener("pointermove", (e) => {
         if (!down) return;
-        const el = document.elementFromPoint(e.clientX, e.clientY);
-        const t = el && el.closest && el.closest(".fb");
-        if (t && paper.contains(t)) fillPart(t, e.clientX, e.clientY, true);
+        if (ctx.tool === "fill") {
+          // 쓱쓱 문질러 붓기
+          const el = document.elementFromPoint(e.clientX, e.clientY);
+          const t = el && el.closest && el.closest(".fb");
+          if (t && paper.contains(t)) fillPart(t, e.clientX, e.clientY, true);
+          return;
+        }
+        if (!stroke) return;
+        const q = toEl(stroke.el, e.clientX, e.clientY);
+        const l = stroke.pts[stroke.pts.length - 1];
+        if (Math.hypot(q.x - l.x, q.y - l.y) < 0.8) return;
+        stroke.pts.push({ x: q.x, y: q.y });
+        if (stroke.pts.length > 4000) stroke.pts.shift();
+        liveDraw();
       });
-      ["pointerup", "pointercancel", "pointerleave"].forEach((ev) => paper.addEventListener(ev, () => (down = false)));
+      const end = () => {
+        down = false;
+        if (!stroke) return;
+        const st = stroke;
+        stroke = null;
+        commit(st);
+      };
+      ["pointerup", "pointercancel"].forEach((ev) => paper.addEventListener(ev, end));
     },
     /* 칠하던 그림 보관 (기기 저장 → 앱을 껐다 켜도 남음) */
-    keepDraft(ctx, tid, svg, uid) {
-      ctx.drafts[tid] = { svg, uid };
-      KP.db.put("photos", { id: "zoodraft-" + tid, kind: "zoodraft", tid, svg, uid, t: Date.now() });
+    keepDraft(ctx, tid, svg, uid, paint) {
+      ctx.drafts[tid] = { svg, uid, paint: paint || {} };
+      KP.db.put("photos", { id: "zoodraft-" + tid, kind: "zoodraft", tid, svg, uid, paint: paint || {}, t: Date.now() });
     },
     dropDraft(ctx, tid) {
       if (!tid) return;
@@ -490,7 +844,8 @@
     keepCurrent(ctx) {
       const cur = ctx.paper.querySelector("svg");
       if (!cur || !ctx.tid || ctx.sending) return;
-      if ([...cur.querySelectorAll(".fb")].some((e) => !isWhite(e))) this.keepDraft(ctx, ctx.tid, cur.outerHTML, ctx.uid);
+      const paint = packPaint(ctx.pp);
+      if ([...cur.querySelectorAll(".fb")].some((e) => !isWhite(e)) || Object.keys(paint).length) this.keepDraft(ctx, ctx.tid, plainSvg(cur), ctx.uid, paint);
       else this.dropDraft(ctx, ctx.tid);
     },
     /* ① 동물 고르기 */
@@ -512,6 +867,7 @@
           this.load(ctx, tid);
         });
         ctx.choose.appendChild(c);
+        if (d && d.paint) applyPaint(c.querySelector("svg"), d.paint, "th" + tid);
         return c;
       });
       ctx.say("어떤 동물을 색칠할까요? 골라 보세요!");
@@ -520,6 +876,7 @@
     /* 칠하던 그림 임시 보관 */
     stash(ctx) {
       this.keepCurrent(ctx);
+      ctx.pp = {};
       ctx.paper.innerHTML = "";
       ctx.tid = null;
     },
@@ -530,9 +887,12 @@
       ctx.toldDone = false;
       ctx.paper.classList.remove("fly");
       const d = ctx.drafts[tid];
+      ctx.pp = {};
       if (d) {
         ctx.uid = d.uid;
         ctx.paper.innerHTML = d.svg;
+        for (const [k, v] of Object.entries(d.paint || {})) ctx.pp[k] = { x: v.x, y: v.y, w: v.w, h: v.h, src: v.src };
+        applyPaint(ctx.paper.querySelector("svg"), ctx.pp, ctx.uid);
       } else {
         ctx.uid = "z" + KP.newId();
         ctx.paper.innerHTML = makeSvg(tid, ctx.uid);
@@ -554,12 +914,12 @@
         } catch (e) {}
       });
       const nm = T[tid].name;
-      ctx.instr = U.josa(nm, "을/를") + " 색칠해요! 색을 고르고 콕콕 눌러요.";
+      ctx.instr = U.josa(nm, "을/를") + " 색칠해요! 색을 고르고 쓱쓱 칠해요.";
       KP.voice.say(ctx.instr);
       ctx.hint(() => ctx.paper.querySelector('.fb[fill="#ffffff"]') || ctx.bSend, "색을 고르고 그림을 콕 눌러 봐요!");
     },
     checkDone(ctx) {
-      const left = [...ctx.paper.querySelectorAll(".fb")].filter(isWhite).length;
+      const left = [...ctx.paper.querySelectorAll(".fb")].filter((e, i) => isWhite(e) && !ctx.pp[i]).length;
       if (left === 0 && !ctx.toldDone) {
         ctx.toldDone = true;
         KP.voice.say("우와, 다 칠했다! 동물원에 보내 볼까?");
@@ -570,7 +930,7 @@
     async send(ctx) {
       if (ctx.sending || !ctx.tid) return; // 두 번 눌러도 한 번만 저장
       const fbs = [...ctx.paper.querySelectorAll(".fb")];
-      if (!fbs.some((e) => !isWhite(e))) {
+      if (!fbs.some((e, i) => !isWhite(e) || ctx.pp[i])) {
         ctx.miss(ctx.bSend, "먼저 예쁘게 색칠해 봐요!", { soft: true });
         return;
       }
@@ -578,10 +938,10 @@
       // 동물원에서는 원래 도안 크기 기준으로 그림
       const vb = svg.getAttribute("viewBox");
       svg.setAttribute("viewBox", "0 0 200 170");
-      const html = svg.outerHTML;
+      const html = plainSvg(svg);
       svg.setAttribute("viewBox", vb);
       const d = new Date();
-      const item = { id: KP.newId(), kind: "zoo", tid: ctx.tid, uid: ctx.uid, svg: html, t: Date.now(), date: d.getMonth() + 1 + "월 " + d.getDate() + "일" };
+      const item = { id: KP.newId(), kind: "zoo", tid: ctx.tid, uid: ctx.uid, svg: html, paint: packPaint(ctx.pp), t: Date.now(), date: d.getMonth() + 1 + "월 " + d.getDate() + "일" };
       ctx.sending = true; // 보내는 동안은 나가도 '칠하던 그림'으로 보관하지 않음
       const tid = ctx.tid;
       const saved = await KP.db.put("art", item);
@@ -594,6 +954,7 @@
       this.dropDraft(ctx, tid);
       ctx.tid = null;
       ctx.undo = [];
+      ctx.pp = {};
       KP.zooNew = item.id;
       ctx.paper.classList.add("fly");
       KP.audio.sfx("whoosh");
@@ -610,7 +971,7 @@
         const list = (await KP.db.all("photos")).filter((x) => x.kind === "zoodraft" && T[x.tid]);
         list.forEach((x) => {
           const svg = KP.sanitizeSvg(String(x.svg || "").replace(/^<div[^>]*>|<\/div>$/g, ""));
-          if (svg) ctx.drafts[x.tid] = { svg, uid: String(x.uid || "") };
+          if (svg) ctx.drafts[x.tid] = { svg, uid: String(x.uid || ""), paint: cleanPaint(x.paint) };
         });
         if (!ctx._active) return;
       }
@@ -723,17 +1084,23 @@
   const propSvg = (k) => '<svg viewBox="0 0 100 120" aria-hidden="true">' + PROP[k]() + "</svg>";
 
   /** 저장된 SVG 에 렌더 전용 음영을 덧입힘 (아이 색·무늬 그대로, 저장본은 그대로) */
-  function shadeSvg(str) {
+  function shadeSvg(str, paint) {
     const box = document.createElement("div");
     box.innerHTML = str;
     const svg = box.firstElementChild;
     if (!svg) return str;
+    // 크레파스로 칠한 그림 끼워 넣기 (부위 모양으로 잘라서, 다리가 움직이면 같이 움직임)
+    const pt = cleanPaint(paint);
+    if (Object.keys(pt).length) applyPaint(svg, pt, "zp" + KP.newId());
     svg.querySelectorAll(".fb").forEach((e) => {
       const c = e.cloneNode(false);
       c.setAttribute("class", "zSh");
       c.removeAttribute("data-p");
       c.setAttribute("fill", e.closest(".l2,.l4") ? "url(#zShB)" : "url(#zShG)");
-      e.after(c);
+      // 칠 그림·테두리 뒤에 음영
+      let after = e;
+      while (after.nextElementSibling && /\bpp\b|\bppo\b/.test(after.nextElementSibling.getAttribute("class") || "")) after = after.nextElementSibling;
+      after.after(c);
     });
     return box.innerHTML;
   }
@@ -1130,7 +1497,7 @@
       const t = T[item.tid];
       const el = U.el("div", "zA");
       const ground = t.move === "walk" || t.move === "hop";
-      el.innerHTML = (ground ? '<div class="zShadow"></div>' : "") + '<div class="zLift"><div class="zIn"><div class="zBob">' + shadeSvg(freshSvg(item)) + "</div></div></div>";
+      el.innerHTML = (ground ? '<div class="zShadow"></div>' : "") + '<div class="zLift"><div class="zIn"><div class="zBob">' + shadeSvg(freshSvg(item), item.paint) + "</div></div></div>";
       W.appendChild(el);
       const a = { el, item, t, size: 0, s: 1, x: 0, y: 0, tx: 0, ty: 0, state: "idle", wait: Math.random() * 2, dir: 1, ph: Math.random() * 6, treat: null, lift: el.querySelector(".zLift"), shadow: el.querySelector(".zShadow"), z: -1, lv: -1 };
       this.sizeAnimal(ctx, a);
