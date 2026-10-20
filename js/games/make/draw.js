@@ -726,8 +726,8 @@ KP.game({
       bSave.dataset.busy = "1";
       const img = flatJpeg();
       const ok = await KP.db.put("art", { id: KP.newId(), kind: "draw", img, t: Date.now(), date: KP.gate.monthDay() });
-      flyAway(img, board);
       if (ok) {
+        flyAway(img, board); // 저장됐을 때만 '내 작품으로 날아가기' (실패해도 날아가서 저장된 줄 알던 것)
         unsaved = false;
         KP.toast("🖼️ 내 작품에 저장했어요!");
         A.sfx("sticker");

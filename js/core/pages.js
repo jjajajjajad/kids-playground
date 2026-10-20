@@ -560,11 +560,16 @@
     const bExp = U.btn(KP.E("💾") + " 백업 내보내기", "chip");
     const bImp = U.btn(KP.E("📂") + " 백업 불러오기", "chip");
     const bReset = U.btn(KP.E("🔄") + " 단계·스티커 초기화(꾹)", "chip danger");
-    bExp.addEventListener("click", () => KP.backup.export());
+    bExp.addEventListener("click", async () => {
+      if ((await KP.backup.export()) === false) KP.toast("작품을 읽지 못해 백업을 만들지 못했어요. 다시 해 주세요");
+    });
     bImp.addEventListener("click", async () => {
-      const ok = await KP.backup.import();
-      KP.toast(ok ? "백업을 불러왔어요" : "불러오지 못했어요");
-      if (ok) setTimeout(() => location.reload(), 900);
+      const r = await KP.backup.import();
+      if (r === null) return; // 취소
+      if (!r) return KP.toast("불러오지 못했어요 (아이 놀이터 백업 파일이 맞는지 확인해 주세요)");
+      // 일부를 저장하지 못했으면 그대로 알림 (예전엔 실패해도 '불러왔어요')
+      KP.toast(r.fail ? "불러왔지만 " + r.fail + "개는 저장하지 못했어요. 기기 저장공간을 확인해 주세요" : "백업을 불러왔어요");
+      setTimeout(() => location.reload(), r.fail ? 2500 : 900);
     });
     KP.hold(bReset, 2000, () => {
       KP.store.keys().filter((k) => k.startsWith("lv:") || k === "stickers" || k === "winCount").forEach((k) => KP.store.del(k));

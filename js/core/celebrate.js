@@ -193,7 +193,7 @@
     const praise = o.quiet ? null : KP.voice.say(raw.replace(/\p{Extended_Pictographic}|️/gu, ""));
     const base = o.big ? 2100 : 1350;
 
-    winCount++;
+    winCount = (+KP.store.get("winCount", 0) || 0) + 1; // 매번 저장소에서 (설정에서 초기화한 뒤 옛 값이 되살아나지 않게)
     KP.store.set("winCount", winCount);
     const giveSticker = o.sticker !== false && (o.levelUp || winCount % 3 === 0);
     // 스티커는 지금 바로 지급 (말이 끝나길 기다리는 사이 놀이를 나가도 받은 건 남게) — 보여 주기만 나중에

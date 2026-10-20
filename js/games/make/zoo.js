@@ -637,6 +637,7 @@
         };
         (u.many || [u]).forEach(back);
         KP.audio.sfx("slide");
+        if (ctx.saveSoon) ctx.saveSoon();
       });
       bMagic.addEventListener("click", () => {
         const svg = paper.querySelector("svg");
@@ -669,6 +670,7 @@
         applyPaint(svg, ctx.pp, ctx.uid);
         ctx.toldDone = false;
         KP.audio.sfx("whoosh");
+        if (ctx.saveSoon) ctx.saveSoon();
       });
       bSend.addEventListener("click", () => this.send(ctx));
 
@@ -746,8 +748,10 @@
         stroke.drawn = stroke.pts.length;
         g.restore();
       };
+      // 같은 부위를 빠르게 두 번 그으면, 그림을 다 불러오기 전에 두 번째 획을 그렸다가 덮여 사라지던 것 방지 → 불러오기를 함께 기다림
       const loadCv = (pp) =>
-        new Promise((res) => {
+        pp.loading ||
+        (pp.loading = new Promise((res) => {
           pp.cv = document.createElement("canvas");
           pp.cv.width = Math.max(1, Math.ceil(pp.w * PK));
           pp.cv.height = Math.max(1, Math.ceil(pp.h * PK));
@@ -759,7 +763,20 @@
           };
           im.onerror = () => res();
           im.src = pp.src;
-        });
+        }));
+      // 칠하는 중에 앱을 끄거나 다른 앱으로 가도 그림이 남게: 칠할 때마다 잠시 뒤 보관 + 화면을 떠나면 바로 보관
+      let saveT = 0;
+      const soon = () => {
+        clearTimeout(saveT);
+        saveT = setTimeout(() => ctx._active && this.keepCurrent(ctx), 1500);
+      };
+      ctx.saveSoon = soon;
+      const now = () => {
+        clearTimeout(saveT);
+        if (ctx._active) this.keepCurrent(ctx);
+      };
+      document.addEventListener("visibilitychange", () => document.hidden && now());
+      window.addEventListener("pagehide", now);
       const commit = async (st) => {
         const svg = paper.querySelector("svg");
         if (!svg || !st.el.isConnected) return;
@@ -777,7 +794,7 @@
             pad = 3;
           pp = ctx.pp[i] = { x: +(bb.x - pad).toFixed(2), y: +(bb.y - pad).toFixed(2), w: +(bb.width + pad * 2).toFixed(2), h: +(bb.height + pad * 2).toFixed(2), src: "" };
         }
-        if (!pp.cv) await loadCv(pp);
+        await loadCv(pp);
         const g = pp.cv.getContext("2d");
         g.save();
         g.setTransform(PK, 0, 0, PK, -pp.x * PK, -pp.y * PK);
@@ -926,6 +943,7 @@
       ctx.hint(() => ctx.paper.querySelector('.fb[fill="#ffffff"]') || ctx.bSend, "색을 고르고 그림을 콕 눌러 봐요!");
     },
     checkDone(ctx) {
+      if (ctx.saveSoon) ctx.saveSoon(); // 칠할 때마다 잠시 뒤 자동 보관
       const left = [...ctx.paper.querySelectorAll(".fb")].filter((e, i) => isWhite(e) && !ctx.pp[i]).length;
       if (left === 0 && !ctx.toldDone) {
         ctx.toldDone = true;

@@ -290,6 +290,7 @@
     return out;
   }
   V._natUrls = natUrls; // 점검용
+  V._cacheSizes = () => ({ bufs: bufs.size, loading: loading.size }); // 점검용: 풀어 둔 소리·받는 중 개수
   /** 앞뒤 빈 소리 잘라내기(조각을 이어 붙일 때 덜 끊기게) — 앞뒤 0.03초만 남김 */
   function trim(c, b) {
     try {
@@ -370,6 +371,7 @@
       return b;
     })();
     loading.set(url, p);
+    p.then(() => loading.delete(url), () => {}); // 다 받은 것도 지움 (안 지우면 bufs 60개 제한을 넘어 소리가 계속 메모리에 남음)
     p.catch((e) => {
       loading.delete(url);
       failed.add(url);

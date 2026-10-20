@@ -120,10 +120,13 @@
     get: (s, id) => tx(s, "readonly", (os) => os.get(id)).catch(() => null),
     del: (s, id) => tx(s, "readwrite", (os) => os.delete(id)).catch(() => false),
     /** 전체 목록 (등록 순) */
-    all: (s) =>
+    all: (s, strict) =>
       tx(s, "readonly", (os) => os.getAll())
         .then((a) => (a || []).sort((x, y) => (x.t || 0) - (y.t || 0)))
-        .catch(() => []),
+        .catch((e) => {
+          if (strict) throw e; // 백업처럼 '못 읽음'과 '비어 있음'을 구분해야 할 때
+          return [];
+        }),
     clear: (s) => tx(s, "readwrite", (os) => os.clear()).catch(() => false),
   };
   /** 그림 주소가 안전한 이미지 dataURL 인지 (아니면 빈 문자열) */
@@ -200,7 +203,12 @@
     async export() {
       const data = { app: "kids-playground", v: 1, at: new Date().toISOString(), local: {}, db: {} };
       store.keys().forEach((k) => (data.local[k] = store.get(k)));
-      for (const s of STORES) data.db[s] = await KP.db.all(s);
+      // 작품·사진을 못 읽으면 빈 백업을 만들지 않고 실패로 알림 (빈 목록과 구분)
+      try {
+        for (const s of STORES) data.db[s] = await KP.db.all(s, true);
+      } catch (e) {
+        return false;
+      }
       const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
       const a = document.createElement("a");
       const stamp = KP.gate ? KP.gate.today() : new Date().toISOString().slice(0, 10).replace(/-/g, ""); // 한국 날짜
@@ -210,10 +218,10 @@
         const file = new File([blob], name, { type: "application/json" });
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({ files: [file], title: "아이 놀이터 백업" });
-          return;
+          return true;
         }
       } catch (e) {
-        if (e && e.name === "AbortError") return; // 사용자가 취소
+        if (e && e.name === "AbortError") return null; // 사용자가 취소
       }
       a.href = URL.createObjectURL(blob);
       a.download = name;
@@ -223,7 +231,9 @@
         URL.revokeObjectURL(a.href);
         a.remove();
       }, 60000);
+      return true;
     },
+    /** 백업 불러오기 → false(못 불러옴) / null(취소) / {fail: 저장 못 한 개수} */
     import() {
       return new Promise((res) => {
         const inp = document.createElement("input");
@@ -231,19 +241,35 @@
         inp.accept = "application/json,.json";
         inp.style.display = "none";
         document.body.appendChild(inp);
+        // 파일 고르기를 취소하면 끝냄 (안 그러면 기다림이 영영 안 끝남)
+        let fin = false;
+        const cancel = () => {
+          if (fin) return;
+          fin = true;
+          inp.remove();
+          res(null);
+        };
+        inp.addEventListener("cancel", cancel);
+        setTimeout(() => window.addEventListener("focus", () => setTimeout(() => {
+          if (!fin && !(inp.files && inp.files.length)) cancel();
+        }, 1500), { once: true }), 300);
         inp.addEventListener("change", () => {
+          if (fin) return;
+          fin = true;
           const f = inp.files && inp.files[0];
           inp.remove();
-          if (!f) return res(false);
+          if (!f) return res(null);
           const rd = new FileReader();
           rd.onload = async () => {
             try {
               const data = JSON.parse(rd.result);
               if (!data || data.app !== "kids-playground") return res(false);
               // 받아들일 값만 골라서 넣기 (조작된 파일 방어)
-              const okKey = (k) => /^(settings|stickers|lastSticker|winCount|usage|lastGame)$/.test(k) || /^lv:[a-z0-9]+$/.test(k) || /^[a-z0-9]+:[\w:-]{1,40}$/.test(k);
+              // earn(열쇠 별)·mypaints(만든 물감)·colordex(색 도감)도 (예전엔 빠졌음)
+              const okKey = (k) => /^(settings|stickers|lastSticker|winCount|usage|lastGame|earn|mypaints|colordex)$/.test(k) || /^lv:[a-z0-9]+$/.test(k) || /^[a-z0-9]+:[\w:-]{1,40}$/.test(k);
+              let fail = 0;
               Object.entries(data.local && typeof data.local === "object" ? data.local : {}).forEach(([k, v]) => {
-                if (okKey(k) && v !== null && JSON.stringify(v).length < 200000) store.set(k, v);
+                if (okKey(k) && v !== null && JSON.stringify(v).length < 200000 && store.set(k, v) === false) fail++;
               });
               for (const s of STORES) {
                 const list = data.db && Array.isArray(data.db[s]) ? data.db[s] : [];
@@ -257,10 +283,11 @@
                     clean.svg = KP.sanitizeSvg ? KP.sanitizeSvg(clean.svg) : "";
                     if (!clean.svg) continue;
                   }
-                  await KP.db.put(s, clean);
+                  if ("paint" in clean) clean.paint = KP.zooCleanPaint ? KP.zooCleanPaint(clean.paint) : {}; // 동물원 크레파스 그림도 검사
+                  if ((await KP.db.put(s, clean)) === false) fail++;
                 }
               }
-              res(true);
+              res({ fail });
             } catch (e) {
               res(false);
             }
