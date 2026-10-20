@@ -52,6 +52,58 @@
   if ("serviceWorker" in navigator && location.protocol === "https:") {
     addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
   }
+  /* 업데이트 알림 (처음 설치 때는 안 띄움 — 이미 서비스 워커가 화면을 맡고 있을 때만)
+     받는 동안: 아래 작은 알림 "새 버전 받는 중 37%" (바뀐 파일이 있을 때만)
+     다 받으면: '새 버전이 준비됐어요' 창 — 놀이 도중에 다시 시작하면 하던 놀이가 끊기므로 홈에 있을 때만. 안 눌러도 다음에 켤 때 적용 */
+  if ("serviceWorker" in navigator) {
+    let pill = null,
+      ready = false,
+      got = { fetched: 0, bytes: 0 };
+    const mb = (b) => (b >= 1048576 ? (b / 1048576).toFixed(1) + "MB" : Math.max(1, Math.round(b / 1024)) + "KB");
+    const dropPill = () => {
+      if (pill) pill.remove();
+      pill = null;
+    };
+    const offer = () => {
+      if (!ready || KP.current() || U.$(".updOv")) return; // 놀이 중이면 홈으로 돌아올 때
+      ready = false;
+      const ov = U.el("div", "updOv", '<div class="updBox"><div class="updEm">' + KP.E("✨") + '</div><div class="updTxt">새 버전이 준비됐어요!</div><div class="updSub">' + (got.fetched ? "파일 " + got.fetched + "개 (" + mb(got.bytes) + ")를 받았어요.<br>" : "") + '지금 적용하면 앱이 잠깐 다시 시작해요</div></div>');
+      const row = U.el("div", "updBtns");
+      const bNow = U.btn(KP.E("🔄") + " 지금 적용", "btn big primary");
+      const bLater = U.btn("나중에", "btn");
+      bNow.addEventListener("click", () => location.reload());
+      bLater.addEventListener("click", () => ov.remove()); // 다음에 켤 때 적용됨
+      row.append(bNow, bLater);
+      ov.firstChild.appendChild(row);
+      document.body.appendChild(ov);
+    };
+    navigator.serviceWorker.addEventListener("message", (e) => {
+      const m = e.data || {};
+      if (m.kp !== "update" || !navigator.serviceWorker.controller) return;
+      if (m.phase === "progress" && m.changed > 0 && m.total) {
+        if (!pill) {
+          pill = U.el("div", "updPill");
+          document.body.appendChild(pill);
+        }
+        // 받은 양(인터넷에서 내려받은 파일 수·크기) · 설치 진행률(전체 파일 중 확인을 마친 비율)
+        pill.innerHTML = KP.E("⬇️") + " 새 버전 받는 중 · 받은 파일 " + (m.fetched || 0) + "개 (" + mb(m.bytes || 0) + ") · 설치 " + Math.min(99, Math.round((m.done / m.total) * 100)) + "%";
+      } else if (m.phase === "ready") {
+        dropPill();
+        if (m.changed > 0) {
+          got = { fetched: m.fetched || 0, bytes: m.bytes || 0 };
+          ready = true;
+          offer();
+        }
+      } else if (m.phase === "fail") dropPill();
+    });
+    // 놀이에서 홈으로 돌아오면 그때 '준비됐어요' 창
+    const goHome = KP.home;
+    KP.home = function () {
+      const r = goHome.apply(this, arguments);
+      setTimeout(offer, 600);
+      return r;
+    };
+  }
   // iPad/iPhone 의 Safari 탭으로 쓰는 중이면 '홈 화면에 추가' 한 번 안내 (기록 보존을 위해)
   const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   if (iOS && !U.isApp() && !KP.store.get("a2hsTold", false)) {

@@ -220,11 +220,17 @@ async function need(c, old, url, hash, migrate) {
   }
   const r = await fetch(req(url));
   if (!r.ok) throw new Error(url + " " + r.status);
+  r.kpNet = (await r.clone().arrayBuffer()).byteLength; // 인터넷에서 받은 크기(바이트) — 알림용
   return r;
+}
+// 화면에 진행 상황 알리기 (화면 쪽 app.js 가 '받는 중' 알림·'새 버전 준비' 창을 띄움)
+async function tell(m) {
+  for (const cl of await self.clients.matchAll({ includeUncontrolled: true, type: "window" })) cl.postMessage(Object.assign({ kp: "update" }, m));
 }
 self.addEventListener("install", (e) => {
   e.waitUntil(
     (async () => {
+     try {
       const c = await caches.open(CACHE);
       const old = await getMan(c, MANIFEST);
       const migrate = !Object.keys(old).length;
@@ -236,15 +242,32 @@ self.addEventListener("install", (e) => {
         return [f, r];
       }));
       const core = Object.entries(CORE);
+      const extra = Object.entries(EXTRA);
+      const total = core.length + extra.length;
+      let done = 0,
+        changed = 0,
+        fetched = 0,
+        bytes = 0;
+      const count = (r) => {
+        if (r && r.kpNet !== undefined) {
+          fetched++;
+          bytes += r.kpNet;
+        }
+      };
       const got = [];
       for (let i = 0; i < core.length; i += 8) {
         const rs = await Promise.all(core.slice(i, i + 8).map(([u, h]) => need(c, old, u, h, false)));
-        rs.forEach((r, k) => r && got.push([core[i + k][0], r]));
+        rs.forEach((r, k) => {
+          if (r) got.push([core[i + k][0], r]);
+          count(r);
+        });
+        done += rs.length;
+        changed = got.length;
+        await tell({ phase: "progress", done, total, changed, fetched, bytes });
       }
       for (const [u, r] of got) await c.put(u, r);
       for (const [f, r] of page) await c.put(f, r);
       // 2) 그림·폰트 (실패해도 계속). 바뀐 파일을 못 받으면 옛 것을 지워 쓸 때 새로 받게
-      const extra = Object.entries(EXTRA);
       const man = Object.assign({}, CORE);
       for (let i = 0; i < extra.length; i += 8) {
         const part = extra.slice(i, i + 8);
@@ -252,16 +275,27 @@ self.addEventListener("install", (e) => {
         for (let k = 0; k < part.length; k++) {
           const [u, h] = part[k];
           if (rs[k].status === "fulfilled") {
-            if (rs[k].value) await c.put(u, rs[k].value);
+            if (rs[k].value) {
+              count(rs[k].value);
+              await c.put(u, rs[k].value);
+              changed++;
+            }
             man[u] = h;
           } else if (old[u] && old[u] !== h) await c.delete(u);
         }
+        done += part.length;
+        await tell({ phase: "progress", done, total, changed, fetched, bytes });
       }
       await c.put(PREV, jres(old));
       await c.put(MANIFEST, jres(man));
       // 옛 방식 저장소(kids-playground-버전)는 새 방식으로 한 번 바뀐 다음 업데이트 때 지움 (열려 있던 옛 화면 보호)
       if (!migrate) for (const k of await caches.keys()) if (k.startsWith("kids-playground-")) await caches.delete(k);
       await self.skipWaiting();
+      await tell({ phase: "ready", changed, fetched, bytes, version: VERSION });
+     } catch (err) {
+      await tell({ phase: "fail" });
+      throw err; // 설치 실패 → 옛 버전 그대로
+     }
     })()
   );
 });

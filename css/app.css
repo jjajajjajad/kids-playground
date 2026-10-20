@@ -885,6 +885,58 @@ img.e,
 }
 
 /* ---------------- 토스트 ---------------- */
+/* 업데이트 알림 */
+.updPill {
+  position: fixed;
+  left: calc(12px + var(--safe-l));
+  bottom: calc(12px + var(--safe-b));
+  z-index: 96;
+  background: rgba(30, 36, 80, 0.85);
+  color: #fff;
+  font-size: 15px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.updOv {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  background: rgba(20, 24, 60, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.updBox {
+  background: #fff;
+  border-radius: 28px;
+  padding: 22px 26px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 10px 0 rgba(0, 0, 0, 0.18);
+}
+.updEm {
+  font-size: 56px;
+  line-height: 1;
+}
+.updTxt {
+  font-size: 26px;
+  color: var(--ink);
+  margin-top: 6px;
+}
+.updSub {
+  font-size: 16px;
+  color: #6b7398;
+  margin: 6px 0 14px;
+}
+.updBtns {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
 .toast {
   position: fixed;
   left: 50%;
