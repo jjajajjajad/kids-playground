@@ -196,6 +196,8 @@
     winCount++;
     KP.store.set("winCount", winCount);
     const giveSticker = o.sticker !== false && (o.levelUp || winCount % 3 === 0);
+    // 스티커는 지금 바로 지급 (말이 끝나길 기다리는 사이 놀이를 나가도 받은 건 남게) — 보여 주기만 나중에
+    const stk = giveSticker ? stickers.award() : null;
 
     // 각 장면(칭찬 → 단계 올라감 → 스티커)은 '정해진 시간'과 '앞 말이 끝남'을 둘 다 기다린 뒤 넘어감
     // (전에는 시간만 기다려서, 이름이 붙어 길어진 칭찬이 다음 문제 안내에 잘렸음)
@@ -221,7 +223,7 @@
           layer.classList.remove("show");
           await wait(150);
         }
-        if (giveSticker) showSticker(o.ctx, () => finish());
+        if (stk) showSticker(o.ctx, () => finish(), stk);
         else finish();
       })();
       function finish() {
@@ -235,8 +237,8 @@
     });
   };
 
-  function showSticker(ctx, done) {
-    const [e, name] = stickers.award();
+  function showSticker(ctx, done, stk) {
+    const [e, name] = stk;
     layer.innerHTML =
       '<div class="cBox sticker"><div class="rays"></div><div class="cEm cStk">' + KP.E(e) +
       '</div><div class="cTxt">스티커 받았어요!</div><div class="cSub">' + name + "</div></div>";

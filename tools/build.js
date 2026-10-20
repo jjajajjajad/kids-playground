@@ -194,43 +194,73 @@ const ALWAYS = ["./", "index.html"]; // 화면은 늘 새로
 const req = (f) => new Request(f, { cache: "reload" });
 const abs = (f) => new URL(f, self.registration.scope).href;
 const KNOWN = new Set([...ALWAYS, ...Object.keys(CORE), ...Object.keys(EXTRA)].map(abs));
-async function getOld(c) {
+async function getMan(c, key) {
   try {
-    const r = await c.match(MANIFEST);
+    const r = await c.match(key);
     return r ? await r.json() : {};
   } catch (e) {
     return {};
   }
 }
-// 한 파일: 지문이 같고 저장본이 있으면 그대로, 아니면 받기. 처음 이 방식으로 바뀔 때는 옛 버전 저장소의 그림·폰트를 옮겨 씀
-async function fetchOne(c, old, url, hash, migrate) {
-  if (old[url] === hash && (await c.match(url))) return;
-  if (migrate && !old[url]) {
+const PREV = "__kp_manifest_prev__"; // 직전 버전 목록 — 열려 있는 옛 화면이 쓰던 파일을 한 버전 동안 남겨 둠
+const jres = (o) => new Response(JSON.stringify(o), { headers: { "Content-Type": "application/json" } });
+// 받은 내용의 지문(build.js 와 같은 sha1 앞 8자리)
+async function hashOf(r) {
+  const d = await crypto.subtle.digest("SHA-1", await r.clone().arrayBuffer());
+  return [...new Uint8Array(d)].map((x) => x.toString(16).padStart(2, "0")).join("").slice(0, 8);
+}
+// 이미 가진 것이면 null, 아니면 저장할 응답 (아직 저장하지 않음 — 다 받은 뒤 한꺼번에)
+async function need(c, old, url, hash, migrate) {
+  const hit = await c.match(url);
+  if (hit && (url.endsWith("?v=" + hash) || old[url] === hash)) return null; // 주소에 지문이 있거나 지난번 지문과 같음
+  if (migrate) {
+    // 처음 이 방식으로 바뀔 때: 옛 저장소의 그림·폰트를 내용이 같을 때만 옮겨 씀
     const prev = await caches.match(url);
-    if (prev) return c.put(url, prev);
+    if (prev && (await hashOf(prev)) === hash) return prev;
   }
   const r = await fetch(req(url));
   if (!r.ok) throw new Error(url + " " + r.status);
-  await c.put(url, r);
+  return r;
 }
 self.addEventListener("install", (e) => {
   e.waitUntil(
     (async () => {
       const c = await caches.open(CACHE);
-      const old = await getOld(c);
+      const old = await getMan(c, MANIFEST);
       const migrate = !Object.keys(old).length;
-      // 화면 + 꼭 필요한 파일 (실패하면 설치 실패)
-      await Promise.all(ALWAYS.map((f) => fetch(req(f)).then((r) => { if (!r.ok) throw new Error(f); return c.put(f, r); })));
+      // 1) 화면 + 꼭 필요한 파일: 전부 받은 것을 확인한 뒤에만 저장 (중간에 실패하면 아무것도 안 바꿈 → 옛 버전 그대로)
+      const page = await Promise.all(ALWAYS.map(async (f) => {
+        const r = await fetch(req(f));
+        const t = r.ok ? await r.clone().text() : "";
+        if (!t.includes("kp:" + VERSION)) throw new Error(f + " 이 버전 화면이 아님"); // 와이파이 로그인 화면·옛 화면 방지
+        return [f, r];
+      }));
       const core = Object.entries(CORE);
-      for (let i = 0; i < core.length; i += 8) await Promise.all(core.slice(i, i + 8).map(([u, h]) => fetchOne(c, old, u, h, false)));
-      // 그림·폰트 (실패해도 계속) — 받은 것만 목록에 남김
-      const extra = Object.entries(EXTRA);
-      const got = {};
-      for (let i = 0; i < extra.length; i += 8) {
-        const rs = await Promise.allSettled(extra.slice(i, i + 8).map(([u, h]) => fetchOne(c, old, u, h, migrate)));
-        rs.forEach((r, k) => { if (r.status === "fulfilled") got[extra[i + k][0]] = extra[i + k][1]; });
+      const got = [];
+      for (let i = 0; i < core.length; i += 8) {
+        const rs = await Promise.all(core.slice(i, i + 8).map(([u, h]) => need(c, old, u, h, false)));
+        rs.forEach((r, k) => r && got.push([core[i + k][0], r]));
       }
-      await c.put(MANIFEST, new Response(JSON.stringify(Object.assign({}, CORE, got)), { headers: { "Content-Type": "application/json" } }));
+      for (const [u, r] of got) await c.put(u, r);
+      for (const [f, r] of page) await c.put(f, r);
+      // 2) 그림·폰트 (실패해도 계속). 바뀐 파일을 못 받으면 옛 것을 지워 쓸 때 새로 받게
+      const extra = Object.entries(EXTRA);
+      const man = Object.assign({}, CORE);
+      for (let i = 0; i < extra.length; i += 8) {
+        const part = extra.slice(i, i + 8);
+        const rs = await Promise.allSettled(part.map(([u, h]) => need(c, old, u, h, migrate)));
+        for (let k = 0; k < part.length; k++) {
+          const [u, h] = part[k];
+          if (rs[k].status === "fulfilled") {
+            if (rs[k].value) await c.put(u, rs[k].value);
+            man[u] = h;
+          } else if (old[u] && old[u] !== h) await c.delete(u);
+        }
+      }
+      await c.put(PREV, jres(old));
+      await c.put(MANIFEST, jres(man));
+      // 옛 방식 저장소(kids-playground-버전)는 새 방식으로 한 번 바뀐 다음 업데이트 때 지움 (열려 있던 옛 화면 보호)
+      if (!migrate) for (const k of await caches.keys()) if (k.startsWith("kids-playground-")) await caches.delete(k);
       await self.skipWaiting();
     })()
   );
@@ -238,11 +268,12 @@ self.addEventListener("install", (e) => {
 self.addEventListener("activate", (e) => {
   e.waitUntil(
     (async () => {
-      // 옛 방식 저장소(kids-playground-버전)·옛 음성 저장소 지우기
-      for (const k of await caches.keys()) if (k !== CACHE && k !== VOICE_CACHE) await caches.delete(k);
-      // 이번 목록에 없는 파일 지우기 (지난 버전의 코드 등)
+      // 옛 음성 저장소 지우기
+      for (const k of await caches.keys()) if (k !== CACHE && k !== VOICE_CACHE && !k.startsWith("kids-playground-")) await caches.delete(k);
+      // 이번 목록과 직전 버전 목록 어디에도 없는 파일만 지움
       const c = await caches.open(CACHE);
-      for (const r of await c.keys()) if (!KNOWN.has(r.url) && r.url !== abs(MANIFEST)) await c.delete(r);
+      const keep = new Set([...KNOWN, ...Object.keys(await getMan(c, PREV)).map(abs), abs(MANIFEST), abs(PREV)]);
+      for (const r of await c.keys()) if (!keep.has(r.url)) await c.delete(r);
       await self.clients.claim();
     })()
   );
@@ -266,7 +297,7 @@ self.addEventListener("fetch", (e) => {
     e.respondWith(new Promise((resolve) => {
       let sent = false;
       const give = (r) => { if (!sent && r) { sent = true; resolve(r); } };
-      const fromCache = () => caches.match("index.html");
+      const fromCache = () => caches.open(CACHE).then((c) => c.match("index.html")).then((r) => r || caches.match("index.html")); // 지금 저장소의 화면 먼저
       // 저장본이 없으면(첫 방문) 인터넷을 계속 기다림
       const t = setTimeout(() => fromCache().then(give), 3000);
       net.then((r) => { clearTimeout(t); give(r); }, () => { clearTimeout(t); fromCache().then((c) => give(c || Response.error())); });
