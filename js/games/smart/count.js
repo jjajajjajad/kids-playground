@@ -63,11 +63,11 @@ KP.game({
     }
 
     // 보기
+    // 정답 근처 수 중에서 보기 고르기 (정답 10처럼 근처 수가 모자라면 아래로 넓혀 채움 — 무한 반복 방지)
     const opts = new Set([answer]);
-    while (opts.size < nChoice) {
-      const v = U.clamp(answer + U.pick([-2, -1, 1, 2, 3]), 1, Math.max(hi, 5));
-      opts.add(v);
-    }
+    const near = U.shuffle([-2, -1, 1, 2, 3].map((d) => answer + d).filter((v) => v >= 1 && v <= Math.max(hi, 5)));
+    for (const v of near) if (opts.size < nChoice) opts.add(v);
+    for (let v = answer - 3; opts.size < nChoice && v >= 1; v--) opts.add(v);
     ctx.ans.innerHTML = "";
     const btns = U.shuffle([...opts]).map((n, i) => {
       const b = U.el("button", "choice num", String(n));

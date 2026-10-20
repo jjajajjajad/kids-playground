@@ -335,8 +335,7 @@ KP.game({
         KP.toast("사진을 만들지 못했어요");
         return;
       }
-      const d = new Date();
-      const ok = await KP.db.put("art", { id: KP.newId(), kind: "face", img, t: Date.now(), date: d.getMonth() + 1 + "월 " + d.getDate() + "일" });
+      const ok = await KP.db.put("art", { id: KP.newId(), kind: "face", img, t: Date.now(), date: KP.gate.monthDay() });
       flyAway(img, faceBox);
       if (ok) {
         unsaved = false;

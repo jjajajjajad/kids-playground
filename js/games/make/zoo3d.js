@@ -35,7 +35,12 @@
       return loading;
     },
     create(ctx, host, T) {
-      return (this._last = new World(ctx, host, T));
+      try {
+        return (this._last = new World(ctx, host, T));
+      } catch (e) {
+        this.ok = false; // WebGL 을 아예 못 만들면 그때만 3D 끄기
+        throw e;
+      }
     },
   };
 
@@ -574,10 +579,10 @@
     r.shadowMap.type = THREE.PCFSoftShadowMap;
     r.domElement.className = "z3Canvas";
     host.appendChild(r.domElement);
+    // 화면이 잠깐 끊겨도(백그라운드 등) 3D 는 계속 지원 — 다음에 동물원을 열 때 새로 만듦 (zoo.js)
     r.domElement.addEventListener("webglcontextlost", (e) => {
       e.preventDefault();
       this.lost = true;
-      KP.zoo3d.ok = false;
     });
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(42, 1.5, 0.5, 200);
@@ -593,9 +598,19 @@
     this.applyQ(this.q);
     this.bindInput();
     this.resize();
-    if (window.ResizeObserver) new ResizeObserver(() => this.resize()).observe(host);
+    if (window.ResizeObserver) (this.ro = new ResizeObserver(() => this.resize())).observe(host);
   }
   const W3 = World.prototype;
+
+  /** 다 쓴 세계 정리 (화면이 끊겨 새로 만들 때) */
+  W3.dispose = function () {
+    if (this.dead) return;
+    this.dead = this.lost = true;
+    if (this.ro) this.ro.disconnect();
+    this.clear();
+    this.renderer.dispose();
+    this.renderer.domElement.remove();
+  };
 
   W3.skyTex = function (top, bottom) {
     const c = document.createElement("canvas");
@@ -1304,20 +1319,22 @@
   };
 
   /* ---------- 동물 ---------- */
+  /** 동물 하나의 자기 것(합친 모양·그림 재질)만 정리 — 함께 쓰는 모양·재질은 그대로 둠 */
+  W3.freeAnimal = function (a) {
+    this.scene.remove(a.root);
+    a.root.traverse((o) => {
+      if (!o.isMesh) return;
+      if (o.geometry && (o.geometry.attributes.color || o.userData.ownGeo)) o.geometry.dispose();
+      const m = o.material;
+      if (m && m.userData && m.userData.pp && !m._gone) {
+        m._gone = true;
+        if (m.map) m.map.dispose();
+        m.dispose();
+      }
+    });
+  };
   W3.clear = function () {
-    for (const a of this.animals) {
-      this.scene.remove(a.root);
-      a.root.traverse((o) => {
-        if (!o.isMesh) return;
-        if (o.geometry && (o.geometry.attributes.color || o.userData.ownGeo)) o.geometry.dispose();
-        const m = o.material;
-        if (m && m.userData && m.userData.pp && !m._gone) {
-          m._gone = true;
-          if (m.map) m.map.dispose();
-          m.dispose();
-        }
-      });
-    }
+    for (const a of this.animals) this.freeAnimal(a);
     for (const t of this.treats) this.scene.remove(t.obj);
     this.animals = [];
     this.treats = [];
@@ -1590,28 +1607,35 @@
   };
 
   /* ---------- 간식 ---------- */
+  // 간식 재질은 색마다 하나만 만들어 같이 씀 (모양은 G·capsule 캐시 공유) → 치울 때 dispose 안 함
+  const treatMats = new Map();
+  function treatMat(color, roughness) {
+    const k = color + roughness;
+    if (!treatMats.has(k)) treatMats.set(k, new THREE.MeshStandardMaterial({ color, roughness }));
+    return treatMats.get(k);
+  }
   W3.makeTreat = function () {
     const g = new THREE.Group();
     const kind = U.pick(["apple", "carrot", "corn", "apple"]);
     if (kind === "apple") {
-      g.add(new THREE.Mesh(G.sph, new THREE.MeshStandardMaterial({ color: "#ff4d5e", roughness: 0.35 })));
+      g.add(new THREE.Mesh(G.sph, treatMat("#ff4d5e", 0.35)));
       g.children[0].scale.set(0.32, 0.29, 0.32);
-      const s = new THREE.Mesh(G.cyl, new THREE.MeshStandardMaterial({ color: "#6b4226", roughness: 0.7 }));
+      const s = new THREE.Mesh(G.cyl, treatMat("#6b4226", 0.7));
       s.position.y = 0.32;
       s.scale.set(0.03, 0.14, 0.03);
       g.add(s);
-      const l = new THREE.Mesh(G.sphLo, new THREE.MeshStandardMaterial({ color: "#4fae45", roughness: 0.7 }));
+      const l = new THREE.Mesh(G.sphLo, treatMat("#4fae45", 0.7));
       l.position.set(0.09, 0.34, 0);
       l.scale.set(0.11, 0.03, 0.06);
       g.add(l);
       g.userData.rest = 0.29;
     } else if (kind === "carrot") {
-      const c = new THREE.Mesh(G.cone, new THREE.MeshStandardMaterial({ color: "#ff8a2b", roughness: 0.35 }));
+      const c = new THREE.Mesh(G.cone, treatMat("#ff8a2b", 0.35));
       c.scale.set(0.16, 0.6, 0.16);
       c.rotation.z = Math.PI / 2;
       g.add(c);
       for (let i = 0; i < 3; i++) {
-        const l = new THREE.Mesh(G.cone, new THREE.MeshStandardMaterial({ color: "#3f9a3c", roughness: 0.7 }));
+        const l = new THREE.Mesh(G.cone, treatMat("#3f9a3c", 0.7));
         l.position.set(-0.36, 0, (i - 1) * 0.05);
         l.scale.set(0.04, 0.22, 0.04);
         l.rotation.z = Math.PI / 2 + (i - 1) * 0.4;
@@ -1619,10 +1643,10 @@
       }
       g.userData.rest = 0.16;
     } else {
-      const c = new THREE.Mesh(capsule(0.13, 0.55), new THREE.MeshStandardMaterial({ color: "#ffd54a", roughness: 0.35 }));
+      const c = new THREE.Mesh(capsule(0.13, 0.55), treatMat("#ffd54a", 0.35));
       c.rotation.z = Math.PI / 2;
       g.add(c);
-      const l = new THREE.Mesh(G.sph, new THREE.MeshStandardMaterial({ color: "#7fc95a", roughness: 0.7 }));
+      const l = new THREE.Mesh(G.sph, treatMat("#7fc95a", 0.7));
       l.position.set(-0.12, 0.02, 0);
       l.scale.set(0.2, 0.12, 0.16);
       g.add(l);
@@ -1857,8 +1881,8 @@
     const shrink = () => {
       s -= 0.08;
       a.root.scale.setScalar(Math.max(0.01, s) * a.k);
-      if (s > 0) requestAnimationFrame(shrink);
-      else this.scene.remove(a.root);
+      if (s > 0 && !this.dead) requestAnimationFrame(shrink);
+      else this.freeAnimal(a);
     };
     shrink();
   };

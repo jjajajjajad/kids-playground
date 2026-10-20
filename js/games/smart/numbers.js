@@ -109,7 +109,8 @@ KP.game({
     const U = KP.u;
     const cv = (ctx.cv = document.createElement("canvas"));
     const g = (ctx.g = cv.getContext("2d"));
-    let last = null;
+    let last = null,
+      pid = null; // 쓰고 있는 손가락 (다른 손가락·손바닥은 무시)
     const pos = (e) => {
       const r = cv.getBoundingClientRect();
       return { x: (e.clientX - r.left) * (cv.width / r.width), y: (e.clientY - r.top) * (cv.height / r.height) };
@@ -117,14 +118,16 @@ KP.game({
     cv.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       KP.audio.unlock();
+      if (last) return;
       try {
         cv.setPointerCapture(e.pointerId);
       } catch (_) {}
+      pid = e.pointerId;
       last = pos(e);
       ctx.hue = (ctx.hue || 0) + 40;
     });
     cv.addEventListener("pointermove", (e) => {
-      if (!last) return;
+      if (!last || e.pointerId !== pid) return;
       const p = pos(e);
       g.strokeStyle = "hsl(" + ctx.hue + ",85%,55%)";
       g.lineWidth = cv.width * 0.06;
@@ -136,7 +139,9 @@ KP.game({
       if (U.dist(last.x, last.y, p.x, p.y) > 2 && Math.random() < 0.25) KP.audio.sfx("rub");
       last = p;
     });
-    const end = () => (last = null);
+    const end = (e) => {
+      if (e.pointerId === pid) last = null;
+    };
     cv.addEventListener("pointerup", end);
     cv.addEventListener("pointercancel", end);
   },

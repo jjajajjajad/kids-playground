@@ -333,9 +333,8 @@ KP.game({
       for (const i of bloomed) {
         const p = pots[i];
         const [em, name] = FLOWERS[p.kind];
-        const d = new Date();
         const g = garden();
-        g.push({ e: em, n: name, d: d.getMonth() + 1 + "월 " + d.getDate() + "일", t: Date.now() });
+        g.push({ e: em, n: name, d: KP.gate.monthDay(), t: Date.now() });
         KP.store.set("grow:garden", g);
         // 꽃가루 터짐
         const s2 = scene.getBoundingClientRect(),

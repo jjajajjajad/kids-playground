@@ -83,6 +83,8 @@
     ctx._idleAt = Date.now();
     ctx._missed = false;
     ctx._softMiss = 0;
+    ctx._hinted = false;
+    ctx._fewChoice = false;
     KP.earn && setTimeout(() => KP.earn.render(), 0);
     const lv = KP.level.get(id);
     lv.plays++;
@@ -286,11 +288,15 @@
        * @returns Promise (연출이 끝나면 resolve)
        */
       win(o = {}) {
+        if (!ctx._active) return Promise.resolve(false); // 이미 나간 놀이의 늦은 승리는 무시
         // 열쇠 별: 이번 문제를 한 번에 맞혔나 (틀린 적 있으면 별 없음)
         // 가벼운 실수(soft)는 1번까지 봐줌 — 글자 타일을 아무거나 눌러 채우는 것 방지
-        const clean = !ctx._missed && (ctx._softMiss || 0) <= 1;
+        // 손가락 힌트가 정답을 가리킨 판, 보기가 2개뿐인 판(찍어도 반)도 별 없음
+        const clean = !ctx._missed && (ctx._softMiss || 0) <= 1 && !ctx._hinted && !ctx._fewChoice;
         ctx._missed = false;
         ctx._softMiss = 0;
+        ctx._hinted = false;
+        ctx._fewChoice = false;
         KP.earn && KP.earn.onWin(ctx, clean);
         const lv = KP.level.get(def.id);
         lv.wins = (lv.wins || 0) + 1;
@@ -345,6 +351,7 @@
        */
       choices(box, list, o) {
         box.innerHTML = "";
+        if (list.length < 3) ctx._fewChoice = true;
         let busy = false;
         return list.map((v, i) => {
           const b = U.el("button", "choice " + (o.cls || ""), o.render ? o.render(v) : KP.E(String(v)));
@@ -442,6 +449,8 @@
       if (!t.isConnected) return;
       const r = t.getBoundingClientRect();
       if (!r.width) return;
+      // 정답 보기를 가리켰으면 이번 판은 열쇠 별 없음 (기다렸다 누르기 방지)
+      if (t.dataset.right === "1" || t.classList.contains("choice")) ctx._hinted = true;
       x = r.left + r.width / 2;
       y = r.top + r.height * 0.6;
       t.classList.add("hintGlow");

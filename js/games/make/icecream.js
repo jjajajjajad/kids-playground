@@ -392,8 +392,7 @@ KP.game({
       A.noise({ dur: 0.08, vol: 0.18, hp: 1200, when: 0.09 });
       const img = await toJpeg(iceSVG(st));
       if (img) {
-        const d = new Date();
-        const ok = await KP.db.put("art", { id: KP.newId(), kind: "icecream", img, t: Date.now(), date: d.getMonth() + 1 + "월 " + d.getDate() + "일" });
+        const ok = await KP.db.put("art", { id: KP.newId(), kind: "icecream", img, t: Date.now(), date: KP.gate.monthDay() });
         flyAway(img, cone);
         if (ok) {
           unsavedPic = false;

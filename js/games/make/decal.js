@@ -667,8 +667,7 @@ KP.game({
       }
       bSave.dataset.busy = "1";
       const img = jpeg();
-      const d = new Date();
-      const ok = await KP.db.put("art", { id: KP.newId(), kind: "decal", img, t: Date.now(), date: d.getMonth() + 1 + "월 " + d.getDate() + "일" });
+      const ok = await KP.db.put("art", { id: KP.newId(), kind: "decal", img, t: Date.now(), date: KP.gate.monthDay() });
       delete bSave.dataset.busy;
       if (ok === false) {
         KP.toast("저장하지 못했어요. 기기 저장공간을 확인해 주세요");

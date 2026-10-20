@@ -710,7 +710,7 @@
         this.checkDone(ctx);
       };
       /* 크레파스·지우개: 획을 시작한 부위 안에만 칠해짐 (선 밖으로 안 나감) */
-      let down = false,
+      let down = null, // 누르고 있는 손가락 pointerId (다른 손가락·손바닥은 무시)
         stroke = null;
       const live = () => {
         let c = paper.querySelector(".zpLive");
@@ -792,20 +792,21 @@
       paper.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         KP.audio.unlock();
-        down = true;
+        if (down !== null) return;
+        down = e.pointerId;
+        try {
+          paper.setPointerCapture(e.pointerId); // 밖에서 손을 떼도 pointerup 이 와서 down 이 풀림
+        } catch (_) {}
         const t = partAt(e.clientX, e.clientY);
         if (!t) return;
         if (ctx.tool === "fill") return fillPart(t, e.clientX, e.clientY);
-        try {
-          paper.setPointerCapture(e.pointerId);
-        } catch (_) {}
         const q = toEl(t, e.clientX, e.clientY);
         stroke = { el: t, i: idxOf(t), pts: [{ x: q.x, y: q.y }], paint: Object.assign({}, ctx.paint), width: SIZES[ctx.size] * (ctx.tool === "erase" ? 1.6 : 1), erase: ctx.tool === "erase", drawn: 0, len: 0 };
         liveDraw();
         KP.audio.note(U.pick(KP.audio.SCALE.slice(4, 11)), { inst: "marimba", dur: 0.2, vol: 0.12 });
       });
       paper.addEventListener("pointermove", (e) => {
-        if (!down) return;
+        if (e.pointerId !== down) return;
         if (ctx.tool === "fill") {
           // 쓱쓱 문질러 붓기
           const el = document.elementFromPoint(e.clientX, e.clientY);
@@ -821,8 +822,9 @@
         if (stroke.pts.length > 4000) stroke.pts.shift();
         liveDraw();
       });
-      const end = () => {
-        down = false;
+      const end = (e) => {
+        if (e.pointerId !== down) return;
+        down = null;
         if (!stroke) return;
         const st = stroke;
         stroke = null;
@@ -940,8 +942,7 @@
       svg.setAttribute("viewBox", "0 0 200 170");
       const html = plainSvg(svg);
       svg.setAttribute("viewBox", vb);
-      const d = new Date();
-      const item = { id: KP.newId(), kind: "zoo", tid: ctx.tid, uid: ctx.uid, svg: html, paint: packPaint(ctx.pp), t: Date.now(), date: d.getMonth() + 1 + "월 " + d.getDate() + "일" };
+      const item = { id: KP.newId(), kind: "zoo", tid: ctx.tid, uid: ctx.uid, svg: html, paint: packPaint(ctx.pp), t: Date.now(), date: KP.gate.monthDay() };
       ctx.sending = true; // 보내는 동안은 나가도 '칠하던 그림'으로 보관하지 않음
       const tid = ctx.tid;
       const saved = await KP.db.put("art", item);
@@ -1392,7 +1393,7 @@
           await KP.zoo3d.load();
           if (tok !== ctx._tok || !ctx._active) return;
           if (!ctx.z3 || ctx.z3.lost) {
-            if (ctx.z3) ctx.z3.renderer.domElement.remove();
+            if (ctx.z3) ctx.z3.dispose(); // 화면이 끊긴 옛 세계 정리 후 새로
             ctx.z3 = KP.zoo3d.create(ctx, W, T);
             ctx.z3.onDelete = (a) => this.askDelete3(ctx, a);
           }

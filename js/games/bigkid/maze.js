@@ -475,6 +475,11 @@ KP.game({
     };
     cv.addEventListener("pointerup", up);
     cv.addEventListener("pointercancel", up);
+    // 새 판에서는 잡고 있던 손가락을 놓은 것으로 (이어서 끌리지 않게)
+    ctx.mzDrop = () => {
+      pid = null;
+      st.dragging = false;
+    };
 
     function setHint() {
       ctx.hint(() => spot, U.josa(st.pair[1], "을/를") + " 끌어서 " + st.pair[3] + "까지" + " 데려다 줘요!");
@@ -643,6 +648,7 @@ KP.game({
       ctx.bChase._bound = true;
       ctx.bChase.addEventListener("click", () => {
         KP.audio.unlock();
+        if (ctx.mz.won) return; // 도착 축하 중에는 무시 (판 건너뛰기 방지)
         const on = !KP.store.get("maze:chase", false);
         KP.store.set("maze:chase", on);
         KP.audio.sfx(on ? "levelup" : "pop");
@@ -658,6 +664,7 @@ KP.game({
   next(ctx) {
     const U = KP.u;
     const st = ctx.mz;
+    ctx.mzDrop && ctx.mzDrop();
     ctx.mzFit();
     const land = ctx.body.clientWidth >= ctx.body.clientHeight;
     let [a, b] = [[3, 3], [5, 4], [7, 6]][ctx.level - 1];

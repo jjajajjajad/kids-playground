@@ -9,10 +9,12 @@
 (function (KP) {
   const PFX = "kp:";
   const mem = {}; // localStorage 를 못 쓰는 환경에서의 임시 보관
+  const stale = new Set(); // 저장에 실패한 키 → 예전 값 대신 mem 을 먼저 읽음
 
   const store = (KP.store = {
     ok: true,
     get(k, def) {
+      if (stale.has(k)) return mem[k] == null ? def : mem[k];
       try {
         const v = localStorage.getItem(PFX + k);
         if (v == null) return k in mem ? mem[k] : def;
@@ -26,8 +28,10 @@
       mem[k] = v;
       try {
         localStorage.setItem(PFX + k, JSON.stringify(v));
+        stale.delete(k);
         return true;
       } catch (e) {
+        stale.add(k);
         store.ok = false;
         return false;
       }
@@ -39,6 +43,7 @@
     },
     del(k) {
       delete mem[k];
+      stale.delete(k);
       try {
         localStorage.removeItem(PFX + k);
       } catch (e) {}
@@ -198,8 +203,7 @@
       for (const s of STORES) data.db[s] = await KP.db.all(s);
       const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
       const a = document.createElement("a");
-      const d = new Date();
-      const stamp = d.getFullYear() + String(d.getMonth() + 1).padStart(2, "0") + String(d.getDate()).padStart(2, "0");
+      const stamp = KP.gate ? KP.gate.today() : new Date().toISOString().slice(0, 10).replace(/-/g, ""); // 한국 날짜
       const name = "아이놀이터_백업_" + stamp + ".json";
       // iPad·iPhone 홈 화면 앱에서는 다운로드가 잘 안 되므로 '공유' 창(파일에 저장, 카톡 등)을 우선 사용
       try {

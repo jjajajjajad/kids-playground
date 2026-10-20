@@ -115,7 +115,7 @@
     if (KP.timeLeft && KP.timeLeft().left <= 0) return false;
     // 오늘의 도전 놀이는 별 2개
     const hero = KP.heroOf && KP.heroOf(ctx.def.cat) === id;
-    const add = Math.min(hero ? 2 : n, c.earnStars - s.stars);
+    const add = Math.min(hero ? 2 : n, c.earnStars - s.stars, c.earnPerGame - (s.per[id] || 0)); // 같은 놀이 상한도 넘지 않게
     s.stars += add;
     s.per[id] = (s.per[id] || 0) + add; // 같은 놀이 상한은 '별 수' 기준 (오늘의 도전 하나로 다 채우지 않게)
     s.last = now;

@@ -34,6 +34,8 @@ const OVERRIDE = {
   "🦸": "person-superhero",
   "👢": "womans-boot",
 };
+// 자연 음성 저장소 이름 — sw.js(옛 저장소 정리)와 voice.js(KP.VOICE_CACHE)가 함께 씀. 바꾸면 옛 저장소는 지워짐
+const VOICE_CACHE = "kp-voice-1";
 const CORE = ["kp", "GEN:emoji-map", "GEN:version", "art", "store", "settings", "audio", "voice", "GEN:clips", "ui", "drag", "paint", "notebook", "celebrate", "home", "earn", "pages", "catalog"];
 
 const srcFiles = [...walk(P("js"), [".js"]).filter((f) => !f.includes(path.join("js", "gen"))), ...walk(P("css"), [".css"])];
@@ -71,16 +73,47 @@ for (const e of [...used].sort()) {
   if (noVs !== e) map[noVs] = slug;
   fs.writeFileSync(P("assets", "e", slug + ".svg"), svg);
 }
+// 일러스트 라이선스(MIT) 동봉 — 패키지에 LICENSE 파일이 없어 info.json(저작자·라이선스) + MIT 원문으로 작성
+{
+  const info = require("@iconify-json/fluent-emoji/info.json");
+  fs.writeFileSync(
+    P("assets", "e", "LICENSE.txt"),
+    `Fluent Emoji — ${info.author.url} (${info.license.spdx}, ${info.license.url})\n\nMIT License\n\nCopyright (c) ${info.author.name}.\n\n` +
+      'Permission is hereby granted, free of charge, to any person obtaining a copy\nof this software and associated documentation files (the "Software"), to deal\nin the Software without restriction, including without limitation the rights\nto use, copy, modify, merge, publish, distribute, sublicense, and/or sell\ncopies of the Software, and to permit persons to whom the Software is\nfurnished to do so, subject to the following conditions:\n\n' +
+      "The above copyright notice and this permission notice shall be included in all\ncopies or substantial portions of the Software.\n\n" +
+      'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\nIMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\nFITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\nAUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\nLIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\nOUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\nSOFTWARE.\n'
+  );
+}
 fs.mkdirSync(P("js", "gen"), { recursive: true });
 // 자연 음성(미리 만든 음성 파일) 목록: tools/voice-clips.tsv → js/gen/clips.js  (문장 → 주소)
 {
   const tsv = fs.existsSync(P("tools", "voice-clips.tsv")) ? fs.readFileSync(P("tools", "voice-clips.tsv"), "utf8") : "";
-  const clips = {};
+  // 음성 주소는 index.html 의 CSP(media-src·connect-src)가 허용한 서버여야 재생됨 → 템플릿에서 허용 목록을 읽어 대조
+  const csp = (/Content-Security-Policy" content="([^"]+)"/.exec(fs.readFileSync(P("tools", "index.template.html"), "utf8")) || [])[1] || "";
+  const hostsOf = (dir) =>
+    new Set(
+      ((new RegExp("(?:^|;)\\s*" + dir + "\\s([^;]*)").exec(csp) || [])[1] || "")
+        .split(/\s+/)
+        .filter((x) => /^https:\/\//.test(x))
+        .map((x) => new URL(x).host)
+    );
+  const media = hostsOf("media-src"),
+    conn = hostsOf("connect-src");
+  const clips = {},
+    bad = new Set();
   tsv.split("\n").forEach((l) => {
     const [t, , url] = l.split("\t");
-    if (t && url && /^https:\/\/[\w.-]+\.cloudfront\.net\//.test(url.trim())) clips[t.trim()] = url.trim();
+    if (!t || !url || !/^https:\/\//.test(url.trim())) return;
+    const host = new URL(url.trim()).host;
+    if (!media.has(host) || !conn.has(host)) return void bad.add(host);
+    clips[t.trim()] = url.trim();
   });
-  fs.writeFileSync(P("js", "gen", "clips.js"), "/* 자동 생성 — tools/voice-clips.tsv (ElevenLabs 음성, Higgsfield 생성) */\nKP.VOICE_CLIPS=" + JSON.stringify(clips) + ";\n");
+  if (bad.size)
+    throw new Error("음성 주소의 서버(" + [...bad].join(", ") + ")가 tools/index.template.html 의 CSP(media-src, connect-src)에 없습니다. 템플릿 CSP에 추가하거나 voice-clips.tsv 주소를 고치세요.");
+  fs.writeFileSync(
+    P("js", "gen", "clips.js"),
+    "/* 자동 생성 — tools/voice-clips.tsv (ElevenLabs 음성, Higgsfield 생성) */\nKP.VOICE_CLIPS=" + JSON.stringify(clips) + ";\nKP.VOICE_CACHE=" + JSON.stringify(VOICE_CACHE) + ";\n"
+  );
   console.log(" 자연 음성 " + Object.keys(clips).length + "개");
 }
 fs.writeFileSync(P("js", "gen", "emoji-map.js"), "/* 자동 생성 — tools/build.js */\nKP.EMAP=" + JSON.stringify(map) + ";\n");
@@ -97,6 +130,7 @@ fcss = fcss
   })
   .replace(/font-display: swap/g, "font-display: block");
 fs.writeFileSync(P("css", "fonts.css"), "/* 자동 생성 — 주아체 (OFL-1.1) */\n" + fcss);
+fs.copyFileSync(path.join(fontDir, "LICENSE"), P("fonts", "LICENSE-OFL.txt")); // 폰트 라이선스 동봉
 
 /* ---------- 3) index.html ---------- */
 const gameFiles = walk(P("js", "games"), [".js"]).map((f) => path.relative(ROOT, f).split(path.sep).join("/")).sort();
@@ -105,6 +139,7 @@ const coreFiles = CORE.map((c) => (c.startsWith("GEN:") ? "js/gen/" + c.slice(4)
 const allScripts = [...coreFiles, ...gameFiles, "js/core/app.js"];
 
 /* ---------- 4) 버전 + sw.js ---------- */
+const optional = (f) => /^(assets|fonts|icons)\//.test(f); // sw.js 설치 때 몇 개 실패해도 되는 파일(그림·폰트)
 const versioned = ["css/app.css", "css/fonts.css", ...gameCss, ...allScripts]; // index.html 에서 ?v=버전 을 붙여 부르는 파일
 const precache = [
   "./",
@@ -134,26 +169,43 @@ const sw = `/* 자동 생성 — tools/build.js. 아이 놀이터 오프라인 �
 const VERSION = ${JSON.stringify(VERSION)};
 const CACHE = "kids-playground-" + VERSION;
 const VFILES = ${JSON.stringify(versioned)};
-const FILES = ${JSON.stringify(precache.filter((f) => !versioned.includes(f)))}.concat(VFILES.map((f) => f + "?v=" + VERSION));
+const VOICE_CACHE = ${JSON.stringify(VOICE_CACHE)};
+// 꼭 필요한 파일(화면·코드·스타일) — 하나라도 못 받으면 설치 실패(옛 버전 그대로 유지)
+const FILES = ${JSON.stringify(precache.filter((f) => !versioned.includes(f) && !optional(f)))}.concat(VFILES.map((f) => f + "?v=" + VERSION));
+// 그림·폰트 — 몇 개 못 받아도(404·429) 설치는 진행, 빠진 건 쓸 때 받음
+const EXTRA = ${JSON.stringify(precache.filter((f) => !versioned.includes(f) && optional(f)))};
+const req = (f) => new Request(f, { cache: "reload" });
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: "reload" })))).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES.map(req)).then(() => Promise.allSettled(EXTRA.map((f) => c.add(req(f)))))).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", (e) => {
-  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE && !k.startsWith("kp-voice")).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  // 이 버전 저장소와 지금 음성 저장소만 남김 (옛 음성 저장소도 정리)
+  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE && k !== VOICE_CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
   // 화면(html)은 인터넷 우선 → 새 버전 즉시 반영, 나머지는 저장본 우선 → 빠르고 오프라인 가능
+  // 단 3초 안에 답이 없으면(인터넷 안 되는 와이파이 등) 저장본으로 먼저 열고, 받는 건 계속해서 저장만
   if (e.request.mode === "navigate") {
-    e.respondWith(fetch(e.request).then((r) => {
+    let saved = null;
+    const net = fetch(e.request).then((r) => {
       // 정상 응답이고 '이 버전'의 화면일 때만 저장 (와이파이 로그인 화면·오류 페이지·다른 버전 저장 방지)
       if (r.ok && (r.headers.get("content-type") || "").includes("text/html")) {
-        r.clone().text().then((t) => { if (t.includes("?v=" + VERSION)) caches.open(CACHE).then((c) => c.put("index.html", new Response(t, { headers: { "Content-Type": "text/html; charset=utf-8" } }))); });
+        saved = r.clone().text().then((t) => { if (t.includes("?v=" + VERSION)) return caches.open(CACHE).then((c) => c.put("index.html", new Response(t, { headers: { "Content-Type": "text/html; charset=utf-8" } }))); });
       }
       return r;
-    }).catch(() => caches.match("index.html")));
+    });
+    e.waitUntil(net.then(() => saved).catch(() => {})); // 저장본으로 먼저 열어도 받기·저장은 끝까지
+    e.respondWith(new Promise((resolve) => {
+      let sent = false;
+      const give = (r) => { if (!sent && r) { sent = true; resolve(r); } };
+      const fromCache = () => caches.match("index.html");
+      // 저장본이 없으면(첫 방문) 인터넷을 계속 기다림
+      const t = setTimeout(() => fromCache().then(give), 3000);
+      net.then((r) => { clearTimeout(t); give(r); }, () => { clearTimeout(t); fromCache().then((c) => give(c || Response.error())); });
+    }));
     return;
   }
   // 정확히 같은 버전(?v=)이 있으면 저장본, 없으면 인터넷(새 버전), 인터넷도 안 되면 아무 버전 저장본

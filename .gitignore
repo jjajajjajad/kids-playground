@@ -1,3 +1,6 @@
 node_modules/
 tools/out/
 .claude/
+.env
+credentials.json
+token.json

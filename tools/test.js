@@ -48,6 +48,30 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
       }
       const ids = await page.evaluate(() => KP.ORDER.slice());
       const list = ONLY.length ? ids.filter((i) => ONLY.includes(i)) : ids;
+      // 문제 만들기 반복 점검: 단계별로 여러 판을 만들어 멈춤(무한 반복)·오류가 없는지 (예: 숫자 세기 3단계 정답 10)
+      if (vp === VPS[0] && list.includes("count")) {
+        const r = await Promise.race([
+          page.evaluate(() => {
+            const def = KP.GAMES.count;
+            for (let lvl = 1; lvl <= def.levels; lvl++) {
+              KP.level.save("count", Object.assign(KP.level.get("count"), { lvl }));
+              KP.open("count");
+              for (let i = 0; i < 300; i++) def.next(KP.current());
+              const n = document.querySelectorAll(".screen.on .qAns .choice").length;
+              if (n < 3) return "count " + lvl + "단계 보기 " + n + "개";
+            }
+            KP.level.save("count", Object.assign(KP.level.get("count"), { lvl: 1 }));
+            KP.home();
+            return "";
+          }),
+          sleep(10000).then(() => "count 문제 만들기가 10초 안에 끝나지 않음 (무한 반복 의심)"),
+        ]);
+        if (r) {
+          console.log("✗ " + r);
+          fails++;
+          if (/무한/.test(r)) throw new Error(r);
+        }
+      }
       for (const id of list) {
         const before = errs.length;
         await page.evaluate((id) => {

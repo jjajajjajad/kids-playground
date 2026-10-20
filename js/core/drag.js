@@ -104,9 +104,14 @@
             ty = tr.top + tr.height / 2 - ey;
           el.style.transition = "transform .18s ease-out";
           el.style.transform = "translate(" + tx + "px," + ty + "px)";
+          // 쏙 들어가는 사이에 놀이를 나갔는지 알아보려고 지금 놀이(ctx)·회차를 기억
+          const g = KP.current && KP.current(),
+            gs = g && g._session;
           setTimeout(() => {
             el.style.transition = "";
             el.classList.remove("dragging");
+            // 그사이 놀이를 나갔거나 판이 바뀌어 요소가 없어졌으면 아무것도 안 함
+            if (!el.isConnected || (g && (!g._active || g._session !== gs))) return;
             // 쏙 들어가는 사이에 상황이 바뀌었으면(두 손가락으로 동시에 넣기 등) 제자리로
             if (locked || !targets().includes(t) || (o.accept && !o.accept(t, el))) return goHome();
             o.onDrop && o.onDrop(t, el);

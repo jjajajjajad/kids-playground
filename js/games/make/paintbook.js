@@ -420,8 +420,7 @@ KP.game({
         KP.toast("저장하지 못했어요");
         return;
       }
-      const d = new Date();
-      const ok = await KP.db.put("art", { id: KP.newId(), kind: "paint", img, t: Date.now(), date: d.getMonth() + 1 + "월 " + d.getDate() + "일" });
+      const ok = await KP.db.put("art", { id: KP.newId(), kind: "paint", img, t: Date.now(), date: KP.gate.monthDay() });
       flyAway(img, board);
       if (ok) {
         unsaved = false;

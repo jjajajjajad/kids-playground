@@ -401,7 +401,7 @@
       const ovMenu = U.el("div", "rp-ov");
       const ovSong = U.el("div", "rp-ov");
       ctx.body.append(wrap, ovStart, ovMenu, ovSong);
-      Object.assign(ctx, { wrap, ear, big, sub, dots, diag, kb, keyEls, fingEls, ovStart, ovMenu, ovSong, lanes, field, laneEls, track, score, bListen });
+      Object.assign(ctx, { wrap, ear, big, sub, dots, diag, kb, keyEls, fingEls, ovStart, ovMenu, ovSong, lanes, field, laneEls, track, scoreEl: score, bListen });
 
       function playTone(n) {
         const f = A.hz(n);
@@ -767,7 +767,7 @@
         ctx.laneEls[n.k].appendChild(el);
         n.el = el;
       });
-      ctx.score.innerHTML = KP.E("⭐") + " 0";
+      ctx.scoreEl.innerHTML = KP.E("⭐") + " 0";
       this.gameProg(ctx);
       this.mark(ctx, list[0].k);
       ctx.fingEls.forEach((f) => f.classList.remove("go"));
@@ -841,8 +841,8 @@
       g.pos++;
       g.score++;
       g.combo++;
-      ctx.score.innerHTML = KP.E("⭐") + " " + g.score;
-      U.replay(ctx.score, "pop");
+      ctx.scoreEl.innerHTML = KP.E("⭐") + " " + g.score;
+      U.replay(ctx.scoreEl, "pop");
       this.gameProg(ctx);
       KP.audio.sfx("tap");
       ctx.deafFor(120);
@@ -932,8 +932,10 @@
       ctx.big.textContent = "";
       ctx.sub.textContent = "잘 들어요…";
       this.mark(ctx, -1);
-      const tok = ctx.tok;
-      ctx.talk(n === 1 ? "잘 듣고 똑같이 쳐 봐요!" : "잘 듣고 " + n + "개를 똑같이 쳐 봐요!").then(() => tok === ctx.tok && this.echoPlay(ctx));
+      const tok = ctx.tok,
+        rt = (ctx.eRound = (ctx.eRound || 0) + 1); // 판 표시 (지난 판의 늦은 echoPlay 막기)
+      ctx.busy = true; // 말하는 동안 건반 무시
+      ctx.talk(n === 1 ? "잘 듣고 똑같이 쳐 봐요!" : "잘 듣고 " + n + "개를 똑같이 쳐 봐요!").then(() => tok === ctx.tok && rt === ctx.eRound && this.echoPlay(ctx));
     },
     async echoPlay(ctx) {
       const tok = ctx.tok;
@@ -966,8 +968,10 @@
         ctx.wrong++;
         if (ctx.wrong >= 3) {
           ctx.wrong = 0;
-          const tok = ctx.tok;
-          ctx.talk("한 번 더 들어 봐요!", false).then(() => tok === ctx.tok && this.echoPlay(ctx));
+          const tok = ctx.tok,
+            rt = ctx.eRound;
+          ctx.busy = true; // 말하는 동안 더 틀리거나 끝내지 못하게 (echoPlay 가 끝나면 풀림)
+          ctx.talk("한 번 더 들어 봐요!", false).then(() => tok === ctx.tok && rt === ctx.eRound && this.echoPlay(ctx));
         }
         return;
       }

@@ -25,7 +25,7 @@
       if (first) {
         first = false;
         if (KP.settings.get().bgm) KP.audio.bgm.start();
-        // 자연 음성 파일을 한가할 때 미리 받아 두기
+        // 자연 음성 파일을 한가할 때 미리 받아 두기 (셀룰러·데이터 절약 모드면 voice.js 가 건너뜀)
         setTimeout(() => KP.voice.prefetch && KP.voice.prefetch(), 2500);
       }
     },

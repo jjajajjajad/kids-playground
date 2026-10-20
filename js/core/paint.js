@@ -155,8 +155,7 @@
     if (!ent) return false;
     const d = P.dex();
     if (d[name]) return false;
-    const t = new Date();
-    d[name] = t.getMonth() + 1 + "월 " + t.getDate() + "일";
+    d[name] = KP.gate.monthDay();
     KP.store.set("colordex", d);
     return true;
   };

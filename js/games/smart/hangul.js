@@ -471,6 +471,7 @@ KP.game({
         ctx.score.add();
         ctx.round++;
         await ctx.wait(1300);
+        if (tk !== ctx.qToken) return; // 그새 모드를 바꿨으면 지난 판 축하 안 함
         const bg = ctx.round % 5 === 0;
         const ok = await ctx.win({ big: bg, msg: bg ? "한글 박사 형아!" : "딩동댕!", quiet: !bg });
         if (ok && ctx.m === "quiz" && tk === ctx.qToken) self.quiz(ctx);
@@ -691,6 +692,7 @@ KP.game({
             ctx.score.add();
             ctx.round++;
             await ctx.wait(1600);
+            if (tk !== ctx.qToken) return; // 그새 모드를 바꿨으면 지난 판 축하 안 함
             const bg = ctx.round % 5 === 0;
             const ok = await ctx.win({ big: bg, msg: bg ? "한글 박사 형아!" : "글자 완성!", quiet: !bg });
             if (ok && ctx.m === "quiz" && tk === ctx.qToken) self.quiz(ctx);

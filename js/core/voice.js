@@ -186,7 +186,8 @@
        하나라도 없으면 기계 음성(한 목소리로 끝까지 — 섞이면 어색해서)
      - 처음 받을 때 기기 저장소(Cache)에 넣어 두어 그 뒤로는 인터넷 없이도 재생
      - 아직 안 받아진 파일이 늦게 오면(1.2초) 이번엔 기계 음성으로 말하고, 받는 건 계속 */
-  const VCACHE = "kp-voice-1";
+  // 저장소 이름은 빌드가 정함(js/gen/clips.js 의 KP.VOICE_CACHE, sw.js 와 같은 이름) — clips.js 가 이 파일 뒤에 불려서 쓸 때 읽음
+  const VCACHE = () => KP.VOICE_CACHE;
   const natOn = () => !KP.settings || KP.settings.get().natural !== false;
   const norm = (t) => String(t || "").replace(/\p{Extended_Pictographic}|\uFE0F/gu, "").replace(/\s+/g, " ").trim();
   function segs(t) {
@@ -291,7 +292,7 @@
     if (!storedReady)
       storedReady = (async () => {
         try {
-          const c = await caches.open(VCACHE);
+          const c = await caches.open(VCACHE());
           (await c.keys()).forEach((r) => stored.add(r.url));
         } catch (e) {}
       })();
@@ -309,7 +310,7 @@
       let resp = null,
         cache = null;
       try {
-        cache = await caches.open(VCACHE);
+        cache = await caches.open(VCACHE());
         resp = await cache.match(url);
       } catch (e) {}
       if (!resp) {
@@ -333,7 +334,7 @@
         })
       );
       bufs.set(url, b);
-      // 풀어 둔 소리는 최근 60개만 (982개를 다 풀면 메모리를 수백 MB 차지)
+      // 풀어 둔 소리는 최근 60개만 (수천 개를 다 풀면 메모리를 수백 MB 차지)
       if (bufs.size > 60) bufs.delete(bufs.keys().next().value);
       failed.delete(url);
       V.natStats.ok = bufs.size;
@@ -349,14 +350,23 @@
     return p;
   }
   // iOS: 오디오 요소는 터치 안에서 한 번 재생해 둔 것만 나중에 자유롭게 재생 가능 → 하나를 미리 깨워 둠
-  let el = null;
+  // 재생이 실제로 성공했을 때만 깨운 것으로 침 → 실패하면 다음 터치에서 다시 시도
+  let el = null,
+    elTrying = false;
   V.unlockEl = function () {
-    if (el) return;
+    if (el || elTrying) return;
     try {
-      el = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZGF0YQAAAAA=");
-      el.play().then(() => el.pause()).catch(() => {});
+      const a = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZGF0YQAAAAA=");
+      elTrying = true;
+      Promise.resolve(a.play())
+        .then(() => {
+          a.pause();
+          el = a;
+        })
+        .catch(() => {})
+        .finally(() => (elTrying = false));
     } catch (e) {
-      el = null;
+      elTrying = false;
     }
   };
   function playEl(text, urls, o, vol, tok) {
@@ -460,17 +470,41 @@
     }
     return true;
   }
+  /** 지금 목록(VOICE_CLIPS)에 없는 옛 음성 파일을 저장소에서 지움 */
+  async function prune(cache) {
+    try {
+      const keep = new Set(Object.values(KP.VOICE_CLIPS || {}));
+      if (!keep.size) return; // 목록이 비었으면(빌드 이상) 지우지 않음
+      for (const r of await cache.keys())
+        if (!keep.has(r.url)) {
+          await cache.delete(r);
+          stored.delete(r.url);
+        }
+    } catch (e) {}
+  }
+  // 데이터 절약 모드·휴대폰 데이터(셀룰러)면 자동으로 전부 받지 않음 (설정 화면 버튼은 그대로 받음)
+  const metered = () => {
+    const c = navigator.connection;
+    return !!(c && (c.saveData || c.type === "cellular"));
+  };
   let prefetching = null;
-  V.prefetch = function (onProg) {
+  /** @param {Function} [onProg] 진행 표시(설정 화면) — 주면 직접 누른 것으로 보고 force
+   *  @param {{force?:boolean}} [o] force: 셀룰러·데이터 절약이어도 받기 */
+  V.prefetch = function (onProg, o = {}) {
+    const force = !!(onProg || o.force);
     if (prefetching && !onProg) return prefetching;
     const run = async () => {
       await loadStored();
       const L = Object.values(KP.VOICE_CLIPS || {});
       let cache = null;
       try {
-        cache = await caches.open(VCACHE);
+        cache = await caches.open(VCACHE());
       } catch (e) {}
       if (!cache) return V.natStats;
+      if (!force && metered()) {
+        await prune(cache);
+        return V.natStats;
+      }
       let i = 0,
         done = 0,
         corsFail = 0;
@@ -494,6 +528,7 @@
         }
       };
       await Promise.all([worker(), worker(), worker(), worker()]);
+      await prune(cache);
       V.natStats.fail = failed.size;
       return V.natStats;
     };
@@ -506,7 +541,7 @@
     const L = Object.values(KP.VOICE_CLIPS || {});
     let stored = 0;
     try {
-      const c = await caches.open(VCACHE);
+      const c = await caches.open(VCACHE());
       const keys = new Set((await c.keys()).map((r) => r.url));
       stored = L.filter((u) => keys.has(u)).length;
     } catch (e) {}

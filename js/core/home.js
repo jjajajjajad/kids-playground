@@ -9,16 +9,24 @@
   KP.hold = function (el, ms, onDone, onStart) {
     let t = null,
       t0 = 0,
-      raf = 0;
+      raf = 0,
+      pid = null; // 누르고 있는 손가락 하나만 인정 (두 손가락 톡 → 실행되는 문제 방지)
     el.classList.add("holdBtn");
     const stop = () => {
       clearTimeout(t);
       cancelAnimationFrame(raf);
+      t = null;
+      pid = null;
       el.style.setProperty("--p", 0);
       el.classList.remove("holding");
     };
     el.addEventListener("pointerdown", (e) => {
       e.preventDefault();
+      if (pid !== null) {
+        stop(); // 다른 손가락이 또 닿으면 처음부터 다시
+        return;
+      }
+      pid = e.pointerId;
       t0 = performance.now();
       el.classList.add("holding");
       onStart && onStart();
@@ -33,7 +41,7 @@
         onDone();
       }, ms);
     });
-    ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => el.addEventListener(ev, stop));
+    ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => el.addEventListener(ev, (e) => (pid === null || e.pointerId === pid) && stop()));
     el.addEventListener("contextmenu", (e) => e.preventDefault());
   };
 
@@ -54,6 +62,11 @@
   let kidUntil = +KP.store.get("gate:until", 0) || 0;
   const gate = (KP.gate = {
     today: todayKST,
+    /** 한국 날짜 "5월 3일" (작품·도감 날짜 표시용) */
+    monthDay: () => {
+      const t = todayKST();
+      return +t.slice(4, 6) + "월 " + +t.slice(6, 8) + "일";
+    },
     unlocked: () => openedOn === todayKST() || Date.now() < kidUntil,
     kidLeft: () => Math.max(0, kidUntil - Date.now()),
     unlock() {
@@ -117,14 +130,36 @@
       if (pad) pad.remove();
       pad = null;
     };
+    // 여러 번 틀리면 잠시 입력 막기 (아이가 마구 눌러 우연히 맞히는 것 방지, 새로고침해도 유지)
+    const sub = U.$(".gateSub", box);
+    const subTxt = sub.innerHTML;
+    const lockLeft = () => Math.max(0, (+(KP.store.get("gate:fail", {}).until) || 0) - Date.now());
+    const showLock = () => {
+      const s = Math.ceil(lockLeft() / 1000);
+      sub.innerHTML = s > 0 ? "잠시 후 다시 눌러 주세요 (" + s + "초)" : subTxt;
+      if (s > 0) setTimeout(() => pad && sub.isConnected && showLock(), 1000);
+    };
+    const failed = () => {
+      const f = KP.store.get("gate:fail", {});
+      f.n = (f.n || 0) + 1;
+      if (f.n >= 5) f.until = Date.now() + Math.min(600, 30 * 2 ** (f.n - 5)) * 1000; // 30초부터 두 배씩, 최대 10분
+      KP.store.set("gate:fail", f);
+      if (f.until > Date.now()) showLock();
+    };
+    if (lockLeft() > 0) showLock();
     const press = (k) => {
       KP.audio.unlock();
+      if (lockLeft() > 0) {
+        U.replay(slots, "wrong");
+        return;
+      }
       if (k === "del") val = val.slice(0, -1);
       else if (val.length < N) val += k;
       KP.audio.sfx("tap");
       draw();
       if (val.length === N) {
         if (val === answer()) {
+          KP.store.set("gate:fail", {});
           KP.audio.sfx("good");
           if (opt.adultOnly) {
             close();
@@ -150,6 +185,7 @@
         } else {
           U.replay(slots, "wrong");
           KP.audio.sfx("bad");
+          failed();
           setTimeout(() => {
             val = "";
             draw();
@@ -281,7 +317,7 @@
             KP.audio.sfx("bad");
             busy = true;
             KP.voice.say("아니에요! 다른 문제를 줄게요.");
-            setTimeout(() => pad && next(), 1300);
+            setTimeout(() => box.isConnected && next(), 1300); // 닫은 뒤 새로 연 입력판에 이전 퀴즈가 끼어들지 않게
             return;
           }
           busy = true;
@@ -291,7 +327,7 @@
           if (!tried) got++;
           drawDots();
           setTimeout(() => {
-            if (!pad) return;
+            if (!box.isConnected) return;
             if (got >= need) {
               const min = KP.settings.get().kidMin;
               const q0 = KP.store.get("gate:quiz", {});
@@ -321,9 +357,14 @@
       KP.toast("⏰ 1분 뒤에 문이 잠겨요");
       KP.voice.say("1분 뒤에 문이 잠겨요!");
     }
-    if (!kidUntil || Date.now() < kidUntil) return;
-    kidUntil = 0;
-    KP.store.set("gate:until", 0);
+    // 어른이 '오늘 계속' 연 날이 지나면(자정) 다시 잠금
+    const dayOver = openedOn && openedOn !== todayKST();
+    if (dayOver) openedOn = "";
+    if (!dayOver && (!kidUntil || Date.now() < kidUntil)) return;
+    if (kidUntil && Date.now() >= kidUntil) {
+      kidUntil = 0;
+      KP.store.set("gate:until", 0);
+    }
     if (gate.unlocked()) return; // 어른이 날짜로 연 날은 그대로
     const c = KP.current();
     if (c && gate.locked(c.def.cat)) KP.lastRound(() => doorClosed());
@@ -541,6 +582,7 @@
       card.addEventListener("click", () => {
         if (card.dataset.busy) return; // 연타 시 두 번 열리지 않게
         card.dataset.busy = "1";
+        setTimeout(() => delete card.dataset.busy, 1000); // 잠금판을 닫고 돌아와도 다시 누를 수 있게
         KP.audio.sfx("open");
         KP.voice.hold(isHero ? "오늘의 도전! " + g.name : g.name); // 이름을 끝까지 읽고 놀이 안내가 이어짐
         U.replay(card, "press");

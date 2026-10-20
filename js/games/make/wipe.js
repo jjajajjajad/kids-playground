@@ -647,8 +647,38 @@ KP.game({
     };
     ctx.newRound = newRound;
     ctx.isLoaded = () => loaded;
+    // 화면 크기 변화: 회전·크게 바뀜이면 새 판, 조금(주소창·내비게이션 바)이면 닦던 덮개를 그대로 옮겨 이어 하기
+    function onResize() {
+      if (!ctx._active || done) return;
+      const oW = W,
+        oH = H,
+        oD = D;
+      const r = board.getBoundingClientRect();
+      if (Math.abs(r.width - oW) < 1 && Math.abs(r.height - oH) < 1) return;
+      const flip = oW >= oH !== r.width >= r.height;
+      const big = !oW || !oH || Math.abs(r.width - oW) / oW > 0.2 || Math.abs(r.height - oH) / oH > 0.2;
+      const nd = Math.min(window.devicePixelRatio || 1, 2);
+      // 숨은 친구가 화면 밖으로 잘리면 끝까지 닦을 수 없으니 새 판
+      const cx = parseFloat(charEl.style.left) || 0,
+        cy = parseFloat(charEl.style.top) || 0,
+        cs = parseFloat(charEl.style.width) || 0;
+      const cut = cx + cs > r.width || cy + cs > r.height;
+      if (flip || big || cut || nd !== oD || !samples.length) return newRound(cur && cur.photo ? { photo: cur.photo } : cur);
+      const keep = document.createElement("canvas");
+      keep.width = cover.width;
+      keep.height = cover.height;
+      keep.getContext("2d").drawImage(cover, 0, 0);
+      fit();
+      // 새로 생긴 가장자리는 새 덮개로, 원래 자리는 닦은 그대로
+      cg.globalCompositeOperation = "source-over";
+      theme.draw(cg, W, H, Math.random);
+      cg.clearRect(0, 0, oW, oH);
+      cg.setTransform(1, 0, 0, 1, 0, 0);
+      cg.drawImage(keep, 0, 0);
+      cg.setTransform(D, 0, 0, D, 0, 0);
+    }
     addEventListener("resize", () => {
-      if (ctx._active && !done) requestAnimationFrame(() => newRound(cur && cur.photo ? { photo: cur.photo } : cur));
+      if (ctx._active && !done) requestAnimationFrame(onResize);
     });
   },
   start(ctx) {
