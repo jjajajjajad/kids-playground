@@ -7,7 +7,7 @@
 "use strict";
 KP.game({
   id: "dotdot",
-  icon: "✏️",
+  icon: "📍",
   name: "점 잇기",
   cat: "bigkid",
   levels: 3,

@@ -8,7 +8,7 @@ KP.game({
   id: "missing",
   icon: "❓",
   name: "무엇이 없어졌을까?",
-  cat: "bigkid",
+  cat: "smart",
   levels: 3,
   score: "⭐",
   setup(ctx) {

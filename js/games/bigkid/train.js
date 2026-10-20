@@ -8,7 +8,7 @@ KP.game({
   id: "train",
   icon: "🚂",
   name: "숫자 기차",
-  cat: "bigkid",
+  cat: "study",
   levels: 3,
   score: "⭐",
   setup(ctx) {

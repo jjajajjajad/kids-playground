@@ -465,9 +465,8 @@
     const bSt = U.btn(KP.E("📒") + "<b>0</b>", "act stickerBtn");
     const bGal = U.btn(KP.E("🖼️"), "act galBtn");
     const bMusic = U.btn(KP.E("🎵"), "act musicBtn");
-    const bFs = U.btn(KP.E("📺"), "act fsBtn");
     const bSet = U.btn(KP.E("⚙️"), "act setBtn");
-    acts.append(bKey, bSt, bGal, bMusic, bFs, bSet);
+    acts.append(bKey, bSt, bGal, bMusic, bSet); // 전체 화면(📺)은 아이가 잘못 눌러 풀지 않게 설정 화면으로 옮김
     top.append(brand, acts);
 
     const tabs = U.el("nav", "tabs");
@@ -495,14 +494,6 @@
       on ? KP.audio.bgm.start() : KP.audio.bgm.stop();
       KP.renderHome();
     });
-    if (U.isApp() || !(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen)) bFs.style.display = "none";
-    bFs.addEventListener("click", () => {
-      const de = document.documentElement;
-      try {
-        if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
-        else (de.requestFullscreen || de.webkitRequestFullscreen).call(de);
-      } catch (e) {}
-    });
     KP.hold(
       bSet,
       2000,
@@ -512,7 +503,8 @@
     );
 
     KP.CATS.forEach((c) => {
-      const t = U.btn(KP.E(c.icon) + "<span>" + c.name + "</span>", "tab");
+      // 이름(음성으로도 읽음) + 좁은 화면용 짧은 이름(폰에서 잘리지 않게)
+      const t = U.btn(KP.E(c.icon) + '<span class="tFull">' + c.name + '</span><span class="tShort">' + (c.short || c.name) + "</span>", "tab");
       t.dataset.cat = c.id;
       t.style.setProperty("--cat", c.color);
       t.style.setProperty("--tsoft", c.soft);
@@ -536,7 +528,7 @@
     KP.settings.on(() =>
       U.$$(".tab", tabs).forEach((t) => {
         const c = KP.CATS.find((x) => x.id === t.dataset.cat);
-        const sp = t.querySelector("span");
+        const sp = t.querySelector(".tFull");
         if (c && sp && sp.textContent !== c.name) sp.textContent = c.name;
       })
     );
@@ -573,6 +565,7 @@
       ids.unshift(hero);
     }
     const ROT = [1.5, -1, 2, -2, 1, -1.5, -1, 2, -0.5, 1.2, -1.8, 0.6];
+    const lastId = KP.store.get("lastGame", "");
     ids.forEach((id, i) => {
       const g = KP.GAMES[id];
       const isHero = id === hero;
@@ -585,6 +578,8 @@
       card.style.setProperty("--i", i);
       card.style.setProperty("--rot", (isHero ? -1.5 : ROT[i % ROT.length]) + "deg");
       if (g.badge) card.appendChild(U.el("span", "cBadge", g.badge));
+      // 방금 한 놀이: 테두리가 은은하게 반짝 (자리는 그대로 — 아이가 다시 찾기 쉽게)
+      if (id === lastId && !isHero) card.classList.add("last");
       const lv = KP.level.get(id);
       if (g.levels > 1 && lv.lvl > 1) card.appendChild(U.el("span", "cLv", KP.E("🏅") + Math.min(lv.lvl, g.levels)));
       card.addEventListener("click", () => {

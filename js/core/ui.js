@@ -22,13 +22,13 @@
 
   KP.CATS = [
     // color: 놀이 안 강조색, soft: 홈 카드·제목 스티커의 파스텔색
-    { id: "play", name: "신나는 놀이", icon: "🎈", color: "#2f95f5", soft: "#ffb4a2" },
-    { id: "make", name: "만들기", icon: "🎨", color: "#ff7452", soft: "#ffe08a" },
-    { id: "music", name: "음악", icon: "🎵", color: "#8a63ee", soft: "#d6c4ff" },
-    { id: "smart", name: "똑똑 놀이", icon: "🧠", color: "#2fb466", soft: "#a8e8c2" },
-    { id: "study", name: "공부 놀이", icon: "📚", color: "#ff5d8f", soft: "#ffc6da" },
+    { id: "play", short: "신나는", name: "신나는 놀이", icon: "🎈", color: "#2f95f5", soft: "#ffb4a2" },
+    { id: "make", short: "만들기", name: "만들기", icon: "🎨", color: "#ff7452", soft: "#ffe08a" },
+    { id: "music", short: "음악", name: "음악", icon: "🎵", color: "#8a63ee", soft: "#d6c4ff" },
+    { id: "smart", short: "똑똑", name: "똑똑 놀이", icon: "🧠", color: "#2fb466", soft: "#a8e8c2" },
+    { id: "study", short: "공부", name: "공부 놀이", icon: "📚", color: "#ff5d8f", soft: "#ffc6da" },
     // 이름을 넣으면 "동훈이 도전", 없으면 "도전 놀이"
-    { id: "bigkid", get name() { return KP.kid && KP.kid.nick() ? KP.kid.nick() + " 도전" : "도전 놀이"; }, icon: "🦸", color: "#f29a00", soft: "#a9d0ff" },
+    { id: "bigkid", short: "도전", get name() { return KP.kid && KP.kid.nick() ? KP.kid.nick() + " 도전" : "도전 놀이"; }, icon: "🦸", color: "#f29a00", soft: "#a9d0ff" },
   ];
   KP.SOFT_DEFAULT = "#c9e4ff";
   KP.MASCOT = "🐻";

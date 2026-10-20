@@ -3,7 +3,7 @@
 "use strict";
 KP.game({
   id: "sorter",
-  icon: "🔷",
+  icon: "🔺",
   name: "모양 끼우기",
   cat: "bigkid",
   levels: 3,

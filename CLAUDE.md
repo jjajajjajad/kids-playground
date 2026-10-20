@@ -32,6 +32,8 @@ node tools/phone-audit.js        # 폰 화면 넘침 점검 (n100 은 알려진 
 - `js/games/make/zoo3d.js` — Three.js r170 (`vendor/three.module.min.js`) 3D 동물원. 점토 질감, 자동 화질(`zoo3d:q`).
 - `js/games/bigkid/maze.js` — 미로 + 술래 도전(BFS 추적, 속도 자동 조절 `maze:chaseK`).
 - `css/app.css`, `css/games/*.css`.
+- 홈 메뉴: 탭 6개(`KP.CATS`, id 는 잠금 설정과 묶여 있어 바꾸지 말 것). `name` 은 화면·음성용, `short` 는 폰(세로·가로)에서 보이는 짧은 이름.
+  탭 안 순서는 `catalog.js` 의 `ORDER_HINT`(쉬운 것 → 어려운 것), 탭 소속은 각 놀이 파일의 `cat`. 놀이 아이콘은 서로 겹치지 않게.
 
 ## 잠금·시간 시스템 (건드릴 때 주의)
 - 부모 게이트: `KP.gate.adult()` — 4자리 PIN(설정 시) 또는 날짜 문제. "잊었어요"는 5초 누르면 날짜 문제로.

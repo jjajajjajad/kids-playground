@@ -7,7 +7,7 @@
 "use strict";
 KP.game({
   id: "trace",
-  icon: "✍️",
+  icon: "〰️",
   name: "선 따라 그리기",
   cat: "bigkid",
   levels: 3,

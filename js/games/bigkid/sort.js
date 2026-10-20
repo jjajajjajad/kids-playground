@@ -7,7 +7,7 @@
 "use strict";
 KP.game({
   id: "sort",
-  icon: "🧺",
+  icon: "🗂️",
   name: "분류하기",
   cat: "bigkid",
   levels: 3,

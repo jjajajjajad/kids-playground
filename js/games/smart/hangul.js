@@ -10,7 +10,7 @@
 "use strict";
 KP.game({
   id: "hangul",
-  icon: "✏️",
+  icon: "📖",
   name: "한글 놀이",
   cat: "study",
   levels: 3,

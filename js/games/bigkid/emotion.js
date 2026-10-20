@@ -8,7 +8,7 @@ KP.game({
   id: "emotion",
   icon: "😊",
   name: "기분 알아보기",
-  cat: "bigkid",
+  cat: "smart",
   levels: 3,
   score: "⭐",
   setup(ctx) {

@@ -6,7 +6,7 @@
 "use strict";
 KP.game({
   id: "draw",
-  icon: "🎨",
+  icon: "✏️",
   name: "그림 그리기",
   cat: "make",
   bubble: false,

@@ -129,7 +129,7 @@
 
   KP.notebook({
     id: "hwrite",
-    icon: "✍️",
+    icon: "📓",
     name: "한글 쓰기 공책",
     cat: "study",
     key: "hw:stars",

@@ -5,7 +5,7 @@
 "use strict";
 KP.game({
   id: "xylo",
-  icon: "🎼",
+  icon: "🎐",
   name: "실로폰",
   cat: "music",
   setup(ctx) {

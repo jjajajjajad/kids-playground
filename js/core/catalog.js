@@ -5,18 +5,18 @@
 "use strict";
 (function (KP) {
   KP.ORDER_HINT = [
-    // 신나는 놀이
-    "firework", "balloon", "bubble", "mole", "fish", "fruit", "rocket", "race", "egg", "peekaboo", "light", "colorpop", "candle", "croc", "rps",
+    // 신나는 놀이: 누르면 바로 반응 → 움직이는 것 잡기 → 색·신호·규칙
+    "firework", "balloon", "bubble", "egg", "peekaboo", "candle", "mole", "fish", "fruit", "rocket", "race", "croc", "colorpop", "light", "rps",
     // 만들기
     "zoo", "zoopaint", "paintlab", "decal", "draw", "wipe", "paintbook", "face", "icecream", "grow",
-    // 음악
-    "piano", "realpiano", "xylo", "drum", "musicbox", "simon", "inst",
-    // 똑똑 놀이
-    "color", "mix", "shape", "animals", "listen", "feed", "odd", "shadow", "size", "memory", "candy",
-    // 공부 놀이 (글자·숫자)
-    "hangul", "hwrite", "abc", "awrite", "numbers", "nwrite", "n100", "count", "dots", "more",
-    // 도전 놀이 (이름을 넣으면 "동훈이 도전")
-    "maze", "colororder", "jigsaw", "sorter", "trace", "dotdot", "pattern", "sort", "missing", "sequence", "train", "connect", "spatial", "emotion", "dress",
+    // 음악 (진짜 피아노는 실제 피아노가 있어야 해서 맨 뒤)
+    "piano", "xylo", "drum", "musicbox", "inst", "simon", "realpiano",
+    // 똑똑 놀이: 보고·듣고 고르기 (색·모양·소리 → 기억·마음)
+    "color", "shape", "animals", "listen", "feed", "size", "mix", "odd", "shadow", "memory", "missing", "emotion", "candy",
+    // 공부 놀이: 숫자·글자 익히기 → 쓰기 공책은 뒤에
+    "numbers", "count", "dots", "train", "more", "hangul", "abc", "n100", "nwrite", "hwrite", "awrite",
+    // 도전 놀이 (이름을 넣으면 "동훈이 도전"): 끌어 놓기·길 따라가기 → 기호·순서·추론
+    "sorter", "jigsaw", "sort", "spatial", "dress", "trace", "maze", "connect", "dotdot", "pattern", "sequence", "colororder",
   ];
   KP.sortGames = function () {
     const idx = (id) => {

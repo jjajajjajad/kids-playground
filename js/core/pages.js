@@ -511,6 +511,18 @@
           "<small>기기와 버전에 따라 메뉴 이름이 조금 다를 수 있어요.</small>"
       )
     );
+    // 전체 화면 (브라우저로 열었을 때만 — 설치한 앱은 이미 전체 화면)
+    const de = document.documentElement;
+    if (!U.isApp() && (de.requestFullscreen || de.webkitRequestFullscreen)) {
+      const bFs = U.btn(KP.E("📺") + " 전체 화면 켜기/끄기", "chip");
+      bFs.addEventListener("click", () => {
+        try {
+          if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+          else (de.requestFullscreen || de.webkitRequestFullscreen).call(de);
+        } catch (e) {}
+      });
+      sPinApp.appendChild(bFs);
+    }
 
     // 게임 보이기
     const sGames = sec("보여줄 놀이 고르기");

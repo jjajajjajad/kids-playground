@@ -5,7 +5,7 @@
 "use strict";
 KP.game({
   id: "mix",
-  icon: "🎨",
+  icon: "🥣",
   name: "색깔 섞기",
   cat: "smart",
   levels: 3,
