@@ -27,7 +27,7 @@
     oneMore: true, // 끝날 때 '한 번만 더'(하루 1번, 2분)
     pin: "", // 부모 비밀번호 4자리 ("" = 오늘 날짜 8자리 사용)
     kidName: "", // 아이 이름 (예: "동훈") — 칭찬할 때 "동훈아, 최고!" / 비우면 이름 없이 칭찬
-    kidVoice: null, // 이름 음성 {v: "동훈아" 음성 주소, n: "동훈이" 음성 주소} — 부모가 '이름 음성 코드'로 넣음(기기에만 저장)
+    kidVoice: null, // (예비) 이 기기 전용 이름 음성 {v: "동훈아" 주소, n: "동훈이" 주소} — 없으면 미리 만든 이름 음성(NAME_VOICES) 또는 기기 목소리
     ver: 2,
   };
   // 이름: 한글·영문·숫자만, 8자까지 (화면에 그대로 넣으므로 꺾쇠 등은 버림)
@@ -102,6 +102,21 @@
     return c >= 0xac00 && c <= 0xd7a3 && (c - 0xac00) % 28 !== 0;
   };
   const isHangul = (w) => /[가-힣]$/.test(w);
+  // 미리 만들어 둔 이름 음성 — 이름은 글자로 안 보이게 해시(FNV-1a)로만 적음. 이름 칸에 그 이름을 넣으면 자연 음성으로 부름
+  const fnv = (s) => {
+    let h = 0x811c9dc5;
+    for (const ch of s) {
+      h ^= ch.codePointAt(0);
+      h = Math.imul(h, 0x01000193) >>> 0;
+    }
+    return h.toString(36);
+  };
+  const NAME_VOICES = {
+    h5hr4y: {
+      v: "https://d8j0ntlcm91z4.cloudfront.net/user_3GrLGEslsPa61Qgpp8m440Yjp4M/hf_20261020_054108_01afc1c3-c29d-4149-bb4c-2b448738c869.mp3",
+      n: "https://d8j0ntlcm91z4.cloudfront.net/user_3GrLGEslsPa61Qgpp8m440Yjp4M/hf_20261020_054107_840509a1-6121-4d58-a80b-07aaaed82621.mp3",
+    },
+  };
   const kid = (KP.kid = {
     name: () => cur.kidName,
     /** 부르는 말: 동훈아 / 근호야 (한글 아니면 이름 그대로) */
@@ -116,38 +131,23 @@
       if (!n) return "";
       return isHangul(n) && hasBatchim(n) ? n + "이" : n;
     },
+    /** 지금 이름의 음성 {v, n} — 코드로 넣은 것 또는 미리 만들어 둔 것, 없으면 null */
+    voice: () => (cur.kidName ? cur.kidVoice || NAME_VOICES[fnv(cur.kidName)] || null : null),
     /** 이름 음성이 있으면 그 주소 (음성 조각 찾기에서 씀) */
     clip(word) {
-      const v = cur.kidVoice;
-      if (!v || !cur.kidName) return null;
+      const v = kid.voice();
+      if (!v) return null;
       if (word === kid.call()) return v.v;
       if (word === kid.nick() && v.n) return v.n;
       return null;
     },
-    /** '이름 음성 코드' 풀기: "KPV1." + base64(JSON {n, v, i}) → 성공하면 true */
-    applyCode(code) {
-      try {
-        const m = /^KPV1\.([A-Za-z0-9+/=_-]+)$/.exec(String(code || "").trim());
-        if (!m) return false;
-        const b = atob(m[1].replace(/-/g, "+").replace(/_/g, "/"));
-        const j = JSON.parse(decodeURIComponent(escape(b)));
-        const name = cleanName(j.n);
-        const voice = cleanVoice({ v: j.v, n: j.i });
-        if (!name || !voice) return false;
-        KP.settings.set({ kidName: name, kidVoice: voice });
-        return true;
-      } catch (e) {
-        return false;
-      }
-    },
   });
   /** "{부름} 퍼즐 박사!" → "동훈아, 퍼즐 박사!" / "퍼즐 박사!"
-      forVoice: 말할 때 — 자연 음성을 쓰는데 이름 음성이 없으면 이름은 빼고 말함(문장 전체가 기계 음성으로 바뀌지 않게) */
-  KP.who = (t, forVoice) => {
+      (이름 음성이 없는 이름은 voice.js 가 이름만 기기 목소리로, 나머지는 자연 음성으로 이어 말함) */
+  KP.who = (t) => {
     t = String(t == null ? "" : t);
     if (!t.includes("{부름}")) return t;
-    let c = kid.call();
-    if (forVoice && c && cur.natural !== false && !kid.clip(c)) c = "";
+    const c = kid.call();
     return t.replace(/\{부름\}\s*/g, c ? c + ", " : "").replace(/\s{2,}/g, " ").trim();
   };
 })(window.KP);

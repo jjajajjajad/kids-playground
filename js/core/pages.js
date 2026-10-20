@@ -475,9 +475,8 @@
     const sName = sec(KP.E("🧒") + " 아이 이름");
     const nameNote = U.el("p", "pNote");
     const drawName = () => {
-      const st = KP.settings.get();
-      nameNote.textContent = st.kidName
-        ? "칭찬할 때 '" + KP.kid.call() + ", 최고!'처럼 불러요." + (st.kidVoice ? " 이름 목소리도 들어 있어요." : " 이름 목소리가 없어서 소리로는 이름 없이 칭찬해요(글자에는 이름이 나와요).")
+      nameNote.textContent = KP.kid.name()
+        ? "칭찬할 때 '" + KP.kid.call() + ", 최고!'처럼 불러요." + (KP.kid.voice() ? "" : " 이름은 기기 목소리로 불러요.")
         : "비어 있으면 이름 없이 칭찬해요. 이름은 이 기기에만 저장돼요.";
     };
     const nameRow = U.el("div", "pChips");
@@ -485,33 +484,19 @@
     nameIn.maxLength = 8;
     nameIn.placeholder = "예: 동훈";
     nameIn.autocomplete = "off";
-    nameIn.value = KP.settings.get().kidName;
+    nameIn.value = KP.kid.name();
     const bName = U.btn("저장", "chip");
     bName.addEventListener("click", () => {
       const v = nameIn.value.replace(/[^\p{L}\p{N}]/gu, "").slice(0, 8);
-      const st = KP.settings.get();
-      // 이름을 바꾸면 예전 이름 목소리는 맞지 않으므로 지움
-      KP.settings.set({ kidName: v, kidVoice: v === st.kidName ? st.kidVoice : null });
+      // 이름을 바꾸면 코드로 넣었던 예전 이름 음성은 맞지 않으므로 지움
+      KP.settings.set({ kidName: v, kidVoice: v === KP.kid.name() ? KP.settings.get().kidVoice : null });
       nameIn.value = v;
-      KP.toast(v ? KP.kid.call() + "! 이름을 넣었어요" : "이름을 지웠어요");
+      KP.toast(v ? "이름을 넣었어요" : "이름을 지웠어요");
+      if (v) KP.voice.say("{부름} 반가워!");
       drawName();
     });
     nameRow.append(nameIn, bName);
-    const codeRow = U.el("div", "pChips");
-    const codeIn = U.el("input", "pinIn textIn");
-    codeIn.placeholder = "이름 목소리 코드 (KPV1.으로 시작)";
-    codeIn.autocomplete = "off";
-    const bCode = U.btn("넣기", "chip");
-    bCode.addEventListener("click", () => {
-      if (!KP.kid.applyCode(codeIn.value)) return KP.toast("코드가 맞지 않아요");
-      codeIn.value = "";
-      nameIn.value = KP.settings.get().kidName;
-      KP.toast(KP.kid.call() + "! 이름 목소리를 넣었어요");
-      KP.voice.say("{부름} 반가워!");
-      drawName();
-    });
-    codeRow.append(codeIn, bCode);
-    sName.append(nameRow, codeRow, nameNote);
+    sName.append(nameRow, nameNote);
     drawName();
 
     // 앱 밖으로 못 나가게 하기 (기기 기능)

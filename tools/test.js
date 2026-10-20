@@ -30,7 +30,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     for (const vp of VPS) {
       const ctx = await browser.newContext({ viewport: vp.viewport, hasTouch: true, deviceScaleFactor: 1 });
       // 자연 음성 파일 서버(외부)는 점검 중에는 짧은 무음 파일로 대신 (외부 접속 없이 같은 흐름 확인)
-      const SILENT = Buffer.from("UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZGF0YQAAAAA=", "base64");
+      // 0.2초짜리 정상 WAV — 길이 0 짜리는 디코딩이 안 돼 늘 기기 목소리로 넘어가서 자연 음성 재생 흐름이 점검되지 않았음
+      const SILENT = Buffer.alloc(44 + 2205);
+      SILENT.write("RIFF", 0); SILENT.writeUInt32LE(36 + 2205, 4); SILENT.write("WAVEfmt ", 8); SILENT.writeUInt32LE(16, 16);
+      SILENT.writeUInt16LE(1, 20); SILENT.writeUInt16LE(1, 22); SILENT.writeUInt32LE(11025, 24); SILENT.writeUInt32LE(11025, 28);
+      SILENT.writeUInt16LE(1, 32); SILENT.writeUInt16LE(8, 34); SILENT.write("data", 36); SILENT.writeUInt32LE(2205, 40);
+      for (let i = 0; i < 2205; i++) SILENT[44 + i] = 128 + Math.round(40 * Math.sin(i / 5));
       await ctx.route("https://*.cloudfront.net/**", (r) => r.fulfill({ status: 200, body: SILENT, headers: { "Content-Type": "audio/wav", "Access-Control-Allow-Origin": "*" } }));
       const page = await ctx.newPage();
       const errs = [];

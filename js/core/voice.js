@@ -77,7 +77,7 @@
   };
   const holding = () => holdP && performance.now() < holdUntil;
   V.say = function (text, o = {}) {
-    if (KP.who) text = KP.who(text, true); // "{부름}" → "동훈아," (아이 이름)
+    if (KP.who) text = KP.who(text); // "{부름}" → "동훈아," (아이 이름)
     if (holding() && !o.queue) {
       const p = holdP;
       return p.then(() => sayNow(text, o));
@@ -139,6 +139,18 @@
       const wait = Math.max(0, (natEnd - KP.audio.ctx().currentTime) * 1000);
       if (wait > 30 && !(natOn() && natUrls(text))) return void setTimeout(() => speakTTS(text, o, vol), wait + 60);
     }
+    // 아이 이름 음성이 없는 이름: 이름만 기기 목소리, 앞뒤는 자연 음성 ([근호야] + [퍼즐 박사!])
+    if (natOn() && KP.kid && !natUrls(text)) {
+      const c = KP.kid.call();
+      const i = c && !KP.kid.clip(c) ? text.indexOf(c) : -1;
+      if (i >= 0) {
+        const before = text.slice(0, i).trim(),
+          after = text.slice(i + c.length).replace(/^[,~!\s]+/, "").trim();
+        const ub = before ? natUrls(before) : [],
+          ua = after ? natUrls(after) : [];
+        if (ub && ua) return sayMixed([[before, ub], [c, null], [after, ua]].filter((p) => p[0]), o, vol);
+      }
+    }
     // 자연 음성(미리 만든 음성 파일): 문장의 모든 조각이 있으면 그걸로
     if (natOn()) {
       // 영어 낱말도 미리 만든 음성이 있으면 그것으로 ("A! Apple!")
@@ -146,6 +158,19 @@
       if (urls) return playNatural(text, urls, o, vol);
     }
     speakTTS(text, o, vol);
+  }
+  // 조각을 차례로: 자연 음성 조각은 playNatural, 이름(null)은 기기 목소리. 그사이 다른 말이 시작되면 멈춤
+  function sayMixed(parts, o, vol) {
+    const tok = mixTok;
+    const step = (k) => {
+      if (tok !== mixTok) return;
+      if (k >= parts.length) return o.onend && o.onend();
+      const [t, urls] = parts[k];
+      const next = Object.assign({}, o, { queue: k > 0 || o.queue, onend: () => step(k + 1) });
+      if (urls) playNatural(t, urls, next, vol);
+      else speakTTS(t, next, vol);
+    };
+    step(0);
   }
   function speakTTS(text, o, vol) {
     V.lastVia = "tts";
@@ -389,6 +414,7 @@
     };
     next();
   }
+  let mixTok = 0;
   let natTok = 0,
     natSrcs = [],
     natEnd = 0;
@@ -448,7 +474,10 @@
       });
   }
   function stopNatural(keepTok) {
-    if (!keepTok) natTok++;
+    if (!keepTok) {
+      natTok++;
+      mixTok++; // 이름 섞어 말하기도 멈춤
+    }
     try {
       if (el && !el.paused) el.pause();
     } catch (e) {}
@@ -479,7 +508,7 @@
     try {
       const keep = new Set(Object.values(KP.VOICE_CLIPS || {}));
       if (!keep.size) return; // 목록이 비었으면(빌드 이상) 지우지 않음
-      const kv = KP.settings && KP.settings.get().kidVoice; // 아이 이름 음성은 목록에 없어도 남김
+      const kv = KP.kid && KP.kid.voice(); // 아이 이름 음성은 목록에 없어도 남김
       if (kv) [kv.v, kv.n].forEach((u) => u && keep.add(u));
       for (const r of await cache.keys())
         if (!keep.has(r.url)) {
