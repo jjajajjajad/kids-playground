@@ -176,7 +176,7 @@ KP.game({
               ctx.score.add();
               ctx.round++;
               const big = ctx.round % 4 === 0;
-              const ok = await ctx.win({ big, msg: big ? "규칙 박사 형아!" : "딩동댕! " + it.name + "!" });
+              const ok = await ctx.win({ big, msg: big ? "{부름} 규칙 박사!" : "딩동댕! " + it.name + "!" });
               if (ok) this.next(ctx);
             })
           );

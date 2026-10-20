@@ -119,7 +119,7 @@ KP.game({
       ctx.round++;
       await ctx.wait(1500);
       const big = ctx.round % 5 === 0;
-      const okk = await ctx.win({ big, msg: big ? "먹이 주기 대장 형아!" : "배불러요! 고마워요!" });
+      const okk = await ctx.win({ big, msg: big ? "{부름} 먹이 주기 대장!" : "배불러요! 고마워요!" });
       if (okk) self.next(ctx);
     };
   },

@@ -245,7 +245,7 @@ KP.game({
         await ctx.wait(2200);
         if (tk !== ctx.spTok) return;
         const bg = ctx.round % 5 === 0;
-        const ok = await ctx.win({ big: bg, msg: bg ? "영어 박사 형아!" : "딩동댕!", quiet: !bg });
+        const ok = await ctx.win({ big: bg, msg: bg ? "{부름} 영어 박사!" : "딩동댕!", quiet: !bg });
         if (ok && ctx.m === "spell" && tk === ctx.spTok) this.spell(ctx);
       });
       tiles.appendChild(t);
@@ -319,7 +319,7 @@ KP.game({
         ctx.round++;
         await ctx.wait(1400);
         const bg = ctx.round % 5 === 0;
-        const ok = await ctx.win({ big: bg, msg: bg ? "ABC 박사 형아!" : "딩동댕!", quiet: !bg });
+        const ok = await ctx.win({ big: bg, msg: bg ? "{부름} ABC 박사!" : "딩동댕!", quiet: !bg });
         if (ok && ctx.m === "quiz") self.quiz(ctx);
       },
     });

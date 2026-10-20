@@ -142,7 +142,7 @@ KP.game({
           ctx.busy = true;
           ctx.round++;
           const big = ctx.round % 4 === 0;
-          const ok = await ctx.win({ big, msg: big ? "색깔 박사 형아!" : ctx.target[0] + " 풍선 다섯 개!" });
+          const ok = await ctx.win({ big, msg: big ? "{부름} 색깔 박사!" : ctx.target[0] + " 풍선 다섯 개!" });
           if (ok) this.nextColor(ctx);
         } else this.hint(ctx);
       } else {

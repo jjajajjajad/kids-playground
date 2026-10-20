@@ -82,7 +82,7 @@ KP.game({
     const done = async () => {
       ctx.score.add();
       ctx.round++;
-      const ok = await ctx.win({ big: ctx.round % 4 === 0, msg: ctx.round % 4 === 0 ? "모양 박사 형아!" : "다 끼웠다!" });
+      const ok = await ctx.win({ big: ctx.round % 4 === 0, msg: ctx.round % 4 === 0 ? "{부름} 모양 박사!" : "다 끼웠다!" });
       if (ok) this.next(ctx);
     };
   },

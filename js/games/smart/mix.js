@@ -220,7 +220,7 @@ KP.game({
         ctx.round++;
         await ctx.wait(1300);
         const big = ctx.round % 5 === 0;
-        const ok = await ctx.win({ big, msg: big ? "색깔 마법사 형아!" : m.n + "!", quiet: !big });
+        const ok = await ctx.win({ big, msg: big ? "{부름} 색깔 마법사!" : m.n + "!", quiet: !big });
         if (ok) self.next(ctx);
       } else {
         busy = true;

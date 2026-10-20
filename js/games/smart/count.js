@@ -84,7 +84,7 @@ KP.game({
           ctx.round++;
           const big = ctx.round % 5 === 0;
           const CNT = ["", "한", "두", "세", "네", "다섯", "여섯", "일곱", "여덟", "아홉", "열"];
-          const ok = await ctx.win({ big, msg: big ? "숫자 박사 형아!" : (CNT[answer] || answer) + " 개! 딩동댕!" });
+          const ok = await ctx.win({ big, msg: big ? "{부름} 숫자 박사!" : (CNT[answer] || answer) + " 개! 딩동댕!" });
           if (ok) this.next(ctx);
         } else {
           ctx.miss(b, counted < answer ? "하나씩 눌러서 같이 세어 볼까?" : "다시 세어 볼까요?");

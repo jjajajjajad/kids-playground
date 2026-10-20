@@ -147,7 +147,7 @@ KP.game({
             ctx.score.add();
             ctx.round++;
             const big = ctx.round % 4 === 0;
-            const ok = await ctx.win({ big, msg: big ? "까꿍 대장 형아!" : "모두 찾았다!" });
+            const ok = await ctx.win({ big, msg: big ? "{부름} 까꿍 대장!" : "모두 찾았다!" });
             if (ok) this.next(ctx);
           });
         } else hintFree();
@@ -182,7 +182,7 @@ KP.game({
           } else {
             ctx.round++;
             const big = ctx.round % 4 === 0;
-            const ok = await ctx.win({ big, msg: big ? "기억력 대장 형아!" : "다 찾았어요!" });
+            const ok = await ctx.win({ big, msg: big ? "{부름} 기억력 대장!" : "다 찾았어요!" });
             if (ok) this.next(ctx);
           }
         });

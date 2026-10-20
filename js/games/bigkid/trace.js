@@ -354,7 +354,7 @@ KP.game({
       await ctx.wait(2700);
       if (!ctx._active) return;
       const big = ctx.round % 4 === 0;
-      const ok = await ctx.win({ big, msg: big ? "그리기 대장 형아!" : sh.say ? sh.name + " 완성!" : "잘 따라 그렸어요!" });
+      const ok = await ctx.win({ big, msg: big ? "{부름} 그리기 대장!" : sh.say ? sh.name + " 완성!" : "잘 따라 그렸어요!" });
       if (ok) ctx.def.next(ctx);
     }
     function setHint() {

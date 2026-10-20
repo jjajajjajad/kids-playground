@@ -140,7 +140,7 @@
   /* ---------------- 축하 ---------------- */
   const PRAISE = [
     ["🎉", "잘했어요!"], ["🌟", "최고예요!"], ["👏", "멋져요!"], ["💯", "딩동댕!"],
-    ["🏆", "우와, 대단해!"], ["😎", "멋진 형아!"], ["💪", "정말 잘했어!"], ["🥳", "와아, 성공!"],
+    ["🏆", "우와, 대단해!"], ["😎", "{부름} 정말 멋져!"], ["💪", "정말 잘했어!"], ["🥳", "와아, 성공!"],
   ];
   let layer = null;
   function ensureLayer() {
@@ -178,7 +178,8 @@
     KP.celebrating = true;
     KP.hideHint && KP.hideHint();
     const [em, word] = U.pick(PRAISE);
-    const msg = o.msg || word;
+    const raw = o.msg || word;
+    const msg = KP.who(raw); // "{부름}" → 아이 이름 (말할 때는 voice.say 가 따로 바꿈 — 이름 음성이 없으면 이름 빼고)
     layer.innerHTML =
       '<div class="cBox"><div class="cEm">' + KP.E(em) + '</div><div class="cTxt">' + KP.E(msg) + "</div></div>";
     layer.className = "celebrate show block" + (o.big ? " big" : "");
@@ -186,7 +187,7 @@
     if (o.big) later(() => KP.confetti(140, innerWidth * 0.25, innerHeight * 0.3), 350);
     if (o.big) later(() => KP.confetti(140, innerWidth * 0.75, innerHeight * 0.3), 650);
     KP.audio.jingle();
-    if (!o.quiet) KP.voice.say(msg.replace(/\p{Extended_Pictographic}|️/gu, ""));
+    if (!o.quiet) KP.voice.say(raw.replace(/\p{Extended_Pictographic}|️/gu, ""));
     const base = o.big ? 2100 : 1350;
 
     winCount++;
@@ -202,11 +203,11 @@
           const lv = o.ctx ? o.ctx.level : 2;
           layer.innerHTML =
             '<div class="cBox lvl"><div class="cEm">' + KP.E("🦸") + '</div><div class="cTxt">한 단계 올라갔어요!</div><div class="cSub">' +
-            KP.E("⭐") + " " + lv + "단계 형아 도전!</div></div>";
+            KP.E("⭐") + " " + lv + "단계 도전!</div></div>";
           layer.className = "celebrate show block big";
           KP.audio.sfx("levelup");
           KP.confetti(160);
-          KP.voice.say("한 단계 올라갔어요! 이제 " + lv + "단계! 형아 최고!");
+          KP.voice.say("한 단계 올라갔어요! 이제 " + lv + "단계! {부름} 최고!");
         }, base);
         t += 2300;
         later(() => layer.classList.remove("show"), t - 150);

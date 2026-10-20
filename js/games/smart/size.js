@@ -77,7 +77,7 @@ KP.game({
           ctx.round++;
           await ctx.wait(1100);
           const bg = ctx.round % 5 === 0;
-          const ok = await ctx.win({ big: bg, msg: bg ? "크기 박사 형아!" : word + " " + name + "!", quiet: !bg });
+          const ok = await ctx.win({ big: bg, msg: bg ? "{부름} 크기 박사!" : word + " " + name + "!", quiet: !bg });
           if (ok) self.next(ctx);
         },
       });
@@ -113,7 +113,7 @@ KP.game({
             KP.audio.melody([["C5", 1], ["E5", 1], ["G5", 1], ["C6", 2]], { beat: 0.12, when: 0.3 });
             await ctx.wait(1200);
             const bg = ctx.round % 5 === 0;
-            const ok = await ctx.win({ big: bg, msg: bg ? "크기 박사 형아!" : "차례차례 잘했어요!" });
+            const ok = await ctx.win({ big: bg, msg: bg ? "{부름} 크기 박사!" : "차례차례 잘했어요!" });
             if (ok) self.next(ctx);
           } else hint();
         } else {

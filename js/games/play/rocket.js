@@ -213,7 +213,7 @@ KP.game({
       ctx.score.add();
       ctx.round++;
       const big = ctx.round % 4 === 0;
-      const ok = await ctx.win({ big, msg: big ? "우주 비행사 형아!" : "달 착륙 성공!" });
+      const ok = await ctx.win({ big, msg: big ? "{부름} 우주 비행사!" : "달 착륙 성공!" });
       if (ok) this.next(ctx);
     };
   },

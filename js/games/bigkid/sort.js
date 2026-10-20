@@ -183,7 +183,7 @@ KP.game({
       ctx.round++;
       binEls.forEach((b, k) => ctx.after(k * 200, () => U.replay(b, "jump")));
       const big = ctx.round % 4 === 0;
-      const ok = await ctx.win({ big, msg: big ? "정리 대장 형아!" : "다 나눴어요!" });
+      const ok = await ctx.win({ big, msg: big ? "{부름} 정리 대장!" : "다 나눴어요!" });
       if (ok) this.next(ctx);
     };
   },

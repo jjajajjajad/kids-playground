@@ -218,7 +218,7 @@ KP.game({
       await ctx.wait(1300);
       ctx.round++;
       const big = ctx.round % 4 === 0;
-      const ok = await ctx.win({ big, msg: big ? "신호등 박사 형아!" : "잘 기다렸어요!" });
+      const ok = await ctx.win({ big, msg: big ? "{부름} 신호등 박사!" : "잘 기다렸어요!" });
       if (ok) this.next(ctx);
     };
     ctx.hint(() => (sig === "g" ? ctx.go : ctx.signalEl), "초록불이 켜지면 눌러요!");

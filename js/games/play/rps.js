@@ -200,7 +200,7 @@ KP.game({
       await ctx.wait(1400);
       ctx.bearFace.innerHTML = ctx.bearSVG("sad");
       U.replay(ctx.bearFace, "sad");
-      KP.voice.say("으앙, 졌다~ 형아 최고!");
+      KP.voice.say("으앙, 졌다~ {부름} 최고!");
       ctx.wins++;
       await ctx.wait(1400);
       if (!ctx._active) return;

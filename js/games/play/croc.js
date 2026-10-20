@@ -192,7 +192,7 @@ KP.game({
       await ctx.wait(500);
       ctx.round++;
       const big = ctx.round % 4 === 0;
-      const ok = await ctx.win({ big, msg: big ? "용감한 형아!" : "깜짝 놀랐지?" });
+      const ok = await ctx.win({ big, msg: big ? "{부름} 정말 용감해!" : "깜짝 놀랐지?" });
       if (ok) this.next(ctx);
     };
     const hint = () => ctx.hint(() => teeth.find((t) => !t.classList.contains("down")), "이빨을 하나씩 콕 눌러 봐요!");

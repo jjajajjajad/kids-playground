@@ -146,7 +146,7 @@ KP.game({
         ctx.score.add();
         ctx.round++;
         const big = ctx.round % 4 === 0;
-        const ok = await ctx.win({ big, msg: big ? "마음 박사 형아!" : "친구 마음을 알았어요!" });
+        const ok = await ctx.win({ big, msg: big ? "{부름} 마음 박사!" : "친구 마음을 알았어요!" });
         if (ok && tok === ctx.token) this.next(ctx);
       },
     });

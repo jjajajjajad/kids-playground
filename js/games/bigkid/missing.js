@@ -178,7 +178,7 @@ KP.game({
           await ctx.wait(1100);
           if (!ctx._active) return;
           const big = ctx.round % 4 === 0;
-          const ok = await ctx.win({ big, msg: big ? "기억력 대장 형아!" : U.josa(name, "이/가") + " 없어졌었어요!" });
+          const ok = await ctx.win({ big, msg: big ? "{부름} 기억력 대장!" : U.josa(name, "이/가") + " 없어졌었어요!" });
           if (ok) this.next(ctx);
         },
       });

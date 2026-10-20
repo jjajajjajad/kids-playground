@@ -471,6 +471,49 @@
     sPin.append(pinRow, pinNote);
     drawPin();
 
+    // 아이 이름 (칭찬할 때 "동훈아, 최고!") — 기기에만 저장
+    const sName = sec(KP.E("🧒") + " 아이 이름");
+    const nameNote = U.el("p", "pNote");
+    const drawName = () => {
+      const st = KP.settings.get();
+      nameNote.textContent = st.kidName
+        ? "칭찬할 때 '" + KP.kid.call() + ", 최고!'처럼 불러요." + (st.kidVoice ? " 이름 목소리도 들어 있어요." : " 이름 목소리가 없어서 소리로는 이름 없이 칭찬해요(글자에는 이름이 나와요).")
+        : "비어 있으면 이름 없이 칭찬해요. 이름은 이 기기에만 저장돼요.";
+    };
+    const nameRow = U.el("div", "pChips");
+    const nameIn = U.el("input", "pinIn textIn");
+    nameIn.maxLength = 8;
+    nameIn.placeholder = "예: 동훈";
+    nameIn.autocomplete = "off";
+    nameIn.value = KP.settings.get().kidName;
+    const bName = U.btn("저장", "chip");
+    bName.addEventListener("click", () => {
+      const v = nameIn.value.replace(/[^\p{L}\p{N}]/gu, "").slice(0, 8);
+      const st = KP.settings.get();
+      // 이름을 바꾸면 예전 이름 목소리는 맞지 않으므로 지움
+      KP.settings.set({ kidName: v, kidVoice: v === st.kidName ? st.kidVoice : null });
+      nameIn.value = v;
+      KP.toast(v ? KP.kid.call() + "! 이름을 넣었어요" : "이름을 지웠어요");
+      drawName();
+    });
+    nameRow.append(nameIn, bName);
+    const codeRow = U.el("div", "pChips");
+    const codeIn = U.el("input", "pinIn textIn");
+    codeIn.placeholder = "이름 목소리 코드 (KPV1.으로 시작)";
+    codeIn.autocomplete = "off";
+    const bCode = U.btn("넣기", "chip");
+    bCode.addEventListener("click", () => {
+      if (!KP.kid.applyCode(codeIn.value)) return KP.toast("코드가 맞지 않아요");
+      codeIn.value = "";
+      nameIn.value = KP.settings.get().kidName;
+      KP.toast(KP.kid.call() + "! 이름 목소리를 넣었어요");
+      KP.voice.say("{부름} 반가워!");
+      drawName();
+    });
+    codeRow.append(codeIn, bCode);
+    sName.append(nameRow, codeRow, nameNote);
+    drawName();
+
     // 앱 밖으로 못 나가게 하기 (기기 기능)
     const sPinApp = sec(KP.E("📌") + " 앱 밖으로 못 나가게 하기");
     sPinApp.appendChild(

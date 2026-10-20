@@ -104,7 +104,7 @@ KP.game({
         ctx.round++;
         await ctx.wait(1300);
         const big = ctx.round % 5 === 0;
-        const ok = await ctx.win({ big, msg: big ? "눈이 반짝 형아!" : "찾았다!", quiet: !big });
+        const ok = await ctx.win({ big, msg: big ? "{부름} 눈이 반짝!" : "찾았다!", quiet: !big });
         if (ok) self.next(ctx);
       },
     });

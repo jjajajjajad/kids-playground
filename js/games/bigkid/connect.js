@@ -249,7 +249,7 @@ KP.game({
       ctx.score.add();
       ctx.round++;
       const big = ctx.round % 4 === 0;
-      const ok = await ctx.win({ big, msg: big ? "짝꿍 박사 형아!" : "모두 짝을 찾았어요!" });
+      const ok = await ctx.win({ big, msg: big ? "{부름} 짝꿍 박사!" : "모두 짝을 찾았어요!" });
       if (ok && tok === ctx.token) this.next(ctx);
     };
   },

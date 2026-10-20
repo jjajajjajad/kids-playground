@@ -153,7 +153,7 @@ KP.game({
         ctx.round++;
         await ctx.wait(900);
         const big = ctx.round % 5 === 0;
-        const ok = await ctx.win({ big, msg: big ? "색깔 박사 형아!" : nameOf(v) + "!", quiet: !big });
+        const ok = await ctx.win({ big, msg: big ? "{부름} 색깔 박사!" : nameOf(v) + "!", quiet: !big });
         if (ok) self.next(ctx);
       },
     });

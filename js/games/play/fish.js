@@ -174,7 +174,7 @@ KP.game({
       if (ctx.count % 10 === 0) {
         ctx.ms++;
         const big = ctx.ms % 3 === 0;
-        ctx.win({ big, msg: big ? "낚시왕 형아!" : ctx.count + "마리 잡았다!" });
+        ctx.win({ big, msg: big ? "{부름} 낚시왕!" : ctx.count + "마리 잡았다!" });
       }
     };
 

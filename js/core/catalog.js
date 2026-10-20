@@ -15,7 +15,7 @@
     "color", "mix", "shape", "animals", "listen", "feed", "odd", "shadow", "size", "memory", "candy",
     // 공부 놀이 (글자·숫자)
     "hangul", "hwrite", "abc", "awrite", "numbers", "nwrite", "n100", "count", "dots", "more",
-    // 형아 도전
+    // 도전 놀이 (이름을 넣으면 "동훈이 도전")
     "maze", "colororder", "jigsaw", "sorter", "trace", "dotdot", "pattern", "sort", "missing", "sequence", "train", "connect", "spatial", "emotion", "dress",
   ];
   KP.sortGames = function () {

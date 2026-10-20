@@ -233,7 +233,7 @@ KP.game({
         ctx.round++;
         await ctx.wait(1200);
         const big = ctx.round % 4 === 0;
-        const ok = await ctx.win({ big, msg: big ? "레이싱 챔피언 형아!" : "결승선 통과!" });
+        const ok = await ctx.win({ big, msg: big ? "{부름} 레이싱 챔피언!" : "결승선 통과!" });
         if (ok) this.showPick(ctx);
       } else {
         ctx.losses++;

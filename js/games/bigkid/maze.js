@@ -500,7 +500,7 @@ KP.game({
       const big = ctx.round % 4 === 0;
       const chase = st.ch && st.ch.active;
       if (chase) ctx.chaseResult(true);
-      const ok = await ctx.win({ big, msg: chase ? "술래보다 먼저 도착!" : big ? "미로 대장 형아!" : "미로 탈출 성공!" });
+      const ok = await ctx.win({ big, msg: chase ? "술래보다 먼저 도착!" : big ? "{부름} 미로 대장!" : "미로 탈출 성공!" });
       if (ok) ctx.def.next(ctx);
     };
 

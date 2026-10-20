@@ -168,7 +168,7 @@ KP.game({
       if (Math.floor(ctx.count / 10) > Math.floor(prev / 10)) {
         ctx.ms++;
         const big = ctx.ms % 3 === 0;
-        ctx.after(b.kind === "gift" ? 1300 : 250, () => ctx.win({ big, msg: big ? "풍선 대장 형아!" : ctx.count + "개 팡팡!" }));
+        ctx.after(b.kind === "gift" ? 1300 : 250, () => ctx.win({ big, msg: big ? "{부름} 풍선 대장!" : ctx.count + "개 팡팡!" }));
       }
     };
 

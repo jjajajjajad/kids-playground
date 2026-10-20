@@ -209,7 +209,7 @@ KP.game({
       ctx.score.add();
       ctx.round++;
       const big = ctx.round % 4 === 0;
-      const ok = await ctx.win({ big, msg: big ? "옷 입기 박사 형아!" : "날씨에 딱 맞아요!" });
+      const ok = await ctx.win({ big, msg: big ? "{부름} 옷 입기 박사!" : "날씨에 딱 맞아요!" });
       if (ok && tok === ctx.token) this.next(ctx);
     };
   },

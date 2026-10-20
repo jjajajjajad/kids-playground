@@ -87,7 +87,7 @@ KP.game({
         ctx.round++;
         await ctx.wait(1700);
         const big = ctx.round % 5 === 0;
-        const ok = await ctx.win({ big, msg: big ? "그림자 탐정 형아!" : "똑같아요!", quiet: !big });
+        const ok = await ctx.win({ big, msg: big ? "{부름} 그림자 탐정!" : "똑같아요!", quiet: !big });
         if (ok) self.next(ctx);
       },
     });

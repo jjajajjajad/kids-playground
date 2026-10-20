@@ -771,7 +771,7 @@ KP.game({
       ctx.round++;
       await ctx.wait(1300);
       if (!ctx._active) return;
-      const ok = await ctx.win({ big: true, msg: ctx.round % 4 === 0 ? "퍼즐 박사 형아!" : "퍼즐 완성!" });
+      const ok = await ctx.win({ big: true, msg: ctx.round % 4 === 0 ? "{부름} 퍼즐 박사!" : "퍼즐 완성!" });
       if (ok) {
         ctx.picIdx = (ctx.picIdx + 1) % ctx.pics.length;
         ctx.def.next(ctx);

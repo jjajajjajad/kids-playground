@@ -315,7 +315,7 @@ KP.game({
       await ctx.wait(1500);
       if (!ctx._active) return;
       const big = ctx.round % 4 === 0;
-      const ok = await ctx.win({ big, msg: big ? "점 잇기 박사 형아!" : st.shape.em + " " + nm + " 완성!" });
+      const ok = await ctx.win({ big, msg: big ? "{부름} 점 잇기 박사!" : st.shape.em + " " + nm + " 완성!" });
       if (ok) ctx.def.next(ctx);
     }
     ctx.ddBuild = (shape, lv) => {

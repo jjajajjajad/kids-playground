@@ -137,7 +137,7 @@ KP.game({
         ctx.round++;
         await ctx.wait(n * 260 + 1600);
         const big = ctx.round % 5 === 0;
-        const ok = await ctx.win({ big, msg: big ? "세기 대장 형아!" : "딩동댕!", quiet: !big });
+        const ok = await ctx.win({ big, msg: big ? "{부름} 세기 대장!" : "딩동댕!", quiet: !big });
         if (ok) self.next(ctx);
       },
     });

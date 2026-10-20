@@ -320,7 +320,7 @@ KP.game({
     ctx.round++;
     await ctx.wait(1000);
     const big = ctx.round % 5 === 0;
-    const ok = await ctx.win({ big, msg: big ? "숫자 박사 형아!" : msg, quiet: !big });
+    const ok = await ctx.win({ big, msg: big ? "{부름} 숫자 박사!" : msg, quiet: !big });
     if (ok && ctx.m === "quiz") this.quiz(ctx);
   },
 });

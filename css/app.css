@@ -1620,6 +1620,7 @@ img.e,
 .gateSlots.pin .gateSlot { font-size: 0.8em; }
 .gateForgot { display: block; margin: 10px auto 0; font-size: 14px; color: #8a8fb8; background: none; padding: 6px 10px; border-radius: 999px; }
 .pinIn { width: 120px; font-size: 20px; padding: 6px 10px; border-radius: 12px; border: 2px solid #d8dcf0; text-align: center; letter-spacing: 6px; }
+.pinIn.textIn { width: min(260px, 100%); letter-spacing: 0; font-size: 18px; text-align: left; }
 /* 문이 열리는 장면 */
 .doorScene { position: fixed; inset: 0; z-index: 115; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 45%, rgba(40, 50, 110, 0.75), rgba(15, 20, 55, 0.92)); animation: enter 0.35s; }
 .doorScene.bye { opacity: 0; transition: opacity 0.45s; }

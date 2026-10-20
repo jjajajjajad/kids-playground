@@ -160,7 +160,7 @@ KP.game({
       cards.forEach((c, i) => ctx.after(i * 60, () => U.replay(c, "jump")));
       await ctx.wait(400);
       const big = ctx.round % 5 === 0;
-      const ok = await ctx.win({ big, msg: big ? "기억력 대장 형아!" : "짝을 다 찾았어요!" });
+      const ok = await ctx.win({ big, msg: big ? "{부름} 기억력 대장!" : "짝을 다 찾았어요!" });
       if (ok) self.next(ctx);
     };
   },

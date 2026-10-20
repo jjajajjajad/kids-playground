@@ -77,6 +77,7 @@
   };
   const holding = () => holdP && performance.now() < holdUntil;
   V.say = function (text, o = {}) {
+    if (KP.who) text = KP.who(text, true); // "{부름}" → "동훈아," (아이 이름)
     if (holding() && !o.queue) {
       const p = holdP;
       return p.then(() => sayNow(text, o));
@@ -213,6 +214,9 @@
   function lookup(k) {
     const M = KP.VOICE_CLIPS;
     if (M[k]) return M[k];
+    // 아이 이름 음성(부모가 넣은 것): "동훈아," "동훈이" 처럼 끝 문장부호만 다른 것도
+    const kc = KP.kid && KP.kid.clip(bare(k));
+    if (kc) return kc;
     // 숫자만 있으면 한자어 읽기로 ("3" → "삼")
     const dm = /^(\d{1,3})([!?.]?)$/.exec(k);
     if (dm && KP.u && KP.u.numSino && +dm[1] > 0 && +dm[1] <= 100) return lookup(KP.u.numSino(+dm[1]) + "!");
@@ -475,6 +479,8 @@
     try {
       const keep = new Set(Object.values(KP.VOICE_CLIPS || {}));
       if (!keep.size) return; // 목록이 비었으면(빌드 이상) 지우지 않음
+      const kv = KP.settings && KP.settings.get().kidVoice; // 아이 이름 음성은 목록에 없어도 남김
+      if (kv) [kv.v, kv.n].forEach((u) => u && keep.add(u));
       for (const r of await cache.keys())
         if (!keep.has(r.url)) {
           await cache.delete(r);

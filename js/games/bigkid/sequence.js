@@ -172,7 +172,7 @@ KP.game({
       ctx.score.add();
       ctx.round++;
       const big = ctx.round % 4 === 0;
-      const ok = await ctx.win({ big, msg: big ? "이야기 박사 형아!" : "순서대로 척척!" });
+      const ok = await ctx.win({ big, msg: big ? "{부름} 이야기 박사!" : "순서대로 척척!" });
       if (ok && tok === ctx.token) this.next(ctx);
     };
   },

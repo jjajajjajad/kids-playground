@@ -138,7 +138,7 @@ KP.game({
         ctx.round++;
         await ctx.wait(1000);
         const big = ctx.round % 5 === 0;
-        const ok = await ctx.win({ big, msg: big ? "모양 박사 형아!" : (lv < 3 ? nameOf(v) : S[v[2]][0]) + "!", quiet: !big });
+        const ok = await ctx.win({ big, msg: big ? "{부름} 모양 박사!" : (lv < 3 ? nameOf(v) : S[v[2]][0]) + "!", quiet: !big });
         if (ok) self.next(ctx);
       },
     });

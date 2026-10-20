@@ -180,7 +180,7 @@ KP.game({
       ctx.round++;
       await ctx.wait(1300);
       const big = ctx.round % 5 === 0;
-      const ok = await ctx.win({ big, msg: big ? "사탕 가게 사장님 형아!" : "다 담았어요!", quiet: !big });
+      const ok = await ctx.win({ big, msg: big ? "{부름} 사탕 가게 사장님!" : "다 담았어요!", quiet: !big });
       if (ok) self.next(ctx);
     };
   },

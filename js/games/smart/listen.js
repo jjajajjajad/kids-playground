@@ -100,7 +100,7 @@ KP.game({
         ctx.round++;
         await ctx.wait(1700);
         const big = ctx.round % 5 === 0;
-        const ok = await ctx.win({ big, msg: big ? "소리 박사 형아!" : a[1] + "!", quiet: !big });
+        const ok = await ctx.win({ big, msg: big ? "{부름} 소리 박사!" : a[1] + "!", quiet: !big });
         if (ok) self.next(ctx);
       },
     });

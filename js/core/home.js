@@ -230,7 +230,7 @@
     const quizLeft = quiz.d === todayKST() ? Math.max(0, st.kidQuizMax - (quiz.n || 0)) : st.kidQuizMax;
     if (st.kidGate && !opt.adultOnly && quizLeft <= 0) box.appendChild(U.el("div", "gateSub", KP.E("🐻") + " 문지기 퀴즈는 오늘 다 했어요"));
     if (st.kidGate && !opt.adultOnly && quizLeft > 0) {
-      const kid = U.btn(KP.E("🐻") + " 형아: 문제 " + st.kidQ + "개 맞히고 열기", "gateKid");
+      const kid = U.btn(KP.E("🐻") + " " + (KP.kid.nick() ? KP.kid.nick() + ": " : "") + "문제 " + st.kidQ + "개 맞히고 열기", "gateKid");
       kid.addEventListener("click", () => {
         KP.audio.sfx("open");
         kidQuiz(box, then, close);
@@ -478,7 +478,7 @@
     mascot.addEventListener("click", () => {
       U.replay(mascot, "jump");
       KP.audio.sfx("boing");
-      KP.voice.say(U.pick(["안녕! 오늘은 뭐 하고 놀까?", "같이 놀자!", "형아, 반가워!", "무슨 놀이를 할까?"]));
+      KP.voice.say(U.pick(["안녕! 오늘은 뭐 하고 놀까?", "같이 놀자!", "{부름} 반가워!", "무슨 놀이를 할까?"]));
     });
     bSt.addEventListener("click", () => {
       KP.audio.sfx("open");
@@ -532,6 +532,14 @@
       });
       tabs.appendChild(t);
     });
+    // 아이 이름을 바꾸면 탭 이름도 ("동훈이 도전")
+    KP.settings.on(() =>
+      U.$$(".tab", tabs).forEach((t) => {
+        const c = KP.CATS.find((x) => x.id === t.dataset.cat);
+        const sp = t.querySelector("span");
+        if (c && sp && sp.textContent !== c.name) sp.textContent = c.name;
+      })
+    );
   };
   /** 오늘의 도전: 날짜와 카테고리로 정해지는 하루 한 놀이 */
   KP.heroOf = function (cat) {

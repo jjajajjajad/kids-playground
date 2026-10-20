@@ -216,7 +216,7 @@ KP.game({
       ctx.score.add();
       ctx.round++;
       const big = ctx.round % 4 === 0;
-      const ok = await ctx.win({ big, msg: big ? "기관사 형아 최고!" : "기차 완성!" });
+      const ok = await ctx.win({ big, msg: big ? "{부름} 기관사 최고!" : "기차 완성!" });
       if (ok && tok === ctx.token) this.next(ctx);
     };
   },

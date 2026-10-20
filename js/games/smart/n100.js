@@ -334,7 +334,7 @@ KP.game({
         ctx.round++;
         await ctx.wait(1300);
         const bg = ctx.round % 5 === 0;
-        const ok = await ctx.win({ big: bg, msg: bg ? "숫자 박사 형아!" : "딩동댕!", quiet: !bg });
+        const ok = await ctx.win({ big: bg, msg: bg ? "{부름} 숫자 박사!" : "딩동댕!", quiet: !bg });
         if (ok && ctx.m === "quiz" && tk === ctx.tok) this.quiz(ctx);
       },
     });

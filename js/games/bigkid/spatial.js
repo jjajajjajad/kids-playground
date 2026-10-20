@@ -190,7 +190,7 @@ KP.game({
       ctx.score.add();
       ctx.round++;
       const big = ctx.round % 4 === 0;
-      const ok = await ctx.win({ big, msg: big ? "자리 박사 형아!" : U.pick(["딩동댕!", "맞았어요!", "정확해요!"]) });
+      const ok = await ctx.win({ big, msg: big ? "{부름} 자리 박사!" : U.pick(["딩동댕!", "맞았어요!", "정확해요!"]) });
       if (ok && tok === ctx.token) this.next(ctx);
     };
   },

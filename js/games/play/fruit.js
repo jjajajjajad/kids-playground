@@ -138,7 +138,7 @@ KP.game({
         const big = ctx.ms % 3 === 0;
         ctx.pause = 2.5;
         ctx.after(300, async () => {
-          const ok = await ctx.win({ big, msg: big ? "과일 부자 형아!" : ctx.count + "개 받았다!" });
+          const ok = await ctx.win({ big, msg: big ? "{부름} 과일 부자!" : ctx.count + "개 받았다!" });
           if (ok) {
             // 바구니 비우기
             ctx.pile.innerHTML = "";

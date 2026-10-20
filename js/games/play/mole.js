@@ -193,7 +193,7 @@ KP.game({
         ctx.ms++;
         const big = ctx.ms % 3 === 0;
         ctx.pause = 3;
-        ctx.after(700, () => ctx.win({ big, msg: big ? "두더지 대장 형아!" : ctx.count + "마리 콩콩!" }));
+        ctx.after(700, () => ctx.win({ big, msg: big ? "{부름} 두더지 대장!" : ctx.count + "마리 콩콩!" }));
       }
     };
 

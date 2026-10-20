@@ -136,7 +136,7 @@ KP.game({
           KP.voice.say("풍선이 날아가요! 와아!");
           await ctx.wait(1500);
           const big = ctx.round % 5 === 0;
-          const ok = await ctx.win({ big, msg: big ? "숫자 박사 형아!" : "1부터 " + n + "까지 다 했어요!" });
+          const ok = await ctx.win({ big, msg: big ? "{부름} 숫자 박사!" : "1부터 " + n + "까지 다 했어요!" });
           if (ok) self.next(ctx);
         } else hint();
       } else {
