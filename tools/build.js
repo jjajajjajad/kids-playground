@@ -158,29 +158,94 @@ const d = new Date(Date.now() + 9 * 3600e3); // KST
 const stamp = d.toISOString().slice(0, 16).replace("T", " ");
 fs.writeFileSync(P("js", "gen", "version.js"), "/* 자동 생성 */\nKP.VERSION=" + JSON.stringify(VERSION + " (" + stamp + " KST)") + ";\n");
 
+// 파일마다 내용 지문(8자리) — 내용이 바뀐 파일만 주소(?v=)가 바뀌어, 업데이트 때 바뀐 파일만 새로 받음
+const FH = {};
+for (const f of precache) if (f !== "./" && f !== "index.html" && fs.existsSync(P(f))) FH[f] = crypto.createHash("sha1").update(fs.readFileSync(P(f))).digest("hex").slice(0, 8);
+const vurl = (f) => f + "?v=" + (FH[f] || VERSION);
+
 const tpl = fs.readFileSync(P("tools", "index.template.html"), "utf8");
 const html = tpl
+  .replace(/(href|src)="([^"?]+)\?v=__VERSION__"/g, (m, a, f) => a + '="' + vurl(f) + '"')
   .replace(/__VERSION__/g, VERSION)
-  .replace("__GAME_CSS__", gameCss.map((c) => '<link rel="stylesheet" href="' + c + "?v=" + VERSION + '">').join("\n"))
-  .replace("__SCRIPTS__", allScripts.map((s) => '<script src="' + s + "?v=" + VERSION + '"></script>').join("\n"));
+  .replace("__GAME_CSS__", gameCss.map((c) => '<link rel="stylesheet" href="' + vurl(c) + '">').join("\n"))
+  .replace("__SCRIPTS__", allScripts.map((s) => '<script src="' + vurl(s) + '"></script>').join("\n"))
+  .replace("</html>", "<!-- kp:" + VERSION + " -->\n</html>"); // 서비스 워커가 '이 버전' 화면인지 알아보는 표시
 fs.writeFileSync(P("index.html"), html);
+// 서비스 워커가 저장할 주소 → 지문 (코드·스타일은 주소에 지문이 들어 있고, 그림·폰트는 주소 그대로 + 지문으로 바뀜 여부 확인)
+const urlOf = (f) => (versioned.includes(f) ? vurl(f) : f);
+const MAN_CORE = {},
+  MAN_EXTRA = {};
+for (const f of precache) {
+  if (f === "./" || f === "index.html") continue;
+  (optional(f) ? MAN_EXTRA : MAN_CORE)[urlOf(f)] = FH[f] || VERSION;
+}
 
 const sw = `/* 자동 생성 — tools/build.js. 아이 놀이터 오프라인 실행용 */
 const VERSION = ${JSON.stringify(VERSION)};
-const CACHE = "kids-playground-" + VERSION;
-const VFILES = ${JSON.stringify(versioned)};
+// 저장소는 하나로 고정 — 새 버전은 지난번 목록과 지문을 비교해 바뀐/새 파일만 받고, 빠진 파일은 지움
+const CACHE = "kp-app";
+const MANIFEST = "__kp_manifest__"; // 지난번에 받은 파일 목록과 지문 (저장소 안에 보관)
 const VOICE_CACHE = ${JSON.stringify(VOICE_CACHE)};
 // 꼭 필요한 파일(화면·코드·스타일) — 하나라도 못 받으면 설치 실패(옛 버전 그대로 유지)
-const FILES = ${JSON.stringify(precache.filter((f) => !versioned.includes(f) && !optional(f)))}.concat(VFILES.map((f) => f + "?v=" + VERSION));
+const CORE = ${JSON.stringify(MAN_CORE)};
 // 그림·폰트 — 몇 개 못 받아도(404·429) 설치는 진행, 빠진 건 쓸 때 받음
-const EXTRA = ${JSON.stringify(precache.filter((f) => !versioned.includes(f) && optional(f)))};
+const EXTRA = ${JSON.stringify(MAN_EXTRA)};
+const ALWAYS = ["./", "index.html"]; // 화면은 늘 새로
 const req = (f) => new Request(f, { cache: "reload" });
+const abs = (f) => new URL(f, self.registration.scope).href;
+const KNOWN = new Set([...ALWAYS, ...Object.keys(CORE), ...Object.keys(EXTRA)].map(abs));
+async function getOld(c) {
+  try {
+    const r = await c.match(MANIFEST);
+    return r ? await r.json() : {};
+  } catch (e) {
+    return {};
+  }
+}
+// 한 파일: 지문이 같고 저장본이 있으면 그대로, 아니면 받기. 처음 이 방식으로 바뀔 때는 옛 버전 저장소의 그림·폰트를 옮겨 씀
+async function fetchOne(c, old, url, hash, migrate) {
+  if (old[url] === hash && (await c.match(url))) return;
+  if (migrate && !old[url]) {
+    const prev = await caches.match(url);
+    if (prev) return c.put(url, prev);
+  }
+  const r = await fetch(req(url));
+  if (!r.ok) throw new Error(url + " " + r.status);
+  await c.put(url, r);
+}
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES.map(req)).then(() => Promise.allSettled(EXTRA.map((f) => c.add(req(f)))))).then(() => self.skipWaiting()));
+  e.waitUntil(
+    (async () => {
+      const c = await caches.open(CACHE);
+      const old = await getOld(c);
+      const migrate = !Object.keys(old).length;
+      // 화면 + 꼭 필요한 파일 (실패하면 설치 실패)
+      await Promise.all(ALWAYS.map((f) => fetch(req(f)).then((r) => { if (!r.ok) throw new Error(f); return c.put(f, r); })));
+      const core = Object.entries(CORE);
+      for (let i = 0; i < core.length; i += 8) await Promise.all(core.slice(i, i + 8).map(([u, h]) => fetchOne(c, old, u, h, false)));
+      // 그림·폰트 (실패해도 계속) — 받은 것만 목록에 남김
+      const extra = Object.entries(EXTRA);
+      const got = {};
+      for (let i = 0; i < extra.length; i += 8) {
+        const rs = await Promise.allSettled(extra.slice(i, i + 8).map(([u, h]) => fetchOne(c, old, u, h, migrate)));
+        rs.forEach((r, k) => { if (r.status === "fulfilled") got[extra[i + k][0]] = extra[i + k][1]; });
+      }
+      await c.put(MANIFEST, new Response(JSON.stringify(Object.assign({}, CORE, got)), { headers: { "Content-Type": "application/json" } }));
+      await self.skipWaiting();
+    })()
+  );
 });
 self.addEventListener("activate", (e) => {
-  // 이 버전 저장소와 지금 음성 저장소만 남김 (옛 음성 저장소도 정리)
-  e.waitUntil(caches.keys().then((ks) => Promise.all(ks.filter((k) => k !== CACHE && k !== VOICE_CACHE).map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(
+    (async () => {
+      // 옛 방식 저장소(kids-playground-버전)·옛 음성 저장소 지우기
+      for (const k of await caches.keys()) if (k !== CACHE && k !== VOICE_CACHE) await caches.delete(k);
+      // 이번 목록에 없는 파일 지우기 (지난 버전의 코드 등)
+      const c = await caches.open(CACHE);
+      for (const r of await c.keys()) if (!KNOWN.has(r.url) && r.url !== abs(MANIFEST)) await c.delete(r);
+      await self.clients.claim();
+    })()
+  );
 });
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
@@ -193,7 +258,7 @@ self.addEventListener("fetch", (e) => {
     const net = fetch(e.request).then((r) => {
       // 정상 응답이고 '이 버전'의 화면일 때만 저장 (와이파이 로그인 화면·오류 페이지·다른 버전 저장 방지)
       if (r.ok && (r.headers.get("content-type") || "").includes("text/html")) {
-        saved = r.clone().text().then((t) => { if (t.includes("?v=" + VERSION)) return caches.open(CACHE).then((c) => c.put("index.html", new Response(t, { headers: { "Content-Type": "text/html; charset=utf-8" } }))); });
+        saved = r.clone().text().then((t) => { if (t.includes("kp:" + VERSION)) return caches.open(CACHE).then((c) => c.put("index.html", new Response(t, { headers: { "Content-Type": "text/html; charset=utf-8" } }))); });
       }
       return r;
     });
@@ -211,8 +276,7 @@ self.addEventListener("fetch", (e) => {
   // 정확히 같은 버전(?v=)이 있으면 저장본, 없으면 인터넷(새 버전), 인터넷도 안 되면 아무 버전 저장본
   e.respondWith(
     caches.match(e.request).then((hit) => hit || fetch(e.request).then((r) => {
-      const v = url.searchParams.get("v");
-      if (r.ok && (!v || v === VERSION)) { const cp = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, cp)); }
+      if (r.ok && KNOWN.has(url.href)) { const cp = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, cp)); }
       return r;
     }).catch(() => caches.match(e.request, { ignoreSearch: true })))
   );

@@ -22,6 +22,9 @@ node tools/phone-audit.js        # 폰 화면 넘침 점검 (n100 은 알려진 
 ```
 - `build.js`가 생성: `index.html`, `sw.js`, `js/gen/{clips,version,emoji-map}.js`, `assets/e/`, `fonts/`, `css/fonts.css`.
   생성 파일은 직접 고치지 말 것. 충돌 나면 `git checkout -- <생성파일>` 후 다시 빌드.
+- 오프라인 저장(sw.js): 저장소 하나(`kp-app`) 고정, 파일마다 내용 지문(`?v=지문`). 업데이트 때 지문이 바뀐 파일만 새로 받음
+  (예전엔 버전마다 640개 전부 다시 받아 업데이트 직후 렉). 점검: `tools/out/sw-update-test.js`.
+- 축하 화면(celebrate.js)은 각 장면이 '정해진 시간'과 '앞 말이 끝남'을 둘 다 기다림 — 시간만 기다리면 긴 칭찬이 다음 말에 잘림.
 - 새 코어 파일은 `tools/build.js`의 `CORE` 배열에 순서대로 추가. 게임 파일은 `js/games/**` 에 두면 자동 포함.
 - CSP: `script-src 'self'` → 인라인 스크립트·외부 CDN 금지. 외부 라이브러리는 `vendor/`에 넣고(라이선스 파일 동봉) 동적 import.
 

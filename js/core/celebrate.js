@@ -161,6 +161,9 @@
     ctimers.push(t);
     return t;
   };
+  // 말이 끝날 때까지(최대 4초 — 끝 소식이 안 오는 기기 대비) 기다리기. 다음 말이 앞 말을 자르지 않게
+  const talkDone = (p) => Promise.race([p || Promise.resolve(), new Promise((r) => setTimeout(r, 4000))]);
+  const wait = (ms) => new Promise((r) => later(r, ms)); // 축하가 취소되면 타이머째 사라짐
   KP.cancelCelebrate = function () {
     ctimers.forEach(clearTimeout);
     ctimers = [];
@@ -179,7 +182,7 @@
     KP.hideHint && KP.hideHint();
     const [em, word] = U.pick(PRAISE);
     const raw = o.msg || word;
-    const msg = KP.who(raw); // "{부름}" → 아이 이름 (말할 때는 voice.say 가 따로 바꿈 — 이름 음성이 없으면 이름 빼고)
+    const msg = KP.who(raw); // "{부름}" → 아이 이름 (말할 때는 voice.say 가 따로 바꿈)
     layer.innerHTML =
       '<div class="cBox"><div class="cEm">' + KP.E(em) + '</div><div class="cTxt">' + KP.E(msg) + "</div></div>";
     layer.className = "celebrate show block" + (o.big ? " big" : "");
@@ -187,19 +190,24 @@
     if (o.big) later(() => KP.confetti(140, innerWidth * 0.25, innerHeight * 0.3), 350);
     if (o.big) later(() => KP.confetti(140, innerWidth * 0.75, innerHeight * 0.3), 650);
     KP.audio.jingle();
-    if (!o.quiet) KP.voice.say(raw.replace(/\p{Extended_Pictographic}|️/gu, ""));
+    const praise = o.quiet ? null : KP.voice.say(raw.replace(/\p{Extended_Pictographic}|️/gu, ""));
     const base = o.big ? 2100 : 1350;
 
     winCount++;
     KP.store.set("winCount", winCount);
     const giveSticker = o.sticker !== false && (o.levelUp || winCount % 3 === 0);
 
+    // 각 장면(칭찬 → 단계 올라감 → 스티커)은 '정해진 시간'과 '앞 말이 끝남'을 둘 다 기다린 뒤 넘어감
+    // (전에는 시간만 기다려서, 이름이 붙어 길어진 칭찬이 다음 문제 안내에 잘렸음)
     return new Promise((res) => {
       pendingRes = res;
-      let t = base;
-      later(() => layer.classList.remove("show"), base - 150);
-      if (o.levelUp) {
-        later(() => {
+      const alive = () => pendingRes === res;
+      (async () => {
+        await Promise.all([wait(base - 150), talkDone(praise)]);
+        if (!alive()) return;
+        layer.classList.remove("show");
+        await wait(150);
+        if (o.levelUp) {
           const lv = o.ctx ? o.ctx.level : 2;
           layer.innerHTML =
             '<div class="cBox lvl"><div class="cEm">' + KP.E("🦸") + '</div><div class="cTxt">한 단계 올라갔어요!</div><div class="cSub">' +
@@ -207,14 +215,15 @@
           layer.className = "celebrate show block big";
           KP.audio.sfx("levelup");
           KP.confetti(160);
-          KP.voice.say("한 단계 올라갔어요! 이제 " + lv + "단계! {부름} 최고!");
-        }, base);
-        t += 2300;
-        later(() => layer.classList.remove("show"), t - 150);
-      }
-      if (giveSticker) {
-        later(() => showSticker(o.ctx, () => finish()), t);
-      } else later(finish, t);
+          const lvTalk = KP.voice.say("한 단계 올라갔어요! 이제 " + lv + "단계! {부름} 최고!");
+          await Promise.all([wait(2150), talkDone(lvTalk)]);
+          if (!alive()) return;
+          layer.classList.remove("show");
+          await wait(150);
+        }
+        if (giveSticker) showSticker(o.ctx, () => finish());
+        else finish();
+      })();
       function finish() {
         if (pendingRes !== res) return; // 이미 취소됨
         pendingRes = null;
@@ -233,8 +242,10 @@
       '</div><div class="cTxt">스티커 받았어요!</div><div class="cSub">' + name + "</div></div>";
     layer.className = "celebrate show block sticker";
     KP.audio.sfx("sticker");
-    KP.voice.say("스티커 받았어요! " + name + "!");
-    later(() => {
+    const talk = KP.voice.say("스티커 받았어요! " + name + "!");
+    const me = pendingRes;
+    Promise.all([wait(1900), talkDone(talk)]).then(() => {
+      if (pendingRes !== me) return; // 그사이 축하가 취소됨
       // 스티커가 스티커북 아이콘으로 날아가기
       const src = layer.querySelector(".cStk img, .cStk span");
       const target = ctx ? ctx.stickerPill : document.querySelector("#home .stickerBtn");
@@ -263,6 +274,6 @@
         layer.classList.remove("show");
         done();
       }
-    }, 1900);
+    });
   }
 })(window.KP);
