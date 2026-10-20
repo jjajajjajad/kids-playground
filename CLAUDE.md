@@ -29,6 +29,10 @@ node tools/phone-audit.js        # 폰 화면 넘침 점검 (n100 은 알려진 
 - `js/core/` — kp(이름공간), store(localStorage 래퍼 `KP.store`), settings, audio, voice, ui(게임 틀·win/miss), home(홈·잠금·타이머·부모 게이트), earn(열쇠 별), pages(설정 화면), notebook, paint, celebrate, app(시작).
 - `js/games/{play,smart,make,music,bigkid}/` — 놀이 하나당 파일 하나, `KP.GAMES`에 등록.
 - `js/games/make/zoo.js` — 색칠 공방 + 2.5D 동물원, 크레파스(직접 칠하기: 부위별 캔버스 → `item.paint`).
+- 동물원 보관(`zoo.js` 의 `KP.zooKeep`): 동물은 모두 보관, 동물원에는 일부만(태블릿 18·폰 12, 연못 5 — 실기기 측정 후 조정).
+  `item.rest`(집에서 쉬는 중)·`outAt`(마지막으로 나온 시각)·`fav`(👑 단짝, 자동으로 쉬러 가지 않음). 꽉 차면 오래 논 친구부터 쉬기.
+  아이 화면에는 영구 삭제 없음(🏠 동물 친구 집에서 놀기/쉬기만) — 영구 삭제는 설정 → 저장된 데이터 → 동물원 정리.
+  `KP.db.del` 은 성공 시 undefined, 실패 시 false — 반드시 `=== false` 로 실패를 확인할 것.
 - `js/games/make/zoo3d.js` — Three.js r170 (`vendor/three.module.min.js`) 3D 동물원. 점토 질감, 자동 화질(`zoo3d:q`).
 - `js/games/bigkid/maze.js` — 미로 + 술래 도전(BFS 추적, 속도 자동 조절 `maze:chaseK`).
 - `css/app.css`, `css/games/*.css`.

@@ -642,11 +642,16 @@
         const svg = paper.querySelector("svg");
         const pal2 = U.shuffle(COLORS.filter((c) => c !== "#3b3355" && c !== "#ffffff"));
         const byPart = {};
+        // 크레파스 칠도 같이 덮음 (안 지우면 마법 색이 크레파스 아래에 가려지고, 쓰지 않는 그림이 저장됨)
+        const many = [];
         svg.querySelectorAll(".fb").forEach((e, i) => {
           if (!byPart[e.dataset.p]) byPart[e.dataset.p] = Math.random() < 0.15 ? ensureDef(svg, ctx.uid, U.pick(["rainbow", "glitter", "dots"]), pal2[i % pal2.length]) : pal2[Object.keys(byPart).length % pal2.length];
-          ctx.undo.push({ el: e, prev: e.getAttribute("fill") });
+          many.push({ el: e, prev: e.getAttribute("fill"), i, prevPaint: ctx.pp[i] ? { x: ctx.pp[i].x, y: ctx.pp[i].y, w: ctx.pp[i].w, h: ctx.pp[i].h, src: ctx.pp[i].src } : null });
           e.setAttribute("fill", byPart[e.dataset.p]);
         });
+        ctx.undo.push({ many });
+        ctx.pp = {};
+        applyPaint(svg, ctx.pp, ctx.uid);
         KP.audio.sfx("sparkle");
         KP.voice.say("뾰로롱! 마법 색칠!");
         U.replay(paper, "jump");
@@ -1106,6 +1111,66 @@
     return box.innerHTML;
   }
 
+  /* ---------- 동물 보관: 모두 보관하고 동물원에는 일부만 (나머지는 '집에서 쉬기') ----------
+     item.rest: 집에서 쉬는 중 / item.outAt: 마지막으로 동물원에 나온 시각 / item.fav: 👑 단짝(자동으로 쉬러 가지 않음)
+     예전 기록(필드 없음)은 '노는 중'. 동물원이 꽉 차면 오래 논 친구부터 쉬러 감(지우지 않음).
+     영구 삭제는 부모 설정(동물원 정리)에서만. */
+  const KEEP = (KP.zooKeep = {
+    // 마당(땅·하늘)에 함께 놀 수 있는 수 — 태블릿 18 / 폰 12 (측정 후 조정), 연못(물고기)은 따로 5
+    cap: () => (Math.min(screen.width, screen.height) >= 600 ? 18 : 12),
+    POND: 5,
+    async list() {
+      return (await KP.db.all("art")).filter((x) => x && x.kind === "zoo" && T[x.tid]);
+    },
+    outAt: (x) => x.outAt || x.t || 0,
+    /** 저장 (실패하면 false — 실패를 무시하면 지운/쉬게 한 친구가 다음에 다시 나타남) */
+    async save(x) {
+      return (await KP.db.put("art", x)) !== false;
+    },
+    /** 넘친 만큼 오래 논 친구를 쉬게 함 (keep: 이번에 꼭 남길 id) → 쉬러 간 친구 목록 */
+    async enforce(list, keep) {
+      const rested = [];
+      for (const pond of [false, true]) {
+        const on = list.filter((x) => !x.rest && (T[x.tid].move === "swim") === pond);
+        let over = on.length - (pond ? KEEP.POND : KEEP.cap());
+        if (over <= 0) continue;
+        const cand = on.filter((x) => !x.fav && x.id !== keep).sort((a, b) => KEEP.outAt(a) - KEEP.outAt(b));
+        for (const x of cand) {
+          if (over <= 0) break;
+          x.rest = true;
+          if (await KEEP.save(x)) {
+            rested.push(x);
+            over--;
+          } else x.rest = false;
+        }
+      }
+      return rested;
+    },
+    /** 쉬기/놀기 바꾸기 → 실패면 null, 성공이면 (나가 놀면서) 대신 쉬러 간 친구 목록 */
+    async setRest(x, rest, list) {
+      const prev = { rest: x.rest, outAt: x.outAt };
+      x.rest = !!rest;
+      if (!rest) x.outAt = Date.now();
+      if (!(await KEEP.save(x))) {
+        Object.assign(x, prev);
+        return null;
+      }
+      return rest ? [] : KEEP.enforce(list, x.id);
+    },
+    async setFav(x, fav) {
+      const prev = x.fav;
+      x.fav = !!fav;
+      if (await KEEP.save(x)) return true;
+      x.fav = prev;
+      return false;
+    },
+  });
+  /** 작은 그림(크레파스 칠 포함) — 동물 친구 집·부모 설정 동물원 정리에서 씀 */
+  KP.zooThumb = (item) => {
+    if (!document.querySelector(".zDefs")) document.body.insertAdjacentHTML("beforeend", SHADE_DEFS);
+    return shadeSvg(freshSvg(item), item.paint);
+  };
+
   KP.game({
     id: "zoo",
     icon: "🦁",
@@ -1165,7 +1230,28 @@
         .z3Home{position:absolute;left:10px;top:8px;z-index:9600;display:none;background:rgba(255,255,255,.85);border-radius:999px;padding:4px 12px;font-size:clamp(15px,2vw,19px);min-height:40px}
         .zooW.mode3d.turned .z3Home{display:block}
         .z3Tip{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:9600;background:rgba(255,255,255,.8);border-radius:999px;padding:4px 14px;font-size:clamp(13px,1.8vw,17px);color:#2f3a66;pointer-events:none;transition:opacity .6s;white-space:nowrap}
-        .zCount{position:absolute;right:10px;top:8px;z-index:9600;background:rgba(255,255,255,.85);border-radius:999px;padding:4px 12px;font-size:clamp(16px,2.2vw,20px)}
+        .zCount{position:absolute;right:10px;top:8px;z-index:9600;background:#fff;border:4px solid #b9773a;border-radius:999px;padding:4px 14px;min-height:48px;min-width:64px;font-size:clamp(17px,2.2vw,21px);color:#5a3a1a;box-shadow:0 4px 0 #8a5528}
+        .zCount.pulse{animation:zPulse 1s ease-in-out 4}
+        @keyframes zPulse{50%{transform:scale(1.15)}}
+        .zHouse{position:absolute;inset:0;z-index:9900;background:linear-gradient(180deg,#fff4dc,#ffe6b8);display:flex;flex-direction:column;border-radius:inherit}
+        .zhTop{display:flex;align-items:center;gap:8px;padding:10px 12px 6px;flex-wrap:wrap}
+        .zhTitle{font-size:clamp(20px,3vw,28px);color:#7a4a1e;flex:1 1 auto;white-space:nowrap}
+        .zhClose{min-height:48px}
+        .zhFilter{display:flex;gap:6px;padding:0 12px 6px;overflow-x:auto;scrollbar-width:none;flex:0 0 auto}
+        .zhFilter::-webkit-scrollbar{display:none}
+        .zhF{flex:0 0 auto;min-width:52px;min-height:48px;border-radius:16px;background:#fff;border:3px solid #f0cf94;font-size:24px;padding:2px 8px}
+        .zhF.sel{background:#ffd34d;border-color:#b9773a}
+        .zhGrid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(120px,17vw,170px),1fr));gap:12px;padding:6px 12px 16px;align-content:start}
+        .zhCard{position:relative;border-radius:22px;border:4px solid #fff;padding:6px 4px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;box-shadow:0 5px 0 rgba(122,74,30,.25)}
+        .zhCard.play{background:linear-gradient(180deg,#c8f0ff 0%,#c8f0ff 55%,#9fd77a 56%)}
+        .zhCard.rest{background:linear-gradient(180deg,#5b4f8f,#8a7cc0)}
+        .zhCard.rest .zhPic{opacity:.75}
+        .zhPic{width:100%;aspect-ratio:200/170}
+        .zhPic svg{width:100%;height:100%;display:block;overflow:visible}
+        .zhState{font-size:clamp(14px,1.8vw,17px);background:rgba(255,255,255,.9);border-radius:999px;padding:1px 10px;color:#3b3355}
+        .zhFav{position:absolute;right:4px;top:4px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.85);font-size:24px;display:flex;align-items:center;justify-content:center;opacity:.45}
+        .zhFav.on{opacity:1;background:#ffe27a}
+        .zhCard.busy{pointer-events:none;opacity:.6}
       `);
       if (!document.querySelector(".zDefs")) document.body.insertAdjacentHTML("beforeend", SHADE_DEFS);
       const W = U.el("div", "zooW");
@@ -1181,7 +1267,9 @@
         '<div class="zSign">' + KP.E("🎪") + " 우리 동물원</div>" +
         '<div class="zPond"></div><div class="zFence"></div><div class="zProps"></div>' +
         '<div class="zVig"></div><div class="zTint"></div>';
-      ctx.count = U.el("div", "zCount");
+      // 오른쪽 위: 🏠 동물 친구 집 (노는 친구 수 · 쉬는 친구 수)
+      ctx.count = U.btn("", "zCount");
+      ctx.count.addEventListener("click", () => this.openHouse(ctx));
       W.appendChild(ctx.count);
 
       const bPaint = U.btn(KP.E("🖌️") + " 새 친구 색칠하기", "btn primary");
@@ -1205,7 +1293,7 @@
       bCall.addEventListener("click", () => this.callAll(ctx));
       // 빈 땅을 누르면 그곳에 간식
       W.addEventListener("pointerdown", (e) => {
-        if (W.classList.contains("mode3d") || e.target.closest(".zA,.zDel,.zEmpty,.btn")) return;
+        if (W.classList.contains("mode3d") || e.target.closest(".zA,.zDel,.zEmpty,.btn,.zCount,.zHouse")) return;
         const r = W.getBoundingClientRect();
         const x = e.clientX - r.left,
           y = e.clientY - r.top;
@@ -1379,7 +1467,7 @@
       W.classList.toggle("night", night);
       U.$(".zSun", W).innerHTML = KP.E(night ? "🌙" : "☀️");
       U.$$(".zStar", W).forEach((e) => (e.style.display = night ? "" : "none"));
-      U.$$(".zA,.zTreat,.zEmpty,.zDel,.zHeart,.z3Tip", W).forEach((e) => e.remove());
+      U.$$(".zA,.zTreat,.zEmpty,.zDel,.zHeart,.z3Tip,.zHouse", W).forEach((e) => e.remove());
       ctx.animals = [];
       ctx.treatsArr = [];
       // 진짜 3D (WebGL) — 안 되면 2.5D
@@ -1420,10 +1508,27 @@
           if (!ctx.g) return;
         }
       }
-      const items = (await KP.db.all("art")).filter((x) => x.kind === "zoo" && T[x.tid]).slice(-30);
+      // 모두 보관, 동물원에는 노는 친구만 (꽉 차면 오래 논 친구부터 집에서 쉬기 — 새 친구·단짝은 그대로)
+      const all = await KEEP.list();
       if (!ctx._active || tok !== ctx._tok) return;
+      const rested = await KEEP.enforce(all, KP.zooNew);
+      if (!ctx._active || tok !== ctx._tok) return;
+      ctx.allZoo = all;
+      const items = all.filter((x) => !x.rest);
       if (!use3d && (!ctx.g || ctx.g.w !== W.clientWidth || ctx.g.h !== W.clientHeight)) this.layout(ctx);
-      ctx.count.innerHTML = KP.E("🐾") + " " + items.length + "마리";
+      this.drawCount(ctx);
+      if (!items.length && all.length) {
+        // 모두 집에서 쉬는 중
+        ctx.say("친구들이 집에서 쉬고 있어요. 집에서 데려와요!");
+        const em = U.el("div", "zEmpty", '<div class="big-em">' + KP.E("🏠") + "</div><div>친구들이 집에서 쉬고 있어요</div>");
+        const go = U.btn(KP.E("🏠") + " 집에서 데려오기", "btn big primary");
+        go.addEventListener("click", () => this.openHouse(ctx));
+        em.appendChild(go);
+        W.appendChild(em);
+        ctx.hint(() => go);
+        if (use3d) ctx.loop((dt) => (tok === ctx._tok ? (ctx.z3.tick(dt), true) : false));
+        return;
+      }
       if (!items.length) {
         ctx.say("아직 동물원이 비어 있어요. 색칠 공방에서 동물을 색칠해서 보내 주세요!");
         const em = U.el("div", "zEmpty", '<div class="big-em">' + KP.E("🐻") + "</div><div>동물 친구를 데려와요!</div>");
@@ -1450,6 +1555,11 @@
       if (newcomer) {
         ctx.say("새 친구 " + U.josa(T[newcomer.item.tid].name, "이/가") + " 동물원에 왔어요! 환영해!");
         ctx.after(600, () => KP.confetti(140));
+      }
+      // 자리가 꽉 차 집에서 쉬러 간 친구가 있으면: 환영 인사 뒤에 짧게 + 집 버튼 반짝
+      if (rested.length) {
+        KP.voice.say("집에서 쉬는 친구도 있어요!", { queue: true });
+        U.replay(ctx.count, "pulse");
       } else ctx.say(U.pick(["동물 친구들을 콕 눌러 보세요!", "빈 땅을 누르면 간식을 줄 수 있어요!", "내가 색칠한 친구들이 놀고 있어요!"]));
       if (use3d) {
         const tip = U.el("div", "z3Tip", KP.E("👆") + " 끌면 빙글 · 두 손가락으로 크게");
@@ -1467,21 +1577,122 @@
         ctx.loop((dt, now) => (tok === ctx._tok ? this.tick(ctx, dt, now) : false));
       }
     },
+    /* 🏠 동물 친구 집: 저장된 친구 모두(쉬는 친구 포함)
+       카드 콕 → 나가 놀기 ↔ 집에서 쉬기 / 👑 → 단짝(자리가 꽉 차도 쉬러 가지 않음). 지우기는 부모 설정에서만 */
+    async openHouse(ctx) {
+      U.$$(".zHouse,.zDel", ctx.W).forEach((e) => e.remove());
+      ctx.hint(null);
+      const all = await KEEP.list();
+      if (!ctx._active) return;
+      ctx.allZoo = all;
+      const EM = { dino: "🦖", lion: "🦁", elephant: "🐘", rabbit: "🐰", bear: "🐻", pig: "🐷", dog: "🐶", fish: "🐟", bird: "🐦", butterfly: "🦋", turtle: "🐢" };
+      const box = U.el("div", "zHouse");
+      const top = U.el("div", "zhTop", '<div class="zhTitle">' + KP.E("🏠") + " 동물 친구 집</div>");
+      const bClose = U.btn(KP.E("🎪") + " 동물원으로", "btn primary zhClose");
+      top.appendChild(bClose);
+      const filt = U.el("div", "zhFilter");
+      const grid = U.el("div", "zhGrid");
+      box.append(top, filt, grid);
+      ctx.W.appendChild(box);
+      let changed = false,
+        kind = "";
+      // 동물 종류 그림 탭 (만든 적 있는 종류만, 두 종류 이상일 때)
+      const kinds = ORDER.filter((k) => all.some((x) => x.tid === k));
+      const drawFilter = () => {
+        filt.innerHTML = "";
+        if (kinds.length < 2) return;
+        [""].concat(kinds).forEach((k) => {
+          const b = U.btn(k ? KP.E(EM[k] || "🐾") : KP.E("🐾"), "zhF" + (k === kind ? " sel" : ""));
+          b.addEventListener("click", () => {
+            kind = k;
+            KP.audio.sfx("tap");
+            if (k) KP.voice.say(T[k].name);
+            drawFilter();
+            drawCards();
+          });
+          filt.appendChild(b);
+        });
+      };
+      const cardOf = (x) => {
+        const c = U.btn("", "zhCard " + (x.rest ? "rest" : "play"));
+        c.innerHTML = '<div class="zhPic">' + KP.zooThumb(x) + '</div><div class="zhState">' + (x.rest ? KP.E("💤") + " 쉬는 중" : KP.E("☀️") + " 노는 중") + "</div>";
+        const fav = U.btn(KP.E("👑"), "zhFav" + (x.fav ? " on" : ""));
+        c.appendChild(fav);
+        fav.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          if (!(await KEEP.setFav(x, !x.fav))) return KP.toast("저장하지 못했어요");
+          fav.classList.toggle("on", !!x.fav);
+          KP.audio.sfx(x.fav ? "good" : "tap");
+          if (x.fav) KP.voice.say("단짝 친구!");
+        });
+        c.addEventListener("click", async () => {
+          if (c.classList.contains("busy")) return; // 연타해도 한 번만
+          c.classList.add("busy");
+          const out = await KEEP.setRest(x, !x.rest, all);
+          c.classList.remove("busy");
+          if (out === null) return KP.toast("저장하지 못했어요. 기기 저장공간을 확인해 주세요");
+          changed = true;
+          KP.audio.sfx(x.rest ? "slide" : "good");
+          KP.voice.say(x.rest ? "코 자자~" : "나가 놀자!");
+          // 나가 놀면서 자리가 꽉 차 대신 쉬러 간 친구가 있으면 그 카드도 바꿈
+          if (out.length) {
+            KP.voice.say("집에서 쉬는 친구도 있어요!", { queue: true });
+            drawCards();
+          } else c.replaceWith(cardOf(x));
+          this.drawCount(ctx);
+        });
+        return c;
+      };
+      const drawCards = () => {
+        grid.innerHTML = "";
+        // 최근에 만든 친구가 앞에 (상태를 바꿔도 자리가 튀지 않게 만든 순서로만 정렬)
+        all
+          .filter((x) => !kind || x.tid === kind)
+          .slice()
+          .sort((a, b) => (b.t || 0) - (a.t || 0))
+          .forEach((x) => grid.appendChild(cardOf(x)));
+      };
+      drawFilter();
+      drawCards();
+      this.drawCount(ctx);
+      KP.voice.say("동물 친구 집이에요! 친구를 콕 누르면 나가 놀거나 쉴 수 있어요.");
+      bClose.addEventListener("click", () => {
+        KP.audio.sfx("back");
+        box.remove();
+        if (changed) this.start(ctx); // 바뀐 대로 동물원 다시 꾸미기
+      });
+    },
+    /* 동물 꾹 → '집에서 쉬기' 버튼 (지우지 않음 — 🏠 집에서 다시 데려올 수 있음) */
     askDelete3(ctx, a) {
-      U.$$(".zDel", ctx.W).forEach((e) => e.remove());
       const p = ctx.z3.toScreen(a, 1.2);
-      const b = U.btn(KP.E("👋") + " 집으로 보내기(꾹)", "zDel");
-      b.style.left = U.clamp(p.x - 90, 4, ctx.W.clientWidth - 200) + "px";
-      b.style.top = U.clamp(p.y - 60, 4, ctx.W.clientHeight - 60) + "px";
+      this.restButton(ctx, a, U.clamp(p.x - 80, 4, ctx.W.clientWidth - 180), U.clamp(p.y - 60, 4, ctx.W.clientHeight - 60), () => ctx.z3.remove(a));
+    },
+    restButton(ctx, a, x, y, hide) {
+      U.$$(".zDel", ctx.W).forEach((e) => e.remove());
+      const b = U.btn(KP.E("💤") + " 집에서 쉬기", "zDel");
+      b.style.left = x + "px";
+      b.style.top = y + "px";
       ctx.W.appendChild(b);
-      KP.hold(b, 1500, async () => {
-        await KP.db.del("art", a.item.id);
-        ctx.z3.remove(a);
+      b.addEventListener("click", async () => {
+        if (b.dataset.busy) return;
+        b.dataset.busy = "1";
+        if ((await KEEP.setRest(a.item, true, ctx.allZoo || [])) === null) {
+          b.remove();
+          return KP.toast("저장하지 못했어요. 기기 저장공간을 확인해 주세요");
+        }
+        hide();
         b.remove();
-        ctx.count.innerHTML = KP.E("🐾") + " " + ctx.z3.animals.length + "마리";
-        KP.voice.say("안녕! 또 만나!");
+        this.drawCount(ctx);
+        KP.voice.say("코 자자~");
       });
       ctx.after(4000, () => b.remove());
+    },
+    /** 🏠 버튼: 노는 친구 수 (쉬는 친구가 있으면 💤 수도) */
+    drawCount(ctx) {
+      const all = ctx.allZoo || [];
+      const on = all.filter((x) => !x.rest).length,
+        off = all.length - on;
+      ctx.count.innerHTML = KP.E("🏠") + " " + KP.E("🐾") + on + (off ? " · " + KP.E("💤") + off : "");
     },
     sizeAnimal(ctx, a) {
       const g = ctx.g,
@@ -1527,7 +1738,7 @@
         KP.audio.unlock();
         this.poke(ctx, a);
         clearTimeout(lp);
-        lp = setTimeout(() => this.askDelete(ctx, a), 1800);
+        lp = setTimeout(() => this.askDelete(ctx, a), 1200); // 꾹 → 집에서 쉬기 버튼
       });
       ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => el.addEventListener(ev, () => clearTimeout(lp)));
       this.place(ctx, a);
@@ -1538,10 +1749,22 @@
         w = g.w;
       if (move === "fly") return { x: U.randf(0.1, 0.9) * w, y: U.randf(Math.max(0.1 * g.h, g.hz * 0.3), g.hz + g.h * 0.04) };
       if (move === "swim") {
-        const p = g.pond,
-          a = U.randf(0, 6.28),
-          rr = Math.sqrt(Math.random()) * 0.6;
-        return { x: p.cx + Math.cos(a) * p.rx * 0.8 * rr, y: p.cy + Math.sin(a) * p.ry * 0.7 * rr };
+        // 물고기끼리 겹쳐 쌓이지 않게: 여러 자리 중 다른 물고기와 가장 먼 곳
+        const p = g.pond;
+        let best = null,
+          bd = -1;
+        for (let i = 0; i < 12; i++) {
+          const a = U.randf(0, 6.28),
+            rr = Math.sqrt(Math.random()) * 0.6;
+          const q = { x: p.cx + Math.cos(a) * p.rx * 0.8 * rr, y: p.cy + Math.sin(a) * p.ry * 0.7 * rr };
+          let d = 1e9;
+          for (const o of ctx.animals || []) if (o !== self && o.t.move === "swim") d = Math.min(d, Math.hypot(o.tx - q.x, o.ty - q.y), Math.hypot(o.x - q.x, o.y - q.y));
+          if (d > bd) {
+            bd = d;
+            best = q;
+          }
+        }
+        return best;
       }
       let best = null,
         bestD = -1;
@@ -1760,22 +1983,12 @@
       });
     },
     askDelete(ctx, a) {
-      U.$$(".zDel", ctx.W).forEach((e) => e.remove());
-      const b = U.btn(KP.E("👋") + " 집으로 보내기(꾹)", "zDel");
-      b.style.left = U.clamp(a.x - 80, 4, ctx.W.clientWidth - 200) + "px";
-      b.style.top = Math.max(4, a.y - a.size * (a.s || 1) - 50) + "px";
-      ctx.W.appendChild(b);
-      KP.hold(b, 1500, async () => {
-        await KP.db.del("art", a.item.id);
+      this.restButton(ctx, a, U.clamp(a.x - 80, 4, ctx.W.clientWidth - 180), Math.max(4, a.y - a.size * (a.s || 1) - 50), () => {
         a.el.style.transition = "opacity .5s";
         a.el.style.opacity = "0";
         ctx.animals = ctx.animals.filter((x) => x !== a);
         setTimeout(() => a.el.remove(), 520);
-        b.remove();
-        ctx.count.innerHTML = KP.E("🐾") + " " + ctx.animals.length + "마리";
-        KP.voice.say("안녕! 또 만나!");
       });
-      ctx.after(4000, () => b.remove());
     },
   });
 })();

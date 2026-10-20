@@ -570,8 +570,81 @@
       KP.store.keys().filter((k) => k.startsWith("lv:") || k === "stickers" || k === "winCount").forEach((k) => KP.store.del(k));
       KP.toast("초기화했어요");
     });
-    dRow.append(bExp, bImp, bReset);
+    const bZoo = U.btn(KP.E("🦁") + " 동물원 정리", "chip");
+    dRow.append(bExp, bImp, bReset, bZoo);
     sData.appendChild(dRow);
+
+    // 동물원 정리 (부모만 — 아이 화면에는 영구 지우기가 없음): 여러 마리 골라 이 기기에서 영구 삭제
+    const zBox = U.el("div", "zClean");
+    sData.appendChild(zBox);
+    KP.css("zooClean", `
+      .zClean{margin-top:10px}
+      .zcGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;max-height:46vh;overflow-y:auto;padding:4px}
+      .zcCard{position:relative;border-radius:14px;border:3px solid #e3e7f5;background:#fff;padding:4px 2px 2px;font-size:12px;color:#5a6488;display:flex;flex-direction:column;align-items:center}
+      .zcCard svg{width:100%;height:auto;aspect-ratio:200/170;display:block;overflow:visible}
+      .zcCard.sel{border-color:#e5484d;background:#ffecec}
+      .zcCard.sel::after{content:"✔";position:absolute;right:4px;top:2px;color:#e5484d;font-size:20px}
+    `);
+    bZoo.addEventListener("click", async () => {
+      if (zBox.childElementCount) return (zBox.innerHTML = ""); // 다시 누르면 닫기
+      const sizeOf = (x) => {
+        try {
+          return JSON.stringify(x).length;
+        } catch (e) {
+          return 0;
+        }
+      };
+      const sel = new Set();
+      const draw = async () => {
+        const list = (await KP.db.all("art")).filter((x) => x && x.kind === "zoo").sort((a, b) => (a.t || 0) - (b.t || 0));
+        const total = list.reduce((n, x) => n + sizeOf(x), 0);
+        const rest = list.filter((x) => x.rest).length;
+        zBox.innerHTML = "";
+        zBox.appendChild(
+          U.el("p", "pNote", "동물원 친구 " + list.length + "마리 (노는 중 " + (list.length - rest) + " · 쉬는 중 " + rest + ") · 약 " + (total / 1048576).toFixed(1) + "MB<br>오래된 친구가 앞에 있어요. 지운 친구는 되돌릴 수 없어요(백업 파일에는 남아 있어요).")
+        );
+        const grid = U.el("div", "zcGrid");
+        list.forEach((x) => {
+          const c = U.btn((KP.zooThumb ? KP.zooThumb(x) : "") + "<span>" + (x.date || "") + (x.rest ? " 💤" : "") + (x.fav ? " 👑" : "") + "</span>", "zcCard" + (sel.has(x.id) ? " sel" : ""));
+          c.addEventListener("click", () => {
+            sel.has(x.id) ? sel.delete(x.id) : sel.add(x.id);
+            c.classList.toggle("sel", sel.has(x.id));
+            bDel.innerHTML = KP.E("🗑️") + " 고른 " + sel.size + "마리 영구 지우기(꾹)";
+          });
+          grid.appendChild(c);
+        });
+        const row = U.el("div", "pChips");
+        const bRest = U.btn("쉬는 친구 모두 고르기", "chip");
+        bRest.addEventListener("click", () => {
+          list.filter((x) => x.rest && !x.fav).forEach((x) => sel.add(x.id));
+          draw();
+        });
+        const bNone = U.btn("고르기 취소", "chip");
+        bNone.addEventListener("click", () => {
+          sel.clear();
+          draw();
+        });
+        const bDel = U.btn(KP.E("🗑️") + " 고른 " + sel.size + "마리 영구 지우기(꾹)", "chip danger");
+        KP.hold(bDel, 2000, async () => {
+          if (!sel.size) return KP.toast("지울 친구를 먼저 골라 주세요");
+          let ok = 0,
+            fail = 0;
+          for (const id of [...sel]) {
+            // 성공하면 undefined, 실패하면 false — 실패를 성공으로 보면 지운 친구가 다시 나타남
+            if ((await KP.db.del("art", id)) === false) fail++;
+            else {
+              ok++;
+              sel.delete(id);
+            }
+          }
+          KP.toast(ok + "마리를 지웠어요" + (fail ? " · " + fail + "마리는 못 지웠어요" : ""));
+          draw();
+        });
+        row.append(bRest, bNone, bDel);
+        zBox.append(row, grid);
+      };
+      draw();
+    });
 
     box.appendChild(U.el("p", "pVer", "아이 놀이터 · 버전 " + (KP.VERSION || "dev")));
     document.body.appendChild(panel);

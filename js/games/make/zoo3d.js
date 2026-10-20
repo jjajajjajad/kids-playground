@@ -192,6 +192,7 @@
     m.userData.pp = pp;
     const im = new Image();
     im.onload = () => {
+      if (m._gone) return; // 그림이 늦게 왔는데 그사이 동물이 치워졌으면 만들지 않음
       const c = document.createElement("canvas");
       const sc = Math.min(1, 256 / Math.max(im.width, im.height)); // 3D 용은 작게 (기기 부담)
       c.width = Math.max(8, Math.round(im.width * sc));
@@ -1405,9 +1406,21 @@
       return { x: U.randf(PEN.x0, PEN.x1) * 0.9, z: U.randf(PEN.z0, PEN.z1) * 0.9, y: low ? U.randf(1.2, 2.4) : U.randf(2.6, 4.2) };
     }
     if (move === "swim") {
-      const a = U.randf(0, 6.28),
-        rr = Math.sqrt(Math.random()) * 0.55;
-      return { x: POND.x + Math.cos(a) * POND.rx * rr, z: POND.z + Math.sin(a) * POND.rz * rr, y: 0 };
+      // 물고기끼리 겹쳐 쌓이지 않게: 여러 자리 중 다른 물고기와 가장 먼 곳
+      let best = null,
+        bd = -1;
+      for (let i = 0; i < 12; i++) {
+        const a = U.randf(0, 6.28),
+          rr = Math.sqrt(Math.random()) * 0.55;
+        const q = { x: POND.x + Math.cos(a) * POND.rx * rr, z: POND.z + Math.sin(a) * POND.rz * rr, y: 0 };
+        let d = 1e9;
+        for (const o of this.animals) if (o !== self && o.t.move === "swim") d = Math.min(d, Math.hypot(o.tx - q.x, o.tz - q.z), Math.hypot(o.x - q.x, o.z - q.z));
+        if (d > bd) {
+          bd = d;
+          best = q;
+        }
+      }
+      return best;
     }
     let best = null,
       bd = -1;
@@ -1813,7 +1826,7 @@
       if (hit.animal) {
         this.poke(hit.animal);
         clearTimeout(lp);
-        lp = setTimeout(() => !moved && this.onDelete && this.onDelete(hit.animal), 1800);
+        lp = setTimeout(() => !moved && this.onDelete && this.onDelete(hit.animal), 1200); // 꾹 → 집에서 쉬기 버튼
       }
     });
     el.addEventListener("pointermove", (e) => {
