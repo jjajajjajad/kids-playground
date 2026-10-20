@@ -1,0 +1,7 @@
+# 줄바꿈은 항상 LF (GitHub 이 주는 내용과 빌드가 계산한 파일 지문이 같아야 오프라인 업데이트가 됨)
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.woff2 binary
+*.mp3 binary
+*.m4a binary

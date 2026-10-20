@@ -151,8 +151,13 @@ const precache = [
   ...walk(P("vendor"), [".js"]).map((f) => "vendor/" + path.basename(f)), // 3D 동물원(Three.js) — 필요할 때만 불러오지만 오프라인용으로 미리 저장
   ...walk(P("icons"), [".png"]).map((f) => "icons/" + path.basename(f)),
 ];
+// 지문 계산용 읽기: 글자 파일은 줄바꿈을 LF 로 맞춤 (Windows 에서 CRLF 로 받아도 GitHub 은 LF 로 줌 → 지문이 어긋나면 업데이트 실패)
+const readForHash = (f) => {
+  const b = fs.readFileSync(P(f));
+  return /\.(js|css|html|svg|json|webmanifest|txt)$/i.test(f) ? Buffer.from(b.toString("utf8").replace(/\r\n/g, "\n"), "utf8") : b;
+};
 const h = crypto.createHash("sha1");
-for (const f of precache) if (f !== "./" && f !== "index.html" && f !== "js/gen/version.js" && fs.existsSync(P(f))) h.update(f).update(fs.readFileSync(P(f)));
+for (const f of precache) if (f !== "./" && f !== "index.html" && f !== "js/gen/version.js" && fs.existsSync(P(f))) h.update(f).update(readForHash(f));
 const VERSION = h.digest("hex").slice(0, 8);
 const d = new Date(Date.now() + 9 * 3600e3); // KST
 const stamp = d.toISOString().slice(0, 16).replace("T", " ");
@@ -160,7 +165,7 @@ fs.writeFileSync(P("js", "gen", "version.js"), "/* 자동 생성 */\nKP.VERSION=
 
 // 파일마다 내용 지문(8자리) — 내용이 바뀐 파일만 주소(?v=)가 바뀌어, 업데이트 때 바뀐 파일만 새로 받음
 const FH = {};
-for (const f of precache) if (f !== "./" && f !== "index.html" && fs.existsSync(P(f))) FH[f] = crypto.createHash("sha1").update(fs.readFileSync(P(f))).digest("hex").slice(0, 8);
+for (const f of precache) if (f !== "./" && f !== "index.html" && fs.existsSync(P(f))) FH[f] = crypto.createHash("sha1").update(readForHash(f)).digest("hex").slice(0, 8);
 const vurl = (f) => f + "?v=" + (FH[f] || VERSION);
 
 const tpl = fs.readFileSync(P("tools", "index.template.html"), "utf8");
@@ -202,11 +207,16 @@ async function getMan(c, key) {
     return {};
   }
 }
-const PREV = "__kp_manifest_prev__"; // 직전 버전 목록 — 열려 있는 옛 화면이 쓰던 파일을 한 버전 동안 남겨 둠
+const PREV = "__kp_manifest_prev__";
+const UPD = "__kp_update_stats__"; // 이번 설치에서 받은 양 (넘겨받은 뒤 화면에 알리고 지움) // 직전 버전 목록 — 열려 있는 옛 화면이 쓰던 파일을 한 버전 동안 남겨 둠
 const jres = (o) => new Response(JSON.stringify(o), { headers: { "Content-Type": "application/json" } });
 // 받은 내용의 지문(build.js 와 같은 sha1 앞 8자리)
-async function hashOf(r) {
-  const d = await crypto.subtle.digest("SHA-1", await r.clone().arrayBuffer());
+// 글자 파일은 줄바꿈을 LF 로 맞춰 계산 (build.js 의 readForHash 와 같은 규칙)
+const TEXT = /\\.(js|css|html|svg|json|webmanifest|txt)(\\?|$)/i;
+async function hashOf(r, url) {
+  let buf = await r.clone().arrayBuffer();
+  if (TEXT.test(url || "")) buf = new TextEncoder().encode(new TextDecoder().decode(buf).replace(/\\r\\n/g, "\\n"));
+  const d = await crypto.subtle.digest("SHA-1", buf);
   return [...new Uint8Array(d)].map((x) => x.toString(16).padStart(2, "0")).join("").slice(0, 8);
 }
 // 이미 가진 것이면 null, 아니면 저장할 응답 (아직 저장하지 않음 — 다 받은 뒤 한꺼번에)
@@ -216,16 +226,20 @@ async function need(c, old, url, hash, migrate) {
   if (migrate) {
     // 처음 이 방식으로 바뀔 때: 옛 저장소의 그림·폰트를 내용이 같을 때만 옮겨 씀
     const prev = await caches.match(url);
-    if (prev && (await hashOf(prev)) === hash) return prev;
+    if (prev && (await hashOf(prev, url)) === hash) return prev;
   }
   const r = await fetch(req(url));
   if (!r.ok) throw new Error(url + " " + r.status);
+  // 받은 내용이 이 버전의 지문과 같은지 확인 (받는 도중 다음 배포가 올라오면 다른 버전 내용이 섞일 수 있음 → 설치 중단, 다음에 다시)
+  if ((await hashOf(r, url)) !== hash) throw Object.assign(new Error(url + " 내용이 이 버전과 다름"), { kpMismatch: true });
   r.kpNet = (await r.clone().arrayBuffer()).byteLength; // 인터넷에서 받은 크기(바이트) — 알림용
   return r;
 }
 // 화면에 진행 상황 알리기 (화면 쪽 app.js 가 '받는 중' 알림·'새 버전 준비' 창을 띄움)
+// (clients.postMessage 로 보내면 다음 업데이트 때 새 서비스 워커가 '대기'에서 안 넘어가 앱이 안 열리는 문제가 있어 방송 채널로 보냄 — 2026-10-20 시험으로 확인)
+const updCh = typeof BroadcastChannel === "function" ? new BroadcastChannel("kp-update") : null;
 async function tell(m) {
-  for (const cl of await self.clients.matchAll({ includeUncontrolled: true, type: "window" })) cl.postMessage(Object.assign({ kp: "update" }, m));
+  if (updCh) updCh.postMessage(Object.assign({ kp: "update" }, m));
 }
 self.addEventListener("install", (e) => {
   e.waitUntil(
@@ -265,33 +279,46 @@ self.addEventListener("install", (e) => {
         changed = got.length;
         await tell({ phase: "progress", done, total, changed, fetched, bytes });
       }
-      for (const [u, r] of got) await c.put(u, r);
-      for (const [f, r] of page) await c.put(f, r);
-      // 2) 그림·폰트 (실패해도 계속). 바뀐 파일을 못 받으면 옛 것을 지워 쓸 때 새로 받게
+      // 2) 그림·폰트 받기 (못 받은 건 쓸 때 받음). 내용이 다르면(받는 도중 다른 배포) 설치 전체를 멈춤
       const man = Object.assign({}, CORE);
+      const exGot = [],
+        exDrop = [];
       for (let i = 0; i < extra.length; i += 8) {
         const part = extra.slice(i, i + 8);
         const rs = await Promise.allSettled(part.map(([u, h]) => need(c, old, u, h, migrate)));
+        const mis = rs.find((r) => r.status === "rejected" && r.reason && r.reason.kpMismatch);
+        if (mis) throw mis.reason;
         for (let k = 0; k < part.length; k++) {
           const [u, h] = part[k];
           if (rs[k].status === "fulfilled") {
             if (rs[k].value) {
               count(rs[k].value);
-              await c.put(u, rs[k].value);
-              changed++;
-            }
-            man[u] = h;
-          } else if (old[u] && old[u] !== h) await c.delete(u);
+              exGot.push([u, h, rs[k].value]);
+            } else man[u] = h;
+          } else if (old[u] && old[u] !== h) exDrop.push(u); // 바뀐 걸 못 받음 → 옛 것을 지워 쓸 때 새로 받게
         }
         done += part.length;
-        await tell({ phase: "progress", done, total, changed, fetched, bytes });
+        await tell({ phase: "progress", done, total, changed: got.length + exGot.length, fetched, bytes });
       }
+      // 3) 여기까지 모두 확인됐을 때만 저장 시작 (코드 → 그림 → 화면 순, 화면이 마지막이라 중간에 멈춰도 옛 화면으로 열림)
+      for (const [u, r] of got) await c.put(u, r);
+      changed = got.length;
+      for (const [u, h, r] of exGot) {
+        try {
+          await c.put(u, r);
+          man[u] = h;
+          changed++;
+        } catch (err) {} // 저장 공간 부족 등 — 이 파일만 빠짐(쓸 때 받음)
+      }
+      for (const u of exDrop) await c.delete(u);
+      for (const [f, r] of page) await c.put(f, r);
       await c.put(PREV, jres(old));
       await c.put(MANIFEST, jres(man));
       // 옛 방식 저장소(kids-playground-버전)는 새 방식으로 한 번 바뀐 다음 업데이트 때 지움 (열려 있던 옛 화면 보호)
       if (!migrate) for (const k of await caches.keys()) if (k.startsWith("kids-playground-")) await caches.delete(k);
+      // '준비됐어요'는 새 서비스 워커가 완전히 넘겨받은 뒤(activate)에 알림 — 넘겨받는 순간 화면이 그림을 불러오면 넘겨받기가 멈춰 앱이 안 열리는 문제가 있었음(2026-10-20 시험으로 확인)
+      await c.put(UPD, jres({ changed, fetched, bytes }));
       await self.skipWaiting();
-      await tell({ phase: "ready", changed, fetched, bytes, version: VERSION });
      } catch (err) {
       await tell({ phase: "fail" });
       throw err; // 설치 실패 → 옛 버전 그대로
@@ -306,9 +333,12 @@ self.addEventListener("activate", (e) => {
       for (const k of await caches.keys()) if (k !== CACHE && k !== VOICE_CACHE && !k.startsWith("kids-playground-")) await caches.delete(k);
       // 이번 목록과 직전 버전 목록 어디에도 없는 파일만 지움
       const c = await caches.open(CACHE);
-      const keep = new Set([...KNOWN, ...Object.keys(await getMan(c, PREV)).map(abs), abs(MANIFEST), abs(PREV)]);
+      const keep = new Set([...KNOWN, ...Object.keys(await getMan(c, PREV)).map(abs), abs(MANIFEST), abs(PREV), abs(UPD)]);
       for (const r of await c.keys()) if (!keep.has(r.url)) await c.delete(r);
       await self.clients.claim();
+      const st = await getMan(c, UPD);
+      await c.delete(UPD);
+      if (st.changed) await tell({ phase: "ready", changed: st.changed, fetched: st.fetched || 0, bytes: st.bytes || 0, version: VERSION });
     })()
   );
 });
@@ -340,7 +370,7 @@ self.addEventListener("fetch", (e) => {
   }
   // 정확히 같은 버전(?v=)이 있으면 저장본, 없으면 인터넷(새 버전), 인터넷도 안 되면 아무 버전 저장본
   e.respondWith(
-    caches.match(e.request).then((hit) => hit || fetch(e.request).then((r) => {
+    caches.open(CACHE).then((c) => c.match(e.request)).then((h) => h || caches.match(e.request)).then((hit) => hit || fetch(e.request).then((r) => {
       if (r.ok && KNOWN.has(url.href)) { const cp = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, cp)); }
       return r;
     }).catch(() => caches.match(e.request, { ignoreSearch: true })))

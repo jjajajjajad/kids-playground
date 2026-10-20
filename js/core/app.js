@@ -56,6 +56,8 @@
      받는 동안: 아래 작은 알림 "새 버전 받는 중 37%" (바뀐 파일이 있을 때만)
      다 받으면: '새 버전이 준비됐어요' 창 — 놀이 도중에 다시 시작하면 하던 놀이가 끊기므로 홈에 있을 때만. 안 눌러도 다음에 켤 때 적용 */
   if ("serviceWorker" in navigator) {
+    // 앱을 열 때 이미 서비스 워커가 화면을 맡고 있었을 때만 '업데이트' (처음 설치 때는 알림 없음)
+    const wasUpdate = !!navigator.serviceWorker.controller;
     let pill = null,
       ready = false,
       got = { fetched: 0, bytes: 0 };
@@ -77,9 +79,11 @@
       ov.firstChild.appendChild(row);
       document.body.appendChild(ov);
     };
-    navigator.serviceWorker.addEventListener("message", (e) => {
+    // 서비스 워커가 방송 채널로 알려 줌 (clients.postMessage 는 다음 업데이트를 막는 문제가 있어 쓰지 않음)
+    const ch = typeof BroadcastChannel === "function" ? new BroadcastChannel("kp-update") : null;
+    if (ch) ch.addEventListener("message", (e) => {
       const m = e.data || {};
-      if (m.kp !== "update" || !navigator.serviceWorker.controller) return;
+      if (m.kp !== "update" || !wasUpdate) return;
       if (m.phase === "progress" && m.changed > 0 && m.total) {
         if (!pill) {
           pill = U.el("div", "updPill");
