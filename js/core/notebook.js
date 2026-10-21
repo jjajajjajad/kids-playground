@@ -78,6 +78,20 @@
             .hwLine{grid-column:auto}
             .hwStepName{font-size:16px}
           }
+          @media (max-aspect-ratio:1/1) and (max-height:760px){
+            .hwModel .big{font-size:46px}
+            .hwModel .pic .e{font-size:36px}
+            .hwSide .btn{font-size:16px;padding:8px 14px}
+            .hwCell{width:42px}
+          }
+          @media (min-aspect-ratio:1/1) and (max-height:500px){
+            .hwModel{grid-row:1;gap:4px}
+            .hwModel .big{font-size:56px;padding:4px 12px}
+            .hwModel .pic .e{font-size:38px}
+            .hwBoard{grid-row:1/3;grid-column:2}
+            .hwLine{grid-column:1;grid-row:2;gap:5px;flex-wrap:wrap}
+            .hwCell{width:40px}
+          }
           /* 도장 */
           .hwStamp{position:absolute;inset:0;z-index:8;display:none;align-items:center;justify-content:center;background:rgba(255,253,246,.88);flex-direction:column;gap:14px}
           .hwStamp.on{display:flex}
@@ -305,11 +319,9 @@
         T.pts = this.points(c.strokes);
         T.n = (c.strokes || []).length;
         T.sdone = new Array(T.n).fill(false);
-        // 획마다 '시작점부터 차례로 따라온 곳'(앞으로)과 '끝에서부터'(거꾸로) 진행 위치
+        // 획별 안내 점 (획마다 따라온 정도를 잼)
         T.byS = [];
         T.pts.forEach((q) => (T.byS[q.s] = T.byS[q.s] || []).push(q));
-        T.fw = T.byS.map(() => -1);
-        T.bw = T.byS.map((P) => P.length);
         T.done = false;
         T.ink = [];
         T.segs = [];
@@ -371,15 +383,16 @@
         strokes.forEach((s, si) => {
           if (c.mode === "alone" && !T.done) return;
           const done = T.sdone[si];
-          g.strokeStyle = done ? it.color : c.mode === "dot" ? "#e4e7f1" : "#eff1f7";
+          const now = si === nextS && !T.done; // 지금 쓸 획
+          g.strokeStyle = done ? it.color : c.mode === "dot" ? (now ? "#e1e5f1" : "#eceef5") : "#dde3f2";
           g.globalAlpha = done ? 0.28 : 1;
           g.lineWidth = lw;
           path(s);
           g.stroke();
           g.globalAlpha = 1;
           if (c.mode === "dot" && !done) {
-            g.strokeStyle = "#9aa3c4";
-            g.lineWidth = 1.3 * k;
+            g.strokeStyle = now ? "#6f7aa6" : "#c3c9dd";
+            g.lineWidth = (now ? 1.7 : 1.1) * k;
             g.setLineDash([2.4 * k, 2.6 * k]);
             path(s);
             g.stroke();
@@ -389,7 +402,7 @@
         // 방향 화살표 (따라 쓰기 칸)
         if (c.mode === "dot") {
           strokes.forEach((s, si) => {
-            if (T.sdone[si]) return;
+            if (T.sdone[si] || si !== nextS) return;
             const P = T.pts.filter((q) => q.s === si);
             if (P.length < 4) return;
             const a = P[Math.floor(P.length * 0.5)],
@@ -553,7 +566,7 @@
           const r = ink.getBoundingClientRect();
           return { x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100, p: e.pressure };
         };
-        const width = (p) => (ctx.cell && ctx.cell.syl ? 0.75 : 1) * (T.isPen ? 3.5 + 6 * Math.min(1, p > 0 ? p : 0.5) : 7.5);
+        const width = (p) => (ctx.cell && ctx.cell.syl ? 0.75 : 1) * (T.isPen ? 3.5 + 6 * Math.min(1, p > 0 ? p : 0.5) : 10);
         ink.addEventListener("pointerdown", (e) => {
           e.preventDefault();
           KP.audio.unlock();
@@ -612,10 +625,7 @@
           T.pid = null;
           T.last = null;
           // 혼자 쓰기·흐린 글씨: [다 썼어요]를 눌러도 될 만큼 썼으면 반짝 (누르면 거절되는 때는 반짝이지 않게)
-          if (!T.done && T.ink.length >= 8 && T.pts.length && ctx.cell) {
-            const cov = T.pts.filter((q) => q.hit).length / T.pts.length;
-            if (cov >= (ctx.cell.mode === "alone" ? 0.6 : 0.75)) ctx.bDone.classList.add("glowNext");
-          }
+          if (!T.done && ctx.cell && this.enough(ctx)) ctx.bDone.classList.add("glowNext");
         };
         ink.addEventListener("pointerup", end);
         ink.addEventListener("pointercancel", end);
@@ -636,27 +646,40 @@
           g.stroke();
         });
       },
-      /** 펜이 지나간 안내 점 표시 → 획을 처음부터 끝까지 차례로(95% 이상) 따라오면 그 획 완성 */
+      /** 획 하나를 얼마나 따라왔는지: 덮은 비율, 가장 길게 빠진 곳(획 길이 대비) */
+      strokeCover(P, closed) {
+        const n = P.length;
+        let hit = 0,
+          gap = 0,
+          run = 0;
+        // 닫힌 획(동그라미)은 끝과 처음이 이어져 있으므로 두 바퀴 돌며 빠진 곳을 잼
+        for (let i = 0; i < (closed ? n * 2 : n); i++) {
+          const h = P[i % n].hit;
+          if (i < n && h) hit++;
+          run = h ? 0 : run + 1;
+          if (run > gap) gap = run;
+        }
+        return { cov: hit / n, gap: Math.min(1, gap / n) };
+      },
+      /** 펜이 지나간 안내 점 표시 → 획마다 85% 이상 덮고, 크게 빠진 곳(획의 15% 넘게)이 없으면 그 획 완성 */
       hit(ctx, p) {
         const T = ctx.T,
           c = ctx.cell;
         if (T.done) return;
-        // 판정 범위: 안내 글씨 굵기 정도만 (넓으면 옆으로 지나가도 된 걸로 쳐져서 일찍 넘어감)
-        const R = c.syl ? 5.5 : c.mode === "alone" ? 8.5 : 7.5;
+        // 판정 범위: 안내 글씨 굵기 정도 (넓으면 옆으로 지나가도 된 걸로 쳐짐). 손가락은 펜보다 조금 넓게
+        const R = (c.syl ? 5.5 : c.mode === "alone" ? 8.5 : 7.5) + (T.isPen ? 0 : c.syl ? 1 : 1.5);
         for (const q of T.pts) if (!q.hit && (q.x - p.x) ** 2 + (q.y - p.y) ** 2 < R * R) q.hit = true;
         let changed = false;
         for (let si = 0; si < T.n; si++) {
           if (T.sdone[si]) continue;
-          const mine = T.pts.filter((q) => q.s === si);
-          // 획을 한쪽 끝에서 다른 끝까지 끊김 없이 차례로 따라와야 완성
-          // (판정 범위만 넓게 보면 동그라미 글자(ㅇ·o·a·0)는 덜 그려도 시작점과 끝점이 붙어 있어 통과되던 문제 방지)
           const P = T.byS[si];
-          const near = (q) => (q.x - p.x) ** 2 + (q.y - p.y) ** 2 < R * R;
-          while (T.fw[si] + 1 < P.length && near(P[T.fw[si] + 1])) T.fw[si]++;
-          while (T.bw[si] - 1 >= 0 && near(P[T.bw[si] - 1])) T.bw[si]--;
-          const along = T.fw[si] >= P.length - 1 || T.bw[si] <= 0;
-          const full = mine.filter((q) => q.hit).length / mine.length >= 0.95;
-          if (along && full) {
+          const a = P[0],
+            z = P[P.length - 1];
+          const closed = !!c.strokes[si].o || Math.hypot(a.x - z.x, a.y - z.y) < 4;
+          const { cov, gap } = this.strokeCover(P, closed);
+          // 아주 짧은 획(점·짧은 꼭지)은 콕 찍어도 완성
+          const short = !closed && P.length * 3 < R * 2;
+          if (short ? cov >= 0.5 : cov >= 0.85 && gap <= 0.15) {
             T.sdone[si] = true;
             changed = true;
             if (c.mode !== "alone") KP.audio.note(KP.audio.SCALE[(si * 2) % 8], { inst: "marimba", dur: 0.22, vol: 0.2 });
@@ -685,15 +708,22 @@
         const sc = 0.6 * cov + 0.4 * acc;
         return sc >= 0.82 ? 3 : sc >= 0.58 ? 2 : 1;
       },
+      /** [다 썼어요]로 넘어가도 될 만큼 썼는지: 전체 70%(혼자 쓰기 60%) + 획마다 절반 이상(혼자 쓰기 40%) */
+      enough(ctx) {
+        const T = ctx.T,
+          alone = ctx.cell.mode === "alone";
+        if (T.ink.length < 8 || !T.pts.length) return false;
+        const cov = T.pts.filter((q) => q.hit).length / T.pts.length;
+        if (cov < (alone ? 0.6 : 0.7)) return false;
+        return T.byS.every((P) => P.filter((q) => q.hit).length / P.length >= (alone ? 0.4 : 0.5));
+      },
       finishCell(ctx, byButton) {
         const U = KP.u;
         const T = ctx.T;
         if (T.done || T.demoing || !ctx.cell) return;
         if (byButton) {
           // [다 썼어요]는 막혔을 때 넘어가는 용도 — 덜 썼으면 조금 더 쓰도록 안내
-          const cov = T.pts.length ? T.pts.filter((q) => q.hit).length / T.pts.length : 0;
-          const need = ctx.cell.mode === "alone" ? 0.6 : 0.75;
-          if (T.ink.length < 8 || cov < need) {
+          if (!this.enough(ctx)) {
             KP.audio.sfx("tap");
             KP.voice.say(ctx.cell.mode === "alone" ? (T.ink.length < 8 ? "먼저 써 볼까요? 옆의 글자를 보고 써요!" : "조금 더! 옆의 글자를 보고 써요!") : T.ink.length < 8 ? "먼저 써 볼까요? 동그라미에서 시작해요!" : "아직 덜 썼어요! 회색 길을 끝까지 따라가요.");
             if (ctx.cell.mode !== "alone") ctx.hint(() => this.startPoint(ctx), "끝까지 따라가요!");
