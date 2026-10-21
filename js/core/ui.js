@@ -66,13 +66,13 @@
     if (current) leave();
     KP.voice.stop();
     let ctx = screens[id];
+    let setupErr = null;
     if (!ctx) {
       ctx = screens[id] = makeCtx(def);
       try {
         def.setup && def.setup(ctx);
       } catch (e) {
-        console.error(e);
-        KP.reportError && KP.reportError(id, e);
+        setupErr = e;
       }
     }
     U.$$(".screen.on").forEach((s) => s.classList.remove("on"));
@@ -86,6 +86,7 @@
     ctx._softMiss = 0;
     ctx._hinted = false;
     ctx._fewChoice = false;
+    if (setupErr) return failed(ctx, setupErr); // 준비가 깨졌으면 놀이 횟수·단계 처리 전에 멈춤
     KP.earn && setTimeout(() => KP.earn.render(), 0);
     const lv = KP.level.get(id);
     lv.plays++;
@@ -93,13 +94,43 @@
     ctx._updateLevel();
     if (def.score) ctx.score.set(0);
     try {
-      def.start && def.start(ctx);
+      const r = def.start && def.start(ctx);
+      // start 가 async 면 기다리는 중에 난 오류도 잡음 (나갔다 다시 들어온 뒤 옛 실행의 오류는 무시)
+      const sess = ctx._session;
+      if (r && typeof r.catch === "function") r.catch((e) => (ctx._session === sess ? failed(ctx, e) : console.error(e)));
     } catch (e) {
-      console.error(e);
-      KP.reportError && KP.reportError(id, e);
+      return failed(ctx, e); // 실패한 놀이를 '방금 한 놀이'로 저장하지 않음
     }
     KP.store.set("lastGame", id);
   };
+  /** 놀이를 여는 중 문제가 생기면: 깨진 화면 대신 '다시 하기 / 홈으로' (다시 하기는 화면을 처음부터 새로 만듦) */
+  function failed(ctx, e) {
+    console.error(e);
+    KP.reportError && KP.reportError(ctx.id, e);
+    if (!ctx._active || U.$(".gameFail", ctx.root)) return;
+    const box = U.el("div", "gameFail", '<div class="gfEm">' + KP.E("🙈") + '</div><div class="gfTxt">앗, 놀이를 여는 중에 문제가 생겼어요</div>');
+    const row = U.el("div", "gfBtns");
+    const bRetry = U.btn(KP.E("🔄") + " 다시 하기", "btn big primary");
+    const bHome = U.btn(KP.E("🏠") + " 홈으로", "btn big");
+    // 문제가 생긴 화면은 버리고 다음에 열 때 처음부터 새로 만듦
+    const drop = () => {
+      if (screens[ctx.id] === ctx) delete screens[ctx.id];
+      ctx.root.remove();
+    };
+    bRetry.addEventListener("click", () => {
+      leave();
+      drop();
+      KP.open(ctx.id);
+    });
+    bHome.addEventListener("click", () => {
+      KP.home();
+      drop();
+    });
+    row.append(bRetry, bHome);
+    box.appendChild(row);
+    ctx.root.appendChild(box);
+    KP.voice.say("다시 해 볼까요?");
+  }
   function leave() {
     const ctx = current;
     if (!ctx) return;

@@ -584,6 +584,7 @@
     r.domElement.addEventListener("webglcontextlost", (e) => {
       e.preventDefault();
       this.lost = true;
+      if (this.onLost) this._lostT = setTimeout(() => this.onLost(), 600); // 동물원이 새로 만들어 다시 보여 줌 (멈춘 화면으로 두지 않게) — dispose 때 취소
     });
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(42, 1.5, 0.5, 200);
@@ -607,6 +608,8 @@
   W3.dispose = function () {
     if (this.dead) return;
     this.dead = this.lost = true;
+    clearTimeout(this._lostT);
+    clearTimeout(this._slowT);
     if (this.ro) this.ro.disconnect();
     this.clear();
     this.renderer.dispose();
@@ -1522,7 +1525,14 @@
       this.applyQ(this.q + 1);
       KP.store.set("zoo3d:q", { q: this.q, t: Date.now() });
       this._warm = now + 1500;
-    }
+    } else if (this.q >= 3 && avg > 55) {
+      // 가장 낮은 화질에서도 초당 18장도 안 나오면(두 번 연속) 그림 동물원으로 바꾸자고 알림
+      this._slowN = (this._slowN || 0) + 1;
+      if (this._slowN >= 2 && this.onSlow && !this._slowTold) {
+        this._slowTold = true;
+        this._slowT = setTimeout(() => this.onSlow(), 0); // 지금 그리는 중인 장면을 마친 뒤에 (그리는 도중 정리하면 오류)
+      }
+    } else this._slowN = 0;
   };
   W3.tick = function (dt) {
     if (this.lost) return;

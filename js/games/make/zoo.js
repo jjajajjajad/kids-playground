@@ -1299,9 +1299,8 @@
       ctx.bPaint = bPaint;
       ctx.bMode = bMode;
       bMode.addEventListener("click", () => {
-        try {
-          localStorage.setItem("kp-zoo-mode", ctx.use3d ? "2d" : "3d");
-        } catch (e) {}
+        ctx.modeNow = ctx.use3d ? "2d" : "3d";
+        KP.store.set("zooMode", ctx.modeNow);
         this.start(ctx);
       });
       const home = U.btn(KP.E("🎥") + " 처음 자리로", "z3Home");
@@ -1491,10 +1490,12 @@
       ctx.animals = [];
       ctx.treatsArr = [];
       // 진짜 3D (WebGL) — 안 되면 2.5D
-      let pref = "3d";
+      // 3D/그림 동물원: 이번에 고른 것 → 저장된 것(KP.store) → 예전 방식으로 저장된 것 → 3D
+      let legacy = null;
       try {
-        pref = localStorage.getItem("kp-zoo-mode") || "3d";
+        legacy = localStorage.getItem("kp-zoo-mode");
       } catch (e) {}
+      const pref = ctx.modeNow || KP.store.get("zooMode", legacy || "3d");
       let use3d = false;
       if (pref !== "2d" && KP.zoo3d && KP.zoo3d.supported()) {
         try {
@@ -1504,6 +1505,20 @@
             if (ctx.z3) ctx.z3.dispose(); // 화면이 끊긴 옛 세계 정리 후 새로
             ctx.z3 = KP.zoo3d.create(ctx, W, T);
             ctx.z3.onDelete = (a) => this.askDelete3(ctx, a);
+            // 3D 화면이 끊기면(iPad 백그라운드·메모리 부족) 새로 만들어 다시 보여 줌
+            const me = ctx.z3; // 이 3D 화면이 지금 쓰는 것일 때만 (나갔다 빨리 다시 들어와도 엉뚱하게 재시작 안 하게)
+            me.onLost = () => ctx._active && ctx.use3d && ctx.z3 === me && this.start(ctx);
+            // 가장 낮은 화질에서도 계속 느리면 그림 동물원으로 (3D 동물원 버튼으로 다시 켤 수 있음)
+            me.onSlow = () => {
+              if (!ctx._active || !ctx.use3d || ctx.z3 !== me) return;
+              ctx.modeNow = "2d";
+              KP.store.set("zooMode", "2d");
+              // 3D 화면 자원(그래픽 메모리)도 정리 — 다시 3D 로 가면 새로 만듦
+              me.dispose();
+              ctx.z3 = null;
+              KP.toast("기기가 바빠서 그림 동물원으로 바꿨어요 (3D 동물원 버튼으로 다시 켤 수 있어요)");
+              this.start(ctx);
+            };
           }
           use3d = true;
         } catch (e) {
