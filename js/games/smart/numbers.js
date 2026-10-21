@@ -71,7 +71,7 @@ KP.game({
     modes.append(ctx.bLearn, ctx.bQuiz, ctx.bWrite, ctx.b100);
     ctx.tap(ctx.bWrite, () => {
       KP.audio.sfx("open");
-      if (ctx.lastN) KP.nbWant = { id: "nwrite", ch: String(ctx.lastN) };
+      if (ctx.lastN != null) KP.nbWant = { id: "nwrite", ch: String(ctx.lastN) };
       KP.open("nwrite");
     });
     ctx.tap(ctx.b100, () => {

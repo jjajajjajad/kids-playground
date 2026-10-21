@@ -153,7 +153,8 @@
           if (ctx._active && ctx.vPage.classList.contains("on") && ctx.cell) {
             self.fit(ctx);
             self.drawGuide(ctx);
-            self.redrawInk(ctx);
+            if (ctx.T.demoing) self.demo(ctx); // 시범 중이면 새 크기로 처음부터 다시
+            else self.redrawInk(ctx);
           }
         });
       },
@@ -256,7 +257,12 @@
         ctx.say((it.kind === "line" ? "〰️ " : "✍️ ") + step.replace(/^. /, "") + (it.kind === "word" ? " · " + cell.ch : ""), false);
         ctx.instr = say;
         const stok = ctx.tok;
-        if (cell.demo && (ctx.ci === 0 || it.kind === "word")) ctx.after(it.kind === "word" && ctx.ci > 0 ? 200 : 900, () => stok === ctx.tok && ctx.cell === cell && this.demo(ctx));
+        if (cell.demo && (ctx.ci === 0 || it.kind === "word"))
+          ctx.after(it.kind === "word" && ctx.ci > 0 ? 200 : 900, () => {
+            if (stok !== ctx.tok || ctx.cell !== cell) return;
+            if (ctx.T.ink.length) return KP.voice.say(say); // 벌써 쓰기 시작했으면 시범 대신 안내만
+            this.demo(ctx);
+          });
         else KP.voice.say(say);
         ctx.hint(() => this.startPoint(ctx), cell.mode === "alone" ? "옆의 글자를 보고 써요!" : "노란 동그라미에서 시작해요!");
       },
@@ -458,6 +464,7 @@
       startPoint(ctx) {
         const T = ctx.T;
         if (!ctx.vPage.classList.contains("on") || T.done || T.demoing) return null;
+        if (ctx.cell && ctx.cell.mode === "alone") return null; // 혼자 쓰기: 정답 위치를 알려 주지 않음
         const ni = T.sdone.indexOf(false);
         const p = T.pts.find((q) => q.s === ni);
         if (!p) return null;
@@ -470,6 +477,7 @@
         const T = ctx.T;
         const c = ctx.cell;
         if (!c || c.mode !== "dot" || ctx.T.done) return;
+        if (T.ink.length && !T.demoing) this.cellReset(ctx); // 쓴 것을 지우고 시범 (화면과 점수가 어긋나지 않게)
         const tok = ctx.tok; // 화면을 떠나면 멈춤
         const dtok = (ctx.dtok = (ctx.dtok || 0) + 1); // 다시 보기를 누르면 이전 시범 멈춤
         const alive = () => tok === ctx.tok && dtok === ctx.dtok && ctx.cell === c;
@@ -549,8 +557,8 @@
         ink.addEventListener("pointerdown", (e) => {
           e.preventDefault();
           KP.audio.unlock();
-          if (e.pointerType === "pen") T.pen = true;
-          else if (T.pen && e.pointerType === "touch") return; // 펜으로 쓰는 중 손바닥
+          if (e.pointerType === "pen") T.penAt = Date.now();
+          else if (e.pointerType === "touch" && Date.now() - (T.penAt || 0) < 3000) return; // 펜으로 쓰는 중 닿은 손바닥 (펜을 내려놓으면 손가락으로 쓸 수 있음)
           if (T.done || T.demoing || T.pid !== null || !ctx.cell) return;
           T.pid = e.pointerId;
           try {
@@ -569,6 +577,7 @@
           this.hit(ctx, T.last);
         });
         ink.addEventListener("pointermove", (e) => {
+          if (e.pointerType === "pen") T.penAt = Date.now(); // 펜으로 길게 쓰는 동안에도 손바닥 무시 유지
           if (e.pointerId !== T.pid || T.done) return;
           const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
           const list = evs.length ? evs : [e];
@@ -598,11 +607,15 @@
           }
         });
         const end = (e) => {
+          if (e.pointerType === "pen") T.penAt = Date.now();
           if (e.pointerId !== T.pid) return;
           T.pid = null;
           T.last = null;
-          // 혼자 쓰기·흐린 글씨: 어느 정도 썼으면 [다 썼어요] 반짝
-          if (!T.done && T.ink.length > 25) ctx.bDone.classList.add("glowNext");
+          // 혼자 쓰기·흐린 글씨: [다 썼어요]를 눌러도 될 만큼 썼으면 반짝 (누르면 거절되는 때는 반짝이지 않게)
+          if (!T.done && T.ink.length >= 8 && T.pts.length && ctx.cell) {
+            const cov = T.pts.filter((q) => q.hit).length / T.pts.length;
+            if (cov >= (ctx.cell.mode === "alone" ? 0.6 : 0.75)) ctx.bDone.classList.add("glowNext");
+          }
         };
         ink.addEventListener("pointerup", end);
         ink.addEventListener("pointercancel", end);
@@ -682,7 +695,7 @@
           const need = ctx.cell.mode === "alone" ? 0.6 : 0.75;
           if (T.ink.length < 8 || cov < need) {
             KP.audio.sfx("tap");
-            KP.voice.say(T.ink.length < 8 ? "먼저 써 볼까요? 동그라미에서 시작해요!" : "아직 덜 썼어요! 회색 길을 끝까지 따라가요.");
+            KP.voice.say(ctx.cell.mode === "alone" ? (T.ink.length < 8 ? "먼저 써 볼까요? 옆의 글자를 보고 써요!" : "조금 더! 옆의 글자를 보고 써요!") : T.ink.length < 8 ? "먼저 써 볼까요? 동그라미에서 시작해요!" : "아직 덜 썼어요! 회색 길을 끝까지 따라가요.");
             if (ctx.cell.mode !== "alone") ctx.hint(() => this.startPoint(ctx), "끝까지 따라가요!");
             return;
           }
@@ -709,9 +722,10 @@
         KP.audio.sfx("good");
         KP.voice.say(U.pick(st === 3 ? ["와, 아주 잘 썼어요!", "멋져요!", "최고예요!"] : st === 2 ? ["잘했어요!", "좋아요!"] : ["좋아요! 다음엔 선을 따라가 봐요!", "잘했어요! 점선을 보며 써요!"]));
         ctx.bDone.classList.remove("glowNext");
-        const tok = ctx.tok;
+        const tok = ctx.tok,
+          dt0 = ctx.dtok; // 그사이 [지우기]를 누르면(dtok 바뀜) 넘어가지 않음
         ctx.after(1100, () => {
-          if (tok !== ctx.tok) return;
+          if (tok !== ctx.tok || dt0 !== ctx.dtok) return;
           if (ctx.ci < ctx.cells.length - 1) {
             ctx.ci++;
             this.startCell(ctx);
@@ -747,10 +761,11 @@
         KP.voice.say(word + "! " + (it.kind === "line" ? it.name : it.say) + " 완성!", it.en ? { queue: true } : undefined);
         ctx.hint(() => (ctx.stamp.classList.contains("on") ? bNext : null), "다음 것도 써 볼까요?");
         KP.confetti && KP.confetti(stars === 3 ? 160 : 90);
-        // 세 개 완성할 때마다 스티커 한 장
-        const n = (KP.store.get("nb:count", 0) || 0) + 1;
-        KP.store.set("nb:count", n);
-        if (n % 3 === 0 && KP.stickers) {
+        // 세 개 완성할 때마다 스티커 한 장 — 새로 완성했거나 별이 늘었을 때만 셈 (같은 글자 반복으로 계속 받지 않게)
+        const better = stars > prev;
+        const n = (KP.store.get("nb:count", 0) || 0) + (better ? 1 : 0);
+        if (better) KP.store.set("nb:count", n);
+        if (better && n % 3 === 0 && KP.stickers) {
           const [e, nm] = KP.stickers.award();
           ctx.after(1600, () => KP.toast(e + " " + nm + " 스티커를 받았어요!"));
         }
