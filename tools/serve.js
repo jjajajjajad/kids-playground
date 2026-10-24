@@ -1,7 +1,7 @@
 /* 로컬 확인용 간단 서버: node tools/serve.js [port]  (같은 와이파이 기기에서 접속 가능하도록 모든 주소에서 받음) */
 const http = require("http"), fs = require("fs"), path = require("path");
 const ROOT = path.resolve(__dirname, ".."), port = +process.argv[2] || 8765;
-const T = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".json": "application/json", ".webmanifest": "application/manifest+json", ".mp3": "audio/mpeg" };
+const T = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2", ".json": "application/json", ".webmanifest": "application/manifest+json", ".mp3": "audio/mpeg", ".jpg": "image/jpeg" };
 http.createServer((req, res) => {
   let p;
   try {

@@ -186,6 +186,10 @@
   };
   KP.ZOO_T = T;
   const ORDER = ["dino", "lion", "elephant", "rabbit", "bear", "pig", "dog", "fish", "bird", "butterfly", "turtle"];
+  /** 동물 정보 {name, cry, move}: 도안 동물(T) 또는 🧸 3D 인형 친구(tid "doll" + species, doll.js) — 모르는 것은 null */
+  const DOLL = () => (KP.DOLL && KP.DOLL.ok ? KP.DOLL : null);
+  const tOf = (it) => (!it ? null : it.tid === "doll" ? (DOLL() && DOLL().ok(it.species) ? DOLL().tOf(it.species) : null) : T[it.tid] || null);
+  KP.zooT = tOf;
 
   /* 공통 CSS */
   KP.css("zoo-common", `
@@ -473,6 +477,15 @@
         .zpB.send{background:var(--cat);color:#fff;box-shadow:0 6px 0 color-mix(in srgb,var(--cat) 60%,#000);min-width:110px}
         .zpSpark{position:absolute;pointer-events:none;font-size:30px;animation:zpSpark .6s forwards;z-index:2}
         .zpLive{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
+        /* 🧸 3D 인형 도안 */
+        .zpDollHead{grid-column:1/-1;font-size:clamp(18px,2.4vw,24px);color:#7a4a1e;display:flex;align-items:center;gap:6px;padding:6px 4px 0}
+        .zpDollHead::after{content:"";flex:1;height:3px;border-radius:3px;background:repeating-linear-gradient(90deg,#e6c99a 0 8px,transparent 8px 14px)}
+        .zpCard.zpDoll{background:linear-gradient(180deg,#fff 60%,#fff4dc)}
+        .zpCard.zpDoll .zpThumb img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
+        .zpPaper .dollPaper{position:absolute;touch-action:none;z-index:1}
+        .zpPaper .dollPaper .lyr{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+        .zpPaper.fly .dollPaper{transition:transform .9s cubic-bezier(.5,-0.3,.7,1),opacity .9s;transform:translate(0,-110%) scale(.3) rotate(-12deg);opacity:0}
+        .zpWait{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:72px;animation:bob 1.2s ease-in-out infinite}
         .zpTools{flex:0 0 100%;display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap;grid-column:1/-1;margin-bottom:2px}
         .zpTool{background:#fff;border-radius:16px;box-shadow:0 4px 0 rgba(47,58,102,.13);padding:4px 8px;display:flex;flex-direction:column;align-items:center;font-size:12px;line-height:1.1;min-width:52px}
         .zpTool .e{font-size:26px}
@@ -517,6 +530,15 @@
       ctx.body.append(choose, work);
       Object.assign(ctx, { choose, work, paper, pal, act, drafts: {}, undo: [], pp: {}, tool: "brush", size: 1 });
       const SIZES = [4, 8, 14]; // 붓 굵기 (도안 단위)
+      const DSIZES = [16, 30, 52]; // 🧸 인형 도안 붓 굵기 (도안 1024 칸 기준)
+      /** 🧸 인형 칠하기: 지금 고른 도구·색·굵기를 그림판에 */
+      ctx.syncDoll = () => {
+        const P = ctx.dollP;
+        if (!P) return;
+        P.st.tool = ctx.tool === "fill" ? "fill" : ctx.tool === "erase" ? "erase" : "brush";
+        P.st.size = DSIZES[ctx.size] || 30;
+        P.st.color = ctx.paint.kind === "color" ? ctx.paint.color : ctx.paint.base || "#5cc6ff";
+      };
 
       /* 색 + 특수 색 */
       ctx.paint = { kind: "color", color: COLORS[0] };
@@ -524,6 +546,7 @@
       const sel = (b) => {
         sw.forEach((x) => x.classList.remove("sel"));
         b.classList.add("sel");
+        ctx.syncDoll();
       };
       // 팔레트: 내 물감(물감 실험실에서 담은 색, 최근 6개)을 맨 앞에 🎨 표시로 → 색칠 화면에 들어올 때마다 다시 그림
       ctx.renderPal = () => {
@@ -555,6 +578,8 @@
           tools.appendChild(b);
         });
         pal.appendChild(tools);
+        // 🧸 인형은 단색만 (무늬 붓 없음) — 무늬를 고르고 있었으면 그 바탕색으로
+        if (ctx.doll && ctx.paint.kind !== "color") ctx.paint = { kind: "color", color: COLORS.includes(ctx.paint.base) ? ctx.paint.base : COLORS[0] };
         const cur = ctx.paint.kind === "color" ? ctx.paint.color : null;
         if (cur && !COLORS.includes(cur) && !mine.some((m) => m.hex === cur)) ctx.paint = { kind: "color", color: COLORS[0] };
         mine.forEach((m) => {
@@ -590,7 +615,7 @@
           pal.appendChild(b);
           sw.push(b);
         });
-        [["rainbow", "🌈", "무지개"], ["glitter", "✨", "반짝이"], ["dots", "⚪", "물방울 무늬"], ["stripes", "〰️", "줄무늬"]].forEach(([k, em, nm]) => {
+        if (!ctx.doll) [["rainbow", "🌈", "무지개"], ["glitter", "✨", "반짝이"], ["dots", "⚪", "물방울 무늬"], ["stripes", "〰️", "줄무늬"]].forEach(([k, em, nm]) => {
           const b = U.el("button", "zpSp" + (ctx.paint.kind === k ? " sel" : ""), KP.E(em));
           b.style.background = k === "rainbow" ? "conic-gradient(#ff5b6e,#ffa14a,#ffe14d,#4fd37b,#3fb0ff,#9a6bff,#ff5b6e)" : k === "glitter" ? "linear-gradient(135deg,#ffd56b,#ff8ad8,#8ad1ff)" : "#fff";
           b.addEventListener("click", () => {
@@ -607,6 +632,7 @@
           pal.appendChild(b);
           sw.push(b);
         });
+        ctx.syncDoll();
       };
       ctx.renderPal();
 
@@ -624,6 +650,12 @@
         this.showChoose(ctx);
       });
       bUndo.addEventListener("click", () => {
+        if (ctx.doll) {
+          // 🧸 인형: 그림판이 두 층을 통째로 되돌림
+          if (!ctx.dollP || !ctx.dollP.back()) return KP.audio.sfx("bad");
+          KP.audio.sfx("slide");
+          return;
+        }
         const u = ctx.undo.pop();
         if (!u) return KP.audio.sfx("bad");
         const svg = paper.querySelector("svg");
@@ -640,8 +672,16 @@
         if (ctx.saveSoon) ctx.saveSoon();
       });
       bMagic.addEventListener("click", () => {
-        const svg = paper.querySelector("svg");
         const pal2 = U.shuffle(COLORS.filter((c) => c !== "#3b3355" && c !== "#ffffff"));
+        if (ctx.doll) {
+          if (!ctx.dollP) return;
+          ctx.dollP.magic(pal2); // 부위마다 다른 색 (크레파스 칠은 지움)
+          KP.audio.sfx("sparkle");
+          KP.voice.say("뾰로롱! 마법 색칠!");
+          U.replay(paper, "jump");
+          return;
+        }
+        const svg = paper.querySelector("svg");
         const byPart = {};
         // 크레파스 칠도 같이 덮음 (안 지우면 마법 색이 크레파스 아래에 가려지고, 쓰지 않는 그림이 저장됨)
         const many = [];
@@ -659,6 +699,13 @@
         this.checkDone(ctx);
       });
       bClear.addEventListener("click", () => {
+        if (ctx.doll) {
+          if (!ctx.dollP) return;
+          ctx.dollP.clear();
+          ctx.toldDone = false;
+          KP.audio.sfx("whoosh");
+          return;
+        }
         const svg = paper.querySelector("svg");
         const many = [];
         paper.querySelectorAll(".fb").forEach((e, i) => {
@@ -768,7 +815,7 @@
       let saveT = 0;
       const soon = () => {
         clearTimeout(saveT);
-        saveT = setTimeout(() => ctx._active && this.keepCurrent(ctx), 1500);
+        saveT = setTimeout(() => ctx._active && this.keepCurrent(ctx), ctx.doll ? 3000 : 1500); // 인형 그림판은 그림이 커서 조금 더 모아서
       };
       ctx.saveSoon = soon;
       const now = () => {
@@ -811,9 +858,12 @@
         if (c && !stroke) c.getContext("2d").clearRect(0, 0, c.width, c.height);
         this.checkDone(ctx);
       };
+      // 🧸 인형 그림판이 바뀌면(도안 크기에 맞춰) 다시 맞춤
+      if (window.ResizeObserver) new ResizeObserver(() => ctx.dollP && this.fitDoll(ctx)).observe(paper);
       paper.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
         KP.audio.unlock();
+        if (ctx.doll) return; // 🧸 인형은 그림판(doll.js)이 직접 받음
+        e.preventDefault();
         if (down !== null) return;
         down = e.pointerId;
         try {
@@ -828,7 +878,7 @@
         KP.audio.note(U.pick(KP.audio.SCALE.slice(4, 11)), { inst: "marimba", dur: 0.2, vol: 0.12 });
       });
       paper.addEventListener("pointermove", (e) => {
-        if (e.pointerId !== down) return;
+        if (e.pointerId !== down || ctx.doll) return;
         if (ctx.tool === "fill") {
           // 쓱쓱 문질러 붓기
           const el = document.elementFromPoint(e.clientX, e.clientY);
@@ -859,6 +909,11 @@
       ctx.drafts[tid] = { svg, uid, paint: paint || {} };
       KP.db.put("photos", { id: "zoodraft-" + tid, kind: "zoodraft", tid, svg, uid, paint: paint || {}, t: Date.now() });
     },
+    /** 🧸 인형 칠하던 그림 보관: 채우기·크레파스 두 층 (PNG) — 키 "doll-<종>" */
+    keepDollDraft(ctx, key, L) {
+      ctx.drafts[key] = { fill: L.fill, cray: L.cray };
+      KP.db.put("photos", { id: "zoodraft-" + key, kind: "zoodraft", tid: "doll", species: key.slice(5), fill: L.fill, cray: L.cray, t: Date.now() });
+    },
     dropDraft(ctx, tid) {
       if (!tid) return;
       delete ctx.drafts[tid];
@@ -866,6 +921,15 @@
     },
     /** 지금 그림판의 그림을 보관(칠한 게 있으면) 또는 보관본 삭제(다 지웠으면) */
     keepCurrent(ctx) {
+      if (ctx.doll) {
+        // 🧸 인형: 바뀐 게 있을 때만 (그림 두 장을 PNG 로 만드는 데 시간이 걸림)
+        const P = ctx.dollP;
+        if (!P || !ctx.tid || ctx.sending || !ctx.dollDirty) return;
+        ctx.dollDirty = false;
+        if (!P.isEmpty()) this.keepDollDraft(ctx, ctx.tid, P.layers());
+        else this.dropDraft(ctx, ctx.tid);
+        return;
+      }
       const cur = ctx.paper.querySelector("svg");
       if (!cur || !ctx.tid || ctx.sending) return;
       const paint = packPaint(ctx.pp);
@@ -894,18 +958,46 @@
         if (d && d.paint) applyPaint(c.querySelector("svg"), d.paint, "th" + tid);
         return c;
       });
+      // 🧸 3D 인형 친구 8종 (칠하면 동물원에서 입체 인형이 됨)
+      const D = DOLL();
+      if (D) {
+        ctx.choose.appendChild(U.el("div", "zpDollHead", KP.E("🧸") + " 3D 인형"));
+        D.ORDER.forEach((sp, j) => {
+          const key = "doll-" + sp;
+          const c = U.btn('<div class="zpThumb"><img src="' + D.thumbUrl(sp) + '" alt="" draggable="false"></div><b>' + D.SPECIES[sp].name + "</b>", "zpCard zpDoll");
+          c.style.setProperty("--i", ORDER.length + j);
+          if (ctx.drafts[key]) c.appendChild(U.el("span", "zpDraft", "칠하던 중"));
+          c.addEventListener("click", () => {
+            KP.audio.sfx("open");
+            this.load(ctx, key);
+          });
+          ctx.choose.appendChild(c);
+        });
+      }
       ctx.say("어떤 동물을 색칠할까요? 골라 보세요!");
       ctx.hint(() => cards[0], "색칠하고 싶은 동물을 콕 눌러요!");
     },
     /* 칠하던 그림 임시 보관 */
     stash(ctx) {
       this.keepCurrent(ctx);
+      this.dropDoll(ctx);
       ctx.pp = {};
       ctx.paper.innerHTML = "";
       ctx.tid = null;
     },
+    /** 🧸 인형 그림판 치우기 (그림판 4장 = 메모리 큼 → 바로 돌려줌) */
+    dropDoll(ctx) {
+      ctx._dTok = (ctx._dTok || 0) + 1; // 불러오던 중이면 그만
+      if (ctx.dollP) ctx.dollP.destroy();
+      ctx.dollP = null;
+      ctx.doll = null;
+      ctx.dollDirty = false;
+      ctx.paper.classList.remove("doll");
+    },
     /* ② 색칠 화면 */
     load(ctx, tid) {
+      if (/^doll-/.test(tid)) return this.loadDoll(ctx, tid.slice(5));
+      this.dropDoll(ctx);
       ctx.tid = tid;
       ctx.undo = [];
       ctx.toldDone = false;
@@ -942,7 +1034,94 @@
       KP.voice.say(ctx.instr);
       ctx.hint(() => ctx.paper.querySelector('.fb[fill="#ffffff"]') || ctx.bSend, "색을 고르고 그림을 콕 눌러 봐요!");
     },
-    checkDone(ctx) {
+    /* ②-🧸 3D 인형 색칠: 미리 구운 도안(doll.js) 위에 붓기·크레파스·지우개 */
+    async loadDoll(ctx, sp) {
+      const D = DOLL();
+      if (!D || !D.ok(sp)) return this.showChoose(ctx);
+      const key = "doll-" + sp;
+      const reuse = ctx.dollP && ctx.doll === sp; // 나갔다 들어오면 그리던 그림판(되돌리기 포함) 그대로
+      if (!reuse) this.dropDoll(ctx);
+      ctx.tid = key;
+      ctx.doll = sp;
+      ctx.undo = [];
+      ctx.toldDone = false;
+      ctx.paper.classList.remove("fly");
+      ctx.paper.classList.add("doll");
+      ctx.choose.style.display = "none";
+      ctx.choose.innerHTML = "";
+      ctx.renderPal();
+      ctx.work.style.display = "";
+      ctx.bubble.style.display = "none";
+      const nm = D.SPECIES[sp].name;
+      if (!reuse) {
+        ctx.paper.innerHTML = '<div class="zpWait">' + KP.E("🧸") + "</div>";
+        const tok = ctx._dTok;
+        let B;
+        try {
+          ({ B } = await D.load(sp));
+        } catch (e) {
+          if (tok !== ctx._dTok) return;
+          KP.toast("인형 도안을 불러오지 못했어요");
+          return this.showChoose(ctx);
+        }
+        if (tok !== ctx._dTok || ctx.tid !== key) return;
+        ctx.paper.innerHTML = "";
+        const P = (ctx.dollP = D.createPainter(ctx.paper, B));
+        P.st.onChange = () => {
+          ctx.dollDirty = true;
+          this.checkDone(ctx);
+        };
+        P.st.onStroke = (k, e) => {
+          if (k === "miss") return;
+          KP.audio.note(U.pick(KP.audio.SCALE.slice(4, 11)), { inst: "marimba", dur: k === "fill" ? 0.3 : 0.2, vol: k === "fill" ? 0.22 : 0.12 });
+          if (k !== "fill") return;
+          const r = ctx.paper.getBoundingClientRect();
+          const s = U.el("div", "zpSpark", KP.E("✨"));
+          s.style.left = e.clientX - r.left - 15 + "px";
+          s.style.top = e.clientY - r.top - 22 + "px";
+          ctx.paper.appendChild(s);
+          setTimeout(() => s.remove(), 650);
+        };
+        const d = ctx.drafts[key];
+        if (d) await P.setLayers(d.fill, d.cray);
+        if (tok !== ctx._dTok || ctx.dollP !== P) return;
+        ctx.dollDirty = false;
+        this.checkDone(ctx, true);
+      }
+      ctx.syncDoll();
+      this.fitDoll(ctx);
+      ctx.instr = U.josa(nm, "을/를") + " 색칠해요! 색을 고르고 쓱쓱 칠해요.";
+      KP.voice.say(ctx.instr);
+      ctx.hint(() => (ctx.dollP ? ctx.dollP.wrap : ctx.bSend), "색을 고르고 그림을 콕 눌러 봐요!");
+    },
+    /** 인형 도안을 그림판에 꽉 차게 (동물 둘레 여백은 잘라 냄) */
+    fitDoll(ctx) {
+      const P = ctx.dollP;
+      if (!P) return;
+      const pw = ctx.paper.clientWidth,
+        ph = ctx.paper.clientHeight;
+      if (!pw || !ph) return;
+      const [x0, y0, x1, y1] = P.box,
+        pad = 22 * P.B.f;
+      const k = Math.min(pw / (x1 - x0 + pad * 2), ph / (y1 - y0 + pad * 2)),
+        S = P.B.S;
+      P.wrap.style.width = P.wrap.style.height = S * k + "px";
+      P.wrap.style.left = pw / 2 - ((x0 + x1) / 2) * k + "px";
+      P.wrap.style.top = ph / 2 - ((y0 + y1) / 2) * k + "px";
+    },
+    checkDone(ctx, quiet) {
+      if (ctx.doll) {
+        if (!ctx.dollP) return;
+        if (!quiet && ctx.saveSoon) ctx.saveSoon();
+        if (ctx.dollP.blank() === 0 && !ctx.toldDone) {
+          ctx.toldDone = true;
+          if (quiet) return;
+          KP.voice.say("우와, 다 칠했다! 동물원에 보내 볼까?");
+          U.replay(ctx.bSend, "jump");
+          ctx.hint(() => ctx.bSend, "동물원에 보내기를 눌러요!");
+        }
+        return;
+      }
       if (ctx.saveSoon) ctx.saveSoon(); // 칠할 때마다 잠시 뒤 자동 보관
       const left = [...ctx.paper.querySelectorAll(".fb")].filter((e, i) => isWhite(e) && !ctx.pp[i]).length;
       if (left === 0 && !ctx.toldDone) {
@@ -954,6 +1133,7 @@
     },
     async send(ctx) {
       if (ctx.sending || !ctx.tid) return; // 두 번 눌러도 한 번만 저장
+      if (ctx.doll) return this.sendDoll(ctx);
       const fbs = [...ctx.paper.querySelectorAll(".fb")];
       if (!fbs.some((e, i) => !isWhite(e) || ctx.pp[i])) {
         ctx.miss(ctx.bSend, "먼저 예쁘게 색칠해 봐요!", { soft: true });
@@ -988,12 +1168,57 @@
       ctx.sending = false;
       if (ok) KP.open("zoo");
     },
+    /** 🧸 인형 보내기: 3D 텍스처(JPEG, 768) + 정면 그림(PNG, 동물 모양으로 오림) 저장 */
+    async sendDoll(ctx) {
+      const P = ctx.dollP,
+        sp = ctx.doll;
+      if (!P) return;
+      if (P.isEmpty()) {
+        ctx.miss(ctx.bSend, "먼저 예쁘게 색칠해 봐요!", { soft: true });
+        return;
+      }
+      ctx.sending = true; // 보내는 동안은 나가도 '칠하던 그림'으로 보관하지 않음
+      let img = "",
+        thumb = "";
+      try {
+        img = P.compose(768).toDataURL("image/jpeg", 0.86);
+        thumb = P.cutout(320).toDataURL("image/png");
+      } catch (e) {}
+      const item = { id: KP.newId(), kind: "zoo", tid: "doll", species: sp, img, thumb, t: Date.now(), date: KP.gate.monthDay() };
+      const saved = KP.safeImg(img) && KP.safeImg(thumb) ? await KP.db.put("art", item) : false;
+      if (saved === false) {
+        ctx.sending = false;
+        KP.toast("저장하지 못했어요. 기기 저장공간을 확인해 주세요");
+        ctx.miss(ctx.bSend, "앗, 저장이 안 됐어요. 다시 눌러 볼까요?", { soft: true });
+        return;
+      }
+      const key = ctx.tid;
+      ctx.dollDirty = false;
+      this.dropDraft(ctx, key);
+      ctx.tid = null;
+      KP.zooNew = item.id;
+      ctx.paper.classList.add("fly");
+      KP.audio.sfx("whoosh");
+      const ok = await ctx.win({ msg: DOLL().SPECIES[sp].name + " 출발!", big: true });
+      if (ctx.doll === sp && !ctx.tid) this.dropDoll(ctx);
+      ctx.paper.innerHTML = "";
+      ctx.paper.classList.remove("fly");
+      ctx.sending = false;
+      if (ok) KP.open("zoo");
+    },
     async start(ctx) {
       if (!ctx.draftsLoaded) {
         // 앱을 다시 켰을 때 칠하던 그림 불러오기
         ctx.draftsLoaded = true;
-        const list = (await KP.db.all("photos")).filter((x) => x.kind === "zoodraft" && T[x.tid]);
+        const list = (await KP.db.all("photos")).filter((x) => x.kind === "zoodraft" && (T[x.tid] || x.tid === "doll"));
         list.forEach((x) => {
+          if (x.tid === "doll") {
+            // 🧸 인형: 두 층 그림 (백업 파일로 들어온 값도 안전한 그림만)
+            const fill = KP.safeImg(x.fill),
+              cray = KP.safeImg(x.cray);
+            if (DOLL() && DOLL().ok(x.species) && (fill || cray)) ctx.drafts["doll-" + x.species] = { fill, cray };
+            return;
+          }
           const svg = KP.sanitizeSvg(String(x.svg || "").replace(/^<div[^>]*>|<\/div>$/g, ""));
           if (svg) ctx.drafts[x.tid] = { svg, uid: String(x.uid || ""), paint: cleanPaint(x.paint) };
         });
@@ -1138,7 +1363,8 @@
     cap: () => (Math.min(screen.width, screen.height) >= 600 ? 18 : 12),
     POND: 5,
     async list() {
-      return (await KP.db.all("art")).filter((x) => x && x.kind === "zoo" && T[x.tid]);
+      // 3D 인형 친구는 그림(img: 3D 텍스처, thumb: 정면 그림)이 안전한 그림일 때만
+      return (await KP.db.all("art")).filter((x) => x && x.kind === "zoo" && tOf(x) && (x.tid !== "doll" || (KP.safeImg(x.img) && KP.safeImg(x.thumb))));
     },
     outAt: (x) => x.outAt || x.t || 0,
     /** 저장 (실패하면 false — 실패를 무시하면 지운/쉬게 한 친구가 다음에 다시 나타남) */
@@ -1149,7 +1375,7 @@
     async enforce(list, keep) {
       const rested = [];
       for (const pond of [false, true]) {
-        const on = list.filter((x) => !x.rest && (T[x.tid].move === "swim") === pond);
+        const on = list.filter((x) => !x.rest && (tOf(x).move === "swim") === pond);
         let over = on.length - (pond ? KEEP.POND : KEEP.cap());
         if (over <= 0) continue;
         // 단짝이 아닌 친구가 먼저, 단짝만으로도 넘치면 오래 논 단짝부터 (아이가 모두 👑 해도 상한은 지킴)
@@ -1186,9 +1412,15 @@
   });
   /** 작은 그림(크레파스 칠 포함) — 동물 친구 집·부모 설정 동물원 정리에서 씀 */
   KP.zooThumb = (item) => {
+    if (item && item.tid === "doll") return dollImg(item, "zDollTh");
     if (!document.querySelector(".zDefs")) document.body.insertAdjacentHTML("beforeend", SHADE_DEFS);
     return shadeSvg(freshSvg(item), item.paint);
   };
+  /** 🧸 인형 친구 정면 그림 (아이가 칠한 그대로, 동물 모양으로 오린 것). 없으면 흰 인형 그림 */
+  function dollImg(item, cls) {
+    const src = KP.safeImg(item.thumb) || (DOLL() && DOLL().ok(item.species) ? DOLL().thumbUrl(item.species) : "");
+    return '<img class="' + cls + '" src="' + src + '" alt="" draggable="false">';
+  }
 
   KP.game({
     id: "zoo",
@@ -1246,8 +1478,14 @@
         .z3Canvas{position:absolute;inset:0;width:100%;height:100%;display:none;touch-action:none;z-index:1}
         .zooW.mode3d .z3Canvas{display:block}
         .zooW.mode3d>.zSky,.zooW.mode3d>.zFar,.zooW.mode3d>.zGround,.zooW.mode3d>.zSun,.zooW.mode3d>.zStar,.zooW.mode3d>.zCloud,.zooW.mode3d>.zSign,.zooW.mode3d>.zPond,.zooW.mode3d>.zFence,.zooW.mode3d>.zProps,.zooW.mode3d>.zVig,.zooW.mode3d>.zTint,.zooW.mode3d>.zA,.zooW.mode3d>.zTreat{display:none}
-        .z3Home{position:absolute;left:10px;top:8px;z-index:9600;display:none;background:rgba(255,255,255,.85);border-radius:999px;padding:4px 12px;font-size:clamp(15px,2vw,19px);min-height:40px}
-        .zooW.mode3d.turned .z3Home{display:block}
+        .z3Bg{position:absolute;inset:0;background-repeat:no-repeat;display:none;z-index:0;pointer-events:none;transition:filter .6s}
+        .zooW.mode3d .z3Bg{display:block}
+        .z3Bg.night{filter:brightness(.55) saturate(.8) hue-rotate(-8deg)}
+        .z3BgBtn{position:absolute;left:10px;top:8px;z-index:9600;display:none;width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.9);font-size:30px;box-shadow:0 4px 0 rgba(0,0,0,.14);align-items:center;justify-content:center}
+        .zooW.mode3d .z3BgBtn{display:flex}
+        .z3Load{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9600;background:rgba(255,255,255,.92);border-radius:999px;padding:8px 18px;font-size:clamp(17px,2.2vw,22px);color:#2f3a66;pointer-events:none}
+        .zA.doll .zDoll{width:100%;height:100%;object-fit:contain;object-position:50% 100%;display:block;pointer-events:none}
+        .zhPic .zDollTh{width:100%;height:100%;object-fit:contain;display:block}
         .z3Tip{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:9600;background:rgba(255,255,255,.8);border-radius:999px;padding:4px 14px;font-size:clamp(13px,1.8vw,17px);color:#2f3a66;pointer-events:none;transition:opacity .6s;white-space:nowrap}
         .zCount{position:absolute;right:10px;top:8px;z-index:9600;background:#fff;border:4px solid #b9773a;border-radius:999px;padding:4px 14px;min-height:48px;min-width:64px;font-size:clamp(17px,2.2vw,21px);color:#5a3a1a;box-shadow:0 4px 0 #8a5528}
         .zCount.pulse{animation:zPulse 1s ease-in-out 4}
@@ -1303,13 +1541,22 @@
         KP.store.set("zooMode", ctx.modeNow);
         this.start(ctx);
       });
-      const home = U.btn(KP.E("🎥") + " 처음 자리로", "z3Home");
-      W.appendChild(home);
-      home.addEventListener("click", () => ctx.z3 && ctx.z3.resetView());
       bPaint.addEventListener("click", () => KP.open("zoopaint"));
       const houseOpen = () => !!U.$(".zHouse", W);
       bTreat.addEventListener("click", () => !houseOpen() && this.treats(ctx));
       bCall.addEventListener("click", () => !houseOpen() && this.callAll(ctx));
+      // 🏞️ 배경 바꾸기 (3D 동물원 — 날마다 바뀌고, 고른 배경은 그날 하루 기억)
+      const bgB = U.btn(KP.E("🏞️"), "z3BgBtn");
+      W.appendChild(bgB);
+      bgB.addEventListener("click", () => {
+        if (!ctx.z3 || !ctx.use3d || houseOpen()) return;
+        const ids = KP.zoo3d.BG_IDS,
+          next = ids[(ids.indexOf(ctx.z3.bgId) + 1) % ids.length];
+        KP.store.set("zoo3d:bg", { d: this.dayNo(), id: next });
+        KP.audio.sfx("whoosh");
+        U.$$(".zDel", W).forEach((e) => e.remove());
+        ctx.z3.setBg(next);
+      });
       // 빈 땅을 누르면 그곳에 간식
       W.addEventListener("pointerdown", (e) => {
         if (W.classList.contains("mode3d") || e.target.closest(".zA,.zDel,.zEmpty,.btn,.zCount,.zHouse")) return;
@@ -1327,6 +1574,15 @@
           rt = setTimeout(() => ctx._active && !ctx.use3d && this.layout(ctx), 120);
         }).observe(W);
       }
+    },
+    /** 한국 날짜 번호 (배경이 날마다 바뀜) */
+    dayNo: () => Math.floor((Date.now() + 9 * 3600e3) / 864e5),
+    /** 오늘의 3D 배경: 오늘 고른 것 → 없으면 날짜 차례 */
+    bgNow() {
+      const ids = KP.zoo3d.BG_IDS,
+        s = KP.store.get("zoo3d:bg", null),
+        d = this.dayNo();
+      return s && s.d === d && ids.includes(s.id) ? s.id : ids[d % ids.length];
     },
     /* --- 크기·지평선·연못·소품 배치 --- */
     layout(ctx) {
@@ -1533,6 +1789,7 @@
       if (use3d) {
         ctx.z3.clear();
         ctx.z3.setNight(night);
+        ctx.z3.setBg(this.bgNow());
         ctx.z3.resize();
       } else {
         ctx.g = null;
@@ -1579,8 +1836,16 @@
       KP.zooNew = null;
       let newcomer = null;
       if (use3d) {
+        // 인형 모양·그림, 도안 동물 점토 굽기 (처음 한 번 — 다시 꾸밀 때는 있던 것 재사용). 오래 걸리면 '준비 중' 표시
+        const z = ctx.z3;
+        let wait = null;
+        const wt = setTimeout(() => W.appendChild((wait = U.el("div", "z3Load", KP.E("🧸") + " 준비 중"))), 400);
+        await z.prepare(items);
+        clearTimeout(wt);
+        if (wait) wait.remove();
+        if (!ctx._active || tok !== ctx._tok || z !== ctx.z3 || z.dead) return;
         items.forEach((it) => {
-          const a = ctx.z3.addAnimal(it, it.id === newId);
+          const a = z.addAnimal(it, it.id === newId);
           if (it.id === newId) newcomer = a;
         });
       } else {
@@ -1588,7 +1853,7 @@
         newcomer = ctx.animals.find((x) => x.item.id === newId);
       }
       if (newcomer) {
-        ctx.say("새 친구 " + U.josa(T[newcomer.item.tid].name, "이/가") + " 동물원에 왔어요! 환영해!");
+        ctx.say("새 친구 " + U.josa(tOf(newcomer.item).name, "이/가") + " 동물원에 왔어요! 환영해!");
         ctx.after(600, () => KP.confetti(140));
       }
       // 자리가 꽉 차 집에서 쉬러 간 친구가 있으면: 환영 인사 뒤에 짧게 + 집 버튼 반짝
@@ -1597,15 +1862,13 @@
         U.replay(ctx.count, "pulse");
       } else ctx.say(U.pick(["동물 친구들을 콕 눌러 보세요!", "빈 땅을 누르면 간식을 줄 수 있어요!", "내가 색칠한 친구들이 놀고 있어요!"]));
       if (use3d) {
-        const tip = U.el("div", "z3Tip", KP.E("👆") + " 끌면 빙글 · 두 손가락으로 크게");
+        const tip = U.el("div", "z3Tip", KP.E("👆") + " 콕 누르면 폴짝 · 빈 땅은 간식");
         W.appendChild(tip);
         ctx.after(6000, () => (tip.style.opacity = "0"));
         ctx.after(7000, () => tip.remove());
         ctx.loop((dt) => {
-          if (tok !== ctx._tok) return false;
+          if (tok !== ctx._tok || !ctx.z3) return false;
           ctx.z3.tick(dt);
-          const c = ctx.z3.cam;
-          W.classList.toggle("turned", Math.abs(c.taz - (c.baseAz || 0)) > 0.08 || Math.abs(c.tzoom - 1) > 0.08);
         });
       } else {
         ctx.hint(() => (ctx.animals[0] ? ctx.animals[0].el : null), "동물 친구를 콕 눌러 보세요!");
@@ -1624,7 +1887,7 @@
       const all = ctx.allZoo || (ctx.allZoo = await KEEP.list());
       ctx.houseBusy = false;
       if (!ctx._active || tok !== ctx._tok || U.$(".zHouse", ctx.W)) return;
-      const EM = { dino: "🦖", lion: "🦁", elephant: "🐘", rabbit: "🐰", bear: "🐻", pig: "🐷", dog: "🐶", fish: "🐟", bird: "🐦", butterfly: "🦋", turtle: "🐢" };
+      const EM = { dino: "🦖", lion: "🦁", elephant: "🐘", rabbit: "🐰", bear: "🐻", pig: "🐷", dog: "🐶", fish: "🐟", bird: "🐦", butterfly: "🦋", turtle: "🐢", doll: "🧸" };
       const box = U.el("div", "zHouse");
       const top = U.el("div", "zhTop", '<div class="zhTitle">' + KP.E("🏠") + " 동물 친구 집</div>");
       const bClose = U.btn(KP.E("🎪") + " 동물원으로", "btn primary zhClose");
@@ -1635,8 +1898,8 @@
       ctx.W.appendChild(box);
       let changed = false,
         kind = "";
-      // 동물 종류 그림 탭 (만든 적 있는 종류만, 두 종류 이상일 때)
-      const kinds = ORDER.filter((k) => all.some((x) => x.tid === k));
+      // 동물 종류 그림 탭 (만든 적 있는 종류만, 두 종류 이상일 때) — 🧸 인형 친구는 한 탭에 모두
+      const kinds = ORDER.concat(["doll"]).filter((k) => all.some((x) => x.tid === k));
       const drawFilter = () => {
         filt.innerHTML = "";
         if (kinds.length < 2) return;
@@ -1645,7 +1908,7 @@
           b.addEventListener("click", () => {
             kind = k;
             KP.audio.sfx("tap");
-            if (k) KP.voice.say(T[k].name);
+            if (k) KP.voice.say(k === "doll" ? "인형 친구!" : T[k].name);
             drawFilter();
             drawCards();
           });
@@ -1750,10 +2013,12 @@
     add(ctx, item, isNew) {
       const W = ctx.W,
         g = ctx.g;
-      const t = T[item.tid];
-      const el = U.el("div", "zA");
+      const t = tOf(item);
+      const el = U.el("div", "zA" + (item.tid === "doll" ? " doll" : ""));
       const ground = t.move === "walk" || t.move === "hop";
-      el.innerHTML = (ground ? '<div class="zShadow"></div>' : "") + '<div class="zLift"><div class="zIn"><div class="zBob">' + shadeSvg(freshSvg(item), item.paint) + "</div></div></div>";
+      // 🧸 인형 친구는 2D 에서 칠한 정면 그림으로
+      const pic = item.tid === "doll" ? dollImg(item, "zDoll") : shadeSvg(freshSvg(item), item.paint);
+      el.innerHTML = (ground ? '<div class="zShadow"></div>' : "") + '<div class="zLift"><div class="zIn"><div class="zBob">' + pic + "</div></div></div>";
       W.appendChild(el);
       const a = { el, item, t, size: 0, s: 1, x: 0, y: 0, tx: 0, ty: 0, state: "idle", wait: Math.random() * 2, dir: 1, ph: Math.random() * 6, treat: null, lift: el.querySelector(".zLift"), shadow: el.querySelector(".zShadow"), z: -1, lv: -1 };
       this.sizeAnimal(ctx, a);
@@ -1983,7 +2248,7 @@
         z.resetView();
         z.callAll();
         ctx.after(4200, () => {
-          z.animals.forEach((a, i) => ctx.after(i * 90, () => (a.jump = 0.65)));
+          z.animals.forEach((a, i) => ctx.after(i * 90, () => !z.dead && z.cheer(a)));
           KP.confetti(100);
           KP.audio.jingle();
         });

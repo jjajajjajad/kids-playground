@@ -147,7 +147,7 @@ const precache = [
   "manifest.webmanifest",
   ...versioned,
   ...walk(P("fonts"), [".woff2"]).map((f) => "fonts/" + path.basename(f)),
-  ...walk(P("assets"), [".svg", ".png", ".jpg", ".mp3", ".m4a"]).map((f) => path.relative(ROOT, f).split(path.sep).join("/")),
+  ...walk(P("assets"), [".svg", ".png", ".jpg", ".mp3", ".m4a", ".glb", ".bin"]).map((f) => path.relative(ROOT, f).split(path.sep).join("/")),
   ...walk(P("vendor"), [".js"]).map((f) => "vendor/" + path.basename(f)), // 3D 동물원(Three.js) — 필요할 때만 불러오지만 오프라인용으로 미리 저장
   ...walk(P("icons"), [".png"]).map((f) => "icons/" + path.basename(f)),
 ];

@@ -587,6 +587,7 @@
       .zcGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;max-height:46vh;overflow-y:auto;padding:4px}
       .zcCard{position:relative;border-radius:14px;border:3px solid #e3e7f5;background:#fff;padding:4px 2px 2px;font-size:12px;color:#5a6488;display:flex;flex-direction:column;align-items:center}
       .zcCard svg{width:100%;height:auto;aspect-ratio:200/170;display:block;overflow:visible}
+      .zcCard .zDollTh{width:100%;height:auto;aspect-ratio:200/170;object-fit:contain;display:block}
       .zcCard.sel{border-color:#e5484d;background:#ffecec}
       .zcCard.sel::after{content:"✔";position:absolute;right:4px;top:2px;color:#e5484d;font-size:20px}
     `);

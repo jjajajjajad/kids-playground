@@ -40,7 +40,11 @@ node tools/phone-audit.js        # 폰 화면 넘침 점검 (n100 은 알려진 
   `item.rest`(집에서 쉬는 중)·`outAt`(마지막으로 나온 시각)·`fav`(👑 단짝, 자동으로 쉬러 가지 않음). 꽉 차면 오래 논 친구부터 쉬기.
   아이 화면에는 영구 삭제 없음(🏠 동물 친구 집에서 놀기/쉬기만) — 영구 삭제는 설정 → 저장된 데이터 → 동물원 정리.
   `KP.db.del` 은 성공 시 undefined, 실패 시 false — 반드시 `=== false` 로 실패를 확인할 것.
-- `js/games/make/zoo3d.js` — Three.js r170 (`vendor/three.module.min.js`) 3D 동물원. 점토 질감, 자동 화질(`zoo3d:q`).
+- `js/games/make/zoo3d.js` — Three.js r170 (`vendor/three.module.min.js`) 3D 동물원. 점토 배경 그림 6종(`assets/zoo-bg`, 날마다·🏞️ 버튼, `zoo3d:bg`)
+  위에 그림과 같은 원근 카메라(bgCam)로 겹쳐 그림. 자동 화질(`zoo3d:q`)·느리면 2D(onSlow)·끊기면 새로(onLost).
+  - 🧸 3D 인형 친구 8종(`doll-bake.js` 종 설정·도안 굽기, `doll.js` 불러오기·칠하기): 저장 `{kind:"zoo", tid:"doll", species, img(3D 텍스처 JPEG 768), thumb(정면 그림 PNG)}`.
+    도안은 미리 구워 둠(`assets/doll/<종>.bin·-map.png·-lines.png`) — 모델·종 설정을 바꾸면 `node tools/doll-bake.js` 다시 실행.
+  - 도안 동물은 Clay 2.0(`zoo-clay.js`: 저장 SVG → 점토 조각, 11종 관절 RIG). 시험판은 `lab/doll`, `lab/zoo`.
 - `js/games/bigkid/maze.js` — 미로 + 술래 도전(BFS 추적, 속도 자동 조절 `maze:chaseK`).
 - `css/app.css`, `css/games/*.css`.
 - 홈 메뉴: 탭 6개(`KP.CATS`, id 는 잠금 설정과 묶여 있어 바꾸지 말 것). `name` 은 화면·음성용, `short` 는 폰(세로·가로)에서 보이는 짧은 이름.
