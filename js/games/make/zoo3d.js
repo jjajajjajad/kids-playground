@@ -51,92 +51,23 @@
   };
   const BG_IDS = Object.keys(BGS);
   const IA = 16 / 9;
-  function inPoly(pts, x, y) {
-    let c = false;
-    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
-      const a = pts[i], b = pts[j];
-      if (a[1] > y !== b[1] > y && x < ((b[0] - a[0]) * (y - a[1])) / (b[1] - a[1]) + a[0]) c = !c;
-    }
-    return c;
-  }
-  /** 그림에 맞춘 카메라 (화면 비율이 다르면 그림을 꽉 채워 잘라 보여 줌) — vw·vh: 보기 크기(CSS px) */
-  function bgCam(def, vw, vh) {
-    const t = Math.tan((def.fov * Math.PI) / 360);
-    const k = Math.max(vw / 1600, vh / 900), fw = 1600 * k, fh = 900 * k;
-    const ox = Math.max(0, Math.min(fw - vw, def.focus[0] * fw - vw / 2));
-    const oy = Math.max(0, Math.min(fh - vh, def.focus[1] * fh - vh / 2));
-    const vis = { u0: ox / fw, u1: (ox + vw) / fw, v0: oy / fh, v1: (oy + vh) / fh };
-    // 좁게 잘린 화면(폰 세로)에서는 동물을 조금 작게 → 여러 마리가 들어가게
-    const frac = Math.min(vis.u1 - vis.u0, vis.v1 - vis.v0);
-    const scale = Math.max(0.5, Math.min(1, Math.sqrt(frac) * 1.02));
-    const th = Math.atan((0.5 - def.vh) * 2 * t);
-    const sn = Math.sin(th), cs = Math.cos(th);
-    const mk = (h) => {
-      const pos = [0, h, 0], fwd = [0, -sn, -cs], up = [0, cs, -sn];
-      const toUV = (x, y, z) => {
-        const dx = x - pos[0], dy = y - pos[1], dz = z - pos[2];
-        const zc = dx * fwd[0] + dy * fwd[1] + dz * fwd[2], yc = dx * up[0] + dy * up[1] + dz * up[2];
-        return [0.5 + dx / (zc * t * IA) / 2, 0.5 - yc / (zc * t) / 2, zc];
-      };
-      const ground = (u, v) => {
-        const nx = (u * 2 - 1) * t * IA, ny = (1 - v * 2) * t;
-        const d = [nx, fwd[1] + up[1] * ny, fwd[2] + up[2] * ny];
-        if (d[1] >= -1e-4) return null; // 지평선 위
-        const s = -pos[1] / d[1];
-        return [pos[0] + d[0] * s, pos[2] + d[2] * s];
-      };
-      return { pos, toUV, ground };
-    };
-    const m1 = mk(1), g1 = m1.ground(0.5, 1);
-    const dv1 = m1.toUV(g1[0], 0, g1[1])[1] - m1.toUV(g1[0], 1, g1[1])[1];
-    const H = dv1 / (def.near * scale);
-    const M = mk(H);
-    const pos = M.pos, target = [0, H - sn * 10, -cs * 10];
-    const mu = 0.012;
-    const insideUV = (u, v) => u > vis.u0 + mu && u < vis.u1 - mu && v < vis.v1 - mu && v > vis.v0 && inPoly(def.poly, u, v);
-    /** 동물 a(w: 폭, h: 키, fly, y) 가 (x,z) 에 서도 되나: 발 양끝이 풀밭 안 + 몸이 화면 안 */
-    const inside = (a, x, z) => {
-      const w = a.w, h = a.h;
-      const hw = a.fly ? w * 0.15 : w * 0.4;
-      const l = M.toUV(x - hw, 0, z), r = M.toUV(x + hw, 0, z), c = M.toUV(x, 0, z);
-      if (!insideUV(l[0], l[1]) || !insideUV(r[0], r[1]) || !insideUV(c[0], c[1])) return false;
-      const L = M.toUV(x - w * 0.56, 0, z)[0], R = M.toUV(x + w * 0.56, 0, z)[0];
-      if (L < vis.u0 + 0.004 || R > vis.u1 - 0.004) return false;
-      return M.toUV(x, (a.fly ? a.y || 0 : 0) + h, z)[1] > vis.v0 + 0.01;
-    };
-    // 세로 화면(폰): 걷는 곳이 멀리까지 길게 보여 친구들이 아주 작아짐 → 앞쪽(가까운 곳)을 더 자주 고름
-    const tall = vw / vh < 0.8;
-    const pick = (a) => {
-      for (let i = 0; i < 40; i++) {
-        const vl = Math.max(vis.v0, 0.2), r = tall ? Math.sqrt(Math.random()) : Math.random();
-        const u = vis.u0 + Math.random() * (vis.u1 - vis.u0), v = vl + r * (vis.v1 - vl);
-        if (!insideUV(u, v)) continue;
-        const g = M.ground(u, v);
-        if (g && inside(a, g[0], g[1])) return g;
-      }
-      return null;
-    };
-    return { fov: def.fov, pos, target, view: { fw, fh, ox, oy }, vis, scale, H, inside, insideUV, pick, uv: M.toUV, ground: M.ground };
-  }
+  // 그림에 맞춘 카메라(bgCam)·다각형 안 판정은 공용 clay-stage.js (놀이 무대와 같이 씀)
+  const inPoly = (pts, x, y) => KP.clayStage.inPoly(pts, x, y);
+  const bgCam = (def, vw, vh) => KP.clayStage.bgCam(def, vw, vh);
 
   KP.zoo3d = {
     ok: null,
     BG_IDS,
     /** WebGL 지원 여부 (한 번만 검사) */
     supported() {
-      if (this.ok !== null) return this.ok;
-      try {
-        const c = document.createElement("canvas");
-        this.ok = !!(window.WebGLRenderingContext && c.getContext("webgl2"));
-      } catch (e) {
-        this.ok = false;
-      }
+      if (this.ok === null) this.ok = KP.clayStage.supported();
       return this.ok;
     },
     load() {
       if (THREE) return Promise.resolve(THREE);
       if (!loading)
-        loading = import(new URL("vendor/three.module.min.js", document.baseURI).href)
+        loading = KP.clayStage
+          .load()
           .then((m) => {
             THREE = m;
             KP.CLAY2.use(m);
@@ -247,32 +178,9 @@
   const W3 = World.prototype;
 
   W3.makeShared = function () {
-    // 점토 결 (아주 약한 울퉁불퉁 — 인형)
-    const gc = canvasOf(128), gg = gc.getContext("2d"), im = gg.createImageData(128, 128);
-    let s = 99;
-    const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
-    const base = new Float32Array(32 * 32).map(() => rnd());
-    for (let y = 0; y < 128; y++)
-      for (let x = 0; x < 128; x++) {
-        const fx = x / 4, fy = y / 4, ix = fx | 0, iy = fy | 0, tx = fx - ix, ty = fy - iy;
-        const at = (a, b) => base[(b & 31) * 32 + (a & 31)];
-        const v = (at(ix, iy) * (1 - tx) + at(ix + 1, iy) * tx) * (1 - ty) + (at(ix, iy + 1) * (1 - tx) + at(ix + 1, iy + 1) * tx) * ty;
-        const c = Math.round(110 + v * 90 + (rnd() - 0.5) * 20), i = (y * 128 + x) * 4;
-        im.data[i] = im.data[i + 1] = im.data[i + 2] = c;
-        im.data[i + 3] = 255;
-      }
-    gg.putImageData(im, 0, 0);
-    this.grainT = new THREE.CanvasTexture(gc);
-    this.grainT.wrapS = this.grainT.wrapT = THREE.RepeatWrapping;
-    this.grainT.repeat.set(5, 5);
-    // 발밑 그림자 (흐린 원판 두 장: 접촉 + 햇빛 반대쪽으로 길게)
-    const bc = canvasOf(64), bg = bc.getContext("2d"), gr = bg.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gr.addColorStop(0, "rgba(0,0,0,1)");
-    gr.addColorStop(0.5, "rgba(0,0,0,.55)");
-    gr.addColorStop(1, "rgba(0,0,0,0)");
-    bg.fillStyle = gr;
-    bg.fillRect(0, 0, 64, 64);
-    this.blobT = new THREE.CanvasTexture(bc);
+    // 점토 결(인형) · 발밑 그림자 원판 — 공용 clay-stage.js 와 같은 것
+    this.grainT = KP.clayStage.grainTex();
+    this.blobT = KP.clayStage.blobTex();
     this.contactM = new THREE.MeshBasicMaterial({ map: this.blobT, transparent: true, depthWrite: false, color: 0x1d3a12, opacity: 0.42 });
     this.castM = new THREE.MeshBasicMaterial({ map: this.blobT, transparent: true, depthWrite: false, color: 0x1d3a12, opacity: 0.2 });
     // Clay 2.0 가장자리 하늘빛(림)
@@ -664,122 +572,11 @@
   };
   /** 인형 종 등록: 같은 종 인형들이 모양·얼굴 텍스처를 같이 씀 */
   W3.addKind = function (id, model, B) {
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(model.POSITION, 3));
-    geo.setAttribute("normal", new THREE.BufferAttribute(model.NORMAL, 3));
-    geo.setAttribute("uv", new THREE.BufferAttribute(B.uv, 2));
-    const nv = model.POSITION.length / 3, P = KP.DOLL.P;
-    const ao = new Float32Array(nv), front = new Float32Array(nv);
-    let x0 = 9, x1 = -9;
-    for (let v = 0; v < nv; v++) {
-      ao[v] = (model._AO ? model._AO[v] : 255) / 255;
-      const nz = model.NORMAL[v * 3 + 2];
-      // 얼굴 덧칠은 머리·주둥이 앞쪽만 (뒤통수에 눈이 비치지 않게)
-      front[v] = B.part[v] === P.head || B.part[v] === P.snout ? clamp((nz - 0.05) / 0.3, 0, 1) : 0;
-      x0 = Math.min(x0, model.POSITION[v * 3]);
-      x1 = Math.max(x1, model.POSITION[v * 3]);
-    }
-    geo.setAttribute("aAO", new THREE.BufferAttribute(ao, 1));
-    geo.setAttribute("aFront", new THREE.BufferAttribute(front, 1));
-    geo.setAttribute("aWA", new THREE.BufferAttribute(B.weights.A, 4));
-    geo.setAttribute("aWB", new THREE.BufferAttribute(B.weights.B, 4));
-    geo.setIndex(new THREE.BufferAttribute(model.index, 1));
-    geo.computeBoundingSphere();
-    geo.boundingSphere.radius *= 1.3; // 움직임 여유
-    const faceT = new THREE.CanvasTexture(KP.DOLL.faceCanvas(B.spec, this.hi ? 1024 : 512));
-    faceT.colorSpace = THREE.SRGBColorSpace;
-    faceT.anisotropy = 4;
-    return { id, geo, B, spec: B.spec, faceT, w: x1 - x0, mv: B.spec.move };
+    return KP.dollActor.kind(id, model, B, this.hi);
   };
   /** 인형 재질: 그림 텍스처 + 절차적 움직임 (모든 종이 같은 셰이더 하나) */
   W3.dollMat = function (tex, k) {
-    const m = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.86, metalness: 0, bumpMap: this.grainT, bumpScale: 0.35 });
-    const v3 = (a) => new THREE.Vector3(...a);
-    const p = k.spec.pivot, mv = k.mv;
-    const Uf = {
-      uPh: { value: 0 }, uAmp: { value: 0 }, uEar: { value: 0 }, uHead: { value: new THREE.Vector2() }, uTail: { value: 0 }, uArmUp: { value: 0 },
-      uFace: { value: k.faceT }, uAOk: { value: 0.6 },
-      uArmP: { value: v3(p.arm) }, uEarP: { value: v3(p.ear) }, uHeadP: { value: v3(p.head) }, uTailP: { value: v3(p.tail) },
-      uEarAx: { value: v3(mv.earAx).normalize() }, uTailAx: { value: v3(mv.tailAx).normalize() }, uLegH: { value: p.leg || 0.2 },
-      uLeg: { value: new THREE.Vector2(mv.legLift, mv.legStep) }, uArmSw: { value: mv.armSwing },
-      uTailBlur: { value: k.spec.swing ? 0 : k.spec.merge && k.spec.merge.tail ? 5 : 2 },
-    };
-    m.userData.U = Uf;
-    m.customProgramCacheKey = () => "doll8";
-    m.onBeforeCompile = (sh) => {
-      Object.assign(sh.uniforms, Uf);
-      sh.vertexShader = sh.vertexShader
-        .replace(
-          "#include <common>",
-          `#include <common>
-uniform float uPh, uAmp, uEar, uTail, uArmUp, uLegH, uArmSw; uniform vec2 uHead, uLeg;
-uniform vec3 uArmP, uEarP, uHeadP, uTailP, uEarAx, uTailAx;
-attribute vec4 aWA; attribute vec4 aWB; attribute float aAO; attribute float aFront;
-varying float vAO; varying float vFront; varying float vSide; varying float vBack; varying float vTail;
-mat3 rX(float a){float c=cos(a),s=sin(a);return mat3(1.,0.,0.,0.,c,s,0.,-s,c);}
-mat3 rY(float a){float c=cos(a),s=sin(a);return mat3(c,0.,-s,0.,1.,0.,s,0.,c);}
-mat3 rZ(float a){float c=cos(a),s=sin(a);return mat3(c,s,0.,-s,c,0.,0.,0.,1.);}
-mat3 rA(vec3 a, float t){float c=cos(t),s=sin(t),C=1.-c;return mat3(
-  c+a.x*a.x*C, a.y*a.x*C+a.z*s, a.z*a.x*C-a.y*s,
-  a.x*a.y*C-a.z*s, c+a.y*a.y*C, a.z*a.y*C+a.x*s,
-  a.x*a.z*C+a.y*s, a.y*a.z*C-a.x*s, c+a.z*a.z*C);}`
-        )
-        .replace(
-          "#include <beginnormal_vertex>",
-          `vec3 dP = position; vec3 dN = normal;
-{
-  float s = sin(uPh);
-  vec3 sh = uArmP, shL = sh * vec3(-1.,1.,1.);
-  mat3 RaR = rZ(uArmUp) * rX(-s * uArmSw * uAmp);
-  mat3 RaL = rZ(-uArmUp) * rX(s * uArmSw * uAmp);
-  mat3 ReR = rA(uEarAx, uEar), ReL = rA(uEarAx * vec3(-1.,1.,1.), -uEar);
-  vec3 ep = uEarP, epL = ep * vec3(-1.,1.,1.);
-  mat3 Rt = rA(uTailAx, uTail);
-  vec3 tp = uTailP;
-  float lift = 1.0 - clamp(position.y / uLegH, 0.0, 1.0);
-  vec3 dLR = vec3(0., max(0., s) * uLeg.x, s * uLeg.y) * uAmp * lift;
-  vec3 dLL = vec3(0., max(0., -s) * uLeg.x, -s * uLeg.y) * uAmp * lift;
-  vec3 p0 = position;
-  dP = p0
-    + aWA.x * (RaR * (p0 - sh) + sh - p0) + aWA.y * (RaL * (p0 - shL) + shL - p0)
-    + aWA.z * dLR + aWA.w * dLL
-    + aWB.x * (ReR * (p0 - ep) + ep - p0) + aWB.y * (ReL * (p0 - epL) + epL - p0)
-    + aWB.w * (Rt * (p0 - tp) + tp - p0);
-  dN = normal
-    + aWA.x * (RaR * normal - normal) + aWA.y * (RaL * normal - normal)
-    + aWB.x * (ReR * normal - normal) + aWB.y * (ReL * normal - normal) + aWB.w * (Rt * normal - normal);
-  mat3 Rh = rY(uHead.y) * rZ(uHead.x);
-  vec3 nk = uHeadP;
-  dP = mix(dP, Rh * (dP - nk) + nk, aWB.z);
-  dN = normalize(mix(dN, Rh * dN, aWB.z));
-}
-vAO = aAO; vFront = aFront; vSide = 1.0 - abs(normal.z); vBack = smoothstep(0.15, 0.6, -normal.z); vTail = aWB.w;
-vec3 objectNormal = dN;
-#ifdef USE_TANGENT
-  vec3 objectTangent = vec3( tangent.xyz );
-#endif`
-        )
-        .replace("#include <begin_vertex>", "vec3 transformed = dP;");
-      sh.fragmentShader = sh.fragmentShader
-        .replace(
-          "#include <common>",
-          `#include <common>
-uniform sampler2D uFace; uniform float uAOk; uniform float uTailBlur;
-varying float vAO; varying float vFront; varying float vSide; varying float vBack; varying float vTail;`
-        )
-        .replace(
-          "#include <map_fragment>",
-          `#ifdef USE_MAP
-  vec4 sampledDiffuseColor = texture2D( map, vMapUv, max(max(max(0.0, vSide - 0.35) * 4.0, vBack * 2.2), vTail * uTailBlur) );
-  vec4 fc = texture2D( uFace, vMapUv );
-  sampledDiffuseColor.rgb = mix( sampledDiffuseColor.rgb, fc.rgb, fc.a * vFront );
-  diffuseColor *= sampledDiffuseColor;
-#endif
-  float aoF = mix(1.0, smoothstep(0.0, 0.85, vAO), uAOk);
-  diffuseColor.rgb *= aoF;`
-        );
-    };
-    return m;
+    return KP.dollActor.material(tex, k, this.grainT);
   };
 
   /* ---------- 동물 ---------- */
@@ -1098,36 +895,7 @@ varying float vAO; varying float vFront; varying float vSide; varying float vBac
     const t = this.time, sun = this.sunDir || new THREE.Vector3(-0.4, 1, 0.5);
     let topY = 0;
     if (a.type === "doll") {
-      const Uf = a.mat.userData.U, M = a.M, s = a.size;
-      const moving = a.state === "walk";
-      a.amp = moving ? Math.min(1, a.amp + dt * 4) : Math.max(0, a.amp - dt * 3);
-      if (moving) {
-        const want = clamp(Math.atan2(a.tx - a.x, a.tz - a.z), -0.72, 0.72);
-        a.yaw += (want - a.yaw) * Math.min(1, dt * 5);
-      } else if (a.look > 0) a.yaw += (0 - a.yaw) * Math.min(1, dt * 5);
-      else a.yaw += (Math.sin(t * 0.4 + a.seed) * 0.25 - a.yaw) * Math.min(1, dt * 1.5);
-      a.ph += dt * (M.gait + a.happy * 3) * Math.max(0.15, a.amp);
-      a.sqv += (-a.sq * 90 - a.sqv * 9) * dt;
-      a.sq += a.sqv * dt;
-      a.happy = Math.max(0, a.happy - dt * 0.5);
-      if (a.hop > 0) {
-        a.hop += dt;
-        if (a.hop > 0.5) a.hop = 0;
-      }
-      const hopPh = Math.max(0, Math.sin(a.ph));
-      const bob = Math.abs(Math.sin(a.ph)) * M.bob * a.amp + M.hop * Math.pow(hopPh, 0.8) * a.amp + (a.hop > 0 ? Math.sin((a.hop / 0.5) * Math.PI) * 0.18 : 0);
-      const land = M.hop ? Math.max(0, -Math.sin(a.ph)) * 0.08 * a.amp : 0;
-      const sq = clamp(a.sq * 0.06 + land, -0.2, 0.2);
-      a.root.position.set(a.x, bob * s, a.z);
-      a.root.rotation.set(M.hop ? -0.12 * hopPh * a.amp : 0, a.yaw, Math.sin(a.ph) * M.roll * a.amp, "YXZ");
-      a.root.scale.set(s * (1 + sq * 0.6), s * (1 - sq), s * (1 + sq * 0.6));
-      Uf.uPh.value = a.ph;
-      Uf.uAmp.value = a.amp;
-      Uf.uEar.value = M.earBase + a.amp * M.ear * Math.sin(a.ph * 2 - 0.7) + a.happy * M.earHappy * Math.sin(t * 16) + Math.sin(t * 1.3 + a.seed) * 0.03 * (M.ear > 0 ? 1 : 0);
-      Uf.uHead.value.set(Math.sin(a.ph) * 0.05 * a.amp + Math.sin(t * 0.9 + a.seed) * 0.05 * (1 - a.amp), a.happy * 0.25 * Math.sin(t * 5));
-      Uf.uTail.value = Math.sin(t * (M.tailRate + a.happy * 10) + a.seed) * (M.tail + a.happy * 0.25);
-      Uf.uArmUp.value = a.happy * 0.9;
-      a.bobY = bob * s;
+      KP.dollActor.pose(a, dt, t); // 인형 자세 (공용 doll-actor.js — 놀이 무대와 같이 씀)
     } else {
       const C = KP.CLAY2, m = a.art.model, s = C.U * a.size;
       const ps = C.pose(a, t);
