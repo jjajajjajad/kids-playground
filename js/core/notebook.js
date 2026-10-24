@@ -12,7 +12,8 @@
    항목: {id, kind:"line"|"jamo"|"word", label, ch, say(한국어로 읽기), en(영어로 읽기, 선택),
           color, strokes, word:[낱말, 그림], syl(획이 작은 칸), parts(낱말의 칸들)}
    한 항목 = 공책 한 줄: ① 보고 따라 쓰기(획순 시범·번호·화살표) ② 흐린 글씨 ③ 보고 혼자 쓰기
-   펜을 쓰면 손바닥 터치 무시, 필압 굵기, 획 95%+시작·끝점 판정, 별 1~3·도장
+   펜을 쓰면 손바닥 터치 무시, 필압 굵기, 획마다 85%·빠진 곳 15% 판정, 별 1~3·도장
+   쓰는 중 크게 벗어나면 이어 쓸 곳 반짝(혼자 쓰기 칸 제외), 시범은 획 수를 "하나, 둘…" 세며
    다른 놀이에서 특정 글자로 바로 열기: KP.nbWant = {id, ch}; KP.open(id)
 ===================================================================== */
 "use strict";
@@ -51,8 +52,14 @@
           /* 쓰기 페이지 */
           .hwPage{flex:1;min-height:0;display:grid;grid-template-columns:minmax(150px,22%) 1fr minmax(120px,15%);grid-template-rows:minmax(0,1fr) auto;gap:8px 12px;padding:8px 12px 10px}
           .hwModel{grid-row:1/3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--c);text-align:center}
-          .hwModel .big{font-size:clamp(70px,min(11vw,17vh),140px);line-height:1;background:#fff;border-radius:24px;padding:8px 16px;box-shadow:0 5px 0 #eceff6;min-width:1.3em}
+          .hwModel .big{font-size:clamp(70px,min(11vw,17vh),140px);line-height:1;background:#fff;border-radius:24px;padding:8px 16px;box-shadow:0 5px 0 #eceff6;min-width:1.3em;position:relative}
           .hwModel .big .e{font-size:.8em}
+          /* 혼자 쓰기 칸 [다시 보기]: 본보기 자리에서 획순을 잠깐 보여 줌 */
+          .hwPeek{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;border-radius:18px;box-shadow:0 0 0 3px var(--star),0 6px 0 rgba(47,58,102,.1);z-index:4;pointer-events:none}
+          /* 쓰는 중 벗어났을 때: 이어 쓸 곳 반짝 (부드럽게 커졌다 작아졌다 3번) */
+          .hwSpot{position:absolute;display:none;border-radius:50%;border:4px solid #ffb800;background:rgba(255,210,63,.32);pointer-events:none;z-index:3;transform:translate(-50%,-50%)}
+          .hwSpot.on{display:block;animation:hwSpot .5s ease-in-out 4 alternate}
+          @keyframes hwSpot{from{transform:translate(-50%,-50%) scale(.75);opacity:.6}to{transform:translate(-50%,-50%) scale(1.2);opacity:1}}
           .hwModel .pic{display:flex;flex-direction:column;align-items:center;font-size:clamp(16px,2.2vw,24px);color:var(--ink)}
           .hwModel .pic .e{font-size:clamp(46px,min(6vw,9vh),78px)}
           .hwModel .pic b{color:var(--c);font-weight:400}
@@ -142,7 +149,8 @@
         ctx.board = U.el("div", "hwBoard");
         ctx.gcv = U.el("canvas", "guide");
         ctx.icv = U.el("canvas", "ink");
-        ctx.board.append(ctx.gcv, ctx.icv);
+        ctx.spot = U.el("div", "hwSpot");
+        ctx.board.append(ctx.gcv, ctx.icv, ctx.spot);
         ctx.side = U.el("div", "hwSide");
         ctx.bShow = U.btn(KP.E("👀") + " 다시 보기", "btn");
         ctx.bAgain = U.btn(KP.E("🔄") + " 지우기", "btn");
@@ -166,6 +174,7 @@
         addEventListener("resize", () => {
           if (ctx._active && ctx.vPage.classList.contains("on") && ctx.cell) {
             self.fit(ctx);
+            ctx.spot.classList.remove("on");
             self.drawGuide(ctx);
             if (ctx.T.demoing) self.demo(ctx); // 시범 중이면 새 크기로 처음부터 다시
             else self.redrawInk(ctx);
@@ -201,7 +210,9 @@
           t.classList.toggle("next", i === nx);
         });
         const done = Object.keys(ctx.stars).length;
-        ctx.say("✍️ 쓰기 공책이에요! " + (done ? done + "개 썼어요. 반짝이는 칸부터 써 봐요!" : cfg.firstHint || "첫 칸부터 시작해 볼까요?"));
+        // 화면에는 쓴 개수, 말로는 숫자를 빼고(숫자가 붙으면 자연 음성이 없어 기기 목소리가 됨)
+        if (done) ctx.say("✍️ 쓰기 공책이에요! " + done + "개 썼어요. 반짝이는 칸부터 써 봐요!", "쓰기 공책이에요! 반짝이는 칸부터 써 봐요!");
+        else ctx.say("✍️ 쓰기 공책이에요! " + (cfg.firstHint || "첫 칸부터 시작해 볼까요?"));
         if (!first) KP.audio.sfx("open");
         ctx.hint(() => ctx.tiles[nx], "반짝이는 칸을 눌러요!");
         ctx.after(60, () => ctx.tiles[nx] && ctx.tiles[nx].scrollIntoView && ctx.tiles[nx].scrollIntoView({ block: "center", behavior: "smooth" }));
@@ -263,8 +274,11 @@
         if (it.kind === "line") pic = '<div class="pic"><span>' + it.name + "</span></div>";
         else if (it.word) pic = '<div class="pic">' + KP.E(it.word[1]) + "<span>" + (it.kind === "word" ? it.word[0] : "<b>" + it.word[0][0] + "</b>" + it.word[0].slice(1)) + "</span></div>";
         ctx.model.innerHTML = '<div class="hwStepName">' + step + '</div><div class="big">' + big + "</div>" + pic;
-        ctx.bShow.classList.toggle("hwDone", !(cell.mode === "dot"));
+        // [다시 보기]는 모든 칸에서 (혼자 쓰기 칸은 본보기 자리에서만 보여 줌 — demo 참고)
+        ctx.bShow.classList.remove("hwDone");
         ctx.bDone.classList.remove("glowNext");
+        ctx.T.talks = 0; // 쓰는 중 도움말 횟수 (칸마다 새로)
+        ctx.T.peeking = false;
         this.fit(ctx);
         this.cellReset(ctx);
         const say = cell.mode === "dot" ? (cell.demo ? "잘 봐요! 이렇게 써요." : "점선을 따라 써요!") : cell.mode === "faint" ? "흐린 글씨를 따라 써요!" : "이번엔 혼자 써 볼까요? 옆의 글자를 보고 써요!";
@@ -328,6 +342,10 @@
         T.pid = null;
         T.last = null;
         T.demoing = false;
+        T.offAt = 0;
+        T.offFired = false;
+        T.nudges = 0;
+        ctx.spot.classList.remove("on");
         ctx.dtok = (ctx.dtok || 0) + 1;
         T.color = ctx.it.kind === "line" ? ctx.it.color : "#33395e";
         ctx.icv.getContext("2d").clearRect(0, 0, ctx.icv.width, ctx.icv.height);
@@ -486,29 +504,137 @@
       },
 
       /* ---- 획순 시범: 연필이 한 획씩 써 보임 ---- */
+      /** 획이 여러 개인 글자는 "하나, 둘, 셋…" 세며 그림 (선 긋기·한 획 글자는 세지 않음) */
+      counts(ctx) {
+        return ctx.it.kind !== "line" && (ctx.cell.strokes || []).length > 1;
+      },
       demo(ctx) {
         const T = ctx.T;
         const c = ctx.cell;
-        if (!c || c.mode !== "dot" || ctx.T.done) return;
+        if (!c || ctx.T.done) return;
+        if (c.mode === "alone") return this.peek(ctx); // 혼자 쓰기: 쓰는 칸은 그대로, 본보기 자리에서만 보여 줌
         if (T.ink.length && !T.demoing) this.cellReset(ctx); // 쓴 것을 지우고 시범 (화면과 점수가 어긋나지 않게)
         const tok = ctx.tok; // 화면을 떠나면 멈춤
         const dtok = (ctx.dtok = (ctx.dtok || 0) + 1); // 다시 보기를 누르면 이전 시범 멈춤
-        const alive = () => tok === ctx.tok && dtok === ctx.dtok && ctx.cell === c;
+        const alive = () => ctx._active && tok === ctx.tok && dtok === ctx.dtok && ctx.cell === c;
         T.demoing = true;
+        ctx.spot.classList.remove("on");
         const g = ctx.icv.getContext("2d");
         const k = ctx.icv.width / 100;
+        const count = this.counts(ctx);
+        const intro = KP.voice.say(ctx.it.kind === "line" ? "잘 봐요! 이렇게 그어요." : count ? "잘 봐요!" : "잘 봐요! 이렇게 써요.");
+        this.playStrokes(ctx, {
+          g,
+          k,
+          lw: (c.syl ? 6.5 : 8.5) * k,
+          alive,
+          count,
+          wait: count ? intro : null, // 세는 글자는 "잘 봐요!"가 끝난 뒤 "하나"와 함께 첫 획 시작
+          done: () => {
+            ctx.after(700, () => {
+              if (!alive()) return;
+              g.clearRect(0, 0, ctx.icv.width, ctx.icv.height);
+              T.demoing = false;
+              KP.voice.say(ctx.it.kind === "line" ? "이제 따라 그어 봐요! 동그라미에서 시작!" : T.n > 1 ? "이제 따라 써 봐요! 1번 동그라미부터!" : "이제 따라 써 봐요! 동그라미에서 시작!");
+              ctx.hint(() => this.startPoint(ctx), "노란 동그라미에서 시작해요!");
+            });
+          },
+        });
+      },
+      /** 혼자 쓰기 칸 [다시 보기]: 왼쪽 본보기 위에 작은 카드로 획순을 보여 주고 사라짐.
+          쓰는 칸에는 아무 선도 안 그려서(위치를 알려 주지 않음) 아이가 쓴 글씨도 그대로 남음 */
+      peek(ctx) {
+        const c = ctx.cell;
+        const big = ctx.model.querySelector(".big");
+        if (!big) return;
+        const old = big.querySelector(".hwPeek");
+        if (old) old.remove();
+        const r = big.getBoundingClientRect();
+        const side = Math.round(Math.max(r.width, r.height, 60));
+        const d = Math.min(devicePixelRatio || 1, 2);
+        const cv = document.createElement("canvas");
+        cv.className = "hwPeek";
+        cv.style.width = cv.style.height = side + "px";
+        cv.width = cv.height = Math.round(side * d);
+        big.appendChild(cv);
+        const tok = ctx.tok;
+        const ptok = (ctx.ptok = (ctx.ptok || 0) + 1);
+        const alive = () => ctx._active && tok === ctx.tok && ptok === ctx.ptok && ctx.cell === c && cv.isConnected;
+        const g = cv.getContext("2d");
+        const k = cv.width / 100;
+        const count = this.counts(ctx);
+        // 흐린 바탕 글씨 (모양 전체) — 그 위에 연필이 한 획씩
+        const under = () => {
+          g.fillStyle = "#fff";
+          g.fillRect(0, 0, cv.width, cv.height);
+          g.strokeStyle = "#e3e7f2";
+          g.lineWidth = (c.syl ? 9 : 13) * k;
+          g.lineCap = g.lineJoin = "round";
+          (c.strokes || []).forEach((s) => {
+            g.beginPath();
+            if (s.o) g.arc(s.o[0] * k, s.o[1] * k, s.o[2] * k, 0, Math.PI * 2);
+            else s.forEach(([x, y], j) => (j ? g.lineTo(x * k, y * k) : g.moveTo(x * k, y * k)));
+            g.stroke();
+          });
+        };
+        ctx.T.peeking = true;
+        const intro = KP.voice.say(count ? "잘 봐요!" : "잘 봐요! 이렇게 써요.");
+        this.playStrokes(ctx, {
+          g,
+          k,
+          lw: (c.syl ? 6.5 : 8.5) * k,
+          alive,
+          count,
+          under,
+          wait: count ? intro : null,
+          done: () => {
+            ctx.after(900, () => {
+              if (!alive()) return;
+              cv.remove();
+              ctx.T.peeking = false;
+              KP.voice.say("이제 써 봐요!");
+            });
+          },
+        });
+      },
+      /** 획을 한 획씩 연필로 그려 보임 (시범·본보기 보기 함께 씀)
+          o: {g, k, lw, alive(), count(획 번호 세기), wait(이 Promise 뒤 시작), under(바탕 그리기), done()} */
+      playStrokes(ctx, o) {
+        const U = KP.u;
+        const T = ctx.T;
+        const c = ctx.cell;
+        const { g, k } = o;
+        const W = g.canvas.width,
+          H = g.canvas.height;
         const byS = [];
         T.pts.forEach((p) => (byS[p.s] = byS[p.s] || []).push(p));
-        const lw = (c.syl ? 6.5 : 8.5) * k;
+        if (!byS.length) return;
         let si = 0,
           j = 0,
-          pause = 0;
+          pause = 0,
+          ready = !o.wait;
         const speed = c.syl ? 85 : 75; // 점/초
-        KP.voice.say(ctx.it.kind === "line" ? "잘 봐요! 이렇게 그어요." : "잘 봐요! 하나, 둘, 차례대로 써요.");
+        // 세며 그릴 때는 짧은 획(꼭지)도 말과 맞게 조금 천천히 (한 획 최소 0.45초), 획 사이도 조금 더 쉼
+        const minDur = o.count ? 0.45 : 0;
+        const gapPause = o.count ? (c.syl ? 0.32 : 0.42) : c.syl ? 0.22 : 0.35;
+        const begin = (s) => {
+          KP.audio.note(KP.audio.SCALE[(s * 2) % 8], { inst: "marimba", dur: 0.2, vol: 0.2 });
+          if (o.count && U.NAT[s + 1]) KP.voice.say(U.NAT[s + 1], { queue: true }); // "하나", "둘", "셋"…
+        };
+        if (o.wait) {
+          const go = () => {
+            if (ready) return;
+            ready = true;
+            if (o.alive()) begin(0);
+          };
+          ctx.after(1500, go); // 말이 끝났다는 소식이 안 오는 기기 대비 (놀이를 나가면 함께 정리됨)
+          Promise.resolve(o.wait).then(go, go);
+        } else begin(0);
         const drawUpTo = () => {
-          g.clearRect(0, 0, ctx.icv.width, ctx.icv.height);
+          g.clearRect(0, 0, W, H);
+          if (o.under) o.under();
           g.strokeStyle = ctx.it.color;
-          g.lineWidth = lw;
+          g.lineWidth = o.lw;
           g.lineCap = g.lineJoin = "round";
           for (let s = 0; s <= si && s < byS.length; s++) {
             const P = byS[s];
@@ -524,32 +650,27 @@
           const tip = P[Math.max(0, Math.min(P.length - 1, Math.floor(j)))];
           KP.drawE(g, "✏️", tip.x * k + 6 * k, tip.y * k - 6 * k, 13 * k);
         };
-        KP.audio.note(KP.audio.SCALE[0], { inst: "marimba", dur: 0.2, vol: 0.2 });
-        if (!byS.length) return;
+        if (o.under) drawUpTo();
         ctx.loop((dt) => {
-          if (!alive()) return false;
+          if (!o.alive()) return false;
+          if (!ready) return;
           if (pause > 0) {
             pause -= dt;
             return;
           }
-          j += dt * speed;
-          if (j >= byS[si].length - 1) {
-            j = byS[si].length - 1;
+          const L = byS[si].length - 1;
+          j += dt * (minDur ? Math.min(speed, Math.max(1, L) / minDur) : speed);
+          if (j >= L) {
+            j = L;
             drawUpTo();
             si++;
             j = 0;
-            pause = c.syl ? 0.22 : 0.35;
+            pause = gapPause;
             if (si >= byS.length) {
-              ctx.after(700, () => {
-                if (!alive()) return;
-                g.clearRect(0, 0, ctx.icv.width, ctx.icv.height);
-                T.demoing = false;
-                KP.voice.say(ctx.it.kind === "line" ? "이제 따라 그어 봐요! 동그라미에서 시작!" : "이제 따라 써 봐요! 1번 동그라미부터!");
-                ctx.hint(() => this.startPoint(ctx), "노란 동그라미에서 시작해요!");
-              });
+              o.done();
               return false;
             }
-            KP.audio.note(KP.audio.SCALE[(si * 2) % 8], { inst: "marimba", dur: 0.2, vol: 0.2 });
+            begin(si);
             return;
           }
           drawUpTo();
@@ -587,7 +708,10 @@
           g.arc(T.last.x * k, T.last.y * k, (w / 2) * k, 0, Math.PI * 2);
           g.fill();
           T.ink.push({ x: T.last.x, y: T.last.y });
+          T.offAt = 0;
+          T.offFired = false;
           this.hit(ctx, T.last);
+          this.offCheck(ctx, T.last);
         });
         ink.addEventListener("pointermove", (e) => {
           if (e.pointerType === "pen") T.penAt = Date.now(); // 펜으로 길게 쓰는 동안에도 손바닥 무시 유지
@@ -618,12 +742,15 @@
             T.last = p;
             if (T.done) break;
           }
+          if (T.last && !T.done) this.offCheck(ctx, T.last);
         });
         const end = (e) => {
           if (e.pointerType === "pen") T.penAt = Date.now();
           if (e.pointerId !== T.pid) return;
           T.pid = null;
           T.last = null;
+          T.offAt = 0;
+          T.offFired = false;
           // 혼자 쓰기·흐린 글씨: [다 썼어요]를 눌러도 될 만큼 썼으면 반짝 (누르면 거절되는 때는 반짝이지 않게)
           if (!T.done && ctx.cell && this.enough(ctx)) ctx.bDone.classList.add("glowNext");
         };
@@ -646,6 +773,65 @@
           g.stroke();
         });
       },
+      /** 판정 범위: 안내 글씨 굵기 정도 (넓으면 옆으로 지나가도 된 걸로 쳐짐). 손가락은 펜보다 조금 넓게 */
+      radius(ctx) {
+        const c = ctx.cell;
+        return (c.syl ? 5.5 : c.mode === "alone" ? 8.5 : 7.5) + (ctx.T.isPen ? 0 : c.syl ? 1 : 1.5);
+      },
+      /** 쓰는 중 부드러운 도움: 아직 안 쓴 획에서 판정 범위의 1.5배 넘게 벗어난 채 0.6초 넘게 쓰면 이어 쓸 곳을 반짝.
+          (흐린 글씨 칸은 획 순서를 따지지 않으므로 '안 쓴 획 아무 데나' 가까우면 벗어난 걸로 치지 않음)
+          혼자 쓰기 칸은 정답 위치를 알려 주지 않으므로 하지 않음 */
+      offCheck(ctx, p) {
+        const T = ctx.T,
+          c = ctx.cell;
+        if (!c || c.mode === "alone" || T.done || T.demoing || !T.n) return;
+        const far = (1.5 * this.radius(ctx)) ** 2;
+        let near = false;
+        for (let si = 0; si < T.n && !near; si++) {
+          if (T.sdone[si]) continue;
+          for (const q of T.byS[si])
+            if ((q.x - p.x) ** 2 + (q.y - p.y) ** 2 < far) {
+              near = true;
+              break;
+            }
+        }
+        if (near) {
+          T.offAt = 0;
+          T.offFired = false;
+          return;
+        }
+        const now = performance.now();
+        if (!T.offAt) T.offAt = now;
+        if (T.offFired || now - T.offAt < 600) return;
+        T.offFired = true; // 한 번 벗어날 때 한 번만 (다시 선 위로 오거나 손을 떼면 새로)
+        this.nudge(ctx);
+      },
+      /** 이어 쓸 곳(지금 쓸 획에서 아직 안 지나간 첫 지점) 반짝 + 말 (5초에 한 번, 같은 칸에서 3번까지) */
+      nudge(ctx) {
+        const T = ctx.T,
+          c = ctx.cell;
+        const ni = T.sdone.indexOf(false);
+        if (ni < 0) return;
+        const P = T.byS[ni];
+        const q = P.find((z) => !z.hit) || P[0];
+        const br = ctx.board.getBoundingClientRect(),
+          r = ctx.icv.getBoundingClientRect();
+        const dpx = Math.max(44, ((this.radius(ctx) * 2.4) / 100) * r.width);
+        const s = ctx.spot.style;
+        s.left = r.left - br.left + (q.x / 100) * r.width + "px";
+        s.top = r.top - br.top + (q.y / 100) * r.height + "px";
+        s.width = s.height = dpx + "px";
+        KP.u.replay(ctx.spot, "on");
+        const st = (ctx.spotTok = (ctx.spotTok || 0) + 1);
+        ctx.after(2100, () => st === ctx.spotTok && ctx.spot.classList.remove("on"));
+        T.nudges = (T.nudges || 0) + 1; // 점검용
+        const now = performance.now();
+        if (now - (T.talkAt || -1e9) < 5000 || (T.talks || 0) >= 3) return;
+        T.talkAt = now;
+        T.talks = (T.talks || 0) + 1;
+        const first = T.talks === 1;
+        KP.voice.say(ctx.it.kind === "line" ? "반짝이는 곳에서 이어서 그려요!" : !first ? "끝까지 따라가요!" : c.mode === "dot" ? "점선을 따라 써요!" : "흐린 글씨를 따라 써요!");
+      },
       /** 획 하나를 얼마나 따라왔는지: 덮은 비율, 가장 길게 빠진 곳(획 길이 대비) */
       strokeCover(P, closed) {
         const n = P.length;
@@ -666,8 +852,7 @@
         const T = ctx.T,
           c = ctx.cell;
         if (T.done) return;
-        // 판정 범위: 안내 글씨 굵기 정도 (넓으면 옆으로 지나가도 된 걸로 쳐짐). 손가락은 펜보다 조금 넓게
-        const R = (c.syl ? 5.5 : c.mode === "alone" ? 8.5 : 7.5) + (T.isPen ? 0 : c.syl ? 1 : 1.5);
+        const R = this.radius(ctx);
         for (const q of T.pts) if (!q.hit && (q.x - p.x) ** 2 + (q.y - p.y) ** 2 < R * R) q.hit = true;
         let changed = false;
         for (let si = 0; si < T.n; si++) {
