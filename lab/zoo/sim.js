@@ -23,6 +23,7 @@ export function camFor(aspect, tiltDeg = 21) {
   return { fov, pos, target, bounds: { x0: -W, x1: W, z0, z1 } };
 }
 export function camAt(base, t, freeze) {
+  if (base.fixed) return base; // 배경 그림 모드: 그림과 맞아야 하므로 카메라 고정
   const d = freeze ? 0 : Math.sin(t * 0.13) * 0.45;
   return { fov: base.fov, pos: [base.pos[0] + d, base.pos[1], base.pos[2]], target: [base.target[0] + d * 0.35, base.target[1], base.target[2]] };
 }
@@ -38,14 +39,16 @@ export function projector(cam, W, H) {
   rx /= rl; rz /= rl;
   // u = r × f
   const ux = ry * fz - rz * fy, uy = rz * fx - rx * fz, uz = rx * fy - ry * fx;
-  const focal = H / 2 / Math.tan((cam.fov * Math.PI) / 360);
+  // 배경 그림 모드: 그림 전체(fw×fh) 기준 카메라에서 화면 부분(ox,oy)만 보여 줌
+  const V = cam.view, FH = V ? V.fh : H, cx = V ? V.fw / 2 - V.ox : W / 2, cy = V ? V.fh / 2 - V.oy : H / 2;
+  const focal = FH / 2 / Math.tan((cam.fov * Math.PI) / 360);
   return {
     focal, f: [fx, fy, fz],
     p(x, y, z) {
       const dx = x - px, dy = y - py, dz = z - pz;
       const zc = dx * fx + dy * fy + dz * fz;
       const xc = dx * rx + dy * ry + dz * rz, yc = dx * ux + dy * uy + dz * uz;
-      return [W / 2 + (xc / zc) * focal, H / 2 - (yc / zc) * focal, focal / zc, zc];
+      return [cx + (xc / zc) * focal, cy - (yc / zc) * focal, focal / zc, zc];
     },
     tilt: Math.asin(-fy),
   };
@@ -103,6 +106,7 @@ export function step(list, dt, bounds, freeze) {
     }
     return;
   }
+  if (bounds.inside) for (const a of list) (a.px = a.x), (a.pz = a.z);
   for (const a of list) {
     // 눈 깜빡
     a.blinkT -= dt;
@@ -131,9 +135,10 @@ export function step(list, dt, bounds, freeze) {
       a.flap += dt * (a.react >= 0 ? 30 : 20);
       a.timer -= dt;
       if (a.timer <= 0 || Math.hypot(a.tx - a.x, a.tz - a.z) < 0.25) {
-        a.tx = R(bounds.x0 + 0.6, bounds.x1 - 0.6);
-        a.tz = R(bounds.z0 + 0.4, bounds.z1 - 0.6);
         a.ty = R(0.9, 2.0);
+        const p = bounds.pick ? bounds.pick(a) : null;
+        a.tx = p ? p[0] : bounds.pick ? a.x : R(bounds.x0 + 0.6, bounds.x1 - 0.6);
+        a.tz = p ? p[1] : bounds.pick ? a.z : R(bounds.z0 + 0.4, bounds.z1 - 0.6);
         a.timer = R(2.5, 5);
       }
       const dx = a.tx - a.x, dz = a.tz - a.z, d = Math.hypot(dx, dz) || 1;
@@ -149,8 +154,9 @@ export function step(list, dt, bounds, freeze) {
       a.speed = Math.max(0, a.speed - dt * 3);
       if (a.timer <= 0) {
         a.state = "walk";
-        a.tx = R(bounds.x0 + 0.8, bounds.x1 - 0.8);
-        a.tz = R(bounds.z0 + 0.5, bounds.z1 - 0.3);
+        const p = bounds.pick ? bounds.pick(a) : null; // 배경 그림 모드: 풀밭 안에서만 고르기
+        a.tx = p ? p[0] : bounds.pick ? a.x : R(bounds.x0 + 0.8, bounds.x1 - 0.8);
+        a.tz = p ? p[1] : bounds.pick ? a.z : R(bounds.z0 + 0.5, bounds.z1 - 0.3);
         a.timer = 8;
         a.hopT = rand() < 0.35 ? 1.4 : 0; // 가끔 깡충깡충 출발
         const f = a.tx > a.x ? 1 : -1;
@@ -196,6 +202,19 @@ export function step(list, dt, bounds, freeze) {
   for (const a of list) {
     a.x = Math.max(bounds.x0, Math.min(bounds.x1, a.x));
     a.z = Math.max(bounds.z0, Math.min(bounds.z1, a.z));
+    // 배경 그림 모드: 풀밭 밖(연못·집·나무·화면 밖)으로 나가면 제자리로, 걷던 동물은 쉬었다 새로 고르기
+    if (bounds.inside && a.px !== undefined && !bounds.inside(a, a.x, a.z)) {
+      const back = bounds.inside(a, a.px, a.pz);
+      if (back) {
+        a.x = a.px;
+        a.z = a.pz;
+      }
+      if (a.fly) a.timer = 0;
+      else if (a.state === "walk") {
+        a.state = "idle";
+        a.timer = R(0.4, 1.5);
+      }
+    }
   }
 }
 

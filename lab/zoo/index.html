@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="robots" content="noindex">
-<title>동물원 시험판 (점토 3D / 2.5D)</title>
+<title>동물원 시험판 (점토 3D / 2.5D · 점토 배경)</title>
 <link rel="stylesheet" href="lab.css">
 <script type="module" src="main.js"></script>
 </head>
@@ -14,10 +14,12 @@
   <span class="badge">시험판</span>
   <div class="seg"><button data-mode="clay">점토 3D</button><button data-mode="flat">2.5D</button><button data-mode="both">나란히</button></div>
   <div class="seg"><button data-n="1">1</button><button data-n="6">6</button><button data-n="12">12</button><button data-n="18">18</button></div>
+  <div class="seg" id="bgGrp"><button data-bg="A">A</button><button data-bg="B">B</button><button data-bg="C">C</button><button data-bg="D">D</button><button data-bg="E">E</button><button data-bg="F">F</button><button data-bg="none">기존</button></div>
   <button id="artBtn">그림: 예시</button>
   <button id="moreBtn">설정</button>
   <div class="seg x" id="thickGrp"><button data-thick="0.6">얇게</button><button data-thick="1">보통</button><button data-thick="1.5">도톰</button></div>
   <button id="shadowBtn" class="x">그림자 켬</button>
+  <button id="grainBtn" class="x">점토 결</button>
   <button id="qBtn" class="x">화질</button>
   <button id="sndBtn" class="x">소리 켬</button>
   <button id="freezeBtn" class="x">멈추기</button>

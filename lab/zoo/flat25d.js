@@ -28,15 +28,16 @@ export function createFlat(host) {
   const placed = []; // 누르기 판정용 (이번 프레임)
   const stat = { draws: 0, ms: 0 };
 
-  function mkShadow() {
+  let bg = null, bgShadow = null; // 배경 그림 모드
+  function mkShadow(rgb = "29,74,18", k = 1) {
     const c = document.createElement("canvas");
     c.width = 128;
     c.height = 64;
     const x = c.getContext("2d");
     const gr = x.createRadialGradient(64, 32, 0, 64, 32, 64);
-    gr.addColorStop(0, "rgba(29,74,18,.46)");
-    gr.addColorStop(0.55, "rgba(29,74,18,.2)");
-    gr.addColorStop(1, "rgba(29,74,18,0)");
+    gr.addColorStop(0, "rgba(" + rgb + "," + 0.46 * k + ")");
+    gr.addColorStop(0.55, "rgba(" + rgb + "," + 0.2 * k + ")");
+    gr.addColorStop(1, "rgba(" + rgb + ",0)");
     x.fillStyle = gr;
     x.setTransform(1, 0, 0, 0.5, 0, 16);
     x.beginPath();
@@ -166,6 +167,14 @@ export function createFlat(host) {
     kind: "2.5d",
     canvas: cv,
     setArts() {},
+    /** 배경 그림 켜기/끄기: b = {img, grass, def} | null */
+    setBackdrop(b) {
+      bg = b || null;
+      if (bg) {
+        const h = bg.grass.replace("#", ""), c = [0, 2, 4].map((i) => Math.round(parseInt(h.slice(i, i + 2), 16) * 0.22));
+        bgShadow = mkShadow(c.join(","), 1.45);
+      } else bgShadow = null;
+    },
     resize(w, h, ratio) {
       W = Math.max(1, w);
       H = Math.max(1, h);
@@ -181,8 +190,17 @@ export function createFlat(host) {
       const cosT = Math.cos(P.tilt);
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
       g.imageSmoothingEnabled = true;
-      drawBg(P, cam, bounds);
       let draws = 3;
+      if (bg && cam.view) {
+        // 배경 그림: 화면 가득(cover) — 카메라와 같은 잘라 보기
+        const V = cam.view;
+        g.drawImage(bg.img, -V.ox, -V.oy, V.fw, V.fh);
+        draws = 1;
+        props = [];
+      } else drawBg(P, cam, bounds);
+      const shSpr = bg && cam.view ? bgShadow : shadowSpr;
+      // 그림자를 햇빛 반대쪽으로 아주 조금 밀기 (배경 그림의 빛 방향)
+      const sd = bg && cam.view ? bg.def.sun : null;
       // 그릴 것 모으기 (소품 + 동물) → 먼 것부터
       const items = [];
       for (const pr of props) items.push({ z: P.p(pr.x, 0, pr.z)[3], pr });
@@ -197,7 +215,15 @@ export function createFlat(host) {
         const lift = a.fly ? a.y : 0;
         const al = a.fly ? Math.max(0.25, 0.7 - lift * 0.2) : 1;
         g.globalAlpha = al;
-        g.drawImage(shadowSpr, sx - w / 2, sy - w * 0.14, w, w * 0.28);
+        if (sd) {
+          // 넓고 흐린 그림자(햇빛 반대쪽) + 발밑 진한 접지
+          const q = P.p(a.x - (sd[0] / sd[1]) * 0.35, 0, a.z - (sd[2] / sd[1]) * 0.35);
+          const w2 = w * 1.15;
+          g.drawImage(shSpr, q[0] - w2 / 2, q[1] - w2 * 0.15, w2, w2 * 0.3);
+          g.globalAlpha = al * 0.9;
+          g.drawImage(shSpr, sx - w * 0.36, sy - w * 0.07, w * 0.72, w * 0.14);
+          draws++;
+        } else g.drawImage(shSpr, sx - w / 2, sy - w * 0.14, w, w * 0.28);
         draws++;
       }
       g.globalAlpha = 1;

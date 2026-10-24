@@ -214,6 +214,7 @@ export async function createClay(host, opt = {}) {
   scene.background = skyT;
 
   const camera = new THREE.PerspectiveCamera(34, 1, 0.5, 120);
+  scene.add(camera); // 배경 그림 판을 카메라에 붙여 둠
   const hemi = new THREE.HemisphereLight(0xffffff, 0xcfc6b8, 0.75 * Math.PI) // r155+ 빛 세기는 π 배;
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xfff6e8, 0.72 * Math.PI);
@@ -260,6 +261,64 @@ export async function createClay(host, opt = {}) {
   }
   const blobT = keep(new THREE.CanvasTexture(blobC));
   const blobM = keep(new THREE.MeshBasicMaterial({ map: blobT, transparent: true, depthWrite: false }));
+
+  /* ---- 배경 그림 모드: 그림 판(카메라 뒤 먼 곳) + 그림자만 받는 투명 바닥 ---- */
+  const BG_D = 400; // 그림 판 거리
+  const bgM = keep(new THREE.MeshBasicMaterial({ depthTest: false, depthWrite: false, toneMapped: false }));
+  const bgPlane = new THREE.Mesh(keep(new THREE.PlaneGeometry(1, 1)), bgM);
+  bgPlane.renderOrder = -10;
+  bgPlane.frustumCulled = false;
+  bgPlane.visible = false;
+  camera.add(bgPlane);
+  const catchM = keep(new THREE.ShadowMaterial({ color: 0x1d3a12, opacity: 0.3, depthWrite: false }));
+  const catcher = new THREE.Mesh(keep(new THREE.PlaneGeometry(1, 1)), catchM);
+  catcher.rotation.x = -Math.PI / 2;
+  catcher.position.y = 0.002;
+  catcher.receiveShadow = true;
+  catcher.visible = false;
+  scene.add(catcher);
+  let bgOn = null, bgTex = null;
+  const sunDir = new THREE.Vector3(-4.5, 10, 8).normalize();
+  /** 앞면(아이 그림) 밝기가 ≈1 이 되게 빛 세기 맞추기 — 그림 색을 그대로 */
+  function balance(sunI, front = 1.0) {
+    sun.intensity = sunI * Math.PI;
+    const lz = Math.max(0, sunDir.z); // 앞면 법선 (0,0,1)
+    const mix = (hemi.color.r + hemi.color.g + hemi.color.b + hemi.groundColor.r + hemi.groundColor.g + hemi.groundColor.b) / 6;
+    hemi.intensity = (Math.max(0.2, front - sunI * lz) / mix) * Math.PI;
+  }
+  /* ---- 점토 결 (아주 약한 울퉁불퉁) — 앞면 그림 선명도를 지키려고 약하게 ---- */
+  let grain = opt.grain == null ? 1 : opt.grain;
+  const grainC = document.createElement("canvas");
+  grainC.width = grainC.height = 128;
+  {
+    const g = grainC.getContext("2d"), small = document.createElement("canvas");
+    small.width = small.height = 24;
+    const sg = small.getContext("2d"), id = sg.createImageData(24, 24);
+    for (let i = 0; i < 24 * 24; i++) {
+      const v = 96 + Math.random() * 64;
+      id.data[i * 4] = id.data[i * 4 + 1] = id.data[i * 4 + 2] = v;
+      id.data[i * 4 + 3] = 255;
+    }
+    sg.putImageData(id, 0, 0);
+    g.imageSmoothingEnabled = true;
+    // 이음매 없게: 3×3 으로 깔고 가운데만 씀
+    for (let x = -1; x <= 1; x++) for (let y = -1; y <= 1; y++) g.drawImage(small, x * 128, y * 128, 128, 128);
+    // 잔 결
+    const fine = g.getImageData(0, 0, 128, 128);
+    for (let i = 0; i < fine.data.length; i += 4) {
+      const n = (Math.random() - 0.5) * 18;
+      fine.data[i] += n; fine.data[i + 1] += n; fine.data[i + 2] += n;
+    }
+    g.putImageData(fine, 0, 0);
+  }
+  const grainT = keep(new THREE.CanvasTexture(grainC));
+  grainT.wrapS = grainT.wrapT = THREE.RepeatWrapping;
+  grainT.repeat.set(5, 5);
+  function applyGrain(mat) {
+    mat.bumpMap = grain > 0 ? grainT : null;
+    mat.bumpScale = grain * 0.9;
+    mat.needsUpdate = true;
+  }
   const blobG = keep(new THREE.PlaneGeometry(1, 1));
   const heartT = keep(new THREE.CanvasTexture(heartCanvas()));
   heartT.colorSpace = THREE.SRGBColorSpace;
@@ -276,6 +335,7 @@ export async function createClay(host, opt = {}) {
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
     const mat = new THREE.MeshLambertMaterial({ map: tex, vertexColors: true });
+    applyGrain(mat);
     const groups = {}, eyes = [];
     for (const [name, gr] of Object.entries(art.model.groups)) {
       const list = [];
@@ -367,6 +427,53 @@ export async function createClay(host, opt = {}) {
       res.clear();
       this.setAnimals(list);
     },
+    /** 배경 그림 켜기/끄기: bg = {img, grass, sky, def} | null */
+    setBackdrop(bg) {
+      if (bgTex) {
+        bgTex.dispose();
+        bgTex = null;
+      }
+      bgOn = bg || null;
+      const on = !!bgOn;
+      bgPlane.visible = catcher.visible = on;
+      ground.visible = meadow.visible = hills.visible = !on;
+      for (const o of propObjs) o.visible = !on;
+      scene.background = on ? null : skyT;
+      if (on) {
+        bgTex = new THREE.Texture(bg.img);
+        bgTex.colorSpace = THREE.SRGBColorSpace;
+        bgTex.generateMipmaps = false;
+        bgTex.minFilter = THREE.LinearFilter;
+        bgTex.needsUpdate = true;
+        bgM.map = bgTex;
+        bgM.needsUpdate = true;
+        // 빛: 그림의 부드러운 낮빛 — 하늘색·풀색을 아주 조금만 섞음 (아이 그림 색 보존)
+        const d = bg.def;
+        sunDir.set(d.sun[0], d.sun[1], d.sun[2]).normalize();
+        sun.color.set(d.sunCol || "#fff4e0");
+        hemi.color.set("#ffffff").lerp(new THREE.Color(bg.sky), 0.18);
+        hemi.groundColor.set("#e9e4d6").lerp(new THREE.Color(bg.grass), 0.45);
+        balance(0.5, 1.02);
+        // 그림자 색: 풀밭을 어둡게 한 색
+        catchM.color.set(bg.grass).multiplyScalar(0.28);
+        catchM.opacity = 0.34;
+        blobM.color.set(bg.grass).lerp(new THREE.Color("#ffffff"), 0.2);
+        blobM.opacity = 0.75;
+      } else {
+        sunDir.set(-4.5, 10, 8).normalize();
+        sun.color.set(0xfff6e8);
+        hemi.color.set(0xffffff);
+        hemi.groundColor.set(0xcfc6b8);
+        hemi.intensity = 0.75 * Math.PI;
+        sun.intensity = 0.72 * Math.PI;
+        blobM.color.set(0xffffff);
+        blobM.opacity = 1;
+      }
+    },
+    setGrain(v) {
+      grain = v;
+      for (const R of res.values()) applyGrain(R.mat);
+    },
     setShadows(on) {
       renderer.shadowMap.enabled = !!on;
       sun.castShadow = !!on;
@@ -399,13 +506,24 @@ export async function createClay(host, opt = {}) {
       const cx = (bounds.x0 + bounds.x1) / 2, cz = (bounds.z0 + bounds.z1) / 2;
       meadow.position.set(cx, 0.004, cz);
       meadow.scale.set((bounds.x1 - bounds.x0) / 2 + 1.2, (bounds.z1 - bounds.z0) / 2 + 0.9, 1);
-      const S = Math.max(bounds.x1 - bounds.x0, bounds.z1 - bounds.z0) / 2 + 3;
+      const S = Math.max(bounds.x1 - bounds.x0, bounds.z1 - bounds.z0) / 2 + (bgOn ? 2 : 3);
       const sc = sun.shadow.camera;
       sc.left = -S; sc.right = S; sc.top = S; sc.bottom = -S;
-      sc.near = 1; sc.far = 40;
+      sc.near = 1; sc.far = bgOn ? 30 + S * 3 : 40;
       sc.updateProjectionMatrix();
       sun.target.position.set(cx, 0, cz);
-      sun.position.set(cx - 4.5, 10, cz + 8);
+      if (bgOn) {
+        const L = 12 + S;
+        sun.position.set(cx + sunDir.x * L, sunDir.y * L, cz + sunDir.z * L);
+        sun.shadow.radius = 5;
+        sun.shadow.normalBias = 0.02 + S * 0.002;
+        catcher.position.set(cx, 0.002, cz);
+        catcher.scale.set(bounds.x1 - bounds.x0 + 8, bounds.z1 - bounds.z0 + 8, 1);
+      } else {
+        sun.position.set(cx - 4.5, 10, cz + 8);
+        sun.shadow.radius = 4;
+        sun.shadow.normalBias = 0.02;
+      }
     },
     resize(w, h, ratio) {
       W = Math.max(1, w);
@@ -417,9 +535,22 @@ export async function createClay(host, opt = {}) {
       if (lost) return;
       const t0 = performance.now();
       camera.fov = cam.fov;
-      camera.aspect = W / H;
       camera.position.set(cam.pos[0], cam.pos[1], cam.pos[2]);
       camera.lookAt(cam.target[0], cam.target[1], cam.target[2]);
+      const V = cam.view;
+      if (V && bgOn) {
+        // 그림 전체 크기의 카메라에서 화면 부분만 (그림과 같은 원근)
+        camera.aspect = V.fw / V.fh;
+        camera.far = BG_D + 50;
+        camera.setViewOffset(V.fw, V.fh, V.ox, V.oy, W, H);
+        const h = 2 * BG_D * Math.tan((cam.fov * Math.PI) / 360);
+        bgPlane.position.set(0, 0, -BG_D);
+        bgPlane.scale.set(h * (V.fw / V.fh), h, 1);
+      } else {
+        camera.aspect = W / H;
+        camera.far = 120;
+        camera.clearViewOffset();
+      }
       camera.updateProjectionMatrix();
       for (const a of list) {
         const o = objs.get(a.id);

@@ -2,10 +2,12 @@
    동물원 시험판 — 화면·단추·측정 (앱과 분리: 앱 코드·설정·잠금·타이머를 건드리지 않음)
    주소 옵션: ?mode=clay|flat|both &n=1|6|12|18 &art=sample|saved &thick=0.6|1|1.5
              &shadow=0|1 &q=1|1.5|2 &freeze=1(멈춤) &seed=숫자 &front=1(정면 — 그림 맞춤 확인)
+             &bg=A~F|none(기존 배경) &grain=0|1|2(점토 결) &poly=1(걷는 영역 선 보기 — 맞춤 확인용)
 ===================================================================== */
 import { buildArt, sampleSrc, loadSavedRO, thumb, SPECIES, TPL } from "./art.js";
 import { camFor, camAt, makeAnimals, step, setSeed, sound, propsFor, opts, projector, U } from "./sim.js";
 import { createFlat } from "./flat25d.js";
+import { BGS, BG_IDS, loadBg, bgCam } from "./bgs.js";
 
 const $ = (s) => document.querySelector(s);
 const Q = new URLSearchParams(location.search);
@@ -19,7 +21,11 @@ const st = {
   freeze: Q.get("freeze") === "1",
   front: Q.get("front") === "1",
   close: Q.get("close") === "1", // 1마리 가까이 (그림 맞춤 확인)
+  bg: BG_IDS.includes(Q.get("bg")) || Q.get("bg") === "none" ? Q.get("bg") : "C",
+  grain: [0, 1, 2].includes(+Q.get("grain")) && Q.get("grain") !== null ? +Q.get("grain") : 1,
+  poly: Q.get("poly") === "1",
 };
+let bgInfo = null; // 지금 배경 그림 {img, grass, sky, def}
 setSeed(+Q.get("seed") || 0);
 opts.demo = ["walk", "hop"].includes(Q.get("demo")) ? Q.get("demo") : "";
 
@@ -77,14 +83,39 @@ function views() {
 }
 function layoutAll(rebuild) {
   const { vw, vh } = views();
-  const cam = camFor(vw / vh, st.front ? 0 : 21);
-  const changed = !bounds || JSON.stringify(cam.bounds) !== JSON.stringify(bounds);
+  const cam = bgInfo ? bgCam(bgInfo.def, vw, vh) : camFor(vw / vh, st.front ? 0 : 21);
+  const key = (b) => JSON.stringify([b.x0, b.x1, b.z0, b.z1, !!b.inside]);
+  const changed = !bounds || key(cam.bounds) !== key(bounds);
   baseCam = cam;
   bounds = cam.bounds;
-  props = propsFor(bounds);
+  props = bgInfo ? [] : propsFor(bounds);
   for (const r of Object.values(R)) if (r) r.resize(vw, vh, st.q);
   if (R.clay) R.clay.setProps(props, bounds);
   if (rebuild || changed) placeAnimals();
+  drawPoly(vw, vh);
+}
+/** 점검용: 걷는 영역 선 (?poly=1) */
+function drawPoly(vw, vh) {
+  document.querySelectorAll(".polyCv").forEach((c) => c.remove());
+  if (!st.poly || !bgInfo || !baseCam.view) return;
+  const V = baseCam.view;
+  for (const host of [$("#vC"), $("#vF")]) {
+    if (host.hidden) continue;
+    const c = document.createElement("canvas");
+    c.className = "labCanvas polyCv";
+    c.width = vw;
+    c.height = vh;
+    c.style.zIndex = 1;
+    c.style.pointerEvents = "none";
+    const g = c.getContext("2d");
+    g.strokeStyle = "#ff2d55";
+    g.lineWidth = 2;
+    g.beginPath();
+    bgInfo.def.poly.forEach(([u, v], i) => (i ? g.lineTo(u * V.fw - V.ox, v * V.fh - V.oy) : g.moveTo(u * V.fw - V.ox, v * V.fh - V.oy)));
+    g.closePath();
+    g.stroke();
+    host.appendChild(c);
+  }
 }
 function placeAnimals() {
   if (!arts.length || !bounds) return;
@@ -92,8 +123,9 @@ function placeAnimals() {
   const list = [];
   for (let i = 0; i < st.n; i++) list.push(arts[i % arts.length]);
   animals = makeAnimals(list, st.n, bounds);
+  if (bounds.place) bounds.place(animals); // 배경 그림: 풀밭 안에 고루
   if (st.n === 1) animals[0].face = animals[0].faceShow = 1;
-  if (st.close && baseCam) {
+  if (st.close && baseCam && !bgInfo) {
     // 1마리 가까이: 동물 크기에 맞춰 화면 가득
     const a = animals[0], m = a.art.model, s = 0.01 * a.size;
     if (a.fly) a.y = a.ty = 1.1;
@@ -117,18 +149,22 @@ async function applyMode() {
     R.clay.dispose();
     R.clay = null;
   }
-  if (needF && !R.flat) R.flat = createFlat($("#vF"));
+  if (needF && !R.flat) {
+    R.flat = createFlat($("#vF"));
+    R.flat.setBackdrop(bgInfo);
+  }
   if (needC && !R.clay) {
     msg("점토 3D 준비 중…");
     try {
       const { createClay } = await import("./clay3d.js");
-      const c = await createClay($("#vC"), { thick: st.thick, shadowSize: Math.min(screen.width, screen.height) >= 600 ? 2048 : 1024, onLost: lostC });
+      const c = await createClay($("#vC"), { thick: st.thick, grain: st.grain, shadowSize: Math.min(screen.width, screen.height) >= 600 ? 2048 : 1024, onLost: lostC });
       if (my !== token || st.mode === "flat") {
         c.dispose();
         return;
       }
       R.clay = c;
       c.setShadows(st.shadow);
+      c.setBackdrop(bgInfo);
     } catch (e) {
       msg("점토 3D 를 못 열었어요: " + (e && e.message ? e.message : e));
       console.error(e);
@@ -156,6 +192,27 @@ function msg(t) {
   m.hidden = !t;
 }
 
+/* ---------- 배경 그림 바꾸기 ---------- */
+async function applyBg() {
+  const my = ++bgTok;
+  let info = null;
+  if (st.bg !== "none") {
+    try {
+      info = await loadBg(st.bg);
+    } catch (e) {
+      msg(String(e.message || e));
+      setTimeout(() => msg(""), 2500);
+    }
+  }
+  if (my !== bgTok) return;
+  bgInfo = info;
+  for (const r of Object.values(R)) if (r) r.setBackdrop(bgInfo);
+  bounds = null; // 세상 좌표가 바뀜 → 동물 다시 놓기
+  layoutAll(true);
+  syncUI();
+}
+let bgTok = 0;
+
 /* ---------- 측정 ---------- */
 const FT = new Float32Array(180);
 let ftN = 0, ftI = 0, last = 0, hudT = 0;
@@ -175,9 +232,9 @@ function hud(now) {
     const s = R.flat.stats();
     L.push("2.5D 그리기 " + s.draws + " · " + s.ms.toFixed(1) + "ms");
   }
-  L.push(st.n + "마리 · ×" + st.q + (st.shadow ? "" : " · 그림자 끔"));
+  L.push(st.n + "마리 · ×" + st.q + (st.shadow ? "" : " · 그림자 끔") + " · 배경 " + (bgInfo ? st.bg : "기존"));
   $("#hud").textContent = L.join("\n");
-  window.__lab.last = { fps: 1000 / avg, avg, p95, clay: R.clay ? R.clay.stats() : null, flat: R.flat ? R.flat.stats() : null, n: st.n, mode: st.mode };
+  window.__lab.last = { fps: 1000 / avg, avg, p95, clay: R.clay ? R.clay.stats() : null, flat: R.flat ? R.flat.stats() : null, n: st.n, mode: st.mode, bg: bgInfo ? st.bg : "none" };
 }
 let t0 = performance.now();
 function frame(now) {
@@ -227,7 +284,18 @@ function syncUI() {
   $("#freezeBtn").textContent = st.freeze ? "움직이기" : "멈추기";
   $("#artBtn").textContent = useSaved() ? "그림: 내 그림 " + savedSel.size : "그림: 예시";
   $("#thickGrp").classList.toggle("dim", st.mode === "flat");
+  document.querySelectorAll("[data-bg]").forEach((b) => b.classList.toggle("on", b.dataset.bg === st.bg));
+  $("#grainBtn").textContent = "점토 결 " + ["없음", "약하게", "보통"][st.grain];
 }
+document.querySelectorAll("[data-bg]").forEach((b) => b.addEventListener("click", () => {
+  st.bg = b.dataset.bg;
+  applyBg();
+}));
+$("#grainBtn").addEventListener("click", () => {
+  st.grain = (st.grain + 1) % 3;
+  if (R.clay) R.clay.setGrain(st.grain);
+  syncUI();
+});
 document.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => {
   st.mode = b.dataset.mode;
   applyMode();
@@ -318,7 +386,10 @@ async function closePicker(force) {
 
 /* ---------- 시작 ---------- */
 window.__lab = {
-  st, R, ready: false, last: null, saved: () => saved,
+  st, R, ready: false, last: null, saved: () => saved, applyBg, BGS,
+  get bounds() {
+    return bounds;
+  },
   get animals() {
     return animals;
   },
@@ -336,6 +407,13 @@ window.__lab = {
   if (saved.list.length) savedSel = new Set(saved.list.slice(0, 18).map((s) => s.id));
   if (st.art === "sample") savedSel = new Set();
   arts = await prepareArts();
+  if (st.bg !== "none") {
+    try {
+      bgInfo = await loadBg(st.bg);
+    } catch (e) {
+      msg(String(e.message || e));
+    }
+  }
   await applyMode();
   layoutAll(true);
   syncUI();
