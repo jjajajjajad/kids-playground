@@ -224,6 +224,7 @@ KP.game({
       let blocked = false;
       const STEP = 0.05;
       for (let k = 0; k < 50; k++) {
+        if (k) touchItems(); // 빠르게 끌어도 지나친 별·과일·친구를 놓치지 않게 (한 번에 여러 칸 이동)
         const dx = tx - p.x,
           dy = ty - p.y,
           d = Math.hypot(dx, dy);
