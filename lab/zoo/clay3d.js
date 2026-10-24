@@ -4,15 +4,18 @@
    - 앞·뒷면: 아이 그림(색·무늬·크레파스·테두리선)을 도안 좌표 그대로 붙임 (늘어남 없음)
    - 옆면: 그 부위의 대표색 점토
    - 부위는 관절 묶음(어깨·골반·목·꼬리·날개)으로 나눠 움직임. 카메라는 고정 + 살짝 내려다봄
+   - style 2 = Clay 2.0 (clay2.js): 가짜 볼록 노멀맵 + 접합부 그림자 + 조명 켜기(배경 빛과 맞춤) + 큰 둥근 모서리
+     + 얇은 안내선 + 눈 구슬 + 옆모습 위주 걷기(±25°)·바운스·찌그러짐. style 1 = 기존 점토 (비교용, 그대로)
 ===================================================================== */
 import { INK, heartCanvas, hillsCanvas } from "./art.js";
+import { bakeClay2, bevel2, EDGE_TILT } from "./clay2.js";
 import { U, pose, PROP_COL } from "./sim.js";
 
 const D = Math.PI / 180;
 let THREE = null;
 
 /** 조각들의 앞면 깊이(z)와 두께 정하기 — 2D 그리는 순서 = 앞뒤 순서 */
-function layout(model, tf) {
+function layout(model, tf, v2) {
   const pcs = model.pieces, rig = model.rig, gap = 0.9;
   for (const pc of pcs) {
     pc.th = pc.kind === "eye" ? 1.2 : pc.kind === "tube" ? Math.max(1.5, pc.sh.sw) : pc.kind === "mini" ? 2.6 * Math.max(0.7, tf) : (rig.thick[pc.p] || 6) * tf;
@@ -36,6 +39,7 @@ function layout(model, tf) {
   const zs = pcs.map((p) => p.front), zb = pcs.map((p) => p.front - p.th);
   const mid = (Math.max(...zs) + Math.min(...zb)) / 2;
   for (const pc of pcs) pc.front -= mid;
+  for (const pc of pcs) pc.c2 = v2 && (pc.kind === "part" || pc.kind === "mini") ? bevel2(pc) : null;
 }
 
 function smoothSides(geo, start, count) {
@@ -58,7 +62,27 @@ function lin(hex) {
   return [c.r, c.g, c.b];
 }
 /** 조각 하나 → 입체 (관절 중심 기준 좌표, y 는 위가 +) */
-function pieceGeo(pc, art, pv) {
+/** Clay 2.0 눈: 작은 반짝 구슬 (검은 구슬 + 흰 광택점) — 머리 앞면 위에 반쯤 튀어나옴 */
+function eyeBead(pc) {
+  const rr = Math.max(1.5, +pc.sh.el.getAttribute("r") || 5);
+  const z0 = pc.host.front + rr * 0.04, dz = 0.62;
+  const ball = new THREE.SphereGeometry(rr * 1.1, 14, 10).toNonIndexed();
+  ball.scale(1, 1, dz);
+  ball.translate(0, 0, z0);
+  const hi = new THREE.SphereGeometry(rr * 0.32, 8, 6).toNonIndexed();
+  hi.scale(1, 1, 0.5);
+  hi.translate(rr * 0.36, rr * 0.38, z0 + rr * 1.1 * dz * 0.78);
+  for (const [g, hex] of [[ball, "#251d3a"], [hi, "#ffffff"]]) {
+    const c = lin(hex), n = g.attributes.position.count, cl = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      cl[i * 3] = c[0]; cl[i * 3 + 1] = c[1]; cl[i * 3 + 2] = c[2];
+    }
+    g.setAttribute("color", new THREE.BufferAttribute(cl, 3));
+  }
+  return [ball, hi];
+}
+function pieceGeo(pc, art, pv, v2) {
+  if (v2 && pc.kind === "eye") return eyeBead(pc);
   const r = art.regs[art.model.pieces.indexOf(pc)];
   const wu = 5 / art.AW, wv = 1 - 5 / art.AH; // 흰 칸
   const rel = (p) => [p[0] - pv[0], -(p[1] - pv[1])];
@@ -97,11 +121,12 @@ function pieceGeo(pc, art, pv) {
   if (pts.length < 3) return [];
   const shape = new THREE.Shape(pts.map((p) => new THREE.Vector2(p[0], p[1])));
   const bw = pc.bb.x1 - pc.bb.x0, bh = pc.bb.y1 - pc.bb.y0;
-  const off = pc.kind === "eye" ? 0.3 : pc.sh.sw / 2; // 앞면 = 모양 + 테두리 바깥 절반
-  const bs = Math.min(1.1, Math.min(bw, bh) * 0.1);
-  const bt = Math.min(pc.th * 0.38, 2.4);
+  const c2 = v2 ? pc.c2 : null;
+  const off = c2 ? c2.off : pc.kind === "eye" ? 0.3 : pc.sh.sw / 2; // 앞면 = 모양 + 테두리 바깥 절반
+  const bs = c2 ? c2.bs : Math.min(1.1, Math.min(bw, bh) * 0.1);
+  const bt = c2 ? c2.bt : Math.min(pc.th * 0.38, 2.4);
   const depth = Math.max(0.05, pc.th - 2 * bt);
-  const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: bt, bevelSize: bs, bevelOffset: off, bevelSegments: 2, steps: 1, curveSegments: 1 });
+  const geo = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: bt, bevelSize: bs, bevelOffset: off, bevelSegments: c2 ? 3 : 2, steps: 1, curveSegments: 1 });
   geo.translate(0, 0, pc.front - (depth + bt));
   const pos = geo.attributes.position, n = pos.count;
   const uv = geo.attributes.uv.array, cl = new Float32Array(n * 3);
@@ -123,6 +148,19 @@ function pieceGeo(pc, art, pv) {
   geo.setAttribute("color", new THREE.BufferAttribute(cl, 3));
   const sides = geo.groups.find((q) => q.materialIndex === 1);
   if (sides) smoothSides(geo, sides.start, sides.count);
+  if (sides && c2) {
+    // 둥근 모서리 노멀을 앞면 볼록 노멀(가장자리 EDGE_TILT)에서 이어지게: 앞면 쪽 → 옆 가운데로 갈수록 옆을 봄
+    const nor = geo.attributes.normal.array, zf = pc.front, zb = pc.front - (depth + 2 * bt);
+    for (let i = sides.start; i < sides.start + sides.count; i++) {
+      const z = pos.getZ(i), uf = (zf - z) / bt, ub = (z - zb) / bt;
+      const u = Math.max(0, Math.min(1, Math.min(uf, ub))), sg = uf <= ub ? 1 : -1;
+      const nx = nor[i * 3], ny = nor[i * 3 + 1], l = Math.hypot(nx, ny) || 1;
+      const A = EDGE_TILT + (Math.PI / 2 - EDGE_TILT) * u, sa = Math.sin(A);
+      nor[i * 3] = (nx / l) * sa;
+      nor[i * 3 + 1] = (ny / l) * sa;
+      nor[i * 3 + 2] = sg * Math.cos(A);
+    }
+  }
   geo.clearGroups();
   return [geo];
 }
@@ -183,7 +221,9 @@ export async function createClay(host, opt = {}) {
   renderer.domElement.className = "labCanvas";
   host.appendChild(renderer.domElement);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.NoToneMapping; // 아이 그림 색을 그대로 (앞면 밝기 ≈ 1)
+  const V2 = opt.style === 2;
+  // 기존: 톤매핑 끔(앞면 밝기 ≈ 1). Clay 2.0: 밝은 곳만 부드럽게 눌러 주는 Neutral (중간 밝기 색은 거의 그대로)
+  renderer.toneMapping = V2 ? THREE.NeutralToneMapping : THREE.NoToneMapping;
   renderer.toneMappingExposure = 1.0;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -286,6 +326,34 @@ export async function createClay(host, opt = {}) {
     const mix = (hemi.color.r + hemi.color.g + hemi.color.b + hemi.groundColor.r + hemi.groundColor.g + hemi.groundColor.b) / 6;
     hemi.intensity = (Math.max(0.2, front - sunI * lz) / mix) * Math.PI;
   }
+  /** Clay 2.0 빛: 해(배경 그림의 빛 방향·색) + 하늘/풀빛 반사. 정면(평평한 곳) 밝기 ≈ front,
+   *  위를 향한 볼록 면은 더 밝고 아래·접합부는 어두움 → 명암이 생기지만 그림 평균 밝기는 비슷 */
+  const L2 = { sun: 0.95, front: 1.03 };
+  function light2(sky, grass) {
+    sun.intensity = L2.sun * Math.PI;
+    hemi.color.set("#ffffff").lerp(new THREE.Color(sky || "#cfe8ff"), 0.3);
+    hemi.groundColor.set("#d8cfc0").lerp(new THREE.Color(grass || "#9dd774"), 0.42);
+    const lz = Math.max(0, sunDir.z);
+    const mix = (hemi.color.r + hemi.color.g + hemi.color.b + hemi.groundColor.r + hemi.groundColor.g + hemi.groundColor.b) / 6;
+    hemi.intensity = (Math.max(0.25, L2.front - L2.sun * lz) / mix) * Math.PI;
+    rimU.value.set("#ffffff").lerp(new THREE.Color(sky || "#cfe8ff"), 0.4);
+  }
+  const rimU = { value: new THREE.Color("#eaf6ff") };
+  /** Clay 2.0 재질: 은은한 광택 + 가장자리 하늘빛(림) — 배경에서 떨어져 보이게 */
+  function clay2Mat(params) {
+    const m = new THREE.MeshPhongMaterial(params);
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.rimCol = rimU;
+      sh.fragmentShader = "uniform vec3 rimCol;\n" + sh.fragmentShader.replace(
+        "#include <opaque_fragment>",
+        "float rimK = 1.0 - saturate( dot( normal, normalize( vViewPosition ) ) );\n" +
+          "outgoingLight += rimCol * ( rimK * rimK * rimK ) * 0.12;\n#include <opaque_fragment>"
+      );
+    };
+    m.customProgramCacheKey = () => "clay2rim";
+    return m;
+  }
+  const eyeMat = V2 ? keep(clay2Mat({ vertexColors: true, specular: 0x8c8c8c, shininess: 70 })) : null;
   /* ---- 점토 결 (아주 약한 울퉁불퉁) — 앞면 그림 선명도를 지키려고 약하게 ---- */
   let grain = opt.grain == null ? 1 : opt.grain;
   const grainC = document.createElement("canvas");
@@ -327,31 +395,45 @@ export async function createClay(host, opt = {}) {
   /* ---- 그림 한 장 → 질감·입체 (같은 그림의 동물끼리 함께 씀) ---- */
   const res = new Map(); // art.key → {tex, mat, groups:{name: geo}, eyes:[{geo, pc}]}
   let tf = opt.thick || 1;
+  const bakeMs = [];
   function artRes(art) {
     let R = res.get(art.key);
     if (R) return R;
-    layout(art.model, tf);
-    const tex = new THREE.CanvasTexture(art.atlasC);
+    layout(art.model, tf * (V2 ? 1.15 : 1), V2);
+    let tex, mat, ntex = null;
+    const aniso = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+    if (V2) {
+      const bk = bakeClay2(art, { grain });
+      bakeMs.push(bk.ms);
+      tex = new THREE.CanvasTexture(bk.colorC);
+      ntex = new THREE.CanvasTexture(bk.normalC);
+      ntex.colorSpace = THREE.NoColorSpace;
+      ntex.anisotropy = aniso;
+      mat = clay2Mat({ map: tex, normalMap: ntex, vertexColors: true, specular: 0x1c1a18, shininess: 14 });
+    } else {
+      tex = new THREE.CanvasTexture(art.atlasC);
+      mat = new THREE.MeshLambertMaterial({ map: tex, vertexColors: true });
+      applyGrain(mat);
+    }
     tex.colorSpace = THREE.SRGBColorSpace;
-    tex.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
-    const mat = new THREE.MeshLambertMaterial({ map: tex, vertexColors: true });
-    applyGrain(mat);
+    tex.anisotropy = aniso;
     const groups = {}, eyes = [];
     for (const [name, gr] of Object.entries(art.model.groups)) {
       const list = [];
       for (const pc of art.model.pieces) {
         if (pc.group !== name) continue;
-        if (pc.kind === "eye") eyes.push({ pc, geo: merge(pieceGeo(pc, art, [pc.cx, pc.cy])), group: name });
-        else list.push(...pieceGeo(pc, art, gr.pivot));
+        if (pc.kind === "eye") eyes.push({ pc, geo: merge(pieceGeo(pc, art, [pc.cx, pc.cy], V2)), group: name });
+        else list.push(...pieceGeo(pc, art, gr.pivot, V2));
       }
       groups[name] = merge(list);
     }
-    R = { tex, mat, groups, eyes, used: 0 };
+    R = { tex, ntex, mat, groups, eyes, used: 0 };
     res.set(art.key, R);
     return R;
   }
   function freeRes(R) {
     R.tex.dispose();
+    if (R.ntex) R.ntex.dispose();
     R.mat.dispose();
     for (const g of Object.values(R.groups)) g && g.dispose();
     for (const e of R.eyes) e.geo && e.geo.dispose();
@@ -383,7 +465,7 @@ export async function createClay(host, opt = {}) {
     for (const e of R.eyes) {
       if (!e.geo) continue;
       const pv = m.groups[e.group].pivot;
-      const mesh = new THREE.Mesh(e.geo, R.mat);
+      const mesh = new THREE.Mesh(e.geo, eyeMat || R.mat);
       mesh.position.set(e.pc.cx - pv[0], -(e.pc.cy - pv[1]), 0);
       mesh.userData.a = a;
       joints[e.group].add(mesh);
@@ -416,9 +498,14 @@ export async function createClay(host, opt = {}) {
     get lost() {
       return lost;
     },
+    style: V2 ? 2 : 1,
+    bakeMs: () => bakeMs.slice(),
     setThick(v) {
       if (v === tf) return;
       tf = v;
+      this._rebuild();
+    },
+    _rebuild() {
       // 모양 다시 만들기
       const list = [...objs.values()].map((o) => o.a);
       for (const o of objs.values()) dropAnimal(o);
@@ -451,9 +538,12 @@ export async function createClay(host, opt = {}) {
         const d = bg.def;
         sunDir.set(d.sun[0], d.sun[1], d.sun[2]).normalize();
         sun.color.set(d.sunCol || "#fff4e0");
-        hemi.color.set("#ffffff").lerp(new THREE.Color(bg.sky), 0.18);
-        hemi.groundColor.set("#e9e4d6").lerp(new THREE.Color(bg.grass), 0.45);
-        balance(0.5, 1.02);
+        if (V2) light2(bg.sky, bg.grass);
+        else {
+          hemi.color.set("#ffffff").lerp(new THREE.Color(bg.sky), 0.18);
+          hemi.groundColor.set("#e9e4d6").lerp(new THREE.Color(bg.grass), 0.45);
+          balance(0.5, 1.02);
+        }
         // 그림자 색: 풀밭을 어둡게 한 색
         catchM.color.set(bg.grass).multiplyScalar(0.28);
         catchM.opacity = 0.34;
@@ -466,13 +556,16 @@ export async function createClay(host, opt = {}) {
         hemi.groundColor.set(0xcfc6b8);
         hemi.intensity = 0.75 * Math.PI;
         sun.intensity = 0.72 * Math.PI;
+        if (V2) light2("#bfe6ff", "#9dd774");
         blobM.color.set(0xffffff);
         blobM.opacity = 1;
       }
     },
     setGrain(v) {
+      if (v === grain) return;
       grain = v;
-      for (const R of res.values()) applyGrain(R.mat);
+      if (V2) this._rebuild(); // 결은 노멀맵에 구워 둠 → 다시 굽기
+      else for (const R of res.values()) applyGrain(R.mat);
     },
     setShadows(on) {
       renderer.shadowMap.enabled = !!on;
@@ -558,15 +651,45 @@ export async function createClay(host, opt = {}) {
         const ps = pose(a, t), m = a.art.model;
         const s = U * a.size;
         o.obj.position.set(a.x, a.y, a.z);
-        o.obj.rotation.y = ps.root.ry * D;
+        let yaw = 0, ksx = 1, ksy = 1, by = 0, headBob = 0;
+        if (V2) {
+          /* 옆모습 위주: 걷는 방향 쪽으로 최대 ±25° 만 돌고, 서 있을 땐 카메라 쪽으로 10° (입체가 보이게) */
+          const mir = ps.root.mirror, dt = o.lt == null ? 0 : Math.max(0, Math.min(0.1, t - o.lt));
+          const dx = a.x - (o.lx == null ? a.x : o.lx), dz = a.z - (o.lz == null ? a.z : o.lz);
+          o.lt = t; o.lx = a.x; o.lz = a.z;
+          const moving = !a.fly && a.state === "walk" && a.react < 0;
+          let ty = -mir * 10 * D;
+          if (moving && Math.hypot(dx, dz) > 1e-5) ty = Math.max(-25 * D, Math.min(25 * D, -mir * Math.atan2(dz, Math.abs(dx) + 1e-6)));
+          if (a.turn > 0) ty = 0;
+          if (o.mir !== mir) {
+            o.yaw = o.mir == null ? ty : -(o.yaw || 0);
+            o.mir = mir;
+          }
+          o.yaw += (ty - o.yaw) * Math.min(1, dt * 4);
+          yaw = o.yaw;
+          /* 인형 같은 움직임: 걸음마다 통통(착지 때 살짝 찌그러짐·떠오를 때 늘어남), 서 있으면 숨쉬기, 머리는 한 박자 늦게 끄덕 */
+          const sp = Math.min(1, a.speed / 0.6);
+          if (moving && !(a.hopT > 0)) {
+            const c = Math.cos(2 * a.walk);
+            ksy = 1 - 0.04 * c * sp;
+            ksx = 1 + 0.028 * c * sp;
+            by = Math.abs(Math.sin(a.walk)) * 1.6 * sp;
+            headBob = Math.sin(2 * a.walk - 0.8) * 2.4 * sp;
+          } else if (!a.fly && a.react < 0) {
+            const b = Math.sin(t * 2.3 + a.id * 1.7);
+            ksy = 1 + 0.018 * b;
+            ksx = 1 - 0.012 * b;
+          }
+        }
+        o.obj.rotation.y = ps.root.ry * D + yaw;
         o.obj.scale.set(s * ps.root.mirror, s, s);
-        o.poseO.position.y = ps.root.y;
+        o.poseO.position.y = ps.root.y + by;
         o.poseO.rotation.z = -ps.root.rz * D;
-        o.poseO.scale.set(ps.root.sx, ps.root.sy, (ps.root.sx + ps.root.sy) / 2);
+        o.poseO.scale.set(ps.root.sx * ksx, ps.root.sy * ksy, (ps.root.sx * ksx + ps.root.sy * ksy) / 2);
         for (const [name, gr] of Object.entries(m.groups)) {
           if (!gr.parent) continue;
           const j = o.joints[name], q = ps.g[name];
-          j.rotation.z = q && q.rz ? -q.rz * D : 0;
+          j.rotation.z = (q && q.rz ? -q.rz * D : 0) + (name === "head" ? -headBob * D : 0);
           j.rotation.y = q && q.ry ? (gr.flap ? 1 : -1) * q.ry * D : 0;
           j.scale.set((q && q.sx) || 1, (q && q.sy) || 1, 1);
         }

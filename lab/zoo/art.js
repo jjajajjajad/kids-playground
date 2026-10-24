@@ -487,7 +487,7 @@ export function baseColor(sh, defs) {
 function withM(g, M) {
   g.transform(M[0], M[1], M[2], M[3], M[4], M[5]);
 }
-function drawShape(g, sh, defs, doFill, doStroke) {
+function drawShape(g, sh, defs, doFill, doStroke, soft) {
   g.save();
   withM(g, sh.M);
   if (sh.op < 1) g.globalAlpha *= sh.op;
@@ -499,8 +499,8 @@ function drawShape(g, sh, defs, doFill, doStroke) {
     }
   }
   if (doStroke && sh.sw > 0) {
-    g.strokeStyle = sh.stroke;
-    g.lineWidth = sh.sw;
+    g.strokeStyle = soft ? soft.col : sh.stroke;
+    g.lineWidth = soft ? sh.sw * soft.w : sh.sw;
     g.lineCap = sh.cap;
     g.lineJoin = sh.join;
     g.stroke(sh.path);
@@ -508,8 +508,9 @@ function drawShape(g, sh, defs, doFill, doStroke) {
   g.restore();
 }
 /** 조각 하나를 그림 (도안 좌표계 — 호출하는 쪽이 도안→픽셀 변환을 걸어 둠)
- *  layer: "all" | "fill" (대표색 계산용: 색+크레파스만) */
-function drawPiece(g, pc, art, layer = "all") {
+ *  layer: "all" | "fill" (대표색 계산용: 색+크레파스만)
+ *  soft: {w, col} — Clay 2.0: 도안 테두리(안내선)만 얇고 부드러운 색으로 (아이 크레파스·눈·입은 그대로) */
+export function drawPiece(g, pc, art, layer = "all", soft = null) {
   const defs = art.model.defs;
   if (pc.kind === "part") {
     const sh = pc.sh;
@@ -525,7 +526,7 @@ function drawPiece(g, pc, art, layer = "all") {
       g.restore();
     }
     if (layer === "crayon") return;
-    drawShape(g, sh, defs, false, true);
+    drawShape(g, sh, defs, false, true, soft);
     if (pc.baked.length) {
       g.save();
       const T = g.getTransform();

@@ -87,7 +87,33 @@ export function makeAnimals(arts, count, bounds) {
   return out;
 }
 /** 한 걸음 (dt 초). freeze=true 면 움직이지 않음(그림 맞춤 확인용) */
-export const opts = { demo: "" }; // 점검용: "walk"(제자리 걷기) | "hop"(제자리 깡충)
+export const opts = { demo: "", side: 0 }; // demo: 점검용 "walk"(제자리 걷기) | "hop"(제자리 깡충)
+// side: 0 이 아니면 걷는 방향을 옆(좌우)에서 ±side° 안으로 (Clay 2.0: 옆모습 위주 — 납작한 옆면·뒷면이 덜 보이게)
+/** 걷기 목표 고르기 (side 제한이 있으면 여러 번 골라 각도 안에 드는 것, 없으면 앞뒤 거리를 줄여서) */
+function pickWalk(a, bounds) {
+  const one = () => {
+    const p = bounds.pick ? bounds.pick(a) : null;
+    return p ? p : bounds.pick ? null : [R(bounds.x0 + 0.8, bounds.x1 - 0.8), R(bounds.z0 + 0.5, bounds.z1 - 0.3)];
+  };
+  if (!opts.side) return one();
+  const tn = Math.tan((opts.side * Math.PI) / 180);
+  let best = null, bs = Infinity;
+  for (let k = 0; k < 10; k++) {
+    const p = one();
+    if (!p) continue;
+    const dx = Math.abs(p[0] - a.x), dz = Math.abs(p[1] - a.z);
+    if (dx > 0.35 && dz <= dx * tn) return p;
+    // 각도가 넘으면 앞뒤만 줄여 보기
+    const z2 = a.z + Math.sign(p[1] - a.z) * Math.min(dz, dx * tn);
+    if (dx > 0.35 && (!bounds.inside || bounds.inside(a, p[0], z2))) return [p[0], z2];
+    const sc = dz / (dx + 1e-3);
+    if (sc < bs) {
+      bs = sc;
+      best = p;
+    }
+  }
+  return best;
+}
 export function step(list, dt, bounds, freeze) {
   if (freeze) return;
   dt = Math.min(dt, 0.05);
@@ -154,9 +180,9 @@ export function step(list, dt, bounds, freeze) {
       a.speed = Math.max(0, a.speed - dt * 3);
       if (a.timer <= 0) {
         a.state = "walk";
-        const p = bounds.pick ? bounds.pick(a) : null; // 배경 그림 모드: 풀밭 안에서만 고르기
-        a.tx = p ? p[0] : bounds.pick ? a.x : R(bounds.x0 + 0.8, bounds.x1 - 0.8);
-        a.tz = p ? p[1] : bounds.pick ? a.z : R(bounds.z0 + 0.5, bounds.z1 - 0.3);
+        const p = pickWalk(a, bounds); // 배경 그림 모드: 풀밭 안에서만 고르기
+        a.tx = p ? p[0] : a.x;
+        a.tz = p ? p[1] : a.z;
         a.timer = 8;
         a.hopT = rand() < 0.35 ? 1.4 : 0; // 가끔 깡충깡충 출발
         const f = a.tx > a.x ? 1 : -1;

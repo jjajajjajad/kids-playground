@@ -1,7 +1,8 @@
 /* =====================================================================
    동물원 시험판 — 화면·단추·측정 (앱과 분리: 앱 코드·설정·잠금·타이머를 건드리지 않음)
-   주소 옵션: ?mode=clay|flat|both &n=1|6|12|18 &art=sample|saved &thick=0.6|1|1.5
-             &shadow=0|1 &q=1|1.5|2 &freeze=1(멈춤) &seed=숫자 &front=1(정면 — 그림 맞춤 확인)
+   주소 옵션: ?mode=clay|flat|both|cmp(기존 점토 ↔ Clay 2.0 나란히) &clay=1(기존)|2(Clay 2.0, 기본)
+             &n=1|6|12|18 &art=sample|saved &thick=0.6|1|1.5
+             &shadow=0|1 &q=0.75|1|1.5|2(렌더 배율) &freeze=1(멈춤) &seed=숫자 &front=1(정면 — 그림 맞춤 확인)
              &bg=A~F|none(기존 배경) &grain=0|1|2(점토 결) &poly=1(걷는 영역 선 보기 — 맞춤 확인용)
 ===================================================================== */
 import { buildArt, sampleSrc, loadSavedRO, thumb, SPECIES, TPL } from "./art.js";
@@ -12,12 +13,13 @@ import { BGS, BG_IDS, loadBg, bgCam } from "./bgs.js";
 const $ = (s) => document.querySelector(s);
 const Q = new URLSearchParams(location.search);
 const st = {
-  mode: ["clay", "flat", "both"].includes(Q.get("mode")) ? Q.get("mode") : "both",
+  mode: ["clay", "flat", "both", "cmp"].includes(Q.get("mode")) ? Q.get("mode") : "both",
+  clay: Q.get("clay") === "1" ? 1 : 2, // 점토 3D 방식: 1 = 기존 점토, 2 = Clay 2.0
   n: [1, 6, 12, 18].includes(+Q.get("n")) ? +Q.get("n") : 6,
   art: Q.get("art") === "sample" ? "sample" : Q.get("art") === "saved" ? "saved" : "auto",
   thick: [0.6, 1, 1.5].includes(+Q.get("thick")) ? +Q.get("thick") : 1,
   shadow: Q.get("shadow") !== "0",
-  q: [1, 1.5, 2].includes(+Q.get("q")) ? +Q.get("q") : Math.min(2, window.devicePixelRatio || 1),
+  q: [0.75, 1, 1.5, 2].includes(+Q.get("q")) ? +Q.get("q") : Math.min(2, window.devicePixelRatio || 1),
   freeze: Q.get("freeze") === "1",
   front: Q.get("front") === "1",
   close: Q.get("close") === "1", // 1마리 가까이 (그림 맞춤 확인)
@@ -29,7 +31,7 @@ let bgInfo = null; // 지금 배경 그림 {img, grass, sky, def}
 setSeed(+Q.get("seed") || 0);
 opts.demo = ["walk", "hop"].includes(Q.get("demo")) ? Q.get("demo") : "";
 
-const R = { clay: null, flat: null }; // 지금 켜진 그리기
+const R = { clay: null, flat: null, clayB: null }; // 지금 켜진 그리기 (clayB: 전후 비교 오른쪽 = Clay 2.0)
 let animals = [], arts = [], bounds = null, props = [], baseCam = null;
 let saved = { ok: false, list: [] }, savedSel = new Set();
 const sampleCache = new Map();
@@ -72,7 +74,7 @@ async function prepareArts() {
 function views() {
   const stage = $("#stage");
   const w = stage.clientWidth, h = stage.clientHeight;
-  const both = st.mode === "both";
+  const both = st.mode === "both" || st.mode === "cmp";
   const side = w >= h; // 가로 화면: 좌우, 세로 화면: 위아래
   stage.classList.toggle("split", both);
   stage.classList.toggle("stack", both && !side);
@@ -90,7 +92,7 @@ function layoutAll(rebuild) {
   bounds = cam.bounds;
   props = bgInfo ? [] : propsFor(bounds);
   for (const r of Object.values(R)) if (r) r.resize(vw, vh, st.q);
-  if (R.clay) R.clay.setProps(props, bounds);
+  for (const c of [R.clay, R.clayB]) if (c) c.setProps(props, bounds);
   if (rebuild || changed) placeAnimals();
   drawPoly(vw, vh);
 }
@@ -134,35 +136,47 @@ function placeAnimals() {
     const tl = st.front ? 0 : (21 * Math.PI) / 180, d = 3.3 * a.size + 0.5;
     baseCam = { ...baseCam, target: [cx, cy, a.z], pos: [cx, cy + Math.sin(tl) * d, a.z + Math.cos(tl) * d] };
   }
-  if (R.clay) R.clay.setAnimals(animals);
+  for (const c of [R.clay, R.clayB]) if (c) c.setAnimals(animals);
 }
 
 /* ---------- 그리기 켜고 끄기 (전환 때 바로 정리) ---------- */
+/** 점토 화면의 방식: 전후 비교(cmp)면 왼쪽 = 기존 점토, 오른쪽 = Clay 2.0 */
+const styleFor = (slot) => (st.mode === "cmp" ? (slot === "clay" ? 1 : 2) : st.clay);
+function tags() {
+  $("#vC .tag").textContent = st.mode === "cmp" || st.clay === 1 ? "기존 점토" : "Clay 2.0";
+  $("#vF .tag").textContent = st.mode === "cmp" ? "Clay 2.0" : "2.5D";
+}
 async function applyMode() {
   const my = ++token;
-  const needC = st.mode !== "flat", needF = st.mode !== "clay";
+  opts.side = st.clay === 2 || st.mode === "cmp" ? 25 : 0; // Clay 2.0: 옆모습 위주로 걷기
+  const needC = st.mode !== "flat", needF = st.mode === "flat" || st.mode === "both", needB = st.mode === "cmp";
   if (!needF && R.flat) {
     R.flat.dispose();
     R.flat = null;
   }
-  if (!needC && R.clay) {
+  if (R.clay && (!needC || R.clay.style !== styleFor("clay"))) {
     R.clay.dispose();
     R.clay = null;
+  }
+  if (R.clayB && !needB) {
+    R.clayB.dispose();
+    R.clayB = null;
   }
   if (needF && !R.flat) {
     R.flat = createFlat($("#vF"));
     R.flat.setBackdrop(bgInfo);
   }
-  if (needC && !R.clay) {
+  for (const [slot, need, host] of [["clay", needC, "#vC"], ["clayB", needB, "#vF"]]) {
+    if (!need || R[slot]) continue;
     msg("점토 3D 준비 중…");
     try {
       const { createClay } = await import("./clay3d.js");
-      const c = await createClay($("#vC"), { thick: st.thick, grain: st.grain, shadowSize: Math.min(screen.width, screen.height) >= 600 ? 2048 : 1024, onLost: lostC });
-      if (my !== token || st.mode === "flat") {
+      const c = await createClay($(host), { style: styleFor(slot), thick: st.thick, grain: st.grain, shadowSize: Math.min(screen.width, screen.height) >= 600 ? 2048 : 1024, onLost: lostC });
+      if (my !== token) {
         c.dispose();
         return;
       }
-      R.clay = c;
+      R[slot] = c;
       c.setShadows(st.shadow);
       c.setBackdrop(bgInfo);
     } catch (e) {
@@ -170,20 +184,24 @@ async function applyMode() {
       console.error(e);
       return;
     }
-    msg("");
   }
+  msg("");
+  tags();
   layoutAll(false);
-  if (R.clay) R.clay.setAnimals(animals);
+  for (const c of [R.clay, R.clayB]) if (c) c.setAnimals(animals);
   syncUI();
 }
 function lostC() {
   msg("3D 화면이 잠깐 끊겼어요 — 다시 여는 중");
   setTimeout(() => {
-    if (R.clay && R.clay.lost) {
-      R.clay.dispose();
-      R.clay = null;
-      applyMode();
-    }
+    let again = false;
+    for (const k of ["clay", "clayB"])
+      if (R[k] && R[k].lost) {
+        R[k].dispose();
+        R[k] = null;
+        again = true;
+      }
+    if (again) applyMode();
   }, 600);
 }
 function msg(t) {
@@ -224,9 +242,9 @@ function hud(now) {
   const a = Array.from(FT.subarray(0, n)).sort((x, y) => x - y);
   const avg = a.reduce((s, v) => s + v, 0) / n, p95 = a[Math.floor(n * 0.95)] || avg;
   const L = ["fps " + (1000 / avg).toFixed(1) + " · 프레임 " + avg.toFixed(1) + "ms (95% " + p95.toFixed(1) + "ms)"];
-  if (R.clay) {
-    const s = R.clay.stats();
-    L.push("점토3D 그리기 " + s.calls + " · 삼각형 " + (s.tris / 1000).toFixed(0) + "k · " + s.ms.toFixed(1) + "ms");
+  for (const c of [R.clay, R.clayB]) if (c) {
+    const s = c.stats();
+    L.push((c.style === 2 ? "Clay2.0" : "점토3D") + " 그리기 " + s.calls + " · 삼각형 " + (s.tris / 1000).toFixed(0) + "k · " + s.ms.toFixed(1) + "ms");
   }
   if (R.flat) {
     const s = R.flat.stats();
@@ -234,7 +252,7 @@ function hud(now) {
   }
   L.push(st.n + "마리 · ×" + st.q + (st.shadow ? "" : " · 그림자 끔") + " · 배경 " + (bgInfo ? st.bg : "기존"));
   $("#hud").textContent = L.join("\n");
-  window.__lab.last = { fps: 1000 / avg, avg, p95, clay: R.clay ? R.clay.stats() : null, flat: R.flat ? R.flat.stats() : null, n: st.n, mode: st.mode, bg: bgInfo ? st.bg : "none" };
+  window.__lab.last = { fps: 1000 / avg, avg, p95, clay: R.clay ? R.clay.stats() : null, clayB: R.clayB ? R.clayB.stats() : null, flat: R.flat ? R.flat.stats() : null, n: st.n, mode: st.mode, bg: bgInfo ? st.bg : "none" };
 }
 let t0 = performance.now();
 function frame(now) {
@@ -252,6 +270,7 @@ function frame(now) {
   step(animals, dt, bounds, st.freeze);
   const cam = camAt(baseCam, t, st.freeze);
   if (R.clay) R.clay.render(animals, t, cam);
+  if (R.clayB) R.clayB.render(animals, t, cam);
   if (R.flat) R.flat.render(animals, t, cam, bounds, props);
   hud(now);
 }
@@ -271,7 +290,7 @@ function onTap(e, which) {
   sound.say(TPL[a.art.tid].cry);
 }
 $("#vC").addEventListener("pointerdown", (e) => onTap(e, "clay"));
-$("#vF").addEventListener("pointerdown", (e) => onTap(e, "flat"));
+$("#vF").addEventListener("pointerdown", (e) => onTap(e, R.clayB ? "clayB" : "flat"));
 
 /* ---------- 단추 ---------- */
 function syncUI() {
@@ -280,6 +299,8 @@ function syncUI() {
   document.querySelectorAll("[data-thick]").forEach((b) => b.classList.toggle("on", +b.dataset.thick === st.thick));
   $("#shadowBtn").textContent = st.shadow ? "그림자 켬" : "그림자 끔";
   $("#qBtn").textContent = "화질 ×" + st.q;
+  $("#clayBtn").textContent = st.clay === 2 ? "점토: 2.0" : "점토: 기존";
+  $("#clayBtn").classList.toggle("on", st.clay === 2);
   $("#sndBtn").textContent = sound.muted ? "소리 끔" : "소리 켬";
   $("#freezeBtn").textContent = st.freeze ? "움직이기" : "멈추기";
   $("#artBtn").textContent = useSaved() ? "그림: 내 그림 " + savedSel.size : "그림: 예시";
@@ -293,7 +314,7 @@ document.querySelectorAll("[data-bg]").forEach((b) => b.addEventListener("click"
 }));
 $("#grainBtn").addEventListener("click", () => {
   st.grain = (st.grain + 1) % 3;
-  if (R.clay) R.clay.setGrain(st.grain);
+  for (const c of [R.clay, R.clayB]) if (c) c.setGrain(st.grain);
   syncUI();
 });
 document.querySelectorAll("[data-mode]").forEach((b) => b.addEventListener("click", () => {
@@ -308,18 +329,23 @@ document.querySelectorAll("[data-n]").forEach(async (b) => b.addEventListener("c
 }));
 document.querySelectorAll("[data-thick]").forEach((b) => b.addEventListener("click", () => {
   st.thick = +b.dataset.thick;
-  if (R.clay) R.clay.setThick(st.thick);
+  for (const c of [R.clay, R.clayB]) if (c) c.setThick(st.thick);
   syncUI();
 }));
 $("#shadowBtn").addEventListener("click", () => {
   st.shadow = !st.shadow;
-  if (R.clay) R.clay.setShadows(st.shadow);
+  for (const c of [R.clay, R.clayB]) if (c) c.setShadows(st.shadow);
   syncUI();
 });
 $("#qBtn").addEventListener("click", () => {
-  st.q = st.q >= 2 ? 1 : st.q >= 1.5 ? 2 : 1.5;
+  st.q = st.q >= 2 ? 0.75 : st.q >= 1.5 ? 2 : st.q >= 1 ? 1.5 : 1; // 0.75 = 저가 태블릿용
   layoutAll(false);
   syncUI();
+});
+$("#clayBtn").addEventListener("click", () => {
+  st.clay = st.clay === 2 ? 1 : 2;
+  if (st.mode === "cmp") st.mode = "clay";
+  applyMode();
 });
 $("#sndBtn").addEventListener("click", () => {
   sound.unlock();
