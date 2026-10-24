@@ -4,6 +4,7 @@
    좌표: 모든 층이 도안 크기 S×S 그대로 = 3D 텍스처 좌표 (정면 투영 UV)
    저가 기기: 크레파스는 무늬(pattern) 붓 한 번 긋기, 채우기는 미리 나눈 영역 목록을 한 번에 칠함
 ===================================================================== */
+import { PARTS } from "./species.js";
 export const PALETTE = ["#ff9aa2", "#ffb38a", "#ffe08a", "#c8e88a", "#8fd6a8", "#8fd3e8", "#9bb7ff", "#c3a6ff", "#c99a74", "#8a6a5a", "#5b5b6e", "#fdfaf4"];
 export const CLAY = "#f6f1e8"; // 칠하지 않은 곳 = 흰 점토
 
@@ -151,11 +152,27 @@ export function createPainter(host, B) {
     return c;
   }
   // 모델 좌표 도우미 (예시 그림용)
-  const sp = B.spec, X = (x) => sp.CX + x * sp.K, Y = (y) => sp.OY - y * sp.K;
+  const X = B.X, Y = B.Y, PI = Object.fromEntries(PARTS.map((n, i) => [n, i]));
+  /** 부위의 모든 영역을 한 색으로 (예시 그림: 종이 달라도 '머리'·'몸' 이름으로 칠함) */
+  function fillPart(name, col) {
+    const L = PI[name];
+    let any = false;
+    for (let r = 0; r < B.nReg; r++) {
+      if (B.regPart[r] !== L) continue;
+      if (B.regStart[r] === B.regStart[r + 1]) continue; // 작은 틈(다른 영역에 붙음)
+      const k = B.regList[B.regStart[r]];
+      fillAtPx(k % S, (k / S) | 0, col);
+      any = true;
+    }
+    return any;
+  }
   const api = {
-    st, reset, compose, snapshot, wrap, clayRGB,
+    st, reset, compose, snapshot, wrap, clayRGB, B,
     fill: (x, y, col) => fillAtPx(X(x), Y(y), col),
-    crayon: (pts, col, size = 22) => { strokeSeg(pts.map(([x, y]) => [X(x), Y(y)]), col, size, false); },
+    fillPart,
+    /** 부위 보이는 범위 안의 비율 좌표 (u: 0 왼쪽~1 오른쪽, v: 0 아래~1 위) → 모델 좌표. 없으면 null */
+    at(name, u, v) { const b = B.box[name]; return b ? [b.x0 + (b.x1 - b.x0) * u, b.y0 + (b.y1 - b.y0) * v] : null; },
+    crayon: (pts, col, size = 22) => { strokeSeg(pts.map(([x, y]) => [X(x), Y(y)]), col, size * B.f, false); },
     isEmpty() {
       // 아무것도 안 칠했는지 (채우기 층이 모두 점토색이고 크레파스가 없음) — 대충 표본 검사
       const cd = cg.getImageData(0, 0, S, S).data;

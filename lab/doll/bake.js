@@ -1,44 +1,17 @@
 /* =====================================================================
    인형 굽기 — 3D 모델 하나에서 (1) 정면 투영 UV (2) 색칠 도안 (3) 칠하기용 영역 지도 를 만듦
    - 모든 그림 좌표 = 정면에서 직교 투영한 좌표 (S×S 정사각형). 아이 캔버스 = 도안 = 텍스처.
-   - 부위(머리·귀·몸·팔·다리·꼬리)는 종마다 손으로 정한 간단한 규칙(SPEC.part) 으로 나눔.
+   - 부위(머리·귀·몸·팔·다리·꼬리 + 종 특징: 주둥이/코·갈기·뿔)는 종마다 손으로 정한 간단한 규칙(species.js 의 part) 으로 나눔.
      같은 규칙으로 ① 도안의 부위 경계선 ② 가려진 면의 UV 고치기 ③ 움직임 가중치 를 모두 만듦.
    - 안 보이는 면 처리:
        뒷면 = 같은 (x,y) 를 그대로 씀 → 앞 그림이 거울처럼 비침 (얼굴 눈코입은 앞면만)
        다른 부위에 가려진 면(귀 밑 머리 옆, 팔 뒤 몸 옆, 꼬리) = 그 부위의 '가장 가까운 보이는 곳' 색
        옆면 늘어짐 = 그림 바깥으로 색 번지기(bleed) + 3D 에서 옆면일수록 흐린 밉맵으로 읽기
 ===================================================================== */
-export const S = 1024; // 도안·텍스처 크기
-export const PARTS = ["bg", "head", "earR", "earL", "body", "armR", "armL", "legR", "legL", "tail"];
-const P = Object.fromEntries(PARTS.map((n, i) => [n, i]));
-
-/* ---------- 강아지 한 종의 손 설정 (모델 좌표: 키 1, 발바닥 y=0, 정면 +z, 오른쪽 +x) ---------- */
-export const DOG = {
-  K: 900, CX: S / 2, OY: 966, // 그림 좌표: px = CX + x·K, py = OY − y·K
-  part(x, y, z) {
-    const ax = Math.abs(x), R = x > 0;
-    // 머리: 타원체
-    const hy = (y - 0.77) / 0.245, hz = (z + 0.035) / 0.25;
-    const hx = 0.25 * Math.sqrt(Math.max(0, 1 - hy * hy - hz * hz)); // 그 높이·깊이에서 머리 겉면의 x
-    if (y > 0.57 && y < 0.985 && ax > 0.15 && ax > hx + 0.012 && z > -0.22 && z < 0.26) return R ? P.earR : P.earL;
-    const h = (x / 0.25) ** 2 + hy * hy + hz * hz;
-    if (y > 0.537 + 1.6 * x * x && h < 1.6) return P.head;
-    if (z < -0.185 && y > 0.17 && y < 0.37 && ax < 0.1) return P.tail;
-    const T = 0.2 - 0.6 * Math.max(0, y - 0.4);
-    if (y > 0.26 && y < 0.53 && ax > T) return R ? P.armR : P.armL;
-    if (y < 0.175 - 0.0 * ax) return R ? P.legR : P.legL;
-    return P.body;
-  },
-  // 움직임 중심점
-  pivot: { arm: [0.155, 0.47, 0.04], leg: [0.09, 0.17, 0.0], ear: [0.215, 0.93, -0.03], head: [0, 0.53, 0], tail: [0, 0.27, -0.17] },
-  // 얼굴 (그림 좌표, 모델의 볼록한 눈·코·입 자리에 맞춤)
-  face: {
-    eyes: [[-0.104, 0.711], [0.104, 0.711]], eyeR: [0.026, 0.022],
-    nose: [0, 0.684], noseW: 0.072, noseH: 0.046,
-    mouth: { y: 0.632, w: 0.064, h: 0.022, top: 0.656 },
-    toes: [[0.085, 0.0], [0.145, 0.0]], toeH: 0.042, // 발가락 줄 (x, 바닥) — 좌우 대칭
-  },
-};
+import { SPECIES, PARTS, P } from "./species.js";
+export { PARTS };
+export const S = 1024; // 도안·텍스처 크기 (종 설정의 CX·OY·K 는 이 크기 기준)
+export const DOG = SPECIES.dog; // 예전 이름 (시험 2)
 
 /* ---------- 거리 변환 (Felzenszwalb) : 0 인 칸에서의 제곱 거리 ---------- */
 function edt1(f, n, d, v, z) {
@@ -121,6 +94,73 @@ function smoothLabels(label, W, r) {
   label.set(out);
 }
 
+/* ---------- 작은 부위 조각 없애기: 같은 부위로 이어진 덩어리가 minA 칸보다 작으면 둘레에 가장 많은 부위로 ----------
+   (예: 공룡 꼬리 뿔 끝이 앞에서 몇 칸만 보임 → 칠하기 힘든 부스러기 영역이 생기지 않게) */
+function dropSpecks(label, W, minA) {
+  const seen = new Uint8Array(W * W), st = new Int32Array(W * W), fix = [];
+  for (let s0 = 0; s0 < W * W; s0++) {
+    if (!label[s0] || seen[s0]) continue;
+    const L = label[s0];
+    let sp = 0, n = 0;
+    st[sp++] = s0; seen[s0] = 1;
+    const cells = [], around = new Map();
+    while (sp) {
+      const i = st[--sp], x = i % W;
+      n++;
+      if (n <= minA) cells.push(i);
+      for (const j of [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, i - W, i + W]) {
+        if (j < 0 || j >= W * W) continue;
+        const b = label[j];
+        if (b === L) { if (!seen[j]) { seen[j] = 1; st[sp++] = j; } }
+        else if (b) around.set(b, (around.get(b) || 0) + 1);
+      }
+    }
+    if (n < minA && around.size) {
+      let best = 0, bn = -1;
+      for (const [b, c] of around) if (c > bn) { bn = c; best = b; }
+      fix.push([cells, best]);
+    }
+  }
+  for (const [cells, b] of fix) for (const i of cells) label[i] = b;
+  return fix.length;
+}
+
+/* ---------- 실루엣의 아주 좁은 틈 메우기 (닫힘 연산, 반지름 r 칸) ----------
+   (예: 고양이 턱 밑과 어깨 사이 몇 칸짜리 틈 → 도안에 선이 두 줄로 겹쳐 보임) 메운 칸은 가장 가까운 부위로 */
+function closeGaps(label, W, r) {
+  const fg = new Uint8Array(W * W);
+  for (let i = 0; i < W * W; i++) fg[i] = label[i] ? 1 : 0;
+  const dFg = edt(fg, W, W);
+  const outD = new Uint8Array(W * W);
+  for (let i = 0; i < W * W; i++) outD[i] = dFg[i] > r ? 1 : 0;
+  const dOut = edt(outD, W, W);
+  const add = new Uint8Array(W * W);
+  let n = 0;
+  for (let i = 0; i < W * W; i++) if (!fg[i] && dOut[i] > r + 0.5) { add[i] = 1; n++; }
+  if (!n) return 0;
+  const near = nearestSeed(fg, W, W, null);
+  for (let i = 0; i < W * W; i++) if (add[i]) label[i] = label[near[i]];
+  return n;
+}
+
+/* ---------- 얇은 띠 없애기 (부위별 열림 연산을 한 번에) ----------
+   경계(다른 부위·바깥과 닿은 칸)에서 r 보다 먼 칸 = 속. 모든 칸을 '가장 가까운 속 칸'의 부위로 다시 정함
+   → 폭 2r 보다 얇은 띠(예: 고양이 턱 밑 실 같은 띠)는 옆 부위로 흡수, 두꺼운 부위 경계는 그대로 */
+function openLabels(label, W, r) {
+  const edge = new Uint8Array(W * W);
+  for (let i = 0; i < W * W; i++) {
+    const L = label[i];
+    if (!L) continue;
+    const x = i % W;
+    if ((x > 0 && label[i - 1] !== L) || (x < W - 1 && label[i + 1] !== L) || (i >= W && label[i - W] !== L) || (i < W * W - W && label[i + W] !== L)) edge[i] = 1;
+  }
+  const d = edt(edge, W, W), core = new Uint8Array(W * W);
+  for (let i = 0; i < W * W; i++) core[i] = label[i] && d[i] > r ? 1 : 0;
+  const near = nearestSeed(core, W, W, null), out = label.slice();
+  for (let i = 0; i < W * W; i++) if (label[i] && near[i] >= 0) out[i] = label[near[i]];
+  label.set(out);
+}
+
 /* ---------- 정면 직교 래스터: 칸마다 가장 앞(z 최대) 깊이 ---------- */
 function rasterFront(pos, idx, spec, W) {
   const k = (spec.K * W) / S, cx = (spec.CX * W) / S, oy = (spec.OY * W) / S;
@@ -152,22 +192,26 @@ function rasterFront(pos, idx, spec, W) {
 }
 
 /* ---------- 굽기 본체 ---------- */
-export function bake(model, spec = DOG) {
+/** opt.W: 도안 크기 (기본 1024. 3D 에만 쓰는 다른 종은 512 로 약 4배 빨리) */
+export function bake(model, spec = DOG, opt = {}) {
   const t0 = performance.now();
   const pos = model.POSITION, idx = model.index, nv = pos.length / 3;
-  const W = S;
+  const W = opt.W || S, f = W / S;
+  const K = spec.K * f, CX = spec.CX * f, OY = spec.OY * f;
+  // 앞에서 안 보이는 부위 → 다른 부위 색 (예: 강아지 꼬리 → 몸)
+  const mergeTo = PARTS.map((n, i) => (spec.merge && spec.merge[n] ? P[spec.merge[n]] : i));
   const depth = rasterFront(pos, idx, spec, W);
-  // 칸마다 보이는 부위 (꼬리는 앞에서 안 보이므로 몸으로)
   const label = new Uint8Array(W * W);
   for (let py = 0; py < W; py++)
     for (let px = 0; px < W; px++) {
       const i = py * W + px;
       if (depth[i] < -1e8) continue;
-      let L = spec.part((px + 0.5 - spec.CX) / spec.K, (spec.OY - py - 0.5) / spec.K, depth[i]);
-      if (L === P.tail) L = P.body;
-      label[i] = L;
+      label[i] = mergeTo[spec.part((px + 0.5 - CX) / K, (OY - py - 0.5) / K, depth[i])];
     }
-  smoothLabels(label, W, 5);
+  smoothLabels(label, W, Math.max(2, Math.round((spec.smooth || 5) * f)));
+  closeGaps(label, W, 5 * f);
+  openLabels(label, W, 4.5 * f);
+  const specks = dropSpecks(label, W, Math.round(1400 * f * f));
   // 경계: 바깥(실루엣) / 안쪽(부위 사이)
   const outB = new Uint8Array(W * W), inB = new Uint8Array(W * W);
   for (let y = 0; y < W - 1; y++)
@@ -181,7 +225,7 @@ export function bake(model, spec = DOG) {
     }
   const dOut = edt(outB, W, W), dIn = edt(inB, W, W);
   // 선 굵기 (도안 칸 기준): 바깥 8, 안쪽 5.5 (반지름 4 / 2.75)
-  const LW_OUT = 4.2, LW_IN = 2.9;
+  const LW_OUT = 4.2 * f, LW_IN = 2.9 * f;
   const lineC = document.createElement("canvas");
   lineC.width = lineC.height = W;
   const lg = lineC.getContext("2d");
@@ -193,7 +237,10 @@ export function bake(model, spec = DOG) {
     im.data[i * 4 + 3] = Math.round(a * 255);
   }
   lg.putImageData(im, 0, 0);
+  lg.save();
+  lg.scale(f, f);
   drawFace(lg, spec, "sheet");
+  lg.restore();
   // 선 지도 (칠하기 막힘)
   const la = lg.getImageData(0, 0, W, W).data;
   const line = new Uint8Array(W * W);
@@ -223,9 +270,15 @@ export function bake(model, spec = DOG) {
     regPart.push(+Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0]);
     nReg++;
   }
+  // 아주 작은 영역(선 사이 틈 — 손가락으로 못 채움)은 따로 두지 않고 가까운 큰 영역에 붙임
+  const regArea = new Int32Array(nReg);
+  for (let i = 0; i < W * W; i++) if (region[i] >= 0) regArea[region[i]]++;
+  const minReg = Math.round(500 * f * f);
+  let tiny = 0;
+  for (let r = 0; r < nReg; r++) if (regArea[r] < minReg) tiny++;
   // 선 칸(실루엣 안·선 위)도 가까운 영역에 붙여 채울 때 같이 칠함 → 3D 에 흰 이음매가 안 생김
   const seedR = new Uint8Array(W * W), allowR = new Uint8Array(W * W);
-  for (let i = 0; i < W * W; i++) { seedR[i] = region[i] >= 0 ? 1 : 0; allowR[i] = region[i] >= 0 || line[i] || label[i] ? 1 : 0; }
+  for (let i = 0; i < W * W; i++) { seedR[i] = region[i] >= 0 && regArea[region[i]] >= minReg ? 1 : 0; allowR[i] = region[i] >= 0 || line[i] || label[i] ? 1 : 0; }
   const nr = nearestSeed(seedR, W, W, allowR);
   const fillOf = new Int32Array(W * W).fill(-1);
   for (let i = 0; i < W * W; i++) if (nr[i] >= 0 && (label[i] || line[i])) fillOf[i] = region[nr[i]];
@@ -238,7 +291,7 @@ export function bake(model, spec = DOG) {
 
   // 텍스처 번지기: 실루엣 밖 칸 → 가장 가까운 실루엣 안 칸 (실루엣 가장자리 2칸 안쪽에서 가져옴: 선 자국 피함)
   const inner = new Uint8Array(W * W);
-  for (let i = 0; i < W * W; i++) inner[i] = label[i] && dOut[i] > 2.5 ? 1 : 0;
+  for (let i = 0; i < W * W; i++) inner[i] = label[i] && dOut[i] > 2.5 * f ? 1 : 0;
   const bleed = nearestSeed(inner, W, W, null);
 
   // 부위별 '가장 가까운 보이는 칸' (반 크기, 선 피해서 4칸 안쪽)
@@ -248,7 +301,7 @@ export function bake(model, spec = DOG) {
     let any = 0;
     for (let y = 0; y < H; y++) for (let x = 0; x < H; x++) {
       const i = y * 2 * W + x * 2;
-      if (label[i] === L && dIn[i] > 5 && dOut[i] > 5) { sd[y * H + x] = 1; any = 1; }
+      if (label[i] === L && dIn[i] > 5 * f && dOut[i] > 5 * f) { sd[y * H + x] = 1; any = 1; }
     }
     if (any) nearPart[L] = nearestSeed(sd, H, H, null);
   }
@@ -259,8 +312,8 @@ export function bake(model, spec = DOG) {
     const x = pos[v * 3], y = pos[v * 3 + 1], z = pos[v * 3 + 2];
     let L = spec.part(x, y, z);
     part[v] = L;
-    if (L === P.tail) L = P.body;
-    let px = spec.CX + x * spec.K, py = spec.OY - y * spec.K;
+    L = mergeTo[L];
+    let px = CX + x * K, py = OY - y * K;
     const ix = Math.min(W - 1, Math.max(0, px | 0)), iy = Math.min(W - 1, Math.max(0, py | 0));
     const vis = label[iy * W + ix];
     // 이 정점이 앞에서 보이는 그 부위인가? (같은 부위면 앞·뒤 모두 그대로 = 거울)
@@ -271,25 +324,46 @@ export function bake(model, spec = DOG) {
     uv[v * 2] = px / W;
     uv[v * 2 + 1] = 1 - py / W;
   }
-  const weights = makeWeights(model, part);
+  const weights = makeWeights(model, part, spec);
+  // 부위별 보이는 범위 (모델 좌표) — 예시 그림이 부위 기준으로 그리게
+  const box = {};
+  for (let i = 0; i < W * W; i++) {
+    const L = label[i];
+    if (!L) continue;
+    const x = ((i % W) + 0.5 - CX) / K, y = (OY - ((i / W) | 0) - 0.5) / K;
+    const b = box[PARTS[L]] || (box[PARTS[L]] = { x0: 9, x1: -9, y0: 9, y1: -9, sx: 0, sy: 0, n: 0 });
+    if (x < b.x0) b.x0 = x;
+    if (x > b.x1) b.x1 = x;
+    if (y < b.y0) b.y0 = y;
+    if (y > b.y1) b.y1 = y;
+    b.sx += x; b.sy += y; b.n++;
+  }
+  for (const k in box) { const b = box[k]; b.cx = b.sx / b.n; b.cy = b.sy / b.n; }
   return {
-    S: W, spec, label, line, lineC, region, fillOf, regPart, nReg, regStart: cnt, regList: list, bleed, uv, part, fixed, weights,
+    S: W, f, spec, label, line, lineC, region, fillOf, regPart, nReg, regStart: cnt, regList: list, bleed, uv, part, fixed, weights, box,
+    X: (x) => CX + x * K, Y: (y) => OY - y * K,
     ms: Math.round(performance.now() - t0),
-    stats: { fixedVerts: fixed.reduce((a, b) => a + b, 0), regions: nReg },
+    stats: { fixedVerts: fixed.reduce((a, b) => a + b, 0), regions: nReg - tiny, tiny, specks },
   };
 }
 
 /* ---------- 움직임 가중치: 부위 표시를 이웃 평균으로 부드럽게 (이음매 찢어짐 방지) ---------- */
-function makeWeights(model, part) {
+function makeWeights(model, part, spec) {
   const pos = model.POSITION, idx = model.index, nv = pos.length / 3;
   const nb = Array.from({ length: nv }, () => []);
   for (let t = 0; t < idx.length; t += 3)
     for (const [a, b] of [[idx[t], idx[t + 1]], [idx[t + 1], idx[t + 2]], [idx[t + 2], idx[t]]]) { nb[a].push(b); nb[b].push(a); }
-  // 채널: armR, armL, legR, legL, earR, earL, head(귀 포함), tail
-  const ch = [[P.armR], [P.armL], [P.legR], [P.legL], [P.earR], [P.earL], [P.head, P.earR, P.earL], [P.tail]];
+  // 채널: armR, armL, legR, legL, earR, earL, 머리 묶음(귀·주둥이·갈기·머리 뿔), 흔들기(꼬리 — 코끼리는 코)
+  // 뿔(spike)은 목(머리 중심점) 위면 머리와 함께, 아래(등·꼬리)면 꼬리와 함께 움직임
+  const neckY = spec.pivot.head[1];
+  const swingPart = spec.swing ? P[spec.swing] : P.tail;
+  const HEAD = [P.head, P.earR, P.earL, P.snout, P.mane];
+  const inHead = (v) => HEAD.includes(part[v]) || (part[v] === P.spike && pos[v * 3 + 1] > neckY);
+  const inSwing = (v) => part[v] === swingPart || (part[v] === P.spike && pos[v * 3 + 1] <= neckY);
+  const ch = [[P.armR], [P.armL], [P.legR], [P.legL], [P.earR], [P.earL], inHead, inSwing];
   const out = ch.map((set) => {
     let w = new Float32Array(nv);
-    for (let v = 0; v < nv; v++) w[v] = set.includes(part[v]) ? 1 : 0;
+    for (let v = 0; v < nv; v++) w[v] = (typeof set === "function" ? set(v) : set.includes(part[v])) ? 1 : 0;
     for (let k = 0; k < 6; k++) {
       const n = new Float32Array(nv);
       for (let v = 0; v < nv; v++) {
@@ -306,11 +380,12 @@ function makeWeights(model, part) {
   return { A, B };
 }
 
-/* ---------- 얼굴 (도안: 검은 선/칠, 3D: 얼굴 덧칠 텍스처) ---------- */
+/* ---------- 얼굴 (도안: 검은 선/칠, 3D: 얼굴 덧칠 텍스처) — 그림 좌표는 S=1024 기준 ---------- */
 export function drawFace(g, spec, mode) {
   const F = spec.face, X = (x) => spec.CX + x * spec.K, Y = (y) => spec.OY - y * spec.K, L = (l) => l * spec.K;
+  const sheet = mode === "sheet";
   g.save();
-  const ink = mode === "sheet" ? "#222" : "#1d1714";
+  const ink = sheet ? "#222" : "#1d1714", soft = sheet ? ink : "#4a3631";
   g.fillStyle = ink;
   g.strokeStyle = ink;
   g.lineCap = g.lineJoin = "round";
@@ -319,7 +394,7 @@ export function drawFace(g, spec, mode) {
     g.beginPath();
     g.ellipse(X(x), Y(y), L(F.eyeR[0]), L(F.eyeR[1]), 0, 0, Math.PI * 2);
     g.fill();
-    if (mode !== "sheet") {
+    if (!sheet) {
       g.fillStyle = "rgba(255,255,255,.9)";
       g.beginPath();
       g.arc(X(x) - L(F.eyeR[0]) * 0.35, Y(y) - L(F.eyeR[1]) * 0.4, L(F.eyeR[0]) * 0.28, 0, Math.PI * 2);
@@ -327,28 +402,49 @@ export function drawFace(g, spec, mode) {
       g.fillStyle = ink;
     }
   }
-  // 코 (둥근 역삼각형)
-  const nx = X(F.nose[0]), ny = Y(F.nose[1]), nw = L(F.noseW) / 2, nh = L(F.noseH) / 2;
-  g.fillStyle = mode === "sheet" ? ink : "#4a3631";
-  g.beginPath();
-  g.moveTo(nx - nw, ny - nh * 0.7);
-  g.quadraticCurveTo(nx, ny - nh * 1.35, nx + nw, ny - nh * 0.7);
-  g.quadraticCurveTo(nx + nw * 0.9, ny + nh * 0.2, nx, ny + nh);
-  g.quadraticCurveTo(nx - nw * 0.9, ny + nh * 0.2, nx - nw, ny - nh * 0.7);
-  g.fill();
-  // 입 (ω)
-  g.lineWidth = mode === "sheet" ? 5.5 : 6;
-  g.strokeStyle = mode === "sheet" ? ink : "#4a3631";
-  const my = Y(F.mouth.y), mw = L(F.mouth.w), mh = L(F.mouth.h);
-  g.beginPath();
-  g.moveTo(nx, ny + nh);
-  g.lineTo(nx, Y(F.mouth.top) + 2);
-  g.moveTo(nx - mw, my - mh * 0.6);
-  g.quadraticCurveTo(nx - mw * 0.5, my + mh * 1.2, nx, Y(F.mouth.top));
-  g.quadraticCurveTo(nx + mw * 0.5, my + mh * 1.2, nx + mw, my - mh * 0.6);
-  g.stroke();
+  // 코: tri(둥근 역삼각형) · oval · pig(콧구멍 둘, 돼지) · dots(작은 콧구멍) · none
+  const N = F.nose || { type: "none" };
+  const nx = X(N.x || 0), ny = Y(N.y || 0), nw = L(N.w || 0) / 2, nh = L(N.h || 0) / 2;
+  g.fillStyle = soft;
+  if (N.type === "tri" || N.type === "oval") {
+    g.beginPath();
+    if (N.type === "tri") {
+      g.moveTo(nx - nw, ny - nh * 0.7);
+      g.quadraticCurveTo(nx, ny - nh * 1.35, nx + nw, ny - nh * 0.7);
+      g.quadraticCurveTo(nx + nw * 0.9, ny + nh * 0.2, nx, ny + nh);
+      g.quadraticCurveTo(nx - nw * 0.9, ny + nh * 0.2, nx - nw, ny - nh * 0.7);
+    } else g.ellipse(nx, ny, nw, nh, 0, 0, Math.PI * 2);
+    g.fill();
+  } else if (N.type === "pig" || N.type === "dots") {
+    if (!sheet) g.fillStyle = N.type === "pig" ? "#8a4f55" : "#4a3631";
+    for (const s of [-1, 1]) {
+      g.beginPath();
+      g.ellipse(nx + (s * L(N.gap)) / 2, ny, nw, nh, 0, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+  // 입: w(ω, 코 밑 줄 포함) · smile(웃는 선) · none
+  const M = F.mouth || { type: "none" };
+  g.lineWidth = sheet ? 5.5 : 6;
+  g.strokeStyle = soft;
+  if (M.type === "w") {
+    const my = Y(M.y), mw = L(M.w), mh = L(M.h), top = Y(M.top);
+    g.beginPath();
+    g.moveTo(nx, ny + nh);
+    g.lineTo(nx, top + 2);
+    g.moveTo(nx - mw, my - mh * 0.6);
+    g.quadraticCurveTo(nx - mw * 0.5, my + mh * 1.2, nx, top);
+    g.quadraticCurveTo(nx + mw * 0.5, my + mh * 1.2, nx + mw, my - mh * 0.6);
+    g.stroke();
+  } else if (M.type === "smile") {
+    const mx = X(M.x || 0), my = Y(M.y), mw = L(M.w), mh = L(M.h);
+    g.beginPath();
+    g.moveTo(mx - mw, my - mh * 0.5);
+    g.quadraticCurveTo(mx, my + mh * 1.5, mx + mw, my - mh * 0.5);
+    g.stroke();
+  }
   // 발가락 줄 (도안에만)
-  if (mode === "sheet") {
+  if (sheet && F.toes) {
     g.lineWidth = 4.5;
     for (const s of [-1, 1])
       for (const [x, y] of F.toes) {
@@ -360,7 +456,7 @@ export function drawFace(g, spec, mode) {
   }
   g.restore();
 }
-/** 3D 얼굴 덧칠 텍스처 (모든 강아지가 같이 씀) */
+/** 3D 얼굴 덧칠 텍스처 (같은 종이 같이 씀) */
 export function faceCanvas(spec = DOG) {
   const c = document.createElement("canvas");
   c.width = c.height = S;

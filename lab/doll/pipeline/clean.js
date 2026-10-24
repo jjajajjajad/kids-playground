@@ -1,10 +1,15 @@
-/* Tripo 강아지 GLB 정리 → lab/doll/dog.glb
+/* Tripo 인형 GLB 정리 (모든 종 공통) → lab/doll/models/<종>.glb
    1) 같은 자리 정점 합치기(UV 이음매 제거) 2) 방향: 정면 +z, 위 +y, 발바닥 y=0, 키 1
    3) 겹친 삼각형·퇴화 삼각형 제거 4) 약한 Taubin 다듬기(AI 메시의 자잘한 울퉁불퉁)
    5) 노멀 재계산 6) 정점 AO 굽기(반구 광선) → _AO
-   사용: node lab/doll/pipeline/clean.js <입력.glb> lab/doll/dog.glb */
+   사용: node lab/doll/pipeline/clean.js <입력.glb> lab/doll/models/<종>.glb [종이름]
+         (종이름 생략 시 출력 파일 이름) — 모든 종 한 번에: node lab/doll/pipeline/clean-all.js
+   원본 방향: Tripo 출력은 정면 +x, 위 +y (8종 모두 같음 — 6방향 렌더로 확인) */
 const G = require("./glbio");
-const [, , inF, outF] = process.argv;
+const path = require("path");
+const [, , inF, outF, nameArg] = process.argv;
+if (!inF || !outF) { console.error("사용: node clean.js <입력.glb> <출력.glb> [종이름]"); process.exit(1); }
+const NAME = nameArg || path.basename(outF, ".glb");
 const m = G.read(inF);
 const P0 = m.POSITION, I0 = m.index;
 const nv0 = P0.length / 3;
@@ -49,7 +54,13 @@ for (let k = 0; k < SMOOTH; k++) { step(0.45); step(-0.47); }
 let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
 for (let i = 0; i < nv; i++) for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], P[i * 3 + k]); mx[k] = Math.max(mx[k], P[i * 3 + k]); }
 const s = 1 / (mx[1] - mn[1]);
-const cx = (mn[0] + mx[0]) / 2;
+let cx = (mn[0] + mx[0]) / 2;
+if (process.env.CENTER === "head") {
+  // 한쪽으로 휜 꼬리가 있는 종(공룡): 상자 가운데 대신 머리(위쪽 35%) 좌우 가운데로
+  let a = 1e9, b = -1e9;
+  for (let i = 0; i < nv; i++) if (P[i * 3 + 1] > mx[1] - 0.35 * (mx[1] - mn[1])) { a = Math.min(a, P[i * 3]); b = Math.max(b, P[i * 3]); }
+  cx = (a + b) / 2;
+}
 let fz = 0, fn = 0;
 for (let i = 0; i < nv; i++) if (P[i * 3 + 1] < mn[1] + 0.06 / s) { fz += P[i * 3 + 2]; fn++; }
 const cz = fz / fn;
@@ -127,5 +138,18 @@ for (let i = 0; i < nv; i++) {
 }
 console.log("AO", ((Date.now() - t0) / 1000).toFixed(1) + "s");
 const idx = nv < 65536 ? new Uint16Array(tri) : new Uint32Array(tri);
-G.write(outF, { POSITION: [P, "VEC3"], NORMAL: [N, "VEC3"], _AO: [AO, "SCALAR"] }, idx, { source: "Tripo H3.1 dog-tripo.glb", front: "+z", height: 1 });
-console.log("verts", nv, "tris", T, "->", outF);
+G.write(outF, { POSITION: [P, "VEC3"], NORMAL: [N, "VEC3"], _AO: [AO, "SCALAR"] }, idx, { source: "Tripo H3.1 " + path.basename(inF), front: "+z", height: 1 }, NAME);
+// 결함 점검: 열린 가장자리(삼각형 1개만 닿은 변)·3개 이상 닿은 변·떨어진 조각 수
+const ec = new Map();
+for (let t = 0; t < tri.length; t += 3) for (const [a, b] of [[tri[t], tri[t + 1]], [tri[t + 1], tri[t + 2]], [tri[t + 2], tri[t]]]) { const k = a < b ? a * nv + b : b * nv + a; ec.set(k, (ec.get(k) || 0) + 1); }
+let open1 = 0, nonMan = 0;
+for (const c of ec.values()) { if (c === 1) open1++; else if (c > 2) nonMan++; }
+const comp = new Int32Array(nv).fill(-1);
+let nComp = 0;
+for (let i = 0; i < nv; i++) {
+  if (comp[i] >= 0 || !nb[i].size) continue;
+  const st = [i]; comp[i] = nComp;
+  while (st.length) { const v = st.pop(); for (const j of nb[v]) if (comp[j] < 0) { comp[j] = nComp; st.push(j); } }
+  nComp++;
+}
+console.log(NAME, "verts", nv, "tris", T, "열린변", open1, "3겹변", nonMan, "조각", nComp, "폭", ((mx[0] - mn[0]) * s).toFixed(3), "깊이", ((mx[2] - mn[2]) * s).toFixed(3), "->", outF);

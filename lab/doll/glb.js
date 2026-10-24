@@ -1,5 +1,5 @@
 /* 아주 작은 GLB 읽기 (한 메시·한 프리미티브, 압축 없음) — GLTFLoader 를 들이지 않으려고 직접 읽음
-   dog.glb 는 tools/out/doll/clean.js 가 만든 파일: POSITION, NORMAL, _AO(정점 그늘, 0~255) */
+   models/<종>.glb 는 lab/doll/pipeline/clean.js 가 만든 파일: POSITION, NORMAL, _AO(정점 그늘, 0~255) */
 const CT = { 5126: Float32Array, 5125: Uint32Array, 5123: Uint16Array, 5121: Uint8Array };
 const NC = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
 export async function loadGLB(url) {

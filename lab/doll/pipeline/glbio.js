@@ -20,7 +20,7 @@ exports.read = (f) => {
   return out;
 };
 // attrs: {NAME: [TypedArray, "VEC3"]}; index Uint16/32
-exports.write = (f, attrs, index, extras = {}) => {
+exports.write = (f, attrs, index, extras = {}, name = "dog") => {
   const views = [], accessors = [], parts = [];
   let off = 0;
   const add = (arr, type, target, minmax, norm) => {
@@ -47,9 +47,9 @@ exports.write = (f, attrs, index, extras = {}) => {
     at[k] = add(arr, type, 34962, k === "POSITION", arr instanceof Uint8Array);
   }
   const json = {
-    asset: { version: "2.0", generator: "kids-playground lab/doll (tools/out/doll/clean.js)" },
-    scene: 0, scenes: [{ nodes: [0] }], nodes: [{ name: "dog", mesh: 0 }],
-    meshes: [{ name: "dog", primitives: [{ attributes: at, indices: ii, mode: 4 }], extras }],
+    asset: { version: "2.0", generator: "kids-playground lab/doll/pipeline/clean.js" },
+    scene: 0, scenes: [{ nodes: [0] }], nodes: [{ name, mesh: 0 }],
+    meshes: [{ name, primitives: [{ attributes: at, indices: ii, mode: 4 }], extras }],
     accessors, bufferViews: views, buffers: [{ byteLength: off }],
   };
   let js = Buffer.from(JSON.stringify(json));

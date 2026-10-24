@@ -5,12 +5,15 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="robots" content="noindex">
-<title>시험 2 — 칠한 그림이 3D 점토 강아지 인형으로</title>
+<title>시험 3 — 8종 점토 인형 동물원 (고르기 → 색칠 → 3D)</title>
 <link rel="stylesheet" href="doll.css">
 <script type="module" src="main.js"></script>
 </head>
 <body>
-<div id="paintView" class="view">
+<div id="pickView" class="view" hidden>
+  <div id="pickGrid"></div>
+</div>
+<div id="paintView" class="view" hidden>
   <div id="paperBox"></div>
   <div id="tools">
     <div id="pal"></div>
@@ -19,8 +22,9 @@
       <button data-tool="fill" class="tool" aria-label="채우기">🪣</button>
       <button data-tool="erase" class="tool" aria-label="지우개">🧽</button>
       <button id="clearBtn" class="tool" aria-label="모두 지우기">🗑️</button>
+      <button id="pickBtn" class="tool" aria-label="동물 고르기">🐾</button>
     </div>
-    <div class="row" id="exRow"><span class="lbl">예시</span><button data-ex="0">1</button><button data-ex="1">2</button><button data-ex="2">3</button></div>
+    <div class="row" id="exRow"><span class="lbl">예시</span></div>
     <button id="doneBtn" aria-label="완성">✔</button>
   </div>
 </div>

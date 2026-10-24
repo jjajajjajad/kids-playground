@@ -1,4 +1,6 @@
-/* 예시 칠한 그림 3개 (모델 좌표: x 좌우 ±0.39, y 0~1) — 아이가 칠한 것처럼 채우기 + 크레파스 낙서 */
+/* 예시 칠한 그림 — 아이가 칠한 것처럼 채우기 + 크레파스 낙서
+   강아지: 시험 2 의 3개 그대로 (모델 좌표 직접). 다른 종: 부위 이름으로 칠하는 공통 2개 (종마다 색만 다름)
+   examplesFor(종) → [{name, draw(painter)}] */
 const P = {
   pink: "#ff9aa2", peach: "#ffb38a", yellow: "#ffe08a", lime: "#c8e88a", mint: "#8fd6a8", sky: "#8fd3e8",
   blue: "#9bb7ff", lav: "#c3a6ff", tan: "#c99a74", brown: "#8a6a5a", ink: "#5b5b6e", white: "#fdfaf4",
@@ -21,7 +23,7 @@ const heart = (cx, cy, s) => {
 const zig = (x0, x1, y0, y1, n) => Array.from({ length: n + 1 }, (_, i) => [x0 + ((x1 - x0) * i) / n, i % 2 ? y1 : y0]);
 const star = (cx, cy, r) => Array.from({ length: 11 }, (_, i) => { const a = -Math.PI / 2 + (i * Math.PI * 4) / 5; return [cx + Math.cos(a) * r, cy - Math.sin(a) * r]; });
 
-export const EXAMPLES = [
+export const DOG_EXAMPLES = [
   {
     name: "갈색 바둑이",
     draw(p) {
@@ -94,3 +96,103 @@ export const EXAMPLES = [
     },
   },
 ];
+
+/* ---------- 공통 예시 (부위 이름 + 부위 범위 안 비율 좌표로 그림) ---------- */
+const at = (p, part, u, v) => p.at(part, u, v);
+function blush(p, r) {
+  // 두 볼: 눈 아래 바깥쪽
+  const F = p.B.spec.face;
+  for (const [ex, ey] of F.eyes) {
+    const x = ex * 1.25, y = ey - 0.055;
+    p.crayon(wobble(circle(x, y, 0.022, 0.016, 10), r), P.pink, 24);
+  }
+}
+function bellyHeart(p, r, col) {
+  const c = at(p, "body", 0.5, 0.45);
+  if (!c) return;
+  p.crayon(wobble(heart(c[0], c[1], 0.06), r, 0.004), col, 16);
+  p.crayon(wobble(heart(c[0], c[1], 0.035), r, 0.004), col, 20);
+}
+function bodyStripes(p, r, cols) {
+  const b = p.B.box.body;
+  if (!b) return;
+  const n = cols.length;
+  for (let i = 0; i < n; i++) {
+    const y = b.y0 + ((b.y1 - b.y0) * (i + 1)) / (n + 1), w = (b.x1 - b.x0) * 0.42;
+    p.crayon(wobble([[b.cx - w, y], [b.cx - w / 3, y + 0.01], [b.cx + w / 3, y - 0.008], [b.cx + w, y + 0.004]], r), cols[i], 22);
+  }
+}
+function headDots(p, r, col) {
+  for (const [u, v] of [[0.3, 0.86], [0.5, 0.92], [0.7, 0.85], [0.4, 0.78], [0.62, 0.77]]) {
+    const c = at(p, "head", u, v);
+    if (c) p.crayon(wobble(circle(c[0], c[1], 0.016, 0.014, 8), r, 0.003), col, 18);
+  }
+}
+/* 종별 색 (natural: 그 동물다운 색, bright: 알록달록) — 없는 부위는 건너뜀 */
+const COLORS = {
+  cat: {
+    natural: { head: P.yellow, earR: P.peach, earL: P.peach, body: P.yellow, armR: P.peach, armL: P.peach, legR: P.white, legL: P.white },
+    bright: { head: P.lav, earR: P.pink, earL: P.pink, body: P.sky, armR: P.mint, armL: P.yellow, legR: P.blue, legL: P.lime },
+    stripe: P.peach,
+  },
+  bear: {
+    natural: { head: P.tan, earR: P.brown, earL: P.brown, snout: P.yellow, body: P.tan, armR: P.brown, armL: P.brown, legR: P.brown, legL: P.brown },
+    bright: { head: P.peach, earR: P.pink, earL: P.pink, snout: P.white, body: P.lime, armR: P.yellow, armL: P.yellow, legR: P.sky, legL: P.sky },
+    stripe: P.white,
+  },
+  rabbit: {
+    natural: { head: P.white, earR: P.pink, earL: P.pink, body: P.pink, armR: P.white, armL: P.white, legR: P.lav, legL: P.lav },
+    bright: { head: P.mint, earR: P.yellow, earL: P.lav, body: P.peach, armR: P.sky, armL: P.pink, legR: P.lime, legL: P.lime },
+    stripe: P.lav,
+  },
+  pig: {
+    natural: { head: P.pink, earR: P.peach, earL: P.peach, snout: P.peach, body: P.pink, armR: P.peach, armL: P.peach, legR: P.pink, legL: P.pink },
+    bright: { head: P.yellow, earR: P.blue, earL: P.blue, snout: P.pink, body: P.mint, armR: P.lav, armL: P.lav, legR: P.peach, legL: P.peach },
+    stripe: P.white,
+  },
+  lion: {
+    natural: { head: P.yellow, mane: P.peach, earR: P.tan, earL: P.tan, body: P.yellow, armR: P.yellow, armL: P.yellow, legR: P.tan, legL: P.tan },
+    bright: { head: P.yellow, mane: P.pink, earR: P.lav, earL: P.lav, body: P.sky, armR: P.mint, armL: P.mint, legR: P.blue, legL: P.blue },
+    stripe: P.peach,
+  },
+  elephant: {
+    natural: { head: P.sky, earR: P.pink, earL: P.pink, snout: P.sky, body: P.sky, armR: P.blue, armL: P.blue, legR: P.blue, legL: P.blue },
+    bright: { head: P.lav, earR: P.yellow, earL: P.mint, snout: P.pink, body: P.peach, armR: P.lime, armL: P.lime, legR: P.sky, legL: P.sky },
+    stripe: P.white,
+  },
+  dino: {
+    natural: { head: P.lime, spike: P.yellow, tail: P.mint, body: P.lime, armR: P.mint, armL: P.mint, legR: P.mint, legL: P.mint },
+    bright: { head: P.sky, spike: P.pink, tail: P.lav, body: P.yellow, armR: P.peach, armL: P.peach, legR: P.blue, legL: P.blue },
+    stripe: P.yellow,
+  },
+};
+function generic(id) {
+  const C = COLORS[id];
+  return [
+    {
+      name: "그 동물 색",
+      draw(p) {
+        const r = rng(id.length * 13 + 5);
+        for (const [k, c] of Object.entries(C.natural)) p.fillPart(k, c);
+        blush(p, r);
+        bellyHeart(p, r, P.pink);
+        if (id === "cat" || id === "lion") headDots(p, r, C.stripe);
+      },
+    },
+    {
+      name: "알록달록",
+      draw(p) {
+        const r = rng(id.length * 29 + 3);
+        for (const [k, c] of Object.entries(C.bright)) p.fillPart(k, c);
+        bodyStripes(p, r, [P.white, C.stripe, P.pink]);
+        headDots(p, r, P.blue);
+        const e = at(p, "earR", 0.5, 0.55) || at(p, "mane", 0.85, 0.6) || at(p, "spike", 0.5, 0.5);
+        if (e) p.crayon(wobble(star(e[0], e[1], 0.04), r, 0.004), P.yellow, 12);
+      },
+    },
+  ];
+}
+export function examplesFor(id) {
+  return id === "dog" ? DOG_EXAMPLES : generic(id);
+}
+export const EXAMPLES = DOG_EXAMPLES; // 예전 이름
