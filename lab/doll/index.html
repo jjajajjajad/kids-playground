@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="robots" content="noindex">
+<title>시험 2 — 칠한 그림이 3D 점토 강아지 인형으로</title>
+<link rel="stylesheet" href="doll.css">
+<script type="module" src="main.js"></script>
+</head>
+<body>
+<div id="paintView" class="view">
+  <div id="paperBox"></div>
+  <div id="tools">
+    <div id="pal"></div>
+    <div class="row" id="toolRow">
+      <button data-tool="crayon" class="tool on" aria-label="크레파스">🖍️</button>
+      <button data-tool="fill" class="tool" aria-label="채우기">🪣</button>
+      <button data-tool="erase" class="tool" aria-label="지우개">🧽</button>
+      <button id="clearBtn" class="tool" aria-label="모두 지우기">🗑️</button>
+    </div>
+    <div class="row" id="exRow"><span class="lbl">예시</span><button data-ex="0">1</button><button data-ex="1">2</button><button data-ex="2">3</button></div>
+    <button id="doneBtn" aria-label="완성">✔</button>
+  </div>
+</div>
+<div id="stageView" class="view" hidden>
+  <div id="stage3d"></div>
+  <div id="bar3d">
+    <button id="backBtn" aria-label="다시 칠하기">✏️</button>
+    <div class="seg" id="bgGrp"><button data-bg="A">A</button><button data-bg="B">B</button><button data-bg="C">C</button><button data-bg="D">D</button><button data-bg="E">E</button><button data-bg="F">F</button></div>
+    <div class="seg" id="nGrp"><button data-n="1">1</button><button data-n="6">6</button><button data-n="12">12</button></div>
+    <div class="seg" id="viewGrp"><button data-v="walk">걷기</button><button data-v="front">앞</button><button data-v="q">3/4</button><button data-v="side">옆</button><button data-v="back">뒤</button></div>
+  </div>
+  <pre id="hud"></pre>
+</div>
+<div id="msg">불러오는 중…</div>
+</body>
+</html>
