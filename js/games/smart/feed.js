@@ -78,7 +78,7 @@ KP.game({
       ctx.ani.appendChild(el);
       return el;
     });
-    const who = ani.map((a) => a[1]).join("랑 ");
+    const who = ani.map((a, i) => (i < ani.length - 1 ? U.josa(a[1], "이랑/랑") : a[1])).join(" "); // 곰이랑 토끼
     const ask = nAni === 1 ? U.josa(ani[0][1], "이/가") + " 배고파요! 맛있는 걸 끌어서 입에 쏙 넣어 줘요!" : U.josa(who, "이/가") + " 배고파요! 좋아하는 걸 하나씩 먹여 줘요!";
     ctx.say("🍽️ " + ask);
     KP.audio.tone(160, { to: 90, dur: 0.35, type: "triangle", vol: 0.18, when: 0.2 });

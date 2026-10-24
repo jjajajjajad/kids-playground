@@ -82,7 +82,7 @@ KP.game({
         ctx.say("다시 잘 보세요! 👀");
         await ctx.wait(1500);
       } else {
-        ctx.say(seq.length === 1 ? "잘 보세요! 누가 노래할까요? 👀" : "잘 보세요! " + seq.length + "번 노래해요 👀");
+        ctx.say(seq.length === 1 ? "잘 보세요! 누가 노래할까요? 👀" : "잘 보세요! " + seq.length + "번 노래해요 👀", seq.length === 1 ? true : "잘 보세요! " + KP.u.cntWord(seq.length) + " 번 노래해요!");
         await ctx.wait(seq.length === 1 ? 1600 : 1200);
       }
       if (g !== gen) return;
@@ -124,7 +124,7 @@ KP.game({
         ctx.round = (ctx.round || 0) + 1;
         await ctx.wait(400);
         const big = ctx.round % 4 === 0;
-        const ok = await ctx.win({ big, msg: big ? "기억력 대장!" : seq.length + "개 다 기억했어요!" });
+        const ok = await ctx.win({ big, msg: big ? "기억력 대장!" : seq.length + "개 다 기억했어요!", say: big ? "" : KP.u.cntWord(seq.length) + " 개 다 기억했어요!" });
         if (ok) newRound();
         return;
       }

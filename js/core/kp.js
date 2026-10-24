@@ -84,6 +84,11 @@ window.KP = window.KP || {};
     if (n === 100) return "백";
     return NT[Math.floor(n / 10)] + NO[n % 10];
   };
+  /** 개수 세는 말(관형): 3 → "세" ("세 개", "세 번") — 1~10, 그 밖은 숫자 그대로 */
+  const CNT = ["", "한", "두", "세", "네", "다섯", "여섯", "일곱", "여덟", "아홉", "열"];
+  U.cntWord = (n) => CNT[n] || String(n);
+  /** 차례 말: 1 → "첫 번째", 2 → "두 번째" (1~10) */
+  U.ordWord = (n) => (n === 1 ? "첫" : CNT[n] || n) + " 번째";
   /** 게임 전용 CSS 넣기 (같은 id 는 한 번만) */
   KP.css = (id, text) => {
     if (document.getElementById("css-" + id)) return;

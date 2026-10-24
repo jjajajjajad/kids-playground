@@ -335,7 +335,7 @@
               gate.unlockFor(min, "quiz");
               KP.audio.sfx("sparkle");
               KP.confetti && KP.confetti(140);
-              KP.voice.say("문이 열렸어요! " + min + "분 동안 놀 수 있어요!");
+              KP.voice.say("문이 열렸어요! " + (Number.isInteger(+min) && +min > 0 && +min <= 100 ? U.numSino(+min) + " " : min) + "분 동안 놀 수 있어요!"); // 숫자는 글자로(자연 음성 조각으로 이어 말하기)
               close();
               KP.renderHome();
               then && then();

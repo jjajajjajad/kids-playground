@@ -316,7 +316,7 @@
       /* --- 결과 --- */
       /**
        * 성공 처리: 축하 연출 + 난이도/스티커 진행
-       * @param {{big?:boolean, msg?:string, quiet?:boolean}} o
+       * @param {{big?:boolean, msg?:string, say?:string, quiet?:boolean}} o  (say: 화면 글자와 다르게 말할 문장)
        * @returns Promise (연출이 끝나면 resolve)
        */
       win(o = {}) {

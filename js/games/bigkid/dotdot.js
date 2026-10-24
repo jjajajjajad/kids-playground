@@ -271,7 +271,7 @@ KP.game({
       const now = performance.now();
       if (now - lastTalk > 3000) {
         lastTalk = now;
-        KP.voice.say(st.next === 0 ? "1번 점부터 시작해요!" : "다음은 " + (st.next + 1) + "번이에요!");
+        KP.voice.say(st.next === 0 ? "1번 점부터 시작해요!" : "다음은 " + KP.u.numNative(st.next + 1) + "!");
       }
     });
     cv.addEventListener("pointermove", (e) => {
@@ -292,7 +292,7 @@ KP.game({
     cv.addEventListener("pointercancel", up);
 
     function setHint() {
-      ctx.hint(() => spot, st.next === 0 ? "1번 점부터 차례로 이어 봐요!" : (st.next + 1) + "번 점을 찾아봐요!");
+      ctx.hint(() => spot, st.next === 0 ? "1번 점부터 차례로 이어 봐요!" : KP.u.numNative(st.next + 1) + "! 찾아 봐요!");
     }
     async function finish() {
       st.rubber = null;
@@ -350,6 +350,6 @@ KP.game({
     if (!ctx.bag[lv] || !ctx.bag[lv].length) ctx.bag[lv] = U.shuffle([...ctx.SHAPES[lv - 1]]);
     const shape = ctx.bag[lv].shift();
     ctx.ddBuild(shape, lv);
-    ctx.say("1번부터 " + shape.pts.length + "번까지 차례로 이어요. 무슨 그림이 나올까?");
+    ctx.say("1번부터 " + shape.pts.length + "번까지 차례로 이어요. 무슨 그림이 나올까?", "하나부터 " + KP.u.numNative(shape.pts.length) + "까지 차례로 이어요. 무슨 그림이 나올까?");
   },
 });

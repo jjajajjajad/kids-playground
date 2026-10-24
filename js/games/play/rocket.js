@@ -133,7 +133,7 @@ KP.game({
     ctx.nums.classList.remove("off");
     ctx.nums.innerHTML = "";
     scene.querySelectorAll(".rk-puff").forEach((p) => p.remove());
-    ctx.say(down ? "카운트다운! 10부터 거꾸로 눌러요! 🚀" : "1부터 " + seq.length + "까지 차례대로 눌러서 로켓에 힘을 모아요! 🚀");
+    ctx.say(down ? "카운트다운! 10부터 거꾸로 눌러요! 🚀" : "1부터 " + seq.length + "까지 차례대로 눌러서 로켓에 힘을 모아요! 🚀", down ? true : "하나부터 " + KP.u.numNative(seq.length) + "까지 차례대로 눌러서 로켓에 힘을 모아요!");
     const say = (n) => (down ? ctx.SINO[n] : U.NAT[n]);
 
     const btns = seq.map((n, i) => {

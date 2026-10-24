@@ -335,7 +335,7 @@ KP.game({
         st.cur++;
         st.inks = [];
         A.sfx("good");
-        KP.voice.say("좋아요! 이번엔 " + (st.cur + 1) + "번 깃발에서 시작!");
+        KP.voice.say("좋아요! 이번엔 " + KP.u.ordWord(st.cur + 1) + " 깃발에서 시작!");
         setHint();
         return;
       }
@@ -354,7 +354,7 @@ KP.game({
       await ctx.wait(2700);
       if (!ctx._active) return;
       const big = ctx.round % 4 === 0;
-      const ok = await ctx.win({ big, msg: big ? "{부름} 그리기 대장!" : sh.say ? sh.name + " 완성!" : "잘 따라 그렸어요!" });
+      const ok = await ctx.win({ big, msg: big ? "{부름} 그리기 대장!" : sh.say ? sh.name + " 완성!" : "잘 따라 그렸어요!", say: !big && sh.say ? sh.say + " 완성!" : "" }); // 말은 "기역 완성!"(화면은 "ㄱ 완성!")
       if (ok) ctx.def.next(ctx);
     }
     function setHint() {
@@ -402,8 +402,8 @@ KP.game({
     const shape = ctx.bag[lv].shift();
     ctx.trBuild(shape, lv);
     if (shape.say) {
-      ctx.say("🚩 깃발에서 시작해서 " + shape.name + " 따라 그려요!", false);
-      ctx.tell("깃발에서 시작해서 " + U.josa(shape.say, "을/를") + " 따라 그려요!");
+      // 화면은 "ㄱ 따라 그려요!", 말(말풍선 다시 듣기·힌트 포함)은 "기역을 따라 그려요!"
+      ctx.say("🚩 깃발에서 시작해서 " + shape.name + " 따라 그려요!", "깃발에서 시작해서 " + U.josa(shape.say, "을/를") + " 따라 그려요!");
     } else ctx.say("🚩 깃발에서 시작해서 " + U.josa(shape.name, "을/를") + " 따라 그려요!");
   },
 });

@@ -152,7 +152,7 @@ KP.game({
     const hint = () => {
       const s = slots.find((x) => !x.classList.contains("filled"));
       const c = cards[+s.dataset.i];
-      ctx.hint(() => c, (+s.dataset.i + 1) + "번에 올 그림은 뭘까? 끌어서 놓아요!");
+      ctx.hint(() => c, KP.u.ordWord(+s.dataset.i + 1) + " 칸에 올 그림은 뭘까? 끌어서 놓아요!");
     };
     hint();
     const finish = async () => {

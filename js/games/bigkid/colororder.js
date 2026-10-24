@@ -243,7 +243,7 @@ KP.game({
         R.appendChild(d);
       });
     } else R.appendChild(U.el("span", "q", "?"));
-    const hello = first ? "안녕! 나는 " + an[1] + "예요. " : "";
+    const hello = first ? "안녕! 나는 " + U.josa(an[1], "이에요/예요") + ". " : "";
     ctx.say(an[0] + " " + hello + "이런 색 물감 주세요! " + U.josa(name, "이에요/예요") + ".");
     this.hintFirst(ctx);
   },

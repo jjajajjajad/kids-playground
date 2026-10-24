@@ -151,7 +151,8 @@
   let winCount = KP.store.get("winCount", 0);
 
   /**
-   * @param {{msg?:string, big?:boolean, levelUp?:boolean, ctx?:object, quiet?:boolean, sticker?:boolean}} o
+   * @param {{msg?:string, say?:string, big?:boolean, levelUp?:boolean, ctx?:object, quiet?:boolean, sticker?:boolean}} o
+   *   say: 화면 글자(msg)와 다르게 말할 문장 (예: msg "10개 팡팡!", say "십! 팡팡!") — 없으면 msg 를 그대로 읽음
    */
   /* 축하 도중 화면을 나가면 남은 연출·소리 예약을 모두 취소 */
   let ctimers = [],
@@ -190,7 +191,8 @@
     if (o.big) later(() => KP.confetti(140, innerWidth * 0.25, innerHeight * 0.3), 350);
     if (o.big) later(() => KP.confetti(140, innerWidth * 0.75, innerHeight * 0.3), 650);
     KP.audio.jingle();
-    const praise = o.quiet ? null : KP.voice.say(raw.replace(/\p{Extended_Pictographic}|️/gu, ""));
+    const spoken = o.say || raw; // 말은 따로 정할 수 있음(숫자는 글자로 읽기 등)
+    const praise = o.quiet ? null : KP.voice.say(spoken.replace(/\p{Extended_Pictographic}|️/gu, ""));
     const base = o.big ? 2100 : 1350;
 
     winCount = (+KP.store.get("winCount", 0) || 0) + 1; // 매번 저장소에서 (설정에서 초기화한 뒤 옛 값이 되살아나지 않게)

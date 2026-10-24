@@ -46,10 +46,9 @@ KP.game({
     ctx.round = 0;
     this.next(ctx);
   },
-  /** 숫자 + 조사 ("3이에요", "2예요") */
+  /** 말할 숫자 + 조사 ("삼이에요", "이예요") — 말로만 쓰므로 숫자도 글자로(자연 음성 조각으로 이어 말하기) */
   nj(ctx, n, pair) {
-    const s = ctx.SINO[n];
-    return n + KP.u.josa(s, pair).slice(s.length);
+    return KP.u.josa(ctx.SINO[n], pair);
   },
   place(W, H, n, B) {
     const U = KP.u;
@@ -96,7 +95,7 @@ KP.game({
     const cols = U.shuffle([...ctx.COLORS]);
     let step = 1,
       busy = false;
-    ctx.say("🎈 1부터 " + n + "까지 차례로 눌러요!");
+    ctx.say("🎈 1부터 " + n + "까지 차례로 눌러요!", "일부터 " + KP.u.numSino(n) + "까지 차례로 눌러요!");
     const balloons = pts.map((p, i) => {
       const v = i + 1;
       const b = U.el("button", "dtB", '<span class="dtBody">' + v + "</span>");
@@ -136,7 +135,7 @@ KP.game({
           KP.voice.say("풍선이 날아가요! 와아!");
           await ctx.wait(1500);
           const big = ctx.round % 5 === 0;
-          const ok = await ctx.win({ big, msg: big ? "{부름} 숫자 박사!" : "1부터 " + n + "까지 다 했어요!" });
+          const ok = await ctx.win({ big, msg: big ? "{부름} 숫자 박사!" : "1부터 " + n + "까지 다 했어요!", say: big ? "" : "일부터 " + KP.u.numSino(n) + "까지 다 했어요!" });
           if (ok) self.next(ctx);
         } else hint();
       } else {

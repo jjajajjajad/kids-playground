@@ -299,12 +299,12 @@ KP.game({
         '<span class="dxBlob" style="' + (has ? "background:" + x.hex : "") + '">' + (has ? "" : "?") + "</span><b>" + (has ? x.n : "???") + "</b><small>" + (has ? has : "아직 몰라요") + "</small>";
       c.addEventListener("click", () => {
         U.replay(c, has ? "jump" : "wrong");
-        KP.voice.say(has ? x.n + "! " + has + "에 찾았어요." : "아직 못 찾은 색이에요. 섞어서 찾아봐요!");
+        KP.voice.say(has ? x.n + "! 찾았어요!" : "아직 못 찾은 색이에요. 섞어서 찾아봐요!"); // 날짜는 화면에만
       });
       grid.appendChild(c);
     });
     dx.append(head, grid);
     dx.classList.add("on");
-    KP.voice.say("색깔 도감이에요! " + all.length + "가지 중에 " + got + "가지를 찾았어요.");
+    KP.voice.say("색깔 도감이에요!"); // 몇 가지 찾았는지는 화면에만(숫자 문장은 자연 음성이 없음)
   },
 });

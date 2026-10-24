@@ -351,7 +351,7 @@ KP.game({
       strip.scrollLeft = strip.scrollWidth;
       if (!ctx._active) return;
       A.sfx("sticker");
-      KP.voice.say("우리 캐릭터 " + urls.length + "개가 숨을 준비를 했어요! 찾아볼까요?");
+      KP.voice.say("우리 캐릭터들이 숨을 준비를 했어요! 찾아볼까요?");
       ctx.after(1200, () => newRound());
     });
     ctx.tap(bNew, () => {

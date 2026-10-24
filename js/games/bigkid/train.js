@@ -138,7 +138,8 @@ KP.game({
             const cnt = Array.from({ length: want - 1 }, (_, i) => U.NAT[i + 1]).join(", ");
             ctx.miss(u, want === 1 ? "맨 처음은 1이에요. 1을 찾아볼까?" : cnt + ", 그다음은 뭘까? 다시 찾아봐요!");
           } else {
-            ctx.miss(u, want - 1 + "하고 " + (want + 1 <= total ? want + 1 + " 사이" : "그다음") + "에는 어떤 숫자가 올까?");
+            // 말로만 나감 → 숫자는 글자로 끊어 말하기(자연 음성 조각): "하나! 셋! 그 사이에는 어떤 숫자가 올까?"
+            ctx.miss(u, U.NAT[want - 1] + "! " + (want + 1 <= total ? U.NAT[want + 1] + "! 그 사이" : "그다음") + "에는 어떤 숫자가 올까?");
           }
         },
         onDrop: (u) => {

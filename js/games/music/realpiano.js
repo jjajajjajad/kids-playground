@@ -419,9 +419,10 @@
       }
       ctx.deafFor = deafFor;
       /** 앱이 말할 때는 듣지 않기 */
-      ctx.talk = (text, bubble = true) => {
+      ctx.talk = (text, bubble = true, spoken) => {
+        // spoken: 말풍선 글자와 다르게 말할 문장(없으면 글자 그대로)
         deafFor(60000);
-        const p = bubble ? ctx.say(text) : KP.voice.say(text);
+        const p = bubble ? ctx.say(text, spoken || true) : KP.voice.say(spoken || text);
         return Promise.resolve(p).then(() => {
           M.deafUntil = performance.now() + 450;
         });
@@ -654,9 +655,9 @@
       else if (ctx.mode === "echo") this.echoHit(ctx, i);
     },
     /** 축하(축하 소리를 아이 소리로 듣지 않게 그동안 귀 닫기) */
-    async celebrate(ctx, big, msg) {
+    async celebrate(ctx, big, msg, say) {
       ctx.deafFor(60000);
-      const ok = await ctx.win({ big, msg });
+      const ok = await ctx.win({ big, msg, say });
       ctx.mic.deafUntil = performance.now() + 500;
       return ok;
     },
@@ -687,7 +688,7 @@
       });
       ctx.big.textContent = KEYS[i][1];
       ctx.big.style.color = KEYS[i][2];
-      ctx.sub.innerHTML = (i < 5 ? KP.E(["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"][i]) + " " + FINGER[i] + "으로 " : "") + "<b style='color:" + KEYS[i][2] + "'>" + KEYS[i][1] + "</b>";
+      ctx.sub.innerHTML = (i < 5 ? KP.E(["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"][i]) + " " + KP.u.josa(FINGER[i], "으로/로") + " " : "") + "<b style='color:" + KEYS[i][2] + "'>" + KEYS[i][1] + "</b>";
       this.idle(ctx);
     },
     /** 한참 못 치면 손가락을 다시 알려 줌 (아이 소리를 듣는 동안 앱이 계속 떠들지 않게 12초 간격) */
@@ -699,7 +700,7 @@
         if (tok !== ctx.tok || ctx.pos !== pos || ctx.mode !== mode || ctx.busy) return;
         if (mode === "echo") return this.echoPlay(ctx); // 다시 들려준 뒤 echoPlay 가 다음 기다림을 잡음
         const i = ctx.seq[ctx.pos];
-        ctx.talk((i < 5 ? FINGER[i] + "으로 " : "") + KEYS[i][1] + "를 쳐요!", false);
+        ctx.talk((i < 5 ? KP.u.josa(FINGER[i], "으로/로") + " " : "") + KP.u.josa(KEYS[i][1], "을/를") + " 쳐요!", false);
         this.idle(ctx);
       });
     },
@@ -794,7 +795,7 @@
           if (g.waitT > 11 && !ctx.busy) {
             g.waitT = -4;
             const k = next.k;
-            ctx.talk((k < 5 ? FINGER[k] + "으로 " : "") + KEYS[k][1] + "를 쳐요!", false);
+            ctx.talk((k < 5 ? KP.u.josa(FINGER[k], "으로/로") + " " : "") + KP.u.josa(KEYS[k][1], "을/를") + " 쳐요!", false);
             KP.u.replay(ctx.keyEls[k], "bump");
           }
         }
@@ -893,7 +894,7 @@
       if (tok !== ctx.tok) return;
       if (!(await this.playSong(ctx, g.list, 0.42))) return;
       ctx.round = (ctx.round || 0) + 1;
-      const ok = await this.celebrate(ctx, ctx.round % 2 === 0, s.name + " 완성! 별 " + g.score + "개");
+      const ok = await this.celebrate(ctx, ctx.round % 2 === 0, s.name + " 완성! 별 " + g.score + "개", s.name + " 완성!");
       if (!ok || tok !== ctx.tok) return;
       this.gameStart(ctx, false);
     },
@@ -935,7 +936,7 @@
       const tok = ctx.tok,
         rt = (ctx.eRound = (ctx.eRound || 0) + 1); // 판 표시 (지난 판의 늦은 echoPlay 막기)
       ctx.busy = true; // 말하는 동안 건반 무시
-      ctx.talk(n === 1 ? "잘 듣고 똑같이 쳐 봐요!" : "잘 듣고 " + n + "개를 똑같이 쳐 봐요!").then(() => tok === ctx.tok && rt === ctx.eRound && this.echoPlay(ctx));
+      ctx.talk(n === 1 ? "잘 듣고 똑같이 쳐 봐요!" : "잘 듣고 " + n + "개를 똑같이 쳐 봐요!", true, n === 1 ? "" : "잘 듣고 " + KP.u.cntWord(n) + " 개를 똑같이 쳐 봐요!").then(() => tok === ctx.tok && rt === ctx.eRound && this.echoPlay(ctx));
     },
     async echoPlay(ctx) {
       const tok = ctx.tok;

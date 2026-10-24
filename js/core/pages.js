@@ -21,7 +21,7 @@
       const have = KP.stickers.have();
       const n = Object.keys(have).length,
         all = KP.stickers.LIST.length;
-      ctx.say(n ? "스티커를 " + n + "개 모았어요! 눌러 보세요." : "놀이를 하면 스티커를 받을 수 있어요!");
+      ctx.say(n ? "스티커를 " + n + "개 모았어요! 눌러 보세요." : "놀이를 하면 스티커를 받을 수 있어요!", n ? "스티커를 많이 모았어요! 눌러 보세요." : true);
       ctx.head.innerHTML = '<div class="stkBar"><i style="width:' + (n / all) * 100 + '%"></i></div><b>' + n + " / " + all + "</b>";
       ctx.grid.innerHTML = "";
       const last = KP.store.get("lastSticker", "");
@@ -60,7 +60,7 @@
     async start(ctx) {
       ctx.viewer.classList.remove("show");
       const items = (await KP.db.all("art")).filter((x) => x.kind !== "zoo").reverse();
-      ctx.say(items.length ? "내가 만든 작품이 " + items.length + "개 있어요!" : "그림 그리기에서 저장하면 여기에 모여요!");
+      ctx.say(items.length ? "내가 만든 작품이 " + items.length + "개 있어요!" : "그림 그리기에서 저장하면 여기에 모여요!", items.length ? "내가 만든 작품이 있어요!" : true);
       ctx.grid.innerHTML = "";
       if (!items.length) {
         const go = U.btn(KP.E("🎨") + " 그림 그리러 가기", "btn big");

@@ -106,7 +106,7 @@ KP.game({
       if (ctx.count % 10 === 0) {
         ctx.ms++;
         const big = ctx.ms % 3 === 0;
-        ctx.after(b.pet ? 1200 : 300, () => ctx.win({ big, msg: big ? "{부름} 비눗방울 대장!" : ctx.count + "개 팡팡!" }));
+        ctx.after(b.pet ? 1200 : 300, () => ctx.win({ big, msg: big ? "{부름} 비눗방울 대장!" : ctx.count + "개 팡팡!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 팡팡!" : "팡팡!" }));
       }
     };
 

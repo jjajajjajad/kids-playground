@@ -391,13 +391,13 @@ KP.game({
         c.addEventListener("pointerdown", () => {
           U.replay(c, "jump");
           A.note(A.SCALE[i % 8], { inst: "bell", dur: 0.4, vol: 0.2 });
-          KP.voice.say((f.d ? f.d + "에 핀 " : "") + f.n + "!");
+          KP.voice.say(f.n + "!"); // 날짜는 화면에만(숫자 날짜는 자연 음성이 없음)
         });
         grid.appendChild(c);
       });
       view.append(top, grid);
       view.classList.add("show");
-      KP.voice.say(g.length ? "내 정원에 꽃이 " + g.length + "송이 피었어요!" : "아직 핀 꽃이 없어요. 꽃을 피워 봐요!");
+      KP.voice.say(g.length ? "내 정원에 꽃이 피었어요!" : "아직 핀 꽃이 없어요. 꽃을 피워 봐요!"); // 송이 수는 화면 위에
       back.addEventListener("click", () => {
         A.sfx("back");
         view.classList.remove("show");
