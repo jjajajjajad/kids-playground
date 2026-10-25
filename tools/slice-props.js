@@ -3,6 +3,7 @@
 
    소품 시트(흰 바탕에 소품이 격자로 놓인 그림) → 소품마다 투명 PNG
      node tools/slice-props.js props <시트.png> <열x행> <이름1,이름2,…> <출력 폴더> [가장 긴 변=256]
+     흰 소품(바탕과 색이 비슷)은 이름 끝에 ! → 바탕과 아주 비슷한 칸만 지움 (예: paper!)
      예) node tools/slice-props.js props tools/out/play-clay/hosp-tools.png 5x2 steth,thermo,band,oint,tweez,ice,tissue,teddy,tea,blanket assets/play-clay/hospital
    배경 그림 → 정해진 크기 JPEG
      node tools/slice-props.js bg <그림.png> <출력.jpg> [폭=1600] [높이=900] [품질=0.82]
@@ -57,7 +58,7 @@ const writeData = (file, url) => {
       const list = names.split(",");
       if (list.length !== cols * rows) throw new Error("이름 수(" + list.length + ")가 칸 수(" + cols * rows + ")와 달라요");
       const res = await page.evaluate(
-        async ({ src, cols, rows, size }) => {
+        async ({ src, cols, rows, size, strict }) => {
           const im = new Image();
           im.src = src;
           await im.decode();
@@ -65,6 +66,7 @@ const writeData = (file, url) => {
           const out = [];
           for (let r = 0; r < rows; r++)
             for (let c = 0; c < cols; c++) {
+              const tight = strict[r * cols + c]; // 흰 소품(휴지·흰 손잡이): 바탕과 아주 비슷한 칸만 지움
               const x0 = Math.round((c * IW) / cols), y0 = Math.round((r * IH) / rows);
               const w = Math.round(((c + 1) * IW) / cols) - x0, h = Math.round(((r + 1) * IH) / rows) - y0;
               const cv = document.createElement("canvas");
@@ -93,7 +95,7 @@ const writeData = (file, url) => {
               // 테두리에서 번지기: 바탕과 비슷(diff<22) 또는 옅은 그림자
               const bgm = new Uint8Array(n), q = new Int32Array(n);
               let qh = 0, qt = 0;
-              const pass = (i) => diff[i] < 22 || shade[i] & 1;
+              const pass = tight ? (i) => diff[i] < 7 : (i) => diff[i] < 22 || shade[i] & 1;
               for (let i = 0; i < n; i++) {
                 const x = i % w, y = (i / w) | 0;
                 if ((x === 0 || y === 0 || x === w - 1 || y === h - 1) && pass(i)) {
@@ -144,7 +146,7 @@ const writeData = (file, url) => {
               const A0 = new Uint8Array(n), A = new Float32Array(n);
               for (let i = 0; i < n; i++) A0[i] = !bgm[i] && keep[lab[i]] ? 1 : 0;
               // 바깥 둘레의 밝고 색 없는 칸(바닥 그림자 테두리)은 3겹까지 벗김 — 안쪽 흰 부분은 그대로
-              for (let it = 0; it < 3; it++) {
+              for (let it = 0; it < (tight ? 0 : 3); it++) {
                 const rm = [];
                 for (let i = 0; i < n; i++) {
                   if (!A0[i] || !(shade[i] & 2)) continue;
@@ -199,11 +201,11 @@ const writeData = (file, url) => {
             }
           return out;
         },
-        { src: dataUrl(src), cols, rows, size: +size }
+        { src: dataUrl(src), cols, rows, size: +size, strict: list.map((x) => x.endsWith("!")) }
       );
       res.forEach((r, i) => {
         console.log(list[i], r.w + "×" + r.h, "바탕", r.bgCol.join(","), "조각", r.parts);
-        writeData(path.resolve(outDir, list[i] + ".png"), r.url);
+        writeData(path.resolve(outDir, list[i].replace(/!$/, "") + ".png"), r.url);
       });
     }
   } finally {

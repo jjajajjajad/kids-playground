@@ -460,13 +460,14 @@
         sk.grid[cell(x, y)] = 1;
       } else wetAt(x, y, rr);
     };
-    /** 진흙 덩이 그리기 (틀 0~1 좌표·r 은 틀 너비 비율) */
+    /** 진흙 덩이 그리기 (틀 0~1 좌표·r 은 틀 너비 비율, paint 를 주면 그걸로 그림) */
     S.skinMud = (list) => {
       const sk = S.skin;
       if (!sk) return;
       for (const s of list) {
         const x = s.x * sk.w, y = s.y * sk.h, r = s.r * sk.w * 0.5;
-        clipStamp("dirt", x, y, r * 2.2, (gg) => care.drawSplat(gg, x, y, r, s.seed, s.col));
+        // s.paint(g, x, y, r, 표면): 진흙 대신 직접 그리기 (양치: 이 모양의 누런 막·치석) — 없으면 진흙 철퍽
+        clipStamp("dirt", x, y, r * 2.2, (gg) => (s.paint ? s.paint(gg, x, y, r, sk) : care.drawSplat(gg, x, y, r, s.seed, s.col)));
       }
     };
     /** 점검용: 층의 그 자리(틀 0~1) 진하기 0~255 */
