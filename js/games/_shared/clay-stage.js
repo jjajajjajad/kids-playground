@@ -28,12 +28,17 @@
   }
 
   /** 그림에 맞춘 카메라 (화면 비율이 다르면 그림을 꽉 채워 잘라 보여 줌) — vw·vh: 보기 크기(CSS px)
-      def: { img:[폭,높이](기본 1600×900), vh 지평선 높이(그림 비율), near 맨 아래 줄 세상 1단위 크기, fov, focus[u,v], focusP(세로 화면), poly(걷는 곳, 선택) } */
+      def: { img:[폭,높이](기본 1600×900), vh 지평선 높이(그림 비율), near 맨 아래 줄 세상 1단위 크기, fov, focus[u,v], focusP(세로 화면), poly(걷는 곳, 선택),
+           zoom·zoomP(가로·세로 화면에서 더 크게 자르기, 선택) }
+      무대 def 에는 front(앞가림 투명 그림) 또는 frontMask(배경 그림을 이 알파 마스크 모양만 앞에 한 번 더 — 작은 PNG) */
   function bgCam(def, vw, vh) {
     const IW = (def.img && def.img[0]) || 1600, IH = (def.img && def.img[1]) || 900, IA = IW / IH;
     const t = Math.tan((def.fov * Math.PI) / 360);
     const focus = (vw / vh < 0.8 && def.focusP) || def.focus || [0.5, 0.5];
-    const k = Math.max(vw / IW, vh / IH), fw = IW * k, fh = IH * k;
+    // zoom(가로 화면)·zoomP(세로 화면): 그림을 더 크게 잘라 보여 줌(주인공을 크게) — 없으면 1 (예전과 같음)
+    const zd = vw / vh >= 1 ? def.zoom : def.zoomP;
+    const zm = (typeof zd === "function" ? zd(vw, vh) : zd) || 1; // 함수면 화면 비율로 정함
+    const k = Math.max(vw / IW, vh / IH) * zm, fw = IW * k, fh = IH * k;
     const ox = Math.max(0, Math.min(fw - vw, focus[0] * fw - vw / 2));
     const oy = Math.max(0, Math.min(fh - vh, focus[1] * fh - vh / 2));
     const vis = { u0: ox / fw, u1: (ox + vw) / fw, v0: oy / fh, v1: (oy + vh) / fh };
@@ -185,6 +190,13 @@
     host.append(this.bgEl);
     this.bgEl.style.backgroundImage = 'url("' + def.file + '")';
     if (def.front) this.frontEl.style.backgroundImage = 'url("' + def.front + '")';
+    else if (def.frontMask) {
+      // 앞가림 = 배경 그림 + 알파 마스크(작은 PNG) — 욕조 앞벽처럼 모양이 단순하면 큰 투명 PNG 대신
+      const fe = this.frontEl.style;
+      fe.backgroundImage = 'url("' + def.file + '")';
+      fe.maskImage = fe.webkitMaskImage = 'url("' + def.frontMask + '")';
+      fe.maskRepeat = fe.webkitMaskRepeat = "no-repeat";
+    }
     this.updaters = []; // 매 장면 부를 것 (인형 움직임 등): fn(dt, t)
     this.time = 0;
     this.w = this.h = 0;
@@ -275,6 +287,11 @@
     for (const el of [this.bgEl, this.frontEl]) {
       el.style.backgroundSize = cam.view.fw + "px " + cam.view.fh + "px";
       el.style.backgroundPosition = -cam.view.ox + "px " + -cam.view.oy + "px";
+    }
+    if (this.def.frontMask) {
+      const fe = this.frontEl.style;
+      fe.maskSize = fe.webkitMaskSize = cam.view.fw + "px " + cam.view.fh + "px";
+      fe.maskPosition = fe.webkitMaskPosition = -cam.view.ox + "px " + -cam.view.oy + "px";
     }
     if (this.gl) {
       const r = this.renderer;

@@ -3,7 +3,14 @@
        점 좌표는 '틀(frame)' 기준 0~1 이라 화면 크기가 바뀌어도 제자리에 다시 그려짐 (wipe.js 의 픽셀 지우기와 다름).
        점마다 문지른 거리(life)를 깎아서, 한 번 톡 누르기가 아니라 '문지르기'를 해야 지워짐.
        구역(zone)마다 85% 지우면 그 구역 완료 → 남은 얼룩은 스르륵.
+       표면 마스크(선택, 목욕·손 씻기): S.setSkin(모양 캔버스) → 모양(알파) 안에서만 진흙·거품·물기가 생기고, 문지른 자리만 지워짐.
+         층 3장(dirt·foam·wet)은 작은 캔버스(긴 변 300px 안팎)로 틀(frame)에 맞춰 늘려 그림 — 아이 원본 그림은 건드리지 않음.
+         S.mode: foam(거품 남기고 진흙 지움) · unfoam(거품 씻김 + 물기 + 흘러내리는 거품) · dry(물기 닦음) · wet(물기만)
+         skinFade(층)·skinFill(층)·skinAt(층,x,y)(점검용) · opt.el 을 주면 그 캔버스에 그림(예: 욕조 앞벽보다 뒤)
+       care.shapeOf(그림, 폭, 높이) → 모양 캔버스 · care.ptsIn(모양, n, 깎기) → 모양 안 격자점(틀 0~1)
+       o.pass: 문지르기가 꺼져 있을 때 판 캔버스가 터치를 막지 않음 (장면 속 물건을 직접 누르는 놀이)
    - routine(ctx, o) : 도구 줄(큰 버튼)로 순서대로 하기. mode 1 안내(정답 반짝) / 2 다음 할 일 고르기 / 3 혼자서.
+       도구에 el 을 주면 버튼을 만들지 않고 그 요소(장면 속 수도꼭지·비누 펌프 …)를 누르게 함
    - pop(host, x, y, 글자) : 둥실 떠오르는 짧은 글자 ("치카", "끙!", "퉤!")
    이 파일은 놀이를 등록하지 않음. 각 놀이의 setup 안에서만 쓰므로 파일 순서와 상관없음. */
 "use strict";
@@ -18,7 +25,7 @@
       .kc-tool{position:absolute;left:0;top:0;width:var(--ts,90px);height:var(--ts,90px);margin:calc(var(--ts,90px)*-.5) 0 0 calc(var(--ts,90px)*-.5);pointer-events:none;z-index:7;display:none;
         filter:drop-shadow(0 6px 6px rgba(0,0,0,.25))}
       .kc-tool.on{display:block}
-      .kc-tool .e{width:100%;height:100%;display:block}
+      .kc-tool .e,.kc-tool img{width:100%;height:100%;display:block;object-fit:contain}
       .kc-tool .kc-towel{width:100%;height:80%;margin-top:10%}
       .kc-bar{flex:0 0 auto;display:flex;justify-content:center;align-items:center;gap:clamp(6px,1.6vw,16px);padding:0 10px 10px;min-height:calc(clamp(64px,11vmin,100px) + 10px)}
       .kc-tb{position:relative;width:clamp(64px,11vmin,100px);height:clamp(64px,11vmin,100px);border-radius:22px;background:#fff;box-shadow:0 5px 0 rgba(0,0,0,.13);
@@ -96,6 +103,111 @@
     return out;
   };
 
+  const mkCv = (w, h) => {
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(w));
+    c.height = Math.max(1, Math.round(h || w));
+    return c;
+  };
+  /** 모양 캔버스: 그림(img·canvas)을 w×h 에 꽉 채워 그린 알파 (반투명 가장자리는 또렷하게) */
+  care.shapeOf = function (img, w, h) {
+    const c = mkCv(w, h), g = c.getContext("2d", { willReadFrequently: true });
+    g.drawImage(img, 0, 0, c.width, c.height);
+    care.hardAlpha(c);
+    return c;
+  };
+  /** 알파를 또렷하게 (그림자·반투명 가장자리 빼기) — 흰색 + 알파(0/255, 경계 1칸만 중간) */
+  care.hardAlpha = function (c, cut = 150) {
+    const g = c.getContext("2d", { willReadFrequently: true });
+    const id = g.getImageData(0, 0, c.width, c.height), d = id.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const a = d[i + 3];
+      d[i] = d[i + 1] = d[i + 2] = 255;
+      d[i + 3] = a >= cut ? 255 : a > cut - 40 ? (a - cut + 40) * 6 : 0;
+    }
+    g.putImageData(id, 0, 0);
+    return c;
+  };
+  /** 모양 안 격자점 (틀 0~1) — erode: 가장자리에서 이만큼(틀 너비 비율) 안쪽만 */
+  care.ptsIn = function (shape, n = 10, erode = 0) {
+    const w = shape.width, h = shape.height;
+    const d = shape.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, w, h).data;
+    const on = (u, v) => {
+      const x = Math.floor(u * w), y = Math.floor(v * h);
+      return x >= 0 && y >= 0 && x < w && y < h && d[(y * w + x) * 4 + 3] > 128;
+    };
+    const e = erode, ev = (erode * w) / h, out = [];
+    const ny = Math.max(2, Math.round((n * h) / w));
+    for (let j = 0; j < ny; j++)
+      for (let i = 0; i < n; i++) {
+        const u = (i + 0.5) / n, v = (j + 0.5) / ny;
+        if (on(u, v) && (!e || (on(u - e, v) && on(u + e, v) && on(u, v - ev) && on(u, v + ev)))) out.push({ x: u, y: v });
+      }
+    return out;
+  };
+  // 붓 모양 (한 번만): 부드러운 동그라미 · 거품 한 덩이
+  let BRUSH = null,
+    WETB = null,
+    FOAMS = null;
+  const WETC = "95,160,225"; // 물기 색 (반투명으로 겹침)
+  const wetBrush = () => {
+    if (WETB) return WETB;
+    const c = mkCv(64), g = c.getContext("2d"), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    // 물방울 하나: 가운데 맑고 가장자리 푸른 테
+    gr.addColorStop(0, "rgba(255,255,255,.3)");
+    gr.addColorStop(0.66, "rgba(190,225,250,.4)");
+    gr.addColorStop(0.86, "rgba(" + WETC + ",.7)");
+    gr.addColorStop(1, "rgba(" + WETC + ",0)");
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 64, 64);
+    return (WETB = c);
+  };
+  const brush = () => {
+    if (BRUSH) return BRUSH;
+    const c = mkCv(64), g = c.getContext("2d"), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, "rgba(0,0,0,1)");
+    gr.addColorStop(0.55, "rgba(0,0,0,.9)");
+    gr.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 64, 64);
+    return (BRUSH = c);
+  };
+  /** 거품 덩이 그림 3가지 (작은 비눗방울 여러 개, 점토처럼 몽글) */
+  const foams = () => {
+    if (FOAMS) return FOAMS;
+    FOAMS = [];
+    for (let k = 0; k < 3; k++) {
+      const S = 72, c = mkCv(S), g = c.getContext("2d");
+      let a = 7 + k * 13;
+      const rnd = () => ((a = (a * 9301 + 49297) % 233280) / 233280);
+      const bs = [];
+      for (let i = 0; i < 9; i++) {
+        const ang = rnd() * 6.28, dd = rnd() * S * 0.26;
+        bs.push([S / 2 + Math.cos(ang) * dd, S / 2 + Math.sin(ang) * dd, S * (0.09 + rnd() * 0.11)]);
+      }
+      bs.sort((p, q) => p[1] - q[1]);
+      for (const [x, y, r] of bs) {
+        const gr = g.createRadialGradient(x - r * 0.3, y - r * 0.35, r * 0.1, x, y, r);
+        gr.addColorStop(0, "#ffffff");
+        gr.addColorStop(0.7, "#f4f8ff");
+        gr.addColorStop(1, "#d6e6f7");
+        g.fillStyle = gr;
+        g.beginPath();
+        g.arc(x, y, r, 0, 6.283);
+        g.fill();
+        g.strokeStyle = "rgba(150,190,230,.55)";
+        g.lineWidth = Math.max(1, r * 0.1);
+        g.stroke();
+        g.fillStyle = "rgba(255,255,255,.95)";
+        g.beginPath();
+        g.arc(x - r * 0.38, y - r * 0.38, r * 0.2, 0, 6.283);
+        g.fill();
+      }
+      FOAMS.push(c);
+    }
+    return FOAMS;
+  };
+
   /* ---------------- 문지르기 판 ---------------- */
   care.surface = function (ctx, host, o = {}) {
     const cv = U.el("canvas", "kc-cv"),
@@ -120,6 +232,8 @@
       onRub: null,
       lastRub: 0,
       rubbed: 0, // 이번 판 문지른 거리(px)
+      maxParts: 240, // 반짝이·물방울 최대 개수
+      skin: null, // 표면 마스크 (setSkin)
     };
     let W = 0,
       H = 0,
@@ -206,6 +320,7 @@
     /** 반짝이·물방울 (화면 px 좌표) */
     S.burst = (x, y, n, kind = "star", spread = 1) => {
       const cols = kind === "drop" ? ["#7cc8ff", "#a8dcff", "#5fb4f5", "#ffffff"] : ["#ffd54a", "#ff9ed2", "#8fe0ff", "#ffffff", "#b6ff9c"];
+      n = Math.min(n, S.maxParts - S.parts.length); // 저가 기기: 한꺼번에 너무 많이 그리지 않게
       for (let i = 0; i < n; i++) {
         const a = Math.random() * 6.28,
           sp = (60 + Math.random() * 220) * spread;
@@ -213,6 +328,205 @@
       }
     };
     const toPx = (F, s) => [F.x + s.x * F.w, F.y + s.y * F.h];
+
+    /* ---------- 표면 마스크 (문지른 자리만) ---------- */
+    const GN = 16; // 거품이 있는 곳 대략 기록 (흘러내리는 거품용)
+    /** 모양(shape 캔버스 = 틀 전체)으로 새 표면. opt.el: 그릴 캔버스(없으면 판 캔버스) */
+    S.setSkin = (shape, opt = {}) => {
+      const w = shape.width, h = shape.height;
+      // 층은 그래픽 가속 캔버스로 (매 장면 화면에 늘려 그림 — 저가 기기에서 읽기 전용 캔버스면 매번 다시 올려야 해서 느림)
+      const L = {};
+      for (const k of ["dirt", "foam", "wet"]) {
+        const c = mkCv(w, h);
+        L[k] = { c, g: c.getContext("2d"), a: 1, fade: false };
+      }
+      const sk = { shape, w, h, L, el: opt.el || null, eg: opt.el ? opt.el.getContext("2d") : null, grid: new Uint8Array(GN * GN), drips: [], acc: 0 };
+      S.skin = sk;
+      return sk;
+    };
+    S.dropSkin = () => {
+      const sk = S.skin;
+      S.skin = null;
+      if (sk && sk.eg) sk.eg.clearRect(0, 0, sk.el.width, sk.el.height);
+    };
+    /** 층 하나를 스르륵 지움 */
+    S.skinFade = (k) => {
+      if (S.skin) S.skin.L[k].fade = true;
+    };
+    /** 모양 안에 붓으로 찍기 (진흙·거품·물기) — 찍은 뒤 모양 밖은 잘라 냄 (그 근처만) */
+    const clipStamp = (k, x, y, r, draw) => {
+      const sk = S.skin, l = sk.L[k], g = l.g;
+      l.fade = false;
+      l.a = 1;
+      g.save();
+      g.beginPath();
+      g.rect(x - r - 2, y - r - 2, r * 2 + 4, r * 2 + 4);
+      g.clip();
+      draw(g);
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.globalAlpha = 1;
+      g.globalCompositeOperation = "destination-in";
+      g.drawImage(sk.shape, 0, 0);
+      g.restore();
+    };
+    const erase = (k, x, y, r, a) => {
+      const g = S.skin.L[k].g;
+      g.save();
+      g.globalCompositeOperation = "destination-out";
+      g.globalAlpha = a;
+      g.drawImage(brush(), x - r, y - r, r * 2, r * 2);
+      g.restore();
+    };
+    const foamAt = (x, y, r) =>
+      clipStamp("foam", x, y, r, (g) => {
+        const fs = foams(), f = fs[(Math.random() * fs.length) | 0];
+        g.translate(x, y);
+        g.rotate(Math.random() * 6.28);
+        g.drawImage(f, -r, -r, r * 2, r * 2);
+      });
+    /** 물기 = 맺힌 물방울 몇 개 (색을 덮지 않아 아이 그림 색이 그대로 보임) */
+    const wetAt = (x, y, r, n = 1) =>
+      clipStamp("wet", x, y, r, (g) => {
+        for (let i = 0; i < n; i++) {
+          const a = Math.random() * 6.28, d = Math.random() * r * 0.75, s = r * (0.09 + Math.random() * 0.12);
+          const px = x + Math.cos(a) * d, py = y + Math.sin(a) * d;
+          g.globalAlpha = 0.85;
+          g.drawImage(wetBrush(), px - s, py - s * 1.15, s * 2, s * 2.3);
+          g.globalAlpha = 1;
+          g.fillStyle = "rgba(255,255,255,.95)";
+          g.beginPath();
+          g.arc(px - s * 0.3, py - s * 0.45, s * 0.28, 0, 6.283);
+          g.fill();
+        }
+      });
+    const cell = (x, y) => {
+      const sk = S.skin, i = Math.min(GN - 1, Math.max(0, Math.floor((x / sk.w) * GN))), j = Math.min(GN - 1, Math.max(0, Math.floor((y / sk.h) * GN)));
+      return j * GN + i;
+    };
+    /** 문지른 길(화면 px)을 따라 표면에 찍기 */
+    function skinRub(x1, y1, x2, y2, R, F) {
+      const sk = S.skin, m = S.mode, kx = sk.w / F.w;
+      const ax = (x1 - F.x) * kx, ay = (y1 - F.y) * kx, bx = (x2 - F.x) * kx, by = (y2 - F.y) * kx;
+      const r = R * kx, step = Math.max(1, r * 0.3), len = Math.hypot(bx - ax, by - ay);
+      sk.acc += len;
+      if (len === 0) sk.acc = step; // 처음 닿은 곳도 한 번
+      while (sk.acc >= step) {
+        sk.acc -= step;
+        const t = len ? 1 - sk.acc / len : 1;
+        const x = ax + (bx - ax) * Math.max(0, Math.min(1, t)), y = ay + (by - ay) * Math.max(0, Math.min(1, t));
+        if (m.foam) {
+          erase("dirt", x, y, r * 1.05, 0.2);
+          const a = Math.random() * 6.28, d = Math.random() * r * 0.5;
+          foamAt(x + Math.cos(a) * d, y + Math.sin(a) * d, r * (0.55 + Math.random() * 0.3));
+          sk.grid[cell(x, y)] = 1;
+        }
+        if (m.unfoam) {
+          erase("foam", x, y, r * 1.1, 0.45);
+          if (Math.random() < 0.4) wetAt(x, y, r);
+          const c = cell(x, y);
+          if (sk.grid[c] && sk.drips.length < 36) {
+            sk.grid[c] = 0;
+            for (let i = 0; i < 2; i++)
+              sk.drips.push({ x: (x + U.randf(-r, r) * 0.6) / sk.w, y: (y + U.randf(-r, r) * 0.4) / sk.h, vy: U.randf(0.05, 0.12), r: U.randf(0.012, 0.024), life: 1 });
+          }
+        }
+        if (m.wet && !m.unfoam && Math.random() < 0.4) wetAt(x, y, r);
+        if (m.dry) erase("wet", x, y, r * 1.15, 0.35);
+      }
+    }
+    /** 층을 모양 전체에 채움 (예: 물 틀면 손 전체가 촉촉) — k="wet" 은 반투명 물빛, "foam" 은 거품 덩이를 고르게 */
+    S.skinFill = (k, dense = 1) => {
+      const sk = S.skin;
+      if (!sk) return;
+      if (k === "foam") {
+        const r = sk.w * 0.08;
+        for (const p of care.ptsIn(sk.shape, Math.round(9 * dense), 0)) {
+          foamAt(p.x * sk.w + U.randf(-r, r) * 0.3, p.y * sk.h + U.randf(-r, r) * 0.3, r * U.randf(0.9, 1.3));
+          sk.grid[cell(p.x * sk.w, p.y * sk.h)] = 1;
+        }
+      } else {
+        // 물기: 모양 곳곳에 맺힌 물방울
+        const r = sk.w * 0.07;
+        for (const p of care.ptsIn(sk.shape, 12, 0)) if (Math.random() < 0.5 * dense) wetAt(p.x * sk.w, p.y * sk.h, r, 1);
+      }
+    };
+    /** 한 군데 찍기 (틀 0~1 좌표·r 은 틀 너비 비율) — k: "foam" | "wet" */
+    S.skinDab = (k, u, v, r) => {
+      const sk = S.skin;
+      if (!sk) return;
+      const x = u * sk.w, y = v * sk.h, rr = r * sk.w;
+      if (k === "foam") {
+        foamAt(x, y, rr);
+        sk.grid[cell(x, y)] = 1;
+      } else wetAt(x, y, rr);
+    };
+    /** 진흙 덩이 그리기 (틀 0~1 좌표·r 은 틀 너비 비율) */
+    S.skinMud = (list) => {
+      const sk = S.skin;
+      if (!sk) return;
+      for (const s of list) {
+        const x = s.x * sk.w, y = s.y * sk.h, r = s.r * sk.w * 0.5;
+        clipStamp("dirt", x, y, r * 2.2, (gg) => care.drawSplat(gg, x, y, r, s.seed, s.col));
+      }
+    };
+    /** 점검용: 층의 그 자리(틀 0~1) 진하기 0~255 */
+    S.skinAt = (k, u, v) => {
+      const sk = S.skin;
+      if (!sk) return 0;
+      const x = Math.min(sk.w - 1, Math.max(0, Math.floor(u * sk.w))), y = Math.min(sk.h - 1, Math.max(0, Math.floor(v * sk.h)));
+      return Math.round(sk.L[k].g.getImageData(x, y, 1, 1).data[3] * sk.L[k].a);
+    };
+    /** 표면 그리기 (매 장면) */
+    function drawSkin(g0, dt, F) {
+      const sk = S.skin;
+      let g = g0;
+      if (sk.el) {
+        const el = sk.el, w = el.clientWidth, h = el.clientHeight;
+        if (el.width !== Math.round(w * dpr) || el.height !== Math.round(h * dpr)) {
+          el.width = Math.max(1, Math.round(w * dpr));
+          el.height = Math.max(1, Math.round(h * dpr));
+        }
+        g = sk.eg;
+        g.setTransform(dpr, 0, 0, dpr, 0, 0);
+        g.clearRect(0, 0, w, h);
+      }
+      for (const k of ["dirt", "wet", "foam"]) {
+        const l = sk.L[k];
+        if (l.fade) {
+          l.a -= dt * 1.8;
+          if (l.a <= 0) {
+            l.a = 1;
+            l.fade = false;
+            l.g.clearRect(0, 0, sk.w, sk.h);
+            if (k === "foam") sk.grid.fill(0);
+          }
+        }
+        g.globalAlpha = l.a;
+        g.drawImage(l.c, F.x, F.y, F.w, F.h);
+      }
+      // 흘러내리는 거품
+      g.globalAlpha = 1;
+      for (let i = sk.drips.length - 1; i >= 0; i--) {
+        const d = sk.drips[i];
+        d.life -= dt * 0.9;
+        d.y += d.vy * dt;
+        d.vy += 0.25 * dt;
+        if (d.life <= 0) {
+          sk.drips.splice(i, 1);
+          continue;
+        }
+        const x = F.x + d.x * F.w, y = F.y + d.y * F.h, r = d.r * F.w;
+        g.globalAlpha = Math.min(1, d.life * 1.6);
+        g.fillStyle = "rgba(255,255,255,.92)";
+        g.beginPath();
+        g.ellipse(x, y, r, r * 1.25, 0, 0, 6.283);
+        g.fill();
+        g.strokeStyle = "rgba(150,200,240,.7)";
+        g.lineWidth = Math.max(1, r * 0.15);
+        g.stroke();
+      }
+      g.globalAlpha = 1;
+    }
 
     function rubSeg(x1, y1, x2, y2) {
       const F = S.frame();
@@ -249,8 +563,9 @@
           const [px, py] = toPx(F, b);
           if (hit(px, py, 0)) b.fade = true;
         }
-      // 거품 남기기 (지나간 거리만큼)
-      if (S.mode.foam) {
+      if (S.skin) skinRub(x1, y1, x2, y2, R, F);
+      // 거품 남기기 (지나간 거리만큼) — 표면 마스크가 있으면 거품은 표면에 (skinRub)
+      else if (S.mode.foam) {
         S._fa = (S._fa || 0) + len;
         while (S._fa > R * 0.28) {
           S._fa -= R * 0.28;
@@ -328,6 +643,8 @@
         g.setTransform(dpr, 0, 0, dpr, 0, 0);
         g.clearRect(0, 0, W, H);
         const F = S.frame();
+        if (o.pass) cv.style.pointerEvents = S.on || pid !== null ? "" : "none";
+        if (S.skin) drawSkin(g, dt, F);
         // 얼룩
         for (const s of S.spots) {
           if (s.fade) {
@@ -417,6 +734,44 @@
     g.ellipse(x, y, r, r * 0.7, s.seed * 3, 0, 6.283);
     g.fill();
   };
+  /** 진흙 철퍽 (표면 마스크용): 울퉁불퉁 덩이 + 튄 방울 + 흘러내린 줄기 + 젖은 반짝임 */
+  care.drawSplat = (g, x, y, r, seed = 0.5, col = "#8a5a2b") => {
+    let a = Math.floor(seed * 233280) || 1;
+    const rnd = () => ((a = (a * 9301 + 49297) % 233280) / 233280);
+    const gr = g.createRadialGradient(x - r * 0.2, y - r * 0.2, r * 0.1, x, y, r * 1.1);
+    gr.addColorStop(0, "#5e3b1c");
+    gr.addColorStop(0.6, col);
+    gr.addColorStop(1, "rgba(150,105,60,.85)");
+    g.fillStyle = gr;
+    g.beginPath();
+    const n = 9, rot = rnd() * 6.28;
+    for (let i = 0; i <= n; i++) {
+      const an = rot + (i / n) * 6.283, rr = r * (0.72 + rnd() * 0.42);
+      const px = x + Math.cos(an) * rr, py = y + Math.sin(an) * rr * 0.85;
+      if (!i) g.moveTo(px, py);
+      else g.quadraticCurveTo(x + Math.cos(an - 0.35) * rr * 1.15, y + Math.sin(an - 0.35) * rr * 0.98, px, py);
+    }
+    g.closePath();
+    g.fill();
+    // 흘러내린 줄기
+    g.beginPath();
+    const dx = x + (rnd() - 0.5) * r * 0.8;
+    g.ellipse(dx, y + r * 0.85, r * 0.2, r * (0.45 + rnd() * 0.3), 0, 0, 6.283);
+    g.fill();
+    // 튄 방울
+    g.fillStyle = col;
+    for (let i = 0; i < 4; i++) {
+      const an = rnd() * 6.28, d = r * (1.25 + rnd() * 0.45);
+      g.beginPath();
+      g.arc(x + Math.cos(an) * d, y + Math.sin(an) * d * 0.85, r * (0.1 + rnd() * 0.12), 0, 6.283);
+      g.fill();
+    }
+    // 젖은 흙 반짝임
+    g.fillStyle = "rgba(255,240,220,.28)";
+    g.beginPath();
+    g.ellipse(x - r * 0.3, y - r * 0.35, r * 0.28, r * 0.14, -0.5, 0, 6.283);
+    g.fill();
+  };
   care.drawMud = (g, x, y, r, life, t, s) => {
     g.globalAlpha = 0.9 * Math.min(1, life * 1.4);
     g.fillStyle = s.col || "#8a5a2b";
@@ -447,12 +802,26 @@
       waiting = null,
       busy = true,
       wrongN = 0;
+    // 장면 속 물건(el)은 판마다 같은 요소 → 지난 판에 단 듣기를 떼고 새로 닮
+    if (bar._kcAc) bar._kcAc.abort();
+    const ac = (bar._kcAc = window.AbortController ? new AbortController() : null);
     for (const tl of order) {
-      const b = U.el("button", "kc-tb", tl.html + (tl.label ? "<span>" + tl.label + "</span>" : ""));
+      const b = tl.el || U.el("button", "kc-tb", tl.html + (tl.label ? "<span>" + tl.label + "</span>" : ""));
       b.dataset.tool = tl.id;
-      bar.appendChild(b);
+      if (!tl.el) bar.appendChild(b);
       btns[tl.id] = b;
-      ctx.tap(b, () => {
+      const onTap = (fn) =>
+        tl.el
+          ? b.addEventListener(
+              "click",
+              (e) => {
+                KP.audio.unlock();
+                fn(e);
+              },
+              ac ? { signal: ac.signal } : false
+            )
+          : ctx.tap(b, fn);
+      onTap(() => {
         if (busy || !alive()) return;
         if (b.dataset.tool === want) {
           const r = waiting;
@@ -468,6 +837,7 @@
         }
       });
     }
+    for (const tl of o.tools) if (tl.el) tl.el.classList.remove("glow");
     let cur = null;
     const setRight = (id) => {
       for (const k in btns) {
