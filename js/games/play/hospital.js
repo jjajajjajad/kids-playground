@@ -5,7 +5,7 @@
    2단계: 도구 3개 중 알맞은 것 고르기
    3단계: 두 가지를 순서대로 (예: 가시 빼고 → 반창고) — 보기 4개, 토닥토닥·꼭 안아 주기 포함
    다 나으면 웃으며 폴짝·하트·손 흔들며 나가요.
-   공용: js/games/_shared/clay-stage.js(무대) · doll-actor.js(인형 배우) · play-feedback.js(반응) */
+   공용: js/games/_shared/clay-stage.js(무대) · doll-actor.js(인형 배우) · doll-follow.js(부위 따라가기) · play-feedback.js(반응) */
 "use strict";
 KP.game({
   id: "hospital",
@@ -302,25 +302,11 @@ KP.game({
     const enter = act.jumpTo(seat[0], seat[1], 0.8, 0.5);
 
     /* ---------- 화면에 붙는 것들 (부위를 따라감) ---------- */
-    // 부위를 따라가는 것은 바깥 껍데기(hpT)만 옮김 — 안쪽 그림은 마음대로 움직이는 효과(회전·톡 튀어나오기)를 써도 됨
-    const trk = [];
-    const follow = (el, nm, dx = 0, dy = 0, rot = 0) => {
-      const w = U.el("span", "hpT");
-      w.appendChild(el);
-      ov.appendChild(w);
-      const o = { el: w, inner: el, nm, dx, dy, rot };
-      trk.push(o);
-      return o;
-    };
-    const unfollow = (el) => {
-      const i = trk.findIndex((o) => o.inner === el || o.el === el);
-      if (i >= 0) trk.splice(i, 1);
-    };
-    const kill = (el) => {
-      const o = trk.find((q) => q.inner === el);
-      unfollow(el);
-      (o ? o.el : el).remove();
-    };
+    // 부위를 따라가는 것은 바깥 껍데기(hpT)만 옮김 — 안쪽 그림은 마음대로 움직이는 효과(회전·톡 튀어나오기)를 써도 됨 (공용 doll-follow.js)
+    const fw = KP.dollFollow(ov, act, { cls: "hpT" });
+    const follow = (el, nm, dx = 0, dy = 0, rot = 0) => fw.add(el, nm, dx, dy, rot);
+    const unfollow = (el) => fw.remove(el);
+    const kill = (el) => fw.kill(el);
     const zone = U.el("div", "hpZone");
     ov.appendChild(zone);
     const spotEl = U.el("div", "hpSpot");
@@ -334,10 +320,8 @@ KP.game({
       dh = Math.max(60, b.h);
       ov.style.setProperty("--dh", dh + "px");
       zone.style.cssText = `left:${b.l - b.w * 0.08}px;top:${b.t - b.h * 0.04}px;width:${b.w * 1.16}px;height:${b.h * 1.06}px`;
-      for (const o of trk) {
-        const p = act.anchor(o.nm);
-        o.el.style.transform = `translate(${p.x + o.dx * dh}px,${p.y + o.dy * dh}px) translate(-50%,-50%)` + (o.rot ? ` rotate(${o.rot}deg)` : "");
-      }
+      fw.dh = dh;
+      for (const o of fw.list) fw.place(o);
       // 말풍선: 머리 오른쪽 위 (방 안으로)
       const hp = act.anchor("forehead"), bw = bub.offsetWidth, bh = bub.offsetHeight;
       const bx = U.clamp(hp.x + dh * 0.18, 6, st.w - bw - 6), by = U.clamp(hp.y - dh * 0.42 - bh, 6, st.h - bh - 6);
@@ -409,7 +393,7 @@ KP.game({
     };
     const showSpot = (k, on) => {
       if (on) {
-        const o = trk.find((q) => q.inner === spotEl);
+        const o = fw.find(spotEl);
         if (!o) follow(spotEl, spotOf(k));
         else o.nm = spotOf(k);
         spotEl.classList.add("show");

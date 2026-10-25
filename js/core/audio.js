@@ -102,6 +102,10 @@
     }
     return scene;
   }
+  /** 소리를 내보낼 곳 (샘플 재생기 등 바깥 모듈용) — 효과음은 '화면 묶음'이라 화면을 나가면 같이 끊김 */
+  A.dest = function (b) {
+    return A.ctx() ? out(b) : null;
+  };
   A.newScene = function () {
     if (!ctx || !scene) return;
     const old = scene;

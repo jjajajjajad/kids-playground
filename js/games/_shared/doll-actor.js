@@ -6,6 +6,7 @@
        act.place(x,z,키) · act.walkTo(x,z) · act.mood("sick"|"pain"|"happy"|"sleep"|"normal") · act.sick(0~1)
        act.react(부위) · act.poke(부위,세기) · act.bump(부위,세기) · act.glow(부위,색,세기) · act.happy() · act.hop() · act.wave(초) · act.hug(켜기)
        act.anchor(부위) → 화면 {x,y} (도구가 닿는 판정·스티커 따라가기) · act.box() · act.hit(x,y) → 가장 가까운 부위
+       act.play = {fR,fL,uR,uL,nod,tilt,sway,bob} — 놀이가 매 장면 정하는 덧붙임 자세(악기 연주 등, 0 이면 그대로)
      부위: forehead·headTop·eyeR·eyeL·cheekR·cheekL·nose·mouth·chest·belly·handR·handL·armR·armL·kneeR·kneeL
    - 3D 가 안 되면 create2D: 정면 그림(thumb) 한 장으로 같은 이름의 함수들(움직임은 CSS)
 ===================================================================== */
@@ -65,18 +66,19 @@
       uTailBlur: { value: k.spec.swing ? 0 : k.spec.merge && k.spec.merge.tail ? 5 : 2 },
       // 놀이용 움직임 (0 이면 동물원과 똑같음)
       uArmFwd: { value: 0 }, uArmR: { value: 0 }, uHeadDn: { value: 0 },
+      uArmB: { value: new THREE.Vector2() }, uArmL: { value: 0 }, // 팔 하나씩: 앞으로(오른쪽, 왼쪽) · 왼팔 들기 (연주 동작)
       uPk0: { value: new THREE.Vector4(0, 0, 0, 1) }, uPk0K: { value: 0 }, uPk1: { value: new THREE.Vector4(0, 0, 0, 1) }, uPk1K: { value: 0 },
       uGlow: { value: new THREE.Vector4(0, 0, 0, 1) }, uGlowC: { value: new THREE.Vector4(0, 0, 0, 0) },
     };
     m.userData.U = Uf;
-    m.customProgramCacheKey = () => "doll9";
+    m.customProgramCacheKey = () => "doll10";
     m.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, Uf);
       sh.vertexShader = sh.vertexShader
         .replace(
           "#include <common>",
           `#include <common>
-uniform float uPh, uAmp, uEar, uTail, uArmUp, uLegH, uArmSw, uArmFwd, uArmR, uHeadDn, uPk0K, uPk1K; uniform vec2 uHead, uLeg;
+uniform float uPh, uAmp, uEar, uTail, uArmUp, uLegH, uArmSw, uArmFwd, uArmR, uArmL, uHeadDn, uPk0K, uPk1K; uniform vec2 uHead, uLeg, uArmB;
 uniform vec3 uArmP, uEarP, uHeadP, uTailP, uEarAx, uTailAx; uniform vec4 uPk0, uPk1;
 attribute vec4 aWA; attribute vec4 aWB; attribute float aAO; attribute float aFront;
 varying float vAO; varying float vFront; varying float vSide; varying float vBack; varying float vTail; varying vec3 vP0;
@@ -95,8 +97,8 @@ float pkF(vec3 p, vec4 c){float d=1.0-smoothstep(0.0, c.w, distance(p, c.xyz)); 
 {
   float s = sin(uPh);
   vec3 sh = uArmP, shL = sh * vec3(-1.,1.,1.);
-  mat3 RaR = rZ(uArmUp + uArmR) * rX(-s * uArmSw * uAmp - uArmFwd);
-  mat3 RaL = rZ(-uArmUp) * rX(s * uArmSw * uAmp - uArmFwd);
+  mat3 RaR = rZ(uArmUp + uArmR) * rX(-s * uArmSw * uAmp - uArmFwd - uArmB.x);
+  mat3 RaL = rZ(-uArmUp - uArmL) * rX(s * uArmSw * uAmp - uArmFwd - uArmB.y);
   mat3 ReR = rA(uEarAx, uEar), ReL = rA(uEarAx * vec3(-1.,1.,1.), -uEar);
   vec3 ep = uEarP, epL = ep * vec3(-1.,1.,1.);
   mat3 Rt = rA(uTailAx, uTail);
@@ -256,6 +258,7 @@ varying float vAO; varying float vFront; varying float vSide; varying float vBac
     dog: ["#f2c98a", "#b97c4b"], cat: ["#ffbf7a", "#f59a4a"], bear: ["#c99266", "#f3dcc0"], rabbit: ["#ffd6e4", "#ff9fbf"],
     pig: ["#ffbfd0", "#ff8fab"], lion: ["#ffd36b", "#e48c3c"], elephant: ["#a9c4ea", "#86a9dc"], dino: ["#9fdf8f", "#ffc94d"],
   };
+  DA.BASE_COL = BASE_COL;
   const texCache = {};
   /** 기본 색 텍스처 (종마다 한 번) — 부위별 색 + 실루엣 밖 번지기 (칠한 그림과 같은 방식) */
   DA.defaultTex = function (B, sp) {
@@ -450,6 +453,8 @@ varying float vAO; varying float vFront; varying float vSide; varying float vBac
     this.lift = 0; // 뛰어오를 때 높이
     this.lean = 0; // 앞으로 기울기 (꼭 안기)
     this.leanT = 0;
+    // 놀이가 매 장면 직접 정하는 덧붙임 자세 (연주 동작): 팔 앞으로 fR·fL · 팔 들기 uR·uL · 고개 끄덕 nod · 고개 갸웃 tilt · 몸 좌우 sway · 들썩 bob(키 비율)
+    this.play = { fR: 0, fL: 0, uR: 0, uL: 0, nod: 0, tilt: 0, sway: 0, bob: 0 };
     this._up = (dt, t) => this.update(dt, t);
     stage.updaters.push(this._up);
   }
@@ -588,14 +593,18 @@ varying float vAO; varying float vFront; varying float vSide; varying float vBac
       const j = this._jump;
       a.yaw += (Math.sign(j.x1 - j.x0) * 0.6 - a.yaw) * Math.min(1, dt * 8);
     }
-    a.root.position.y += this.lift;
+    const pl = this.play;
+    a.root.position.y += this.lift + pl.bob * (this.h || 1);
     this.lean += (this.leanT - this.lean) * Math.min(1, dt * 5);
     a.root.rotation.x += this.lean * 0.25;
+    a.root.rotation.z += pl.sway;
     // 아플 때: 고개 숙이고 천천히 좌우로
     const sk = this.sickK;
     f.dn += (sk * 0.22 - f.dn) * Math.min(1, dt * 3);
-    Uf.uHeadDn.value = f.dn;
-    Uf.uHead.value.x += Math.sin(t * 1.3 + a.seed) * 0.07 * sk;
+    Uf.uHeadDn.value = f.dn + pl.nod;
+    Uf.uHead.value.x += Math.sin(t * 1.3 + a.seed) * 0.07 * sk + pl.tilt;
+    Uf.uArmB.value.set(pl.fR, pl.fL);
+    Uf.uArmL.value = pl.uL;
     a.root.rotation.z += Math.sin(t * 1.1 + a.seed) * 0.035 * sk;
     // 순간 볼록: 0.5초 동안 줄어듦
     if (f.pk0) {
@@ -613,8 +622,8 @@ varying float vAO; varying float vFront; varying float vSide; varying float vBac
     Uf.uArmFwd.value = f.armFwd;
     if (f.wave > 0) {
       f.wave -= dt;
-      Uf.uArmR.value = (Math.min(1, f.wave * 3, (1.6 - f.wave) * 3 + 0.2)) * (1.9 + Math.sin(t * 12) * 0.35);
-    } else Uf.uArmR.value = 0;
+      Uf.uArmR.value = (Math.min(1, f.wave * 3, (1.6 - f.wave) * 3 + 0.2)) * (1.9 + Math.sin(t * 12) * 0.35) + pl.uR;
+    } else Uf.uArmR.value = pl.uR;
     this.sh.set(a.x, a.z, this.w || 0.5, this.h || 1, (a.bobY || 0) + this.lift);
   };
   /** 부위 → 화면 좌표 (host 기준 px) — 고개·팔 움직임을 셰이더와 같은 식으로 따라감 */
@@ -632,8 +641,8 @@ varying float vAO; varying float vFront; varying float vSide; varying float vBac
       const R = A.g === "armR", sh = [sp.arm[0] * (R ? 1 : -1), sp.arm[1], sp.arm[2]];
       const s = Math.sin(Uf.uPh.value), sw = Uf.uArmSw.value * Uf.uAmp.value;
       p[0] -= sh[0]; p[1] -= sh[1]; p[2] -= sh[2];
-      rotX(p, (R ? -s * sw : s * sw) - Uf.uArmFwd.value);
-      rotZ(p, R ? Uf.uArmUp.value + Uf.uArmR.value : -Uf.uArmUp.value);
+      rotX(p, (R ? -s * sw : s * sw) - Uf.uArmFwd.value - (R ? Uf.uArmB.value.x : Uf.uArmB.value.y));
+      rotZ(p, R ? Uf.uArmUp.value + Uf.uArmR.value : -Uf.uArmUp.value - Uf.uArmL.value);
       p[0] += sh[0]; p[1] += sh[1]; p[2] += sh[2];
     }
     this.root.updateMatrixWorld();
@@ -717,6 +726,7 @@ varying float vAO; varying float vFront; varying float vSide; varying float vBac
     this.speed = 1;
     this.lift = 0;
     this.lean = this.leanT = 0;
+    this.play = { fR: 0, fL: 0, uR: 0, uL: 0, nod: 0, tilt: 0, sway: 0, bob: 0 }; // 3D 와 같은 이름 (그림 배우는 들썩·기울기만)
     this._up = (dt) => this.update(dt);
     this.setH(1); // place(x,z) 를 키 없이 불러도 크기가 비지 않게
     stage.updaters.push(this._up);
@@ -755,6 +765,9 @@ varying float vAO; varying float vFront; varying float vSide; varying float vBac
     const cxS = sp.CX * B.f;
     this.px = { k: pxPerS, ox: foot.x - (cxS - x0) * pxPerS, oy: foot.y - (footS - y0) * pxPerS };
     Object.assign(this.el.style, { width: w + "px", height: h + "px", left: this.px.ox + "px", top: this.px.oy + "px" });
+    const pl = this.play;
+    this.el.style.translate = pl.bob || pl.sway ? `0 ${-pl.bob * h}px` : "";
+    this.el.style.rotate = pl.sway ? pl.sway * 57.3 + "deg" : "";
   };
   A2.anchor = function (name) {
     const A = this.anc[name], p = A ? A.p : [0, 0.5, 0], B = this.k.B;
