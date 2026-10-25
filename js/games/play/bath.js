@@ -81,6 +81,7 @@ KP.game({
   async makeStage(ctx) {
     const CS = KP.clayStage;
     this.dropStage(ctx);
+    const tok = (ctx._stTok = (ctx._stTok || 0) + 1); // 기다리는 사이 다시 불렸으면 옛 호출은 무대를 만들지 않음
     const slow = KP.store.get("bath:flat", null);
     let flat = !CS.supported() || (slow && Date.now() - (slow.t || 0) < 7 * 864e5);
     if (!flat) {
@@ -90,7 +91,7 @@ KP.game({
         flat = true;
       }
     }
-    if (!ctx._active) return null;
+    if (!ctx._active || tok !== ctx._stTok) return null;
     let st;
     const opt = {
       flat,
