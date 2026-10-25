@@ -317,6 +317,7 @@ KP.game({
     ctx.tk = (ctx.tk || 0) + 1;
     ctx.wrap.querySelectorAll(".hmDyn").forEach((e) => e.remove());
     ctx.onPlate = [null, null];
+    ctx.winGlow.classList.remove("on"); // 빛나는 중에 나가도 다시 들어왔을 때 계속 깜박이지 않게
     if (ctx.cs) ctx.cs.dispose();
     ctx.cs = null;
   },
@@ -462,9 +463,18 @@ KP.game({
       }
       ctx._per = per;
       this.layoutTray(ctx);
+      this.sizeDex(ctx); // 도감을 연 채 화면이 바뀌어도 표가 넘치지 않게
     } finally {
       ctx._inLay = false;
     }
+  },
+  /** 도감 점토 판 크기: 한 화면에 들어가게 (11칸 × 15줄 — 너무 작아지면 아래로 밀어 보기) */
+  sizeDex(ctx) {
+    const L = ctx.L,
+      grid = ctx.dexV && ctx.dexV.querySelector(".hmGridD");
+    if (!L || !grid) return;
+    const avail = L.H - L.sy - 96;
+    grid.style.width = Math.round(Math.min(L.W - 48, 860, Math.max(290, (avail * 11) / 15.6))) + "px";
   },
   box(el, x, y, w, h) {
     const s = el.style;
@@ -1407,12 +1417,7 @@ KP.game({
     });
     slab.appendChild(grid);
     box.appendChild(slab);
-    // 점토 판이 한 화면에 들어가게 (11칸 × 15줄 — 너무 작아지면 아래로 밀어 보기)
-    const L = ctx.L;
-    if (L) {
-      const avail = L.H - L.sy - 96;
-      grid.style.width = Math.round(Math.min(L.W - 48, 860, Math.max(290, (avail * 11) / 15.6))) + "px";
-    }
+    self.sizeDex(ctx);
     ctx.dexNew.clear();
     ctx.say("📒 " + (n ? self.TX.dexIn : self.TX.dexNone));
     ctx.hint(() => box.querySelector(".hmDc.on") || ctx.bSt[0], n ? self.TX.dexTap : self.TX.dexNone);
