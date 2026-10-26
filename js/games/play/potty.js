@@ -2,7 +2,9 @@
    - 꼼지락 신호(인형이 들썩들썩) → 장면 속 물건 고르기(변기 / 창가 쿠키 / 곰인형, 보기 3개) → 변기 앞으로 걸어감
    - 순서(장면 속 물건을 직접 눌러요): 친구(바지 내리기) → 변기(뚜껑이 열리고 폴짝 앉기) → 끙끙(친구를 콕콕) → 휴지걸이(휴지 쭉)
      → 친구(내려와서 바지 올리기) → 변기 물 내림 손잡이(물 소용돌이) → 세면대(걸어가서 손 씻기 — 손 씻기 놀이의 세면대·손 장면을 짧게)
-   - 앉기: 인형 자세는 그대로, 변기 앞면·발판 앞가림(배경 그림 + 알파 마스크, clay-stage frontMask)이 아랫몸을 가림. 바지(점토 소품)도 가림 뒤
+   - 바지 내리기: 바지(점토 소품)가 발목까지 쭉 내려가 쭈글쭈글 모임(납작·넓게·주름) → 걸을 때·앉아 있을 때도 발목을 따라감 → 일어나서 다시 허리로
+   - 앉기: 인형 자세는 그대로, 엉덩이가 변기 시트 높이에 오게 들어 올리고 변기 앞에 둠 → 윗몸은 시트 위로 다 보이고 다리·발목 바지는 변기 앞면 앞으로 내려옴
+     (예전엔 앞가림이 허리 아래를 가려 변기에 빠진 것처럼 보였음 — 앞가림은 쓰지 않음). 앉아 있는 동안 시트 구멍은 물빛 대신 그늘색
    - 뚜껑은 배경 그림에서 닫혀 있어 → 변기에 가면 캔버스로 연 모습(세운 뚜껑·변기 시트·물)을 덮어 그림. 물 내림 소용돌이도 여기
    - 세로 화면(폰·태블릿 세로)은 배경이 양옆으로 잘려서 → 카메라가 친구를 따라 옆으로 이동(focusP 를 바꾸고 무대 다시 맞춤)
    - 지저분한 그림·말 없음 ('퐁당!', '시원하다!' 정도). 단계: 1 순서 안내(할 물건이 반짝) → 2 '다음엔 뭘 할까요?' → 3 혼자서. 시간 제한 없음
@@ -24,7 +26,12 @@ KP.game({
       .pt-scene{background:#e9e2cf}
       .pt-back{position:absolute;left:0;top:0;width:100%;height:100%;z-index:0;pointer-events:none}
       .pt-pants{position:absolute;left:0;top:0;z-index:1;pointer-events:none;will-change:transform}
-      .pt-pants img{width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 3px 3px rgba(60,40,20,.25))}
+      .pt-pants img{width:100%;height:100%;object-fit:fill;display:block;filter:drop-shadow(0 3px 3px rgba(60,40,20,.25))}
+      /* 발목에 모인 바지의 주름 (바지 모양으로 잘라 겹침) */
+      .pt-pants::after{content:"";position:absolute;inset:0;opacity:var(--wr,0);pointer-events:none;
+        background:repeating-linear-gradient(171deg,rgba(255,255,255,0) 0 8%,rgba(255,255,255,.32) 10%,rgba(30,80,140,.36) 13%,rgba(30,80,140,0) 17%),
+          repeating-linear-gradient(189deg,rgba(30,80,140,0) 0 11%,rgba(30,80,140,.22) 14%,rgba(30,80,140,0) 18%);
+        -webkit-mask:url(assets/play-clay/potty/pants.png) center/100% 100% no-repeat;mask:url(assets/play-clay/potty/pants.png) center/100% 100% no-repeat}
       .pt-hit{position:absolute;left:0;top:0;z-index:6;border-radius:40%;touch-action:manipulation;cursor:pointer}
       .pt-hit.glow{animation:pt-ring 1.1s ease-in-out infinite alternate}
       @keyframes pt-ring{from{box-shadow:0 0 0 0 rgba(255,205,40,0);background:rgba(255,240,170,0)}to{box-shadow:0 0 0 7px rgba(255,205,40,.75);background:rgba(255,240,170,.2)}}
@@ -104,14 +111,14 @@ KP.game({
 
     // 화장실 배경 (1600×900): 왼쪽 변기+발판, 가운데 빈 바닥, 오른쪽 세면대. 세로 화면은 focusP 를 바꿔 따라감
     ctx.BG = {
-      file: IMG + "bg.jpg", frontMask: IMG + "front-mask.png", img: [1600, 900], vh: 0.35, near: 0.2, fov: 34,
+      file: IMG + "bg.jpg", img: [1600, 900], vh: 0.35, near: 0.2, fov: 34,
       focus: [0.5, 0.56], focusP: [0.26, 0.6], sun: [0.3, 1, 0.8], sunCol: "#fff4e6",
     };
     // 그림 좌표(0~1)
     ctx.P = {
       lid: [0.1866, 0.5433, 0.0884, 0.0412], // 뚜껑 타원 (가운데 u,v · 반지름 u,v)
       lever: [0.0706, 0.4144],
-      start: [0.5, 0.92], startP: [0.36, 0.92], front: [0.29, 0.94], seat: [0.1866, 0.775], mid: [0.63, 0.92], sink: [0.83, 0.93],
+      start: [0.5, 0.92], startP: [0.36, 0.92], front: [0.29, 0.94], seat: [0.1866, 0.775], sitAt: [0.19, 0.8], hip: 0.55, mid: [0.63, 0.92], sink: [0.83, 0.93],
       boxes: { toilet: [0.04, 0.33, 0.28, 0.66], flush: [0.025, 0.36, 0.11, 0.47], paper: [0.256, 0.333, 0.338, 0.5], sink: [0.735, 0.31, 0.95, 0.58] },
       strip: [0.2956, 0.49, 0.05], // 휴지 끝 (가운데 u, 위 v, 폭 u)
       cookie: [0.415, 0.295, 0.072], teddy: [0.1, 0.9, 0.055], // 가운데 u · 바닥 v · 폭 u (쿠키는 창턱, 곰인형은 변기 왼쪽 앞 바닥)
@@ -153,10 +160,9 @@ KP.game({
       opt.flat = true;
       st = CS.create(ctx.scene, ctx.BG, opt);
     }
-    // 층 순서: 배경 → 뒤 캔버스(연 뚜껑) → [그림 인형] → 3D → 바지 → 앞가림 → …
+    // 층 순서: 배경 → 뒤 캔버스(연 뚜껑) → [그림 인형] → 3D → 바지 → …
     st.bgEl.after(ctx.back);
     st.frontEl.before(ctx.pants);
-    st.frontEl.style.visibility = "hidden"; // 앞가림은 변기에 앉았을 때만
     ctx.st = st;
     return st;
   },
@@ -269,8 +275,9 @@ KP.game({
     const wx = p.x + rx * 0.02, wy = p.y + ry * 0.06, wrx = rx * 0.66, wry = ry * 0.6;
     gr = g.createLinearGradient(0, wy - wry, 0, wy + wry);
     gr.addColorStop(0, "#c9b79a");
-    gr.addColorStop(0.28, "#9fd4ef");
-    gr.addColorStop(1, "#6fb8e2");
+    // 앉아 있는 동안은 물빛 대신 시트 안쪽 그늘색 (물에 잠긴 것처럼 보이지 않게)
+    gr.addColorStop(0.28, ctx.sit ? "#d8c6a6" : "#9fd4ef");
+    gr.addColorStop(1, ctx.sit ? "#c4ae88" : "#6fb8e2");
     g.fillStyle = gr;
     g.beginPath();
     g.ellipse(wx, wy, wrx, wry, 0, 0, 6.283);
@@ -331,7 +338,6 @@ KP.game({
     ctx.pantsDown = 0;
     ctx.sit = false;
     ctx.stage = "enter";
-    st.frontEl.style.visibility = "hidden";
     ctx.lever.classList.remove("down", "glow");
     ctx.strip.classList.remove("on", "fly");
     ctx.cookie.classList.remove("away", "glow");
@@ -374,22 +380,24 @@ KP.game({
     const G = (uv) => st.bc.ground(uv[0], uv[1]) || st.spot("x");
     const legK = (act.k && act.k.spec && act.k.spec.pivot && act.k.spec.pivot.leg) || 0.18;
     // 키: 변기 깊이에서 그림 높이의 0.4 (원근 때문에 앞쪽에서는 더 크게 보임) — 좁은 세로 화면은 0.32
-    const sizeUp = () => {
+    // 앉아 있을 때는 조금 작게(SIT_K) — 변기 크기와 맞고 옆 휴지걸이를 덜 가림
+    const SIT_K = 0.86;
+    const hFor = (sit) => {
       const g = G(P.seat);
-      act.setH(st.fitH(g[0], g[1], ((tall() ? 0.32 : 0.4) * st.bc.view.fh) / st.h));
-      return g;
+      return st.fitH(g[0], g[1], ((tall() ? 0.32 : 0.4) * st.bc.view.fh) / st.h) * (sit ? SIT_K : 1);
     };
+    const sizeUp = () => act.setH(hFor(ctx.sit));
     sizeUp();
-    /** 앉을 때 들어 올릴 높이: 엉덩이(다리 높이)가 시트 가운데에 오게 */
-    const seatLift = () => {
-      const g = G(P.seat), y0 = st.project(g[0], 0, g[1]).y, y1 = st.project(g[0], 1, g[1]).y;
-      const sy = st.uvToPx(P.lid[0], P.lid[1] + 0.012).y;
-      return (y0 - sy) / Math.max(1, y0 - y1) - legK * act.h;
+    /** 앉을 때 들어 올릴 높이: 엉덩이(다리 시작 높이)가 시트 위(가운데와 앞 테두리 사이, P.hip)에 오게 — 인형은 변기 앞(sitAt)에 둠 */
+    const seatLift = (h = act.h) => {
+      const g = G(P.sitAt), y0 = st.project(g[0], 0, g[1]).y, y1 = st.project(g[0], 1, g[1]).y;
+      const sy = st.uvToPx(P.lid[0], P.lid[1] + P.lid[3] * P.hip).y;
+      return (y0 - sy) / Math.max(1, y0 - y1) - legK * h;
     };
     st.onResize = () => {
       sizeUp();
       if (ctx.sit) {
-        const g = G(P.seat);
+        const g = G(P.sitAt);
         act.place(g[0], g[1]);
         act.lift = seatLift();
       }
@@ -435,12 +443,17 @@ KP.game({
       const kr = act.anchor("kneeR"), kl = act.anchor("kneeL"), be = act.anchor("belly");
       const kx = (kr.x + kl.x) / 2, ky = (kr.y + kl.y) / 2;
       const pw = Math.max(Math.abs(kr.x - kl.x) * 2.3, b.w * 0.5), ph = pw * (226 / 256);
-      const upY = be.y * 0.3 + ky * 0.7, dnY = b.b - ph * 0.42;
-      const py = upY + (dnY - upY) * ctx.pantsDown;
-      const pww = pw * (1 - 0.1 * ctx.pantsDown);
-      // 앉으면 바지(발목)는 변기 앞면 뒤로 숨김
-      ctx.pants.style.cssText = `width:${pww}px;height:${ph}px;transform:translate(${kx - pww / 2}px,${py - ph / 2}px);opacity:${ctx.sit ? 0 : 1}`;
-      if (ctx.sit) box(ctx.hit.doll, b.l - 6, b.t, b.r + 6, b.t + b.h * 0.62);
+      // 바지 내림(0→1): 허리 → 발목. 내려갈수록 납작·넓게(쭈글쭈글 모임) — 걷기·앉기 때도 발(b.b)을 따라감
+      const k = ctx.pantsDown, ks = Math.max(0, (k - 0.55) / 0.45), sq = ks * ks * (3 - 2 * ks);
+      const pww = pw * (1 + 0.25 * sq), phh = ph * (1 - 0.64 * sq);
+      const upY = be.y * 0.3 + ky * 0.7, dnY = b.b - phh * 0.36;
+      const py = upY + (dnY - upY) * k;
+      ctx.pants.style.cssText = `width:${pww}px;height:${phh}px;transform:translate(${kx - pww / 2}px,${py - phh / 2}px);--wr:${sq.toFixed(2)}`;
+      if (ctx.sit) {
+        // 앉으면 윗몸 — 오른쪽 휴지걸이(누르는 곳)와 겹치지 않게 잘라 냄
+        const pr = ctx.hit.paper.hidden ? st.w : parseFloat(ctx.hit.paper.style.left);
+        box(ctx.hit.doll, b.l - 6, b.t, Math.max(b.cx + 30, Math.min(b.r + 6, pr - 2)), b.t + b.h * 0.62);
+      }
       else {
         const hw = Math.max(pw * 0.75, 44);
         box(ctx.hit.doll, kx - hw, Math.min(upY, py) - ph * 0.75, kx + hw, Math.max(b.b, py + ph * 0.6));
@@ -469,13 +482,14 @@ KP.game({
         };
         step();
       });
-    /** 폴짝: (x,z, 들어 올림) 로 — 가운데쯤 mid() */
-    const hop = async (g, lift1, ms, mid) => {
-      const a = act.a, x0 = a.x, z0 = a.z, l0 = act.lift || 0, hk = act.h * 0.28;
+    /** 폴짝: (x,z, 들어 올림, 키) 로 — 가운데쯤 mid() */
+    const hop = async (g, lift1, ms, mid, h1) => {
+      const a = act.a, x0 = a.x, z0 = a.z, l0 = act.lift || 0, hk = act.h * 0.28, h0 = act.h;
       let told = false;
       await tween(ms, (k) => {
         const e = k * k * (3 - 2 * k);
         act.place(x0 + (g[0] - x0) * e, z0 + (g[1] - z0) * e);
+        if (h1) act.setH(h0 + (h1 - h0) * e);
         act.lift = l0 + (lift1 - l0) * e + Math.sin(Math.PI * k) * hk;
         if (!told && k > 0.5) (told = true), mid && mid();
       });
@@ -488,7 +502,7 @@ KP.game({
       if (live()) act.place(g[0], g[1]);
     };
     // 점검용
-    ctx.ptState = () => ({ tok, stage: ctx.stage, gl: !!st.gl, painted: !!act.painted, who: act.name, sit: ctx.sit, lid: ctx.lidOpen, pants: ctx.pantsDown, front: st.frontEl.style.visibility, washing: ctx.wash.classList.contains("on"), swirl: ctx.swirl, focus: ctx.BG.focusP[0] });
+    ctx.ptState = () => ({ tok, stage: ctx.stage, gl: !!st.gl, painted: !!act.painted, who: act.name, sit: ctx.sit, lid: ctx.lidOpen, pants: ctx.pantsDown, washing: ctx.wash.classList.contains("on"), swirl: ctx.swirl, focus: ctx.BG.focusP[0] });
     ctx.ptRect = (k) => {
       const e = k === "lever" ? ctx.lever : k === "cookie" || k === "teddy" ? ctx[k] : ctx.hit[k];
       const r = e.getBoundingClientRect();
@@ -576,10 +590,10 @@ KP.game({
           if (!live()) return;
           await ctx.wait(150);
           A.sfx("boing");
-          await hop(G(P.seat), seatLift(), 650, () => {
+          const hs = hFor(true);
+          await hop(G(P.sitAt), seatLift(hs), 650, () => {
             ctx.sit = true;
-            st.frontEl.style.visibility = "visible"; // 변기 앞면이 아랫몸을 가림
-          });
+          }, hs);
           if (!live()) return;
           act.a.yaw = 0;
           await ctx.wait(300);
@@ -654,8 +668,7 @@ KP.game({
           A.sfx("boing");
           await hop(G(P.front), 0, 600, () => {
             ctx.sit = false;
-            st.frontEl.style.visibility = "hidden";
-          });
+          }, hFor(false));
           if (!live()) return;
           await pantsTo(0);
           C.pop(ctx, ctx.scene, dollCx(), act.box().b - act.box().h * 0.45, "쑥");
