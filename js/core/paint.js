@@ -199,7 +199,7 @@
     { n: "자주", v: [4, 0, 1, 0, 0], dex: true },
     { n: "분홍", v: [1, 0, 0, 2, 0], dex: true },
     { n: "살구색", v: [1, 1, 0, 5, 0], dex: true },
-    { n: "황토색", v: [1, 3, 1, 0, 0], dex: true },
+    { n: "황토색", v: [1, 4, 0, 0, 1], dex: true }, // 예전 [1,3,1] 은 올리브빛이라 초록 물감이 황토색으로 불렸음
     { n: "갈색", v: [2, 1, 1, 0, 0], dex: true },
     { n: "고동색", v: [2, 1, 1, 0, 3], dex: true },
     { n: "회색", v: [0, 0, 0, 2, 1], dex: true },
@@ -273,7 +273,7 @@
   /* =================================================================
      물감 그리기 (WebGL) — 64칸 계산 결과를 화면 해상도 그대로 그림
      - 예전엔 160px 그림을 4~7배 늘려 붙여 가장자리가 계단처럼 깨지고 흐렸음
-     - 텍스처 2장: A = 물감 색(RGB) + 두께(√ 압축), B = 두께 기울기(빛 계산용)
+     - 텍스처 2장: A = 물감 색(RGB) + 두께(√ 압축), B = 두께 기울기(빛 계산용) + 덮임(가장자리 선)
      - 두께·색은 B-스플라인(부드러운 3차) 보간 → 가장자리가 매끈한 곡선, 화면 픽셀 단위로 안티에일리어싱
      - 못 쓰면(구형 기기·문맥 잃음) null → 그릇이 예전 방식(CPU)으로 그림
   ================================================================= */
@@ -313,10 +313,11 @@ void main(){
   // 그릇 바닥에 지는 그림자 (빛이 왼쪽 위 → 오른쪽 아래로)
   float hs=H(texture2D(tA,uv+vec2(-.48,-.62)*(1.6/N)).a);
   float sh=smoothstep(.05,.9,hs)*.2;
-  float w=${deriv ? "max(fwidth(h)*.9,.004)" : ".02"};
-  float al=smoothstep(.07-w,.07+w+.015,h);
-  if(al<.002){gl_FragColor=vec4(0.,0.,0.,sh);return;}
+  // 가장자리: 두께 대신 '덮임'(0~1)의 절반 선 → 칸 모양(팔각형·물결) 없이 매끈한 곡선
   vec4 B=bs(tB,uv);
+  float w=${deriv ? "max(fwidth(B.z)*.8,.003)" : ".04"};
+  float al=smoothstep(.36-w,.36+w,B.z);
+  if(al<.002){gl_FragColor=vec4(0.,0.,0.,sh);return;}
   vec3 n=normalize(vec3(-(B.x*3.-1.5)*2.6,-(B.y*3.-1.5)*2.6,1.));
   vec3 L=vec3(-.48,-.62,.62);
   float k=clamp(.92+(dot(n,L)-.62)*.5,.62,1.22);
@@ -326,7 +327,7 @@ void main(){
   col*=.84+.16*smoothstep(.05,.6,h); // 얇은 가장자리는 살짝 어둡게 (두께감 · 하얀 물감도 접시와 구분)
   vec3 hv=normalize(L+vec3(0.,0.,1.));
   float nh=max(dot(n,hv),0.);
-  col+=vec3(pow(nh,70.)*.6+pow(nh,9.)*.05); // 젖은 광택
+  col+=vec3(pow(nh,70.)*.45+pow(nh,9.)*.05); // 젖은 광택
   col=min(col,vec3(1.));
   float a=al+sh*(1.-al);
   gl_FragColor=vec4(col*al,a);
@@ -439,11 +440,27 @@ void main(){
       CB = new Float32Array(NN);
     const mask = new Uint8Array(NN);
     const src = new Uint8Array(NN), // 색 채우기 표시 (0 빈칸 · 1 물감 · 2~ 이웃에서 빌려 온 색)
+      wall = new Int32Array(NN).fill(-1), // 그릇 밖 칸 → 가장 가까운 안쪽 칸 (물감이 벽까지 차도 가장자리가 비탈지지 않게)
       HS = new Float32Array(NN); // 빛 계산용 두께 (위가 납작한 물감 덩어리처럼)
     let G; // WebGL 그리기 (처음 그릴 때 만듦, 못 쓰면 null)
     const R = N / 2 - 1.2;
     for (let j = 0; j < N; j++)
       for (let i = 0; i < N; i++) mask[j * N + i] = Math.hypot(i + 0.5 - N / 2, j + 0.5 - N / 2) <= R ? 1 : 0;
+    for (let j = 0; j < N; j++)
+      for (let i = 0; i < N; i++) {
+        const k = j * N + i;
+        if (mask[k]) continue;
+        const dx = i + 0.5 - N / 2,
+          dy = j + 0.5 - N / 2,
+          L = Math.hypot(dx, dy) || 1;
+        for (let t = L - R + 0.5; t < L; t += 0.5) {
+          const q = Math.floor(N / 2 + (dx / L) * (L - t)) + Math.floor(N / 2 + (dy / L) * (L - t)) * N;
+          if (q >= 0 && q < NN && mask[q]) {
+            wall[k] = q;
+            break;
+          }
+        }
+      }
     const BOTTOM = [0.965, 0.95, 0.925]; // 점토 접시 바닥 (따뜻한 흰색)
     const cc = [0, 0, 0],
       vv = [0, 0, 0, 0, 0];
@@ -809,6 +826,15 @@ void main(){
         let viaGL = false;
         if (G && G.ok()) {
           // 화면 해상도로 그리기: 칸 색·두께·기울기를 텍스처로 넘김
+          // 그릇 밖 칸은 안쪽 이웃 두께·색을 그대로 → 벽에 닿은 물감이 평평하게 이어지고 그릇 테가 깔끔히 자름
+          for (let k = 0; k < NN; k++) {
+            const q = wall[k];
+            if (q < 0) continue;
+            E[k] = E[q];
+            CR[k] = CR[q];
+            CG[k] = CG[q];
+            CB[k] = CB[q];
+          }
           for (let k = 0; k < NN; k++) HS[k] = 2.2 * (1 - Math.exp(-E[k] / 2.2));
           const bA = G.bA,
             bB = G.bB;
@@ -826,8 +852,30 @@ void main(){
               bA[o + 3] = Math.sqrt(Math.min(E[k], HMAX) / HMAX) * 255;
               bB[o] = (U.clamp((r - l) * 0.5, -1.5, 1.5) + 1.5) * 85;
               bB[o + 1] = (U.clamp((d - u) * 0.5, -1.5, 1.5) + 1.5) * 85;
+              GX[k] = E[k] / (E[k] + 0.12); // 덮임 (아래에서 이웃과 부드럽게 섞음)
             }
-          viaGL = G.render(Math.min(1400, side * scale), R / N);
+          // 덮임을 3×3 가우스로 두 번 번지게 → 절반 선이 칸 모양을 안 따라감
+          for (let pass = 0; pass < 2; pass++) {
+            const a = pass ? GY : GX,
+              b = pass ? GX : GY;
+            for (let j = 0; j < N; j++)
+              for (let i = 0; i < N; i++) {
+                let t = 0,
+                  ws = 0;
+                for (let y = -1; y <= 1; y++)
+                  for (let x = -1; x <= 1; x++) {
+                    const ii = i + x,
+                      jj = j + y;
+                    if (ii < 0 || jj < 0 || ii >= N || jj >= N) continue;
+                    const wt = (2 - Math.abs(x)) * (2 - Math.abs(y));
+                    t += a[jj * N + ii] * wt;
+                    ws += wt;
+                  }
+                b[j * N + i] = t / ws;
+              }
+          }
+          for (let k = 0; k < NN; k++) bB[k * 4 + 2] = GX[k] * 255;
+          viaGL = G.render(Math.min(1400, side * scale), (R + 1.5) / N); // 원 테두리는 그릇(2D)이 자름
         }
         if (!viaGL) {
           // 2) 두께 기울기 (빛 받는 면 · 그늘)

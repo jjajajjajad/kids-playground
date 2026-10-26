@@ -76,7 +76,7 @@ KP.game({
         .plMine{justify-self:stretch}
       }
       /* 도감 */
-      .dxPanel{position:absolute;inset:0;z-index:30;background:rgba(255,248,236,.97);display:none;flex-direction:column;padding:10px 16px 16px}
+      .dxPanel{position:absolute;inset:0;z-index:30;background:#fff8ec;display:none;flex-direction:column;padding:max(10px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))} /* 아이폰 시계 줄 아래로 */
       .dxPanel.on{display:flex;animation:enter .3s}
       .dxHead{display:flex;align-items:center;gap:12px;font-size:clamp(20px,2.8vw,28px);padding:4px 4px 10px}
       .dxHead .sp{flex:1}
