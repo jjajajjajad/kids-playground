@@ -271,6 +271,136 @@
   };
 
   /* =================================================================
+     물감 그리기 (WebGL) — 64칸 계산 결과를 화면 해상도 그대로 그림
+     - 예전엔 160px 그림을 4~7배 늘려 붙여 가장자리가 계단처럼 깨지고 흐렸음
+     - 텍스처 2장: A = 물감 색(RGB) + 두께(√ 압축), B = 두께 기울기(빛 계산용)
+     - 두께·색은 B-스플라인(부드러운 3차) 보간 → 가장자리가 매끈한 곡선, 화면 픽셀 단위로 안티에일리어싱
+     - 못 쓰면(구형 기기·문맥 잃음) null → 그릇이 예전 방식(CPU)으로 그림
+  ================================================================= */
+  const HMAX = 8; // 두께 압축 상한
+  P._paintGL = function (N) {
+    const cv = document.createElement("canvas");
+    let gl = null;
+    try {
+      gl = cv.getContext("webgl", { premultipliedAlpha: true, preserveDrawingBuffer: true, antialias: false });
+    } catch (_) {}
+    if (!gl) return null;
+    const deriv = !!gl.getExtension("OES_standard_derivatives");
+    const VS = "attribute vec2 p;varying vec2 uv;void main(){uv=vec2(p.x*.5+.5,.5-p.y*.5);gl_Position=vec4(p,0.,1.);}";
+    const FS =
+      (deriv ? "#extension GL_OES_standard_derivatives : enable\n" : "") +
+      `precision mediump float;
+varying vec2 uv;
+uniform sampler2D tA, tB;
+uniform float N, R;
+vec4 cub(float v){vec4 n=vec4(1.,2.,3.,4.)-v;vec4 s=n*n*n;float x=s.x,y=s.y-4.*s.x,z=s.z-4.*s.y+6.*s.x;return vec4(x,y,z,6.-x-y-z)/6.;}
+vec4 bs(sampler2D t,vec2 q){
+  vec2 g=q*N-.5;vec2 f=fract(g);g-=f;
+  vec4 xc=cub(f.x),yc=cub(f.y);
+  vec4 c=g.xxyy+vec2(-.5,1.5).xyxy;
+  vec4 s=vec4(xc.xz+xc.yw,yc.xz+yc.yw);
+  vec4 o=(c+vec4(xc.yw,yc.yw)/s)/N;
+  vec4 a=texture2D(t,o.xz),b=texture2D(t,o.yz),cc=texture2D(t,o.xw),d=texture2D(t,o.yw);
+  float sx=s.x/(s.x+s.y),sy=s.z/(s.z+s.w);
+  return mix(mix(d,cc,sx),mix(b,a,sx),sy);
+}
+float H(float a){return a*a*${HMAX.toFixed(1)};}
+void main(){
+  vec2 d=uv-.5;
+  if(dot(d,d)>R*R){gl_FragColor=vec4(0.);return;}
+  vec4 A=bs(tA,uv);
+  float h=H(A.a);
+  // 그릇 바닥에 지는 그림자 (빛이 왼쪽 위 → 오른쪽 아래로)
+  float hs=H(texture2D(tA,uv+vec2(-.48,-.62)*(1.6/N)).a);
+  float sh=smoothstep(.05,.9,hs)*.2;
+  float w=${deriv ? "max(fwidth(h)*.9,.004)" : ".02"};
+  float al=smoothstep(.07-w,.07+w+.015,h);
+  if(al<.002){gl_FragColor=vec4(0.,0.,0.,sh);return;}
+  vec4 B=bs(tB,uv);
+  vec3 n=normalize(vec3(-(B.x*3.-1.5)*2.6,-(B.y*3.-1.5)*2.6,1.));
+  vec3 L=vec3(-.48,-.62,.62);
+  float k=clamp(.92+(dot(n,L)-.62)*.5,.62,1.22);
+  vec3 c=A.rgb;
+  // 그늘은 회색으로 탁해지지 않게 같은 색을 더 진하게 (노랑 → 황토, 올리브 X)
+  vec3 col=k<1.?pow(c,vec3(1.+(1.-k)*2.2))*(.86+.14*k):mix(c,vec3(1.),(k-1.)*.55);
+  col*=.84+.16*smoothstep(.05,.6,h); // 얇은 가장자리는 살짝 어둡게 (두께감 · 하얀 물감도 접시와 구분)
+  vec3 hv=normalize(L+vec3(0.,0.,1.));
+  float nh=max(dot(n,hv),0.);
+  col+=vec3(pow(nh,70.)*.6+pow(nh,9.)*.05); // 젖은 광택
+  col=min(col,vec3(1.));
+  float a=al+sh*(1.-al);
+  gl_FragColor=vec4(col*al,a);
+}`;
+    const sh = (t, src) => {
+      const s = gl.createShader(t);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      return gl.getShaderParameter(s, gl.COMPILE_STATUS) ? s : null;
+    };
+    const vs = sh(gl.VERTEX_SHADER, VS),
+      fs = sh(gl.FRAGMENT_SHADER, FS);
+    if (!vs || !fs) return null;
+    const pr = gl.createProgram();
+    gl.attachShader(pr, vs);
+    gl.attachShader(pr, fs);
+    gl.linkProgram(pr);
+    if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) return null;
+    gl.useProgram(pr);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(pr, "p");
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    const tex = (unit, name) => {
+      const t = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE0 + unit);
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.uniform1i(gl.getUniformLocation(pr, name), unit);
+      return t;
+    };
+    const tA = tex(0, "tA"),
+      tB = tex(1, "tB");
+    gl.uniform1f(gl.getUniformLocation(pr, "N"), N);
+    const uR = gl.getUniformLocation(pr, "R");
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    const bA = new Uint8Array(N * N * 4),
+      bB = new Uint8Array(N * N * 4);
+    let lost = false;
+    cv.addEventListener("webglcontextlost", (e) => {
+      e.preventDefault();
+      lost = true;
+    });
+    return {
+      cv,
+      bA,
+      bB,
+      ok: () => !lost && !gl.isContextLost(),
+      /** side: 그림 크기(px), r: 그릴 원 반지름(그림 폭 대비 0~0.5) */
+      render(side, r) {
+        side = Math.max(16, Math.round(side));
+        if (cv.width !== side) cv.width = cv.height = side;
+        gl.viewport(0, 0, side, side);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, tA);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, N, N, 0, gl.RGBA, gl.UNSIGNED_BYTE, bA);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, tB);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, N, N, 0, gl.RGBA, gl.UNSIGNED_BYTE, bB);
+        gl.uniform1f(uR, r);
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        return !gl.isContextLost();
+      },
+    };
+  };
+
+  /* =================================================================
      손가락으로 젓는 물감 그릇 (걸쭉한 포스터 물감)
      - N×N 격자(기본 64)에 물감 5종의 양을 저장, 손가락 움직임으로 흐름(속도)을 만들고
        물감을 그 흐름대로 옮김(반라그랑주 이류) + 아주 약한 번짐 → 처음엔 줄무늬, 저을수록 한 색 (마블링)
@@ -308,6 +438,9 @@
       CG = new Float32Array(NN),
       CB = new Float32Array(NN);
     const mask = new Uint8Array(NN);
+    const src = new Uint8Array(NN), // 색 채우기 표시 (0 빈칸 · 1 물감 · 2~ 이웃에서 빌려 온 색)
+      HS = new Float32Array(NN); // 빛 계산용 두께 (위가 납작한 물감 덩어리처럼)
+    let G; // WebGL 그리기 (처음 그릴 때 만듦, 못 쓰면 null)
     const R = N / 2 - 1.2;
     for (let j = 0; j < N; j++)
       for (let i = 0; i < N; i++) mask[j * N + i] = Math.hypot(i + 0.5 - N / 2, j + 0.5 - N / 2) <= R ? 1 : 0;
@@ -319,6 +452,7 @@
       grooveMax = 0,
       idleT = 0,
       size = 300,
+      scale = 1,
       dirty = true;
     const api = {
       cv,
@@ -610,8 +744,10 @@
       /** 화면 크기 맞추기 (지름 px) */
       fit(px) {
         size = px;
-        const dpr = Math.min(2, Math.round(devicePixelRatio || 1)) || 1;
-        const d = px * dpr > 900 ? 1 : dpr;
+        // 화면 해상도대로 (예전엔 900px 넘으면 1배로 그려 태블릿에서 흐렸음), 너무 크면 1400px 까지
+        const dpr = Math.min(2, devicePixelRatio || 1) || 1;
+        const d = Math.max(1, Math.min(dpr, 1400 / px));
+        scale = d;
         cv.width = cv.height = Math.round(px * d);
         cv.style.width = px + "px";
         cv.style.height = Math.round(px * tilt) + "px";
@@ -645,107 +781,140 @@
             CB[k] = BOTTOM[2];
           }
         }
-        // 물감이 없는 칸의 색은 옆 물감 색으로 (가장자리가 하얗게 바래 보이지 않게)
-        for (let j = 1; j < N - 1; j++)
-          for (let i = 1; i < N - 1; i++) {
-            const k = j * N + i;
-            if (E[k] > 0.02 || !mask[k]) continue;
-            let best = -1,
-              bh = 0.02;
-            for (const o of [-1, 1, -N, N]) if (E[k + o] > bh) (bh = E[k + o]), (best = k + o);
-            if (best >= 0) {
-              CR[k] = CR[best];
-              CG[k] = CG[best];
-              CB[k] = CB[best];
+        // 물감이 없는 칸의 색은 옆 물감 색으로 두 겹까지 (가장자리가 하얗게 바래 보이지 않게)
+        for (let k = 0; k < NN; k++) src[k] = E[k] > 0.02 ? 1 : 0;
+        for (let pass = 0; pass < 2; pass++)
+          for (let j = 1; j < N - 1; j++)
+            for (let i = 1; i < N - 1; i++) {
+              const k = j * N + i;
+              if (src[k] || !mask[k]) continue;
+              let best = -1,
+                bh = -1;
+              for (const o of [-1, 1, -N, N]) {
+                const q = k + o;
+                if (src[q] && src[q] <= pass + 1 && E[q] > bh) (bh = E[q]), (best = q);
+              }
+              if (best >= 0) {
+                CR[k] = CR[best];
+                CG[k] = CG[best];
+                CB[k] = CB[best];
+                src[k] = pass + 2;
+              }
             }
-          }
-        // 2) 두께 기울기 (빛 받는 면 · 그늘)
-        for (let j = 0; j < N; j++)
-          for (let i = 0; i < N; i++) {
-            const k = j * N + i;
-            const l = i > 0 ? E[k - 1] : E[k],
-              r = i < N - 1 ? E[k + 1] : E[k],
-              u = j > 0 ? E[k - N] : E[k],
-              d = j < N - 1 ? E[k + N] : E[k];
-            GX[k] = Math.max(-1.5, Math.min(1.5, (r - l) * 0.5));
-            GY[k] = Math.max(-1.5, Math.min(1.5, (d - u) * 0.5));
-          }
-        // 3) 2배 해상도로 부드럽게: 색 · 두께 · 음영 · 광택
-        const data = img.data;
-        const LX = -0.48,
-          LY = -0.62,
-          LZ = 0.62; // 빛: 왼쪽 위
-        const HX = LX,
-          HY = LY,
-          HZ = LZ + 1,
-          HL = Math.hypot(HX, HY, HZ);
-        const hx = HX / HL,
-          hy = HY / HL,
-          hz = HZ / HL;
-        const KH = 2.0; // 높이 → 기울기 세기
-        const c2 = M / 2;
-        const rr = (R / N) * M;
-        for (let y = 0; y < M; y++) {
-          const gy = ((y + 0.5) * N) / M - 0.5;
-          let y0 = Math.floor(gy);
-          const fy = gy - y0;
-          if (y0 < 0) y0 = 0;
-          const y1 = Math.min(N - 1, y0 + 1);
-          for (let x = 0; x < M; x++) {
-            const o = (y * M + x) * 4;
-            const ddx = x + 0.5 - c2,
-              ddy = y + 0.5 - c2;
-            if (ddx * ddx + ddy * ddy > rr * rr) {
-              data[o + 3] = 0;
-              continue;
-            }
-            const gx = ((x + 0.5) * N) / M - 0.5;
-            let x0 = Math.floor(gx);
-            const fx = gx - x0;
-            if (x0 < 0) x0 = 0;
-            const x1 = Math.min(N - 1, x0 + 1);
-            const a = y0 * N + x0,
-              b = y0 * N + x1,
-              c = y1 * N + x0,
-              d = y1 * N + x1;
-            const wa = (1 - fx) * (1 - fy),
-              wb = fx * (1 - fy),
-              wc = (1 - fx) * fy,
-              wd = fx * fy;
-            const h = E[a] * wa + E[b] * wb + E[c] * wc + E[d] * wd;
-            // 물감 가장자리를 또렷하게 (얇게 번진 안개가 아니라 덩어리)
-            let al = (h - 0.04) / 0.16;
-            al = al <= 0 ? 0 : al >= 1 ? 1 : al * al * (3 - 2 * al);
-            let r = BOTTOM[0],
-              g = BOTTOM[1],
-              bl = BOTTOM[2];
-            if (al > 0.001) {
-              const pr = CR[a] * wa + CR[b] * wb + CR[c] * wc + CR[d] * wd,
-                pg = CG[a] * wa + CG[b] * wb + CG[c] * wc + CG[d] * wd,
-                pb = CB[a] * wa + CB[b] * wb + CB[c] * wc + CB[d] * wd;
-              const nx = -(GX[a] * wa + GX[b] * wb + GX[c] * wc + GX[d] * wd) * KH,
-                ny = -(GY[a] * wa + GY[b] * wb + GY[c] * wc + GY[d] * wd) * KH;
-              const nl = 1 / Math.sqrt(nx * nx + ny * ny + 1);
-              const dif = (nx * LX + ny * LY + LZ) * nl; // 0.62 = 평평
-              const shade = 0.86 + (dif - LZ) * 0.55 + Math.min(0.06, h * 0.02);
-              let sp = (nx * hx + ny * hy + hz) * nl;
-              sp = sp > 0.9 ? (sp - 0.9) * 10 : 0; // 좁은 광택
-              sp = sp * sp * 0.55 * al;
-              r = r * (1 - al) + Math.min(1, pr * shade) * al + sp;
-              g = g * (1 - al) + Math.min(1, pg * shade) * al + sp;
-              bl = bl * (1 - al) + Math.min(1, pb * shade) * al + sp;
-            }
-            data[o] = r * 255;
-            data[o + 1] = g * 255;
-            data[o + 2] = bl * 255;
-            data[o + 3] = 255;
-          }
-        }
-        sx.putImageData(img, 0, 0);
-        // 4) 점토 접시 + 물감
         const S = size,
           C = S / 2,
           rin = S * IN;
+        const side = rin * 2 * (N / 2 / R);
+        if (G === undefined) G = P._paintGL(N);
+        let viaGL = false;
+        if (G && G.ok()) {
+          // 화면 해상도로 그리기: 칸 색·두께·기울기를 텍스처로 넘김
+          for (let k = 0; k < NN; k++) HS[k] = 2.2 * (1 - Math.exp(-E[k] / 2.2));
+          const bA = G.bA,
+            bB = G.bB;
+          for (let j = 0; j < N; j++)
+            for (let i = 0; i < N; i++) {
+              const k = j * N + i,
+                o = k * 4;
+              const l = i > 0 ? HS[k - 1] : HS[k],
+                r = i < N - 1 ? HS[k + 1] : HS[k],
+                u = j > 0 ? HS[k - N] : HS[k],
+                d = j < N - 1 ? HS[k + N] : HS[k];
+              bA[o] = CR[k] * 255;
+              bA[o + 1] = CG[k] * 255;
+              bA[o + 2] = CB[k] * 255;
+              bA[o + 3] = Math.sqrt(Math.min(E[k], HMAX) / HMAX) * 255;
+              bB[o] = (U.clamp((r - l) * 0.5, -1.5, 1.5) + 1.5) * 85;
+              bB[o + 1] = (U.clamp((d - u) * 0.5, -1.5, 1.5) + 1.5) * 85;
+            }
+          viaGL = G.render(Math.min(1400, side * scale), R / N);
+        }
+        if (!viaGL) {
+          // 2) 두께 기울기 (빛 받는 면 · 그늘)
+          for (let j = 0; j < N; j++)
+            for (let i = 0; i < N; i++) {
+              const k = j * N + i;
+              const l = i > 0 ? E[k - 1] : E[k],
+                r = i < N - 1 ? E[k + 1] : E[k],
+                u = j > 0 ? E[k - N] : E[k],
+                d = j < N - 1 ? E[k + N] : E[k];
+              GX[k] = Math.max(-1.5, Math.min(1.5, (r - l) * 0.5));
+              GY[k] = Math.max(-1.5, Math.min(1.5, (d - u) * 0.5));
+            }
+          // 3) 2배 해상도로 부드럽게: 색 · 두께 · 음영 · 광택
+          const data = img.data;
+          const LX = -0.48,
+            LY = -0.62,
+            LZ = 0.62; // 빛: 왼쪽 위
+          const HX = LX,
+            HY = LY,
+            HZ = LZ + 1,
+            HL = Math.hypot(HX, HY, HZ);
+          const hx = HX / HL,
+            hy = HY / HL,
+            hz = HZ / HL;
+          const KH = 2.0; // 높이 → 기울기 세기
+          const c2 = M / 2;
+          const rr = (R / N) * M;
+          for (let y = 0; y < M; y++) {
+            const gy = ((y + 0.5) * N) / M - 0.5;
+            let y0 = Math.floor(gy);
+            const fy = gy - y0;
+            if (y0 < 0) y0 = 0;
+            const y1 = Math.min(N - 1, y0 + 1);
+            for (let x = 0; x < M; x++) {
+              const o = (y * M + x) * 4;
+              const ddx = x + 0.5 - c2,
+                ddy = y + 0.5 - c2;
+              if (ddx * ddx + ddy * ddy > rr * rr) {
+                data[o + 3] = 0;
+                continue;
+              }
+              const gx = ((x + 0.5) * N) / M - 0.5;
+              let x0 = Math.floor(gx);
+              const fx = gx - x0;
+              if (x0 < 0) x0 = 0;
+              const x1 = Math.min(N - 1, x0 + 1);
+              const a = y0 * N + x0,
+                b = y0 * N + x1,
+                c = y1 * N + x0,
+                d = y1 * N + x1;
+              const wa = (1 - fx) * (1 - fy),
+                wb = fx * (1 - fy),
+                wc = (1 - fx) * fy,
+                wd = fx * fy;
+              const h = E[a] * wa + E[b] * wb + E[c] * wc + E[d] * wd;
+              // 물감 가장자리를 또렷하게 (얇게 번진 안개가 아니라 덩어리)
+              let al = (h - 0.04) / 0.16;
+              al = al <= 0 ? 0 : al >= 1 ? 1 : al * al * (3 - 2 * al);
+              let r = BOTTOM[0],
+                g = BOTTOM[1],
+                bl = BOTTOM[2];
+              if (al > 0.001) {
+                const pr = CR[a] * wa + CR[b] * wb + CR[c] * wc + CR[d] * wd,
+                  pg = CG[a] * wa + CG[b] * wb + CG[c] * wc + CG[d] * wd,
+                  pb = CB[a] * wa + CB[b] * wb + CB[c] * wc + CB[d] * wd;
+                const nx = -(GX[a] * wa + GX[b] * wb + GX[c] * wc + GX[d] * wd) * KH,
+                  ny = -(GY[a] * wa + GY[b] * wb + GY[c] * wc + GY[d] * wd) * KH;
+                const nl = 1 / Math.sqrt(nx * nx + ny * ny + 1);
+                const dif = (nx * LX + ny * LY + LZ) * nl; // 0.62 = 평평
+                const shade = 0.86 + (dif - LZ) * 0.55 + Math.min(0.06, h * 0.02);
+                let sp = (nx * hx + ny * hy + hz) * nl;
+                sp = sp > 0.9 ? (sp - 0.9) * 10 : 0; // 좁은 광택
+                sp = sp * sp * 0.55 * al;
+                r = r * (1 - al) + Math.min(1, pr * shade) * al + sp;
+                g = g * (1 - al) + Math.min(1, pg * shade) * al + sp;
+                bl = bl * (1 - al) + Math.min(1, pb * shade) * al + sp;
+              }
+              data[o] = r * 255;
+              data[o + 1] = g * 255;
+              data[o + 2] = bl * 255;
+              data[o + 3] = 255;
+            }
+          }
+          sx.putImageData(img, 0, 0);
+        }
+        // 4) 점토 접시 + 물감
         cx.clearRect(0, 0, S, S);
         // 접시 몸통 (바깥 둘레·두께)
         const body = cx.createRadialGradient(C - S * 0.12, C - S * 0.14, S * 0.05, C, C, S * 0.5);
@@ -762,7 +931,11 @@
         cx.arc(C, C, rin, 0, Math.PI * 2);
         cx.clip();
         cx.imageSmoothingEnabled = true;
-        cx.drawImage(small, C - rin * (N / 2 / R), C - rin * (N / 2 / R), rin * 2 * (N / 2 / R), rin * 2 * (N / 2 / R));
+        if (viaGL) {
+          cx.fillStyle = "rgb(" + BOTTOM.map((x) => Math.round(x * 255)).join(",") + ")";
+          cx.fillRect(0, 0, S, S);
+        }
+        cx.drawImage(viaGL ? G.cv : small, C - side / 2, C - side / 2, side, side);
         // 우묵한 벽 그늘 (빛 반대쪽 = 왼쪽 위 벽이 그늘)
         const inner = cx.createRadialGradient(C + S * 0.05, C + S * 0.06, rin * 0.78, C, C, rin * 1.02);
         inner.addColorStop(0, "rgba(90,60,30,0)");
