@@ -6,6 +6,7 @@
      흰 소품(바탕과 색이 비슷)은 이름 끝에 ! → 바탕과 아주 비슷한 칸만 지움 (예: paper!)
      예) node tools/slice-props.js props tools/out/play-clay/hosp-tools.png 5x2 steth,thermo,band,oint,tweez,ice,tissue,teddy,tea,blanket assets/play-clay/hospital
    은색·흰색 소품(숟가락·열쇠·깃털)이 있는 시트 → props2 (바탕 번지기를 '밝기 기울기'로 막아 소품 가장자리를 지킴, 구멍(반지 안) 지움, 아래 그림자 한 번 더 지움)
+     온통 흰 소품(흰 튜브·흰 통 — 코드로 색을 입힐 것)은 이름 끝에 ! → 바깥선 틈 막기, 속·아래쪽 지우지 않음 (물감 작업실 paint-props)
      node tools/slice-props.js props2 <시트.png> <열x행> <이름들> <출력 폴더> [가장 긴 변=256] [기울기 문턱=3.5]
      예) node tools/slice-props.js props2 tools/out/play-clay/float-props.png 5x3 wood,duck,apple,ball,ice,leaf,feather,melon,stone,spoon,coin,key,bolt,ring,anchor assets/play-clay/floatsink 220
    배경 그림 → 정해진 크기 JPEG
@@ -58,16 +59,20 @@ const writeData = (file, url) => {
     } else if (mode === "props2") {
       const [src, grid, names, outDir, size = "256", G0 = "3.5"] = rest;
       const [cols, rows] = grid.split("x").map(Number);
-      const list = names.split(",");
-      if (list.length !== cols * rows) throw new Error("이름 수(" + list.length + ")가 칸 수(" + cols * rows + ")와 달라요");
+      const list0 = names.split(",");
+      if (list0.length !== cols * rows) throw new Error("이름 수(" + list0.length + ")가 칸 수(" + cols * rows + ")와 달라요");
+      // 이름 끝 ! = 흰 소품(흰 바탕 위 흰 튜브·통): 테두리 틈을 막고(바깥선을 3px 부풀려 번지기) 속 흰 부분·아래쪽을 지우지 않음
+      const whites = list0.map((x) => (x.endsWith("!!") ? 6 : x.endsWith("!") ? 3 : 0)); // !! = 틈이 넓은 것(통 뚜껑 윗면)
+      const list = list0.map((x) => x.replace(/!+$/, ""));
       const res = await page.evaluate(
-      async ({ u, cols, rows, size, g0 }) => {
+      async ({ u, cols, rows, size, g0, whites }) => {
         const im = new Image();
         im.src = u;
         await im.decode();
         const IW = im.naturalWidth, IH = im.naturalHeight, out = [];
         for (let r = 0; r < rows; r++)
           for (let c = 0; c < cols; c++) {
+            const white = whites[r * cols + c];
             const x0 = Math.round((c * IW) / cols), y0 = Math.round((r * IH) / rows);
             const w = Math.round(((c + 1) * IW) / cols) - x0, h = Math.round(((r + 1) * IH) / rows) - y0, n = w * h;
             const cv = document.createElement("canvas");
@@ -108,7 +113,24 @@ const writeData = (file, url) => {
                 const i = y * w + x;
                 grad[i] = Math.max(Math.abs(Lb[i + 1] - Lb[i - 1]), Math.abs(Lb[i + w] - Lb[i - w])) / 2;
               }
-            const pass = (i) => diff[i] < 5 || (sat[i] < 22 && L[i] > 140 && grad[i] < g0);
+            const pass0 = (i) => diff[i] < 5 || (sat[i] < 22 && L[i] > 140 && grad[i] < g0);
+            // 흰 소품: 바깥선(지나갈 수 없는 칸)을 RW px 부풀려 틈을 막음
+            const RW = white || 3;
+            let wall = null;
+            if (white) {
+              wall = new Uint8Array(n);
+              for (let y = 0; y < h; y++)
+                for (let x = 0; x < w; x++) {
+                  if (pass0(y * w + x)) continue;
+                  for (let dy = -RW; dy <= RW; dy++)
+                    for (let dx = -RW; dx <= RW; dx++) {
+                      const nx = x + dx, ny = y + dy;
+                      if (nx < 0 || ny < 0 || nx >= w || ny >= h || dx * dx + dy * dy > RW * RW) continue;
+                      wall[ny * w + nx] = 1;
+                    }
+                }
+            }
+            const pass = white ? (i) => !wall[i] && pass0(i) : pass0;
             const bgm = new Uint8Array(n), q = new Int32Array(n);
             let qh = 0, qt = 0;
             for (let i = 0; i < n; i++) {
@@ -125,8 +147,24 @@ const writeData = (file, url) => {
                 bgm[j] = 1; q[qt++] = j;
               }
             }
+            if (white) {
+              // 부풀린 만큼 바깥선 쪽으로 다시 번짐 (RW+1 걸음까지만 → 틈으로 새지 않음)
+              const dep = new Uint8Array(n);
+              qh = qt = 0;
+              for (let i = 0; i < n; i++) if (bgm[i]) q[qt++] = i;
+              while (qh < qt) {
+                const i = q[qh++], x = i % w;
+                if (dep[i] > RW) continue;
+                for (const o of N4) {
+                  const j = i + o;
+                  if (j < 0 || j >= n || (o === 1 && x === w - 1) || (o === -1 && x === 0)) continue;
+                  if (bgm[j] || !pass0(j)) continue;
+                  bgm[j] = 1; dep[j] = dep[i] + 1; q[qt++] = j;
+                }
+              }
+            }
             // 그림자 2차: 소품 아래쪽(세로 55% 아래)에 남은 아주 밝은 무채색 칸은 기울기가 좀 있어도 바탕으로 번짐
-            {
+            if (!white) {
               let ty = h, by = 0;
               for (let i = 0; i < n; i++) if (!bgm[i]) { const y = (i / w) | 0; if (y < ty) ty = y; if (y > by) by = y; }
               const yc = ty + (by - ty) * 0.55;
@@ -145,7 +183,7 @@ const writeData = (file, url) => {
             }
             // 구멍(반지 안쪽 등): 아직 안 닿은 '거의 흰 칸' 덩어리 중 큰 것 → 바탕
             const seen = new Uint8Array(n);
-            for (let i = 0; i < n; i++) {
+            for (let i = 0; i < n && !white; i++) {
               if (bgm[i] || seen[i] || diff[i] >= 5) continue;
               qh = qt = 0; q[qt++] = i; seen[i] = 1;
               while (qh < qt) {
@@ -217,7 +255,7 @@ const writeData = (file, url) => {
           }
         return out;
       },
-        { u: dataUrl(src), cols, rows, size: +size, g0: +G0 }
+        { u: dataUrl(src), cols, rows, size: +size, g0: +G0, whites }
       );
       res.forEach((r, i) => {
         console.log(list[i], r.w + "×" + r.h, "조각", r.parts);

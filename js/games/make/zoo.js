@@ -580,6 +580,9 @@
         pal.appendChild(tools);
         // 🧸 인형은 단색만 (무늬 붓 없음) — 무늬를 고르고 있었으면 그 바탕색으로
         if (ctx.doll && ctx.paint.kind !== "color") ctx.paint = { kind: "color", color: COLORS.includes(ctx.paint.base) ? ctx.paint.base : COLORS[0] };
+        // 물감 실험실에서 '칠하러 가기'로 왔으면 방금 담은 내 물감을 골라 둠 (한 번만)
+        const pk = KP.paint && KP.paint.takePick ? KP.paint.takePick() : null;
+        if (pk && mine.some((m) => m.hex === pk)) ctx.paint = { kind: "color", color: pk };
         const cur = ctx.paint.kind === "color" ? ctx.paint.color : null;
         if (cur && !COLORS.includes(cur) && !mine.some((m) => m.hex === cur)) ctx.paint = { kind: "color", color: COLORS[0] };
         mine.forEach((m) => {

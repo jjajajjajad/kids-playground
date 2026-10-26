@@ -70,7 +70,7 @@ KP.game({
         .coSay::before{left:50%;top:-12px;margin:0 0 0 -10px;border:10px solid transparent;border-bottom:12px solid #f4f7ff;border-top:0}
         .coCard{width:clamp(110px,15vh,150px)}
         .coJarsCell .psJars{flex-direction:column;flex-wrap:nowrap}
-        .coJarsCell .psJar{width:clamp(60px,7vh,82px);height:clamp(70px,9vh,98px)}
+        .coJarsCell .psJar{width:clamp(60px,7vh,82px);height:clamp(80px,11vh,118px)}
         .coB{min-height:84px;font-size:16px}
         .coB .e{font-size:36px}
       }
@@ -149,7 +149,7 @@ KP.game({
   RECIPES: {
     1: [[1, 1, 0, 0, 0], [0, 1, 1, 0, 0], [1, 0, 1, 0, 0]],
     2: [[1, 2, 0, 0, 0], [2, 1, 0, 0, 0], [0, 2, 1, 0, 0], [0, 1, 2, 0, 0], [2, 0, 1, 0, 0]],
-    3: [[0, 0, 1, 2, 0], [1, 0, 1, 2, 0], [1, 1, 0, 3, 0], [0, 0, 0, 2, 1], [0, 0, 2, 0, 1], [0, 1, 0, 1, 0], [0, 1, 1, 0, 1], [3, 0, 1, 3, 0], [1, 1, 1, 0, 0]],
+    3: [[0, 0, 1, 2, 0], [1, 0, 1, 2, 0], [1, 1, 0, 3, 0], [0, 0, 0, 2, 1], [0, 0, 2, 0, 1], [0, 1, 0, 3, 0], [0, 1, 1, 0, 1], [3, 0, 1, 3, 0], [1, 1, 1, 0, 0]],
   },
   /* 허용 거리: 각 물감 양을 단계별 비율(1단계 ±30%, 2단계 ±25%, 3단계 ±20%)만큼 바꿨을 때의
      평균 색 차이를 쓰고, 단계별 범위로 자름 → 예민한 색(청록 등)과 둔한 색(귤색 등)의 공정성 맞춤 */
@@ -292,36 +292,8 @@ KP.game({
    * → {id, lot} 또는 null(되돌릴 수 없음 → 비우고 다시)
    */
   advice(ctx, tot) {
-    const P = KP.paint,
-      o = ctx.order,
-      v = o.v;
-    const cap = ctx.studio.bowl.capacity;
-    const vol = tot.reduce((x, y) => x + y, 0);
-    let k = 0;
-    v.forEach((x, i) => x > 0 && (k = Math.max(k, tot[i] / x)));
-    k = Math.max(k, 0.9 / Math.min(...v.filter((x) => x > 0)));
-    let add = null;
-    for (; ; k += 0.3) {
-      const a = v.map((x, i) => Math.max(0, k * x - tot[i]));
-      const sum = a.reduce((x, y) => x + y, 0);
-      if (vol + sum > cap) break;
-      const w = tot.map((x, i) => x + a[i]);
-      if (P.dist(P.mix(w), o.target) <= o.tol * 0.8) {
-        add = a;
-        break;
-      }
-    }
-    if (!add) return null;
-    const cur = P.dist(P.mix(tot), o.target);
-    let best = null;
-    add.forEach((need, id) => {
-      if (need < 0.45) return;
-      const w = tot.slice();
-      w[id] += 0.9;
-      const gain = cur - P.dist(P.mix(w), o.target);
-      if (!best || gain > best.gain + 0.01 || (Math.abs(gain - best.gain) <= 0.01 && need > best.need)) best = { id, gain, need };
-    });
-    return best ? { id: best.id, lot: best.need >= 2.7 } : null;
+    const o = ctx.order;
+    return KP.paint.advise(tot, o.v, o.target, o.tol, ctx.studio.bowl.capacity); // 공용(paint.js) — 색깔 섞기도 같이 씀
   },
 
   async give(ctx) {
