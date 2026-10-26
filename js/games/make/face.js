@@ -434,7 +434,15 @@ KP.game({
     ctx.body.appendChild(wrap);
     let tab = "eyes",
       temp = null,
-      unsaved = true;
+      unsaved = true,
+      ver = 0, // 편집 버전 (사진 찍는 동안 바뀌었는지 확인)
+      shooting = false; // 사진 만드는 중(찰칵 → 저장 → 누구예요?/축하 전까지) — 편집·친구 바꾸기 잠금
+    /** 사진 만드는 중이면 편집을 막고 사진 단추만 살짝 흔듦 */
+    const locked = () => {
+      if (!shooting) return false;
+      U.replay(bPhoto, "wig");
+      return true;
+    };
 
     /* 거울 자리: 배경 그림을 잘라 거울(전구 포함)이 무대에 크게 들어오게 */
     let mGeom = { x: 0, y: 0, r: 100 };
@@ -480,6 +488,7 @@ KP.game({
     function saveCfg() {
       KP.store.set("face:cfg", cfg);
       unsaved = true;
+      ver++;
     }
     function setCur(id, who) {
       cur = id || null;
@@ -515,6 +524,7 @@ KP.game({
         const b = U.btn(faceSVG(c, { vb: VB[tab] }), "fc-opt" + (cfg[tab] === id ? " sel" : ""));
         b.style.setProperty("--i", i);
         ctx.tap(b, () => {
+          if (locked()) return;
           cfg[tab] = id;
           saveCfg();
           U.$$(".fc-opt", opts).forEach((x) => x.classList.toggle("sel", x === b));
@@ -533,6 +543,7 @@ KP.game({
           const b = U.btn("", "fc-col" + (cfg.hairC === i ? " sel" : ""));
           b.style.backgroundColor = c;
           ctx.tap(b, () => {
+            if (locked()) return;
             cfg.hairC = i;
             saveCfg();
             stopReact();
@@ -713,6 +724,7 @@ KP.game({
 
     /* ---------- 랜덤 (새 얼굴) ---------- */
     ctx.tap(bRand, () => {
+      if (locked()) return;
       const r = (k) => U.pick(PARTS[k].list)[0];
       stopReact();
       cfg = Object.assign({}, cfg, {
@@ -775,7 +787,7 @@ KP.game({
     /* ---------- 친구 불러오기 (다시 꾸미기) ---------- */
     function loadFriend(id, el) {
       const f = friendOf(id);
-      if (!f) return;
+      if (!f || locked()) return;
       stopReact();
       closeOv();
       cfg = Object.assign({}, f.cfg);
@@ -791,6 +803,7 @@ KP.game({
       ctx.after(900, () => KP.voice.say("얼굴을 꾸며 봐요!"));
     }
     function newFace(who) {
+      if (locked()) return;
       stopReact();
       closeOv();
       cfg = Object.assign({}, DEF, { shirt: U.rand(SHIRTS.length) });
@@ -864,6 +877,7 @@ KP.game({
       KP.voice.say("내 사진");
     }
     ctx.tap(bAlbum, () => {
+      if (locked()) return;
       U.replay(bAlbum, "pop");
       openAlbum();
     });
@@ -934,7 +948,16 @@ KP.game({
       }
     }
     /** 사진이 거울에서 사진 줄(또는 앨범 단추)로 날아가 걸림 */
+    let fly = null; // 날아가는 사진 {el, rafs, t} — 나가면 stop 에서 치움
+    function clearFly() {
+      if (!fly) return;
+      fly.rafs.forEach(cancelAnimationFrame);
+      if (fly.t) ctx.cancel(fly.t);
+      fly.el.remove();
+      fly = null;
+    }
     function flyTo(img, target, done) {
+      clearFly();
       const a = mirror.getBoundingClientRect();
       const b = target.getBoundingClientRect();
       const f = U.el("div", "fc-fly");
@@ -944,27 +967,40 @@ KP.game({
       const w = a.width * 0.7;
       Object.assign(f.style, { left: a.left + a.width / 2 - w / 2 + "px", top: a.top + a.height / 2 - w * 0.6 + "px", width: w + "px", height: w * 1.2 + "px" });
       document.body.appendChild(f);
+      const me = (fly = { el: f, rafs: new Set(), t: 0 });
       const sc = Math.max(0.08, Math.min(1, b.height / (w * 1.2)));
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
+      const raf = (fn) => {
+        const id = requestAnimationFrame(() => {
+          me.rafs.delete(id);
+          fn();
+        });
+        me.rafs.add(id);
+      };
+      raf(() =>
+        raf(() => {
           f.style.transform = "translate(" + (b.left + b.width / 2 - (a.left + a.width / 2)) + "px," + (b.top + b.height / 2 - (a.top + a.height / 2 - w * 0.1)) + "px) scale(" + sc + ") rotate(8deg)";
           f.style.opacity = "0.7";
         })
       );
-      setTimeout(() => {
-        f.remove();
+      // ctx.after: 나가면 자동 취소(그때 사진은 stop → clearFly 가 치움)
+      me.t = ctx.after(900, () => {
+        if (fly === me) {
+          me.t = 0;
+          clearFly();
+        }
         if (done) done();
-      }, 900);
+      });
     }
-    /** 앨범에 넣기(새 친구) 또는 고치던 친구 바꾸기 → 친구 */
-    function putFriend(c) {
-      let f = cur && friendOf(cur);
+    /** 앨범에 넣기(새 친구) 또는 고치던 친구 바꾸기 → 친구
+        (사진 저장이 성공한 뒤에만 부름 — 찍기 시작할 때 고정한 shot 기준) */
+    function putFriend(shot) {
+      let f = friendOf(shot.fid);
       if (f) {
-        f.cfg = Object.assign({}, c);
+        f.cfg = Object.assign({}, shot.cfg);
         f.t = Date.now();
         friends = friends.filter((x) => x !== f).concat(f);
       } else {
-        f = { id: KP.newId(), who: whoOf(pendWho)[0], t: Date.now(), cfg: Object.assign({}, c) };
+        f = { id: shot.fid, who: shot.who, t: Date.now(), cfg: Object.assign({}, shot.cfg) };
         friends.push(f);
         // 꽉 차면: 가족 칸의 맨 마지막 사람은 지키고, 가장 오래된 사람부터 내려감
         while (friends.length > MAXF) {
@@ -985,34 +1021,46 @@ KP.game({
         return;
       }
       bPhoto.dataset.busy = "1";
+      shooting = true; // 사진이 끝날 때까지 편집·친구 바꾸기 잠금
+      const sess = ctx._session;
+      const live = () => ctx._active && ctx._session === sess;
       stopReact();
       render();
       A.noise({ dur: 0.05, vol: 0.25, hp: 2000 });
       A.noise({ dur: 0.08, vol: 0.18, hp: 1200, when: 0.09 });
       U.replay(flash, "on");
       KP.voice.say("찰칵!");
-      const shotCfg = Object.assign({}, cfg, { mouth: cfg.mouth === "sad" ? "smile" : cfg.mouth });
-      const img = await toJpeg(shotCfg);
-      if (!ctx._active) return;
-      if (!img) {
+      // 찍는 순간의 얼굴·친구·편집 버전을 고정 (뒤에서 cfg/cur 가 바뀌어도 사진과 저장 내용이 같게)
+      const old = cur && friendOf(cur);
+      const shot = { cfg: Object.assign({}, cfg), fid: old ? old.id : KP.newId(), who: old ? old.who : whoOf(pendWho)[0], ver };
+      const wasNew = !old && !pendWho;
+      const unlock = () => {
+        shooting = false;
         delete bPhoto.dataset.busy;
+      };
+      const img = await toJpeg(Object.assign({}, shot.cfg, { mouth: shot.cfg.mouth === "sad" ? "smile" : shot.cfg.mouth }));
+      if (!live()) return;
+      if (!img) {
+        unlock();
         KP.toast("사진을 만들지 못했어요");
         return;
       }
-      const wasNew = !(cur && friendOf(cur)) && !pendWho;
-      const f = putFriend(cfg);
-      const ok = await KP.db.put("art", { id: KP.newId(), kind: "face", img, t: Date.now(), date: KP.gate.monthDay(), cfg: Object.assign({}, cfg), fid: f.id, who: f.who });
-      if (!ctx._active) return;
+      // 사진(DB)이 먼저 저장된 뒤에만 친구 앨범·face:cur 를 확정 (실패하면 아무것도 바뀌지 않음)
+      const ok = await KP.db.put("art", { id: KP.newId(), kind: "face", img, t: Date.now(), date: KP.gate.monthDay(), cfg: Object.assign({}, shot.cfg), fid: shot.fid, who: shot.who });
+      if (ctx._session !== sess) return; // 나갔다 다시 들어온 뒤면 새 판을 건드리지 않음
       if (ok === false) {
-        delete bPhoto.dataset.busy;
+        if (!ctx._active) return;
+        unlock();
         KP.toast("저장하지 못했어요. 저장공간을 확인해 주세요");
         return;
       }
-      unsaved = false;
+      const f = putFriend(shot); // 나가는 중이어도(같은 판) 저장된 사진과 친구 앨범은 맞춰 둠
+      if (ver === shot.ver) unsaved = false;
+      if (!ctx._active) return;
       A.sfx("sticker");
       const target = line.offsetParent ? line : bAlbum;
       flyTo(img, target, () => {
-        if (!ctx._active) return;
+        if (!live()) return;
         lineIds = "";
         renderLine(f.id);
         U.replay(bAlbum, "bump");
@@ -1022,6 +1070,7 @@ KP.game({
       });
     });
     async function finish() {
+      shooting = false;
       delete bPhoto.dataset.busy;
       KP.toast("🖼️ 내 작품에 저장했어요!");
       await ctx.wait(500);
@@ -1060,7 +1109,11 @@ KP.game({
     async function familyPhoto(btn) {
       if (btn.dataset.busy) return;
       btn.dataset.busy = "1";
+      const sess = ctx._session;
+      const live = () => ctx._active && ctx._session === sess;
       const mem = FAM.map((k) => friends.filter((x) => x.who === k).pop()).filter(Boolean);
+      // 같은 가족(사람·얼굴 그대로)을 또 찍으면 사진은 저장하되 열쇠 별은 없음
+      const famKey = JSON.stringify(mem.map((f) => [f.who, f.id, cleanCfg(f.cfg)]));
       A.noise({ dur: 0.05, vol: 0.25, hp: 2000 });
       KP.voice.say("찰칵!");
       const ims = await Promise.all(mem.map((f) => svgImg(faceSVG(f.cfg, { vb: POL_VB }))));
@@ -1113,24 +1166,41 @@ KP.game({
       try {
         img = cv.toDataURL("image/jpeg", 0.85);
       } catch (e) {}
-      if (!ctx._active) return;
+      if (!live()) return;
       const ok = img && (await KP.db.put("art", { id: KP.newId(), kind: "face", img, t: Date.now(), date: KP.gate.monthDay(), fam: mem.map((f) => f.id) }));
       delete btn.dataset.busy;
-      if (!ctx._active) return;
+      if (!live()) return;
       if (!img || ok === false) {
         KP.toast("저장하지 못했어요. 저장공간을 확인해 주세요");
         return;
       }
+      // 별을 받은 가족 구성 기록(짧은 지문 최근 30개) — 두 얼굴을 번갈아 바꿔 찍어도 별은 구성마다 한 번
+      let hsh = 2166136261;
+      for (let i = 0; i < famKey.length; i++) hsh = Math.imul(hsh ^ famKey.charCodeAt(i), 16777619);
+      const fp = (hsh >>> 0).toString(36);
+      const won = KP.store.get("face:famWon", []);
+      const wonList = Array.isArray(won) ? won.filter((x) => typeof x === "string").slice(-30) : [];
+      const again = wonList.includes(fp);
+      if (!again) KP.store.set("face:famWon", wonList.concat(fp).slice(-30));
       A.sfx("sticker");
       closeOv();
       KP.toast("🖼️ 내 작품에 저장했어요!");
       await ctx.wait(400);
+      if (again) ctx._fewChoice = true; // 축하는 하되 열쇠 별은 없음 (ui.js win 의 clean 규칙)
       await ctx.win({ msg: "찰칵! 내 작품에 저장했어요!" });
     }
 
+    // 나갈 때(def.stop): 날아가던 사진 치우기 · 사진 잠금 풀기
+    ctx.cleanup = () => {
+      clearFly();
+      shooting = false;
+    };
     ctx.init = () => {
       stopReact();
       closeOv();
+      clearFly();
+      shooting = false;
+      ver = 0;
       friends = loadFriends();
       cfg = cleanCfg(KP.store.get("face:cfg", null));
       cur = KP.store.get("face:cur", null);
@@ -1153,5 +1223,8 @@ KP.game({
     ctx.say("얼굴을 꾸며 봐요! 코, 볼, 입을 콕 눌러 봐요."); // 뒤 문장은 새 음성(tools/out/new-voice/face.txt)
     ctx.every(3600, () => ctx.blink());
     ctx.hint(() => ctx.body.querySelector(".fc-opt:not(.sel)"), "그림을 눌러서 바꿔 봐요!");
+  },
+  stop(ctx) {
+    ctx.cleanup && ctx.cleanup();
   },
 });
