@@ -8,6 +8,7 @@
    - 빠르기 🐢🚶🐇, 분위기 🎉 신나게 / 🌙 잔잔하게
    1단계: 자리 2개 / 2단계: 자리 4개 (자유 합주 — 2명 이상이 몇 마디 함께 연주하면 칭찬, 자주 부르지 않음)
    3단계: 따라 해 봐요 — 들려준 조합(2~3명)을 듣고 똑같이 무대에 올리기 (보기는 늘 6명)
+   🎶 마음대로(어느 단계든): 자리 6개, 문제·칭찬·재촉·단계 넘김 없이 넣고 빼며 계속 듣기 (켜 둔 상태 기억 band:free)
    공용: _shared/clay-stage.js · doll-actor.js · doll-follow.js · sampler.js · play-feedback.js */
 "use strict";
 KP.game({
@@ -309,8 +310,26 @@ KP.game({
     function paintSel() {
       moodBtns.forEach((b, i) => b.classList.toggle("sel", MOODS[i][0] === mood));
       tempoBtns.forEach((b, i) => b.classList.toggle("sel", TEMPOS[i][1] === tempo));
+      bJam.classList.toggle("sel", jam);
     }
-    ctl.append(gMood, gTempo);
+    // 🎶 마음대로 연주 — 문제 없이 원하는 친구를 넣고 빼며 듣기
+    let jam = KP.store.get("band:free", false) === true;
+    const gJam = U.el("div", "bnGrp");
+    const bJam = U.btn(KP.E("🎶"), "bnB");
+    bJam.setAttribute("aria-label", "마음대로 연주");
+    gJam.appendChild(bJam);
+    ctx.tap(bJam, () => {
+      if (winning || preview) return;
+      jam = !jam;
+      KP.store.set("band:free", jam);
+      paintSel();
+      U.replay(bJam, "jump");
+      A.sfx("select");
+      ctx.hint(null);
+      setLevel(ctx.level, curLevel >= 3 || mode === "copy");
+      if (jam || ctx.level < 3) ctx.say(jam ? "마음대로 연주해요!" : "동물 친구를 무대에 올려 봐요!"); // 3단계로 돌아가면 문제 문구는 nextCopy 가 말함
+    });
+    ctl.append(gMood, gTempo, gJam);
     const bEar = U.btn(KP.E("👂"), "bnEar");
     paintSel();
 
@@ -951,7 +970,7 @@ KP.game({
         if (bar >= preview.endBar) endPreview();
         return;
       }
-      if (mode !== "free" || winning || muted) return;
+      if (mode !== "free" || winning || muted || jam) return; // 마음대로: 칭찬·재촉 없음
       let n = 0;
       players.forEach((p) => {
         if (p.start <= bar * 8) n++;
@@ -987,6 +1006,7 @@ KP.game({
       if (ok) checkLevel();
     }
     function checkLevel() {
+      if (jam) return;
       const lv = ctx.level;
       if (lv === curLevel) return;
       const wasCopy = mode === "copy";
@@ -1007,7 +1027,7 @@ KP.game({
     }
     function setLevel(lv, reset) {
       curLevel = lv;
-      if (lv >= 3) {
+      if (lv >= 3 && !jam) {
         mode = "copy";
         resetAll();
         bEar.style.display = "";
@@ -1021,7 +1041,7 @@ KP.game({
       if (reset) resetAll();
       // 1→2단계: 무대에 있던 친구는 그대로 두고 자리만 늘림
       const keep = PLAYERS.filter((p) => where[p.id] != null).map((p) => p.id);
-      const n = lv === 1 ? 2 : 4;
+      const n = jam ? 6 : lv === 1 ? 2 : 4;
       keep.forEach((id, i) => {
         if (i < n) where[id] = i;
       });
@@ -1140,7 +1160,8 @@ KP.game({
         if (!s || tok !== ctx.bandTok || !ctx._active) return;
         startLoop(s);
         setLevel(ctx.level, true);
-        if (ctx.level < 3) ctx.say("동물 친구를 무대에 올려 봐요!");
+        if (jam) ctx.say("마음대로 연주해요!");
+        else if (ctx.level < 3) ctx.say("동물 친구를 무대에 올려 봐요!");
       },
       end() {
         ctx.bandTok++;
