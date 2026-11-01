@@ -537,8 +537,14 @@ KP.game({
     }
 
     /* ---------- 그리기 ---------- */
+    // 바뀐 게 없으면 다시 그리지 않음 (그림자 그리기가 무거워 가만히 있어도 저가 태블릿이 버벅임)
+    let lastSig = "";
     function draw(now, dt) {
       if (!W || !st.ready) return;
+      const moving = st.done || st.order.some((pc) => pc.anim || pc.flash > 0 || Math.abs(pc.tsc - pc.sc) > 1e-3);
+      const sig = moving ? "" : [cv.width, cv.height, W, H, st.fx, st.fy, st.F, st.drag ? st.drag.i + "," + st.drag.j : "-"].concat(st.order.map((pc) => pc.x + "," + pc.y + "," + pc.sc + (pc.placed ? "p" : ""))).join("|");
+      if (sig && sig === lastSig) return;
+      lastSig = sig;
       cx.clearRect(0, 0, W, H);
       const { fx, fy, F, s } = st;
       // 바탕판
