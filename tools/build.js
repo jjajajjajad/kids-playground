@@ -36,7 +36,7 @@ const OVERRIDE = {
 };
 // 자연 음성 저장소 이름 — sw.js(옛 저장소 정리)와 voice.js(KP.VOICE_CACHE)가 함께 씀. 바꾸면 옛 저장소는 지워짐
 const VOICE_CACHE = "kp-voice-1";
-const CORE = ["kp", "GEN:emoji-map", "GEN:version", "art", "store", "settings", "audio", "voice", "GEN:clips", "ui", "drag", "paint", "notebook", "celebrate", "home", "earn", "pages", "catalog"];
+const CORE = ["kp", "GEN:emoji-map", "GEN:version", "art", "store", "settings", "audio", "voice", "GEN:clips", "ui", "drag", "paint", "notebook", "celebrate", "home", "earn", "perfmon", "pages", "catalog"];
 
 const srcFiles = [...walk(P("js"), [".js"]).filter((f) => !f.includes(path.join("js", "gen"))), ...walk(P("css"), [".css"])];
 const RE = /(?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:️|⃣|[\u{1F3FB}-\u{1F3FF}]|‍(?:\p{Extended_Pictographic}|[♀♂])️?)*|[#*0-9]️⃣/gu;

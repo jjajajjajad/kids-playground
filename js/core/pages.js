@@ -660,6 +660,67 @@
       draw();
     });
 
+    // 렉 측정 (실제 기기에서 어느 놀이가 버벅이는지 기록)
+    if (KP.perf) {
+      const sPerf = sec(KP.E("📈") + " 렉 측정");
+      const pRow = U.el("label", "pRow", "<span>측정 켜기 (아이가 노는 동안 화면마다 기록)</span>");
+      const pc = U.el("input");
+      pc.type = "checkbox";
+      pc.checked = KP.perf.on();
+      const bRow = U.el("label", "pRow", "<span>왼쪽 아래에 초당 장수 보이기</span>");
+      const bc = U.el("input");
+      bc.type = "checkbox";
+      bc.checked = KP.perf.badge();
+      pc.addEventListener("change", () => (KP.perf.set(pc.checked), drawPerf()));
+      bc.addEventListener("change", () => KP.perf.setBadge(bc.checked));
+      pRow.appendChild(pc);
+      bRow.appendChild(bc);
+      const pNote = U.el("p", "pNote", "");
+      const pTbl = U.el("div", "perfTbl");
+      KP.css("perfTbl", `.perfTbl{max-height:40vh;overflow:auto;margin-top:6px}.perfTbl table{border-collapse:collapse;font-size:13px;width:100%}.perfTbl th,.perfTbl td{padding:4px 6px;border-bottom:1px solid #eef0f7;text-align:right;white-space:nowrap}.perfTbl th:first-child,.perfTbl td:first-child{text-align:left;white-space:normal}.perfTbl .bad{color:#e5484d;font-weight:700}.perfTbl .mid{color:#d58a00;font-weight:700}`);
+      const drawPerf = () => {
+        const rows = KP.perf.rows(), gs = KP.perf.groups();
+        pNote.textContent = KP.perf.on()
+          ? "켜져 있어요. 평소처럼 놀게 한 뒤 여기서 확인하세요. 초당 장수는 60이 가장 부드럽고, 30 아래면 버벅여 보여요. 5초 넘게 본 화면만 나와요."
+          : "꺼져 있어요. 켜 두면 기록만 하고 놀이에는 영향이 거의 없어요.";
+        const cls = (f) => (f < 30 ? "bad" : f < 50 ? "mid" : "");
+        const esc = (t) => String(t).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+        pTbl.innerHTML = rows.length
+          ? "<table><tr><th>화면</th><th>초당 장수</th><th>끊김%</th><th>멈춤</th><th>본 시간</th></tr>" +
+            rows.map((r) => `<tr><td>${esc(r.name)}</td><td class="${cls(r.fps)}">${r.fps}</td><td>${r.jank}</td><td>${r.freeze}</td><td>${r.sec}초</td></tr>`).join("") +
+            "</table>" +
+            (gs.length ? "<table style='margin-top:8px'><tr><th>앱을 연 뒤 놀이 수</th><th>초당 장수</th><th>끊김%</th></tr>" + gs.map((g) => `<tr><td>${g.k}</td><td class="${cls(g.fps)}">${g.fps}</td><td>${g.jank}</td></tr>`).join("") + "</table>" : "")
+          : "";
+      };
+      const pBtns = U.el("div", "pChips");
+      const bCopy = U.btn(KP.E("📋") + " 결과 복사", "chip");
+      const bClr = U.btn(KP.E("🧹") + " 기록 지우기(꾹)", "chip danger");
+      const pOut = U.el("textarea", "");
+      pOut.readOnly = true;
+      pOut.style.cssText = "display:none;width:100%;height:120px;font-size:11px;margin-top:6px";
+      bCopy.addEventListener("click", async () => {
+        const t = KP.perf.report();
+        try {
+          await navigator.clipboard.writeText(t);
+          KP.toast("복사했어요. 메신저 등에 붙여 넣어 보내 주세요");
+        } catch (e) {
+          // 복사가 막힌 기기: 글자를 보여 주고 직접 길게 눌러 복사
+          pOut.style.display = "block";
+          pOut.value = t;
+          pOut.select();
+          KP.toast("아래 글자를 길게 눌러 복사해 주세요");
+        }
+      });
+      KP.hold(bClr, 1500, () => {
+        KP.perf.clear();
+        drawPerf();
+        KP.toast("기록을 지웠어요");
+      });
+      pBtns.append(bCopy, bClr);
+      sPerf.append(pRow, bRow, pNote, pTbl, pBtns, pOut);
+      drawPerf();
+    }
+
     box.appendChild(U.el("p", "pVer", "아이 놀이터 · 버전 " + (KP.VERSION || "dev")));
     document.body.appendChild(panel);
   };
