@@ -125,7 +125,7 @@ KP.game({
       }
       KP.voice.say(U.pick(["와, 고마워! ", "나왔다! ", "야호! "]) + "나는 " + name + "!");
       A.sfx("levelup");
-      ctx.freed.push({ el: f, x, y, vy: -320, floor: H - 50, t: 0, bounces: 0 });
+      ctx.freed.push({ el: f, x, y, y0: y, vy: -320, floor: H - 50, t: 0, bounces: 0 });
     };
 
     // 손가락으로 쓸어도 터지게 — 판 전체에서 위치로 판정
@@ -175,8 +175,7 @@ KP.game({
       for (const b of alive) {
         b.y -= b.sp * dt;
         b.x = U.clamp(b.x0 + Math.sin(t * b.fq + b.ph) * b.amp, b.d / 2, W - b.d / 2);
-        b.el.style.left = b.x - b.d / 2 + "px";
-        b.el.style.top = b.y + "px";
+        b.el.style.translate = b.x - b.d / 2 + "px " + b.y + "px"; // left/top 대신 (다시 칠하지 않고 옮기기만)
         if (b.y < -b.d - 10) {
           b.dead = true;
           b.el.remove();
@@ -194,7 +193,7 @@ KP.game({
           f.vy = f.bounces < 3 ? -380 / f.bounces : 0;
           if (f.bounces <= 2) A.note(f.bounces === 1 ? "G4" : "C5", { inst: "marimba", dur: 0.2, vol: 0.12 });
         }
-        f.el.style.top = f.y + "px";
+        f.el.style.translate = "0 " + (f.y - f.y0) + "px";
         f.el.style.rotate = Math.sin(f.t * 10) * 8 + "deg";
         if (f.t > 2.2) f.el.style.opacity = Math.max(0, 1 - (f.t - 2.2) * 2);
         if (f.t > 2.8) {

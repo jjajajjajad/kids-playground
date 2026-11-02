@@ -201,6 +201,7 @@ KP.game({
       }
       return -1;
     }
+    let dropsDrawn = false;
     function step(dt) {
       // 물 주기
       const i = potUnder();
@@ -233,7 +234,9 @@ KP.game({
       // 물방울 · 꽃가루 그리기
       const W = fx.width / D,
         H = fx.height / D;
-      fg.clearRect(0, 0, W, H);
+      // 물방울이 없고 지난 장면에도 없었으면 지우지 않음 (매 장면 화면 전체를 지우던 것)
+      if (drops.length || dropsDrawn) fg.clearRect(0, 0, W, H);
+      dropsDrawn = drops.length > 0;
       for (let k = drops.length - 1; k >= 0; k--) {
         const d = drops[k];
         d.vy += 600 * dt;

@@ -87,7 +87,28 @@ KP.game({
       }));
       cx.fillStyle = "#0b1030";
       cx.fillRect(0, 0, W, H);
+      // 건물 줄은 한 번만 그려 두고 매 장면 한 번에 찍음 (예전엔 매 장면 네모 100개 가까이 다시 그림)
+      const SH = 100;
+      sky.width = cv.width;
+      sky.height = Math.round(SH * d);
+      const g = sky.getContext("2d");
+      g.setTransform(d, 0, 0, d, 0, 0);
+      g.translate(0, SH - H);
+      g.fillStyle = "#141a44";
+      const bw = W / 14;
+      for (let i = 0; i < 15; i++) {
+        const bh = 30 + ((i * 53) % 70);
+        g.fillRect(i * bw, H - bh, bw - 4, bh);
+      }
+      g.fillStyle = "rgba(255,220,120,.5)";
+      for (let i = 0; i < 15; i++) {
+        const bh = 30 + ((i * 53) % 70);
+        for (let kk = 12; kk < bh - 8; kk += 16) if ((i * 7 + kk) % 3) g.fillRect(i * bw + 8, H - bh + kk, 5, 6);
+      }
+      skyH = SH;
     }
+    const sky = document.createElement("canvas");
+    let skyH = 0;
     ctx.fit = fit;
     addEventListener("resize", () => ctx._active && fit());
 
@@ -310,17 +331,7 @@ KP.game({
         cx.fillRect(st.x, st.y, st.r * 1.6, st.r * 1.6);
       }
       cx.globalAlpha = 1;
-      cx.fillStyle = "#141a44";
-      const bw = W / 14;
-      for (let i = 0; i < 15; i++) {
-        const bh = 30 + ((i * 53) % 70);
-        cx.fillRect(i * bw, H - bh, bw - 4, bh);
-      }
-      cx.fillStyle = "rgba(255,220,120,.5)";
-      for (let i = 0; i < 15; i++) {
-        const bh = 30 + ((i * 53) % 70);
-        for (let kk = 12; kk < bh - 8; kk += 16) if ((i * 7 + kk) % 3) cx.fillRect(i * bw + 8, H - bh + kk, 5, 6);
-      }
+      if (skyH && sky.width && sky.height) cx.drawImage(sky, 0, H - skyH, W, skyH);
 
       cx.globalCompositeOperation = "lighter";
       rockets = rockets.filter((r) => {

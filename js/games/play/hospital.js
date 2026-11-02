@@ -33,8 +33,11 @@ KP.game({
       .hpBub:after{content:"";position:absolute;left:.7em;bottom:-.35em;width:.7em;height:.7em;background:#fffaf2;transform:rotate(45deg);border-radius:0 0 .15em 0}
       .hpZone{border-radius:40%;z-index:4}
       .hpZone.on{pointer-events:auto;touch-action:none}
-      .hpZone.ask{animation:hpAsk 1.6s ease-in-out infinite}
-      @keyframes hpAsk{0%,100%{box-shadow:0 0 0 0 rgba(255,143,171,0)}50%{box-shadow:0 0 0 calc(var(--dh)*.04) rgba(255,143,171,.3)}}
+      /* 아픈 곳 빛 고리는 가장 밝은 모습을 따로 한 장(::after)에 그려 두고 밝기만 바꿈 (매번 다시 칠하면 저가 태블릿이 버벅임) */
+      .hpZone::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;box-shadow:0 0 0 calc(var(--dh)*.04) rgba(255,143,171,.3)}
+      .hpZone.ask{animation:none}
+      .hpZone.ask::after{animation:hpAsk 1.6s ease-in-out infinite}
+      @keyframes hpAsk{50%{opacity:1}}
       .hpSpot{width:calc(var(--dh)*.24);height:calc(var(--dh)*.24);border-radius:50%;border:4px dashed rgba(255,197,49,.0);transition:border-color .2s,background .2s;z-index:5}
       .hpSpot.show{border-color:rgba(255,190,40,.95);background:rgba(255,230,140,.25);animation:hpSpotP 1s ease-in-out infinite}
       .hpSpot.near{border-style:solid;border-color:#ffb21e;background:rgba(255,220,120,.4)}
@@ -86,8 +89,12 @@ KP.game({
       .hpTool.dragging{z-index:60;background:transparent;box-shadow:none}
       .hpTool.dragging img{width:110%;height:110%}
       .hpTool.used{visibility:hidden}
-      .hpTool.glow{animation:hpGlow 1.3s ease-in-out infinite}
-      @keyframes hpGlow{0%,100%{box-shadow:0 6px 0 rgba(140,95,50,.18),0 0 0 0 rgba(255,197,49,0)}50%{box-shadow:0 6px 0 rgba(140,95,50,.18),0 0 0 10px rgba(255,197,49,.65)}}
+      /* 쓸 도구 빛 고리는 가장 밝은 모습을 따로 한 장(::after)에 그려 두고 밝기만 바꿈 (매번 다시 칠하면 저가 태블릿이 버벅임).
+         예전 반짝임은 안쪽 그림자(inset)를 빼고 그렸으므로 그대로 뺌 · animation:none 은 들어오는 효과(itemIn)가 다시 돌지 않게 */
+      .hpTool.glow{animation:none;box-shadow:0 6px 0 rgba(140,95,50,.18)}
+      .hpTool::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;box-shadow:0 0 0 10px rgba(255,197,49,.65)}
+      .hpTool.glow::after{animation:hpGlow 1.3s ease-in-out infinite}
+      @keyframes hpGlow{50%{opacity:1}}
       @media (orientation:portrait){.hpTool{width:clamp(70px,18vw,104px);height:clamp(70px,18vw,104px)}.hpTray{gap:10px}}
       @media (orientation:landscape) and (max-height:520px){
         .hpWrap{flex-direction:row;padding:0 10px 8px}

@@ -15,8 +15,9 @@ KP.game({
     KP.css("fish", `
       .fs-sea{flex:1;min-height:0;position:relative;margin:0 12px 12px;border-radius:24px;overflow:hidden;box-shadow:var(--shadow);touch-action:none;
         background:linear-gradient(180deg,#6fd6ff 0%,#2fa6e8 30%,#1677c9 70%,#0f5ea8 100%)}
-      .fs-sea::before{content:"";position:absolute;left:0;right:0;top:0;height:16px;background:repeating-radial-gradient(circle at 20px -6px,rgba(255,255,255,.55) 0 14px,transparent 15px 40px);background-size:40px 16px;opacity:.8;animation:fs-surf 4s linear infinite}
-      @keyframes fs-surf{to{background-position:40px 0}}
+      /* 물결 무늬는 40px(무늬 1칸) 더 넓게 그려 두고 통째로 옆으로 밀기만 함 (무늬를 매번 다시 칠하면 저가 태블릿이 버벅임). 바깥은 fs-sea 가 잘라 줌 */
+      .fs-sea::before{content:"";position:absolute;left:-40px;right:0;top:0;height:16px;background:repeating-radial-gradient(circle at 20px -6px,rgba(255,255,255,.55) 0 14px,transparent 15px 40px);background-size:40px 16px;opacity:.8;animation:fs-surf 4s linear infinite}
+      @keyframes fs-surf{to{transform:translateX(40px)}}
       .fs-ray{position:absolute;top:-5%;width:12%;height:85%;background:linear-gradient(180deg,rgba(255,255,255,.35),rgba(255,255,255,0));transform-origin:top;transform:rotate(14deg);pointer-events:none;animation:fs-ray 6s ease-in-out infinite alternate}
       @keyframes fs-ray{to{transform:rotate(6deg);opacity:.5}}
       .fs-sand{position:absolute;left:-5%;right:-5%;bottom:-30px;height:90px;border-radius:50% 50% 0 0/40px 40px 0 0;background:linear-gradient(#ffe2a3,#f2c46f);pointer-events:none}
@@ -113,8 +114,7 @@ KP.game({
     };
 
     ctx.place = (f) => {
-      f.el.style.left = f.x + "px";
-      f.el.style.top = f.y + "px";
+      f.el.style.translate = f.x + "px " + f.y + "px"; // left/top 대신 (다시 칠하지 않고 옮기기만)
       const goingRight = (f.vx != null ? f.vx : f.dir) > 0;
       const flip = f.face !== 0 && (goingRight ? f.face < 0 : f.face > 0);
       f.el.firstChild.style.transform = flip ? "scaleX(-1)" : "";

@@ -50,7 +50,10 @@ KP.game({
       @media (max-aspect-ratio:1/1){.n1Row{grid-template-columns:repeat(5,1fr)}}
       .n1T{font-size:clamp(24px,3.4vw,40px);border-radius:18px;background:#fff;color:var(--c);min-height:clamp(58px,8vw,84px);box-shadow:0 5px 0 color-mix(in srgb,var(--c) 45%,#fff);border:3px solid color-mix(in srgb,var(--c) 30%,#fff)}
       .n1T.done{background:var(--c);color:#fff}
-      .n1T.next{border-color:var(--star);animation:glow 1.2s ease-in-out infinite}
+      .n1T.next{border-color:var(--star);position:relative;animation:none}
+      /* 다음 칸 반짝: 빛을 따로 한 장(::after)에 그려 두고 밝기만 바꿈 (glowLoop, app.css) — 매번 다시 칠하면 저가 태블릿이 버벅임. inset:-3px = 테두리 두께. 예전 glow 의 brightness(1.12)가 빛까지 밝혔으므로 빛 색을 미리 12% 밝게(197,49→221,55) */
+      .n1T.next::after{content:"";position:absolute;inset:-3px;border-radius:inherit;pointer-events:none;opacity:0;background:rgba(255,255,255,.1);
+        box-shadow:0 0 0 10px rgba(255,221,55,.85),0 0 30px 10px rgba(255,221,55,.6);animation:glowLoop 1.2s ease-in-out infinite}
       /* 퀴즈 */
       .n1Q{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(12px,3vh,28px);padding:4px 12px 18px}
       .n1Ask{font-size:clamp(60px,min(10vw,15vh),120px);line-height:1;background:#fff;border-radius:30px;padding:10px 30px;box-shadow:var(--shadow);color:var(--ocean);display:flex;align-items:center;gap:14px;cursor:pointer}

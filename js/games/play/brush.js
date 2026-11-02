@@ -62,8 +62,15 @@ KP.game({
       .br-pal.go .mini{animation:br-mini .22s ease-in-out infinite alternate}
       @keyframes br-mini{from{transform:rotate(-34deg) translateX(-6%)}to{transform:rotate(-8deg) translateX(6%)}}
       .br-scene .kc-zone{border:0;border-radius:22px;background:rgba(255,246,190,.16)}
-      .br-scene .kc-zone.on{animation:br-zone 1.2s ease-in-out infinite alternate}
-      @keyframes br-zone{from{box-shadow:0 0 0 3px rgba(255,215,70,.35),0 0 14px 4px rgba(255,235,140,.25)}to{box-shadow:0 0 0 6px rgba(255,215,70,.8),0 0 22px 10px rgba(255,240,160,.5)}}
+      /* 구역 빛: 약한 빛(::before)·강한 빛(::after)을 따로 그려 두고 서로 밝기만 바꿈 (매번 다시 칠하면 저가 태블릿이 버벅임). 테두리가 없으니 inset:0 */
+      .br-scene .kc-zone::before,.br-scene .kc-zone::after{inset:0}
+      .br-scene .kc-zone::before{box-shadow:0 0 0 3px rgba(255,215,70,.35),0 0 14px 4px rgba(255,235,140,.25)}
+      .br-scene .kc-zone::after{box-shadow:0 0 0 6px rgba(255,215,70,.8),0 0 22px 10px rgba(255,240,160,.5)}
+      .br-scene .kc-zone.on{animation:none}
+      .br-scene .kc-zone.on::before{animation:br-zoneA 1.2s ease-in-out infinite alternate}
+      .br-scene .kc-zone.on::after{animation:br-zone 1.2s ease-in-out infinite alternate}
+      @keyframes br-zoneA{from{opacity:1}to{opacity:0}}
+      @keyframes br-zone{from{opacity:0}to{opacity:1}}
       .br-star{position:absolute;left:0;top:0;z-index:7;pointer-events:none;width:var(--s);height:var(--s);margin:calc(var(--s)*-.5) 0 0 calc(var(--s)*-.5);animation:br-star 1s ease-out forwards}
       .br-star img{width:100%;height:100%;display:block}
       @keyframes br-star{0%{transform:scale(.2) rotate(-20deg);opacity:0}30%{transform:scale(1.15) rotate(8deg);opacity:1}100%{transform:translateY(-40%) scale(.8) rotate(0);opacity:0}}

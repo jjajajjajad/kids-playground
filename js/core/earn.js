@@ -120,7 +120,7 @@
     s.per[id] = (s.per[id] || 0) + add; // 같은 놀이 상한은 '별 수' 기준 (오늘의 도전 하나로 다 채우지 않게)
     s.last = now;
     save(s);
-    setTimeout(() => flyStar(ctx, add), 700);
+    setTimeout(() => flyStar(ctx, add), 560);
     if (s.stars >= c.earnStars) setTimeout(() => KP.voice.say("별을 다 모았어요! 홈에서 문을 열어요!", { queue: true }), 2600);
     return true;
   }
@@ -189,22 +189,40 @@
     ov.addEventListener("click", () => ov.remove());
   }
 
-  /** 별이 열쇠 칸으로 날아가기 */
+  /** 별이 열쇠 칸으로 날아가기 — 칭찬 그림이 떠 있으면 거기서 튀어나와 반짝이 꼬리를 달고 날아감 */
   function flyStar(ctx, n) {
     const target = (ctx && ctx._active && ctx.keyPill) || document.querySelector("#home .keyBtn");
     if (!target || !target.offsetParent) return render();
     const b = target.getBoundingClientRect();
+    const em = document.querySelector(".celebrate.show .cEm");
+    const er = em && em.getBoundingClientRect();
+    const ox = er && er.width ? er.left + er.width / 2 : innerWidth / 2,
+      oy = er && er.width ? er.top + er.height / 2 : innerHeight / 2;
     for (let i = 0; i < n; i++) {
+      const x0 = ox - 30 + i * 40,
+        y0 = oy - 30;
+      const dx = b.left + b.width / 2 - x0 - 30,
+        dy = b.top + b.height / 2 - y0 - 30;
       const fly = U.el("div", "flyStar", KP.E("⭐"));
-      const x0 = innerWidth / 2 - 30 + i * 40,
-        y0 = innerHeight / 2 - 30;
       Object.assign(fly.style, { left: x0 + "px", top: y0 + "px" });
+      // 꼬리 반짝이 3개: 같은 길을 조금씩 늦게, 작아지며 사라짐 (옮기기·투명도만 바꿔서 가벼움)
+      const trail = [1, 2, 3].map((k) => {
+        const t = U.el("div", "flyTrail");
+        Object.assign(t.style, { left: x0 + "px", top: y0 + "px", transitionDelay: k * 0.06 + "s", transform: "scale(" + (1.1 - k * 0.2) + ")" });
+        document.body.appendChild(t);
+        return [t, k];
+      });
       document.body.appendChild(fly);
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {
-          fly.style.transform = "translate(" + (b.left + b.width / 2 - x0 - 30) + "px," + (b.top + b.height / 2 - y0 - 30) + "px) scale(.35) rotate(360deg)";
+          fly.style.transform = "translate(" + dx + "px," + dy + "px) scale(.35) rotate(360deg)";
+          trail.forEach(([t, k]) => {
+            t.style.transform = "translate(" + dx + "px," + dy + "px) scale(" + (0.5 - k * 0.1) + ")";
+            t.style.opacity = "0";
+          });
         })
       );
+      setTimeout(() => trail.forEach(([t]) => t.remove()), 1150 + i * 120);
       setTimeout(() => {
         fly.remove();
         if (i === n - 1) {

@@ -295,10 +295,14 @@
         .rp-fing.go{transform:translateY(10%);border-color:var(--c);box-shadow:0 0 0 4px var(--c)}
         .rp-fing.go b{animation:rpPop .7s infinite}
         .rp-kb.nohand .rp-palm,.rp-kb.nohand .rp-fing{visibility:hidden}
-        .rp-key{grid-row:2;border-radius:0 0 18px 18px;background:#fff;box-shadow:0 6px 0 #d5d9e6,inset 0 -10px 0 color-mix(in srgb,var(--c) 22%,#fff);display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:10px;font-size:clamp(18px,3vw,30px);color:var(--c);position:relative;transition:background .12s,transform .08s}
+        .rp-key{grid-row:2;border-radius:0 0 18px 18px;background:#fff;box-shadow:0 6px 0 #d5d9e6,inset 0 -10px 0 color-mix(in srgb,var(--c) 22%,#fff);display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:10px;font-size:clamp(18px,3vw,30px);color:var(--c);position:relative;isolation:isolate;transition:background .12s,transform .08s}
         .rp-key.lit{background:var(--c);color:#fff;transform:translateY(4px);box-shadow:0 2px 0 #d5d9e6}
-        .rp-key.want{animation:rpWant 1s ease-in-out infinite}
-        @keyframes rpWant{50%{background:color-mix(in srgb,var(--c) 45%,#fff)}}
+        /* 칠할 건반 깜빡임: 옅은 색을 따로 한 장(::after, 글자 아래·아래쪽 색 띠 10px 제외)에 깔고 밝기만 바꿈 (매번 다시 칠하면 저가 태블릿이 버벅임) */
+        .rp-key::after{content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;opacity:0;
+          background:linear-gradient(to top,transparent 10px,color-mix(in srgb,var(--c) 45%,#fff) 10px)}
+        .rp-key.want{animation:none}
+        .rp-key.want::after{animation:rpWant 1s ease-in-out infinite}
+        @keyframes rpWant{50%{opacity:1}}
         .rp-key.heard{box-shadow:0 6px 0 #d5d9e6,inset 0 0 0 5px color-mix(in srgb,var(--c) 50%,#fff)}
         .rp-ov{position:absolute;inset:0;z-index:20;background:rgba(244,247,255,.97);display:none;flex-direction:column;align-items:center;justify-content:center;gap:clamp(10px,2vh,18px);padding:12px 16px;text-align:center}
         .rp-ov.show{display:flex;animation:enter .3s}
@@ -330,8 +334,11 @@
         .rp-lane:nth-child(odd){background-color:rgba(255,255,255,.35)}
         .rp-blk{position:absolute;left:4%;right:4%;bottom:0;border-radius:14px;background:var(--c);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:6px;gap:2px;font-size:clamp(15px,2.2vw,22px);box-shadow:0 4px 0 rgba(0,0,0,.12);will-change:transform}
         .rp-blk b{width:clamp(22px,3.2vw,30px);height:clamp(22px,3.2vw,30px);border-radius:50%;background:#fff;color:var(--c);display:flex;align-items:center;justify-content:center;font-size:.85em;font-weight:400}
-        .rp-blk.wait{animation:rpWait .6s ease-in-out infinite}
-        @keyframes rpWait{50%{filter:brightness(1.25);box-shadow:0 0 0 5px #fff,0 0 18px 6px var(--c)}}
+        /* 기다리는 블록 반짝: 흰 테두리·빛·밝아짐(흰 막 20%)을 따로 한 장(::after)에 그려 두고 밝기만 바꿈 (filter·그림자를 매번 다시 칠하면 저가 태블릿이 버벅임) */
+        .rp-blk::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;background:rgba(255,255,255,.2);box-shadow:0 0 0 5px #fff,0 0 18px 6px var(--c)}
+        .rp-blk.wait{animation:none}
+        .rp-blk.wait::after{animation:rpWait .6s ease-in-out infinite}
+        @keyframes rpWait{50%{opacity:1}}
         .rp-blk.hit{animation:rpHit .45s ease-out forwards}
         @keyframes rpHit{to{transform:translateY(0) scale(1.4);opacity:0}}
         .rp-pop{position:absolute;bottom:4px;left:50%;transform:translateX(-50%);font-size:clamp(28px,4vw,40px);pointer-events:none;animation:rpFly .8s ease-out forwards;z-index:3}

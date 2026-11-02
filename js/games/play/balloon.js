@@ -23,7 +23,7 @@ KP.game({
         box-shadow:clamp(20px,3vw,40px) calc(clamp(10px,1.6vw,20px)*-1) 0 4px #fff;animation:bl-cloud linear infinite}
       @keyframes bl-cloud{from{transform:translateX(-30vw)}to{transform:translateX(120vw)}}
       .bl-hill{position:absolute;bottom:-60px;border-radius:50%;background:linear-gradient(#8fdc7a,#5fbf5a)}
-      .bl-b{position:absolute;left:0;top:0;width:var(--w);height:calc(var(--w)*1.2);cursor:pointer;z-index:2}
+      .bl-b{position:absolute;left:0;top:0;width:var(--w);height:calc(var(--w)*1.2);cursor:pointer;z-index:2;will-change:translate,rotate}
       .bl-b.hintGlow{position:absolute;border-radius:50%}
       .bl-body{position:absolute;inset:0;border-radius:50% 50% 46% 46%/56% 56% 44% 44%;
         background:radial-gradient(circle at 33% 27%,var(--l) 0 7%,var(--c) 45%,var(--d) 100%);
@@ -190,9 +190,8 @@ KP.game({
         b.y -= b.speed * dt;
         b.x = U.clamp(b.x0 + Math.sin(t * b.fq + b.ph) * b.amp, b.w / 2, W - b.w / 2);
         const rot = Math.sin(t * b.fq * 1.3 + b.ph) * 6;
-        // left/top 으로 위치 (힌트 반짝임이 transform 을 쓰기 때문)
-        b.el.style.left = b.x - b.w / 2 + "px";
-        b.el.style.top = b.y + "px";
+        // 위치는 translate 로 (힌트 반짝임이 transform 을 써서 따로) — left/top 은 매 장면 다시 칠하게 해서 저가 태블릿이 버벅임
+        b.el.style.translate = b.x - b.w / 2 + "px " + b.y + "px";
         b.el.style.rotate = rot + "deg";
         if (b.y < -b.h * 2.4) {
           b.dead = true;

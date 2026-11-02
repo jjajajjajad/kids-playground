@@ -615,8 +615,11 @@ KP.game({
     }
 
     /* ---------- 반짝이 그리기 ---------- */
+    let fxDrawn = false; // 지난 장면에 반짝이를 그렸나 (아무것도 없으면 매 장면 지우지 않음)
     ctx.fxLoop = (dt) => {
+      if (!parts.length && !fxDrawn) return;
       fg.clearRect(0, 0, W, H);
+      fxDrawn = parts.length > 0;
       if (!parts.length) return;
       const next = [];
       for (const p of parts) {

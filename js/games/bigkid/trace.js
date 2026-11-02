@@ -27,7 +27,10 @@ KP.game({
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("class", "trSvg");
     ctx.body.append(board, svg);
-    const cx = cv.getContext("2d");
+    let cx = cv.getContext("2d"); // 그리는 동안 잠깐 바탕 그림판으로 바꿔 씀 (draw 참고)
+    const bg = document.createElement("canvas"),
+      bcx = bg.getContext("2d");
+    let bgSig = "";
 
     // rider: 완성 후 길을 달리는 친구, face: 그림이 보는 방향(왼쪽이면 오른쪽으로 갈 때 뒤집음)
     ctx.SHAPES = [
@@ -110,10 +113,46 @@ KP.game({
       for (let k = a + 1; k <= b; k++) cx.lineTo(X(pts[k].x), Y(pts[k].y));
     }
 
+    // 길·완성한 획·손가락 자국·도착 깃발은 바뀔 때만 바탕 그림판에 그려 두고, 매 장면에는 그 그림을 한 번 찍은 뒤
+    // 반짝이는 곳만 새로 그림 (예전엔 가만히 있어도 매 장면 길 전체를 다시 그려 저가 태블릿이 버벅임)
     function draw(now) {
       if (!W || !st.ready) return;
       const t = now / 1000;
+      if (st.done) return drawAll(now, t);
+      const s = st.strokes[st.cur],
+        li = st.inks[st.inks.length - 1];
+      const sig = [cv.width, cv.height, W, H, st.ox, st.oy, st.u, st.hw, st.ink, st.cur, s.f, st.inks.length, li ? li.length : 0, document.fonts ? document.fonts.status : "", (KP.eImage("🏁") || {}).complete].join("|"); // 🏁 그림이 늦게 오면 다시
+      if (sig !== bgSig) {
+        bgSig = sig;
+        if (bg.width !== cv.width || bg.height !== cv.height) {
+          bg.width = cv.width;
+          bg.height = cv.height;
+        }
+        bcx.setTransform(1, 0, 0, 1, 0, 0);
+        bcx.clearRect(0, 0, bg.width, bg.height);
+        bcx.setTransform(cv.width / W, 0, 0, cv.height / H, 0, 0);
+        const real = cx;
+        cx = bcx;
+        try {
+          drawBase();
+          const a = s.pts[0],
+            b = s.pts[s.pts.length - 1];
+          const fs = Math.max(40, st.hw * 1.7);
+          if (Math.hypot(a.x - b.x, a.y - b.y) >= 3) KP.drawE(cx, "🏁", X(b.x) + fs * 0.15, Y(b.y) - fs * 0.35, fs);
+        } finally {
+          cx = real;
+        }
+      }
       cx.clearRect(0, 0, W, H);
+      cx.drawImage(bg, 0, 0, W, H);
+      drawFront(now, t);
+    }
+    function drawAll(now, t) {
+      cx.clearRect(0, 0, W, H);
+      drawBase();
+      drawFront(now, t);
+    }
+    function drawBase() {
       cx.lineCap = "round";
       cx.lineJoin = "round";
       // 길 바탕
@@ -162,14 +201,13 @@ KP.game({
           cx.stroke();
         }
       }
-      // 깃발 · 도착
+    }
+    function drawFront(now, t) {
+      // 깃발 · 도착 (🏁 는 바탕에 그려 둠)
       if (!st.done) {
         const s = st.strokes[st.cur];
-        const a = s.pts[0],
-          b = s.pts[s.pts.length - 1];
+        const a = s.pts[0];
         const fs = Math.max(40, st.hw * 1.7);
-        const closed = Math.hypot(a.x - b.x, a.y - b.y) < 3;
-        if (!closed) KP.drawE(cx, "🏁", X(b.x) + fs * 0.15, Y(b.y) - fs * 0.35, fs);
         // 이어 갈 곳(처음엔 깃발 자리) 반짝
         const f = s.pts[Math.min(s.f, s.pts.length - 1)];
         const pulse = 0.5 + 0.5 * Math.sin(t * 5);
@@ -362,6 +400,7 @@ KP.game({
     }
 
     ctx.trBuild = (shape, lv) => {
+      bgSig = ""; // 새 모양 → 바탕 그림 다시 (틀 크기·잉크 색이 같아도)
       st.ready = false;
       fit();
       // 세로로 긴 화면에서 가로로 긴 모양은 세워서(아래 → 위) 크게

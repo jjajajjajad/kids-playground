@@ -596,8 +596,11 @@
       .ssBtn img{width:100%;height:100%;display:block;pointer-events:none;filter:drop-shadow(0 6px 5px rgba(60,40,20,.22))}
       .ssBtn.off{opacity:0;pointer-events:none!important;scale:.4}
       .ssSoil{border-radius:50%;background:radial-gradient(ellipse,rgba(255,236,170,.0),rgba(255,236,170,.0));transition:background .3s}
-      .ssSoil.ask{animation:ssAsk 1.6s ease-in-out infinite}
-      @keyframes ssAsk{0%,100%{box-shadow:0 0 0 0 rgba(255,214,90,0)}50%{box-shadow:0 0 0 10px rgba(255,214,90,.45)}}
+      /* 누를 흙 빛 고리는 가장 밝은 모습을 따로 한 장(::after)에 그려 두고 밝기만 바꿈 (매번 다시 칠하면 저가 태블릿이 버벅임) */
+      .ssSoil::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;box-shadow:0 0 0 10px rgba(255,214,90,.45)}
+      .ssSoil.ask{animation:none}
+      .ssSoil.ask::after{animation:ssAsk 1.6s ease-in-out infinite}
+      @keyframes ssAsk{50%{opacity:1}}
       .ssSoil.wet{background:radial-gradient(ellipse,rgba(40,20,6,.4) 30%,rgba(40,20,6,0) 70%)}
       .ssSoil .hole,.ssSoil .sprout{position:absolute;left:50%;transform:translate(-50%,-50%)}
       .ssSoil .hole{top:50%;width:36%;height:auto;opacity:0;transition:opacity .3s}

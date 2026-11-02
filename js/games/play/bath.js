@@ -33,9 +33,11 @@ KP.game({
       .kc-tool .ba-shw{position:relative;width:100%;height:100%}
       .kc-tool .ba-shw img{position:absolute;left:18%;top:-62%;width:74%;height:auto;transform:rotate(196deg);filter:drop-shadow(0 -6px 5px rgba(0,0,0,.22))}
       .ba-spray{position:absolute;left:24%;top:30%;width:52%;height:52%;clip-path:polygon(38% 0,62% 0,100% 100%,0 100%);opacity:.85;
-        background:repeating-linear-gradient(97deg,rgba(170,220,255,0) 0 5px,rgba(170,220,255,.95) 5px 8px,rgba(255,255,255,0) 8px 13px);
-        -webkit-mask-image:linear-gradient(#000 40%,transparent);mask-image:linear-gradient(#000 40%,transparent);animation:ba-spray .22s linear infinite}
-      @keyframes ba-spray{from{background-position:0 0}to{background-position:0 26px}}
+        -webkit-mask-image:linear-gradient(#000 40%,transparent);mask-image:linear-gradient(#000 40%,transparent)}
+      /* 물줄기 무늬는 26px 더 긴 한 장(::before)에 그려 두고 통째로 아래로 밀기만 함 (무늬를 매번 다시 칠하면 저가 태블릿이 버벅임). 바깥은 clip-path 가 잘라 줌 */
+      .ba-spray::before{content:"";position:absolute;left:0;right:0;top:-26px;bottom:0;
+        background:repeating-linear-gradient(97deg,rgba(170,220,255,0) 0 5px,rgba(170,220,255,.95) 5px 8px,rgba(255,255,255,0) 8px 13px);animation:ba-spray .22s linear infinite}
+      @keyframes ba-spray{from{transform:translateY(0)}to{transform:translateY(26px)}}
       .ba-load{position:absolute;left:50%;top:45%;transform:translate(-50%,-50%);z-index:9;background:rgba(255,250,240,.9);border-radius:999px;padding:.4em 1em;font-size:22px}
     `);
     const scene = (ctx.scene = U.el("div", "kc-scene ba-scene"));

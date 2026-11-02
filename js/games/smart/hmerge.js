@@ -54,9 +54,14 @@ KP.game({
 
       /* 접시(놓는 자리) */
       .hmPlate{position:absolute;z-index:3;border-radius:50%;pointer-events:none;transition:box-shadow .2s,background .2s}
-      .hmPlate.now{animation:hmPlateGlow 1.1s ease-in-out infinite alternate}
-      @keyframes hmPlateGlow{from{box-shadow:0 0 0 0 rgba(255,236,150,0);background:rgba(255,240,180,0)}to{box-shadow:0 0 0 6px rgba(255,232,130,.95),0 0 26px 10px rgba(255,240,170,.7);background:rgba(255,246,205,.3)}}
+      /* 지금 놓을 접시 빛은 가장 밝은 모습을 따로 한 장(::after)에 그려 두고 밝기만 바꿈 (매번 다시 칠하면 저가 태블릿이 버벅임) */
+      .hmPlate::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;
+        box-shadow:0 0 0 6px rgba(255,232,130,.95),0 0 26px 10px rgba(255,240,170,.7);background:rgba(255,246,205,.3)}
+      .hmPlate.now{animation:none}
+      .hmPlate.now::after{animation:hmPlateGlow 1.1s ease-in-out infinite alternate}
+      @keyframes hmPlateGlow{to{opacity:1}}
       .hmPlate.dropHover,.hmTile.dropHover{box-shadow:0 0 0 7px rgba(255,255,255,.95),0 0 26px 10px rgba(255,236,160,.8)!important;animation:none}
+      .hmPlate.dropHover::after{animation:none}
       .hmPlate.dropHover{background:rgba(255,250,222,.3)!important}
 
       /* 점토 글자 타일: 두께(아래 그림자) · 위 하이라이트 · 약한 결 */

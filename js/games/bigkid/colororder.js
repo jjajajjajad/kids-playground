@@ -46,8 +46,13 @@ KP.game({
       .coDot.goal .e{position:absolute;right:-10px;top:-12px;font-size:20px}
       .coBar{flex:1;height:20px;border-radius:999px;background:#eef1f7;box-shadow:inset 0 2px 4px rgba(0,0,0,.1);overflow:hidden;position:relative}
       .coBar i{display:block;height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,#ffb3c7,#ffd166,#06d6a0);transition:width .35s}
-      .coBar.near{box-shadow:0 0 0 3px var(--sun),inset 0 2px 4px rgba(0,0,0,.1);animation:coGlow 1s ease-in-out infinite alternate}
-      @keyframes coGlow{to{box-shadow:0 0 0 5px #ffe28a,inset 0 2px 4px rgba(0,0,0,.1)}}
+      .coBar.near{box-shadow:0 0 0 3px var(--sun),inset 0 2px 4px rgba(0,0,0,.1);animation:none}
+      /* 굵은 빛 테두리는 막대 옆 한 장(coRing)에 그려 두고 밝기만 바꿈 (매번 다시 칠하면 저가 태블릿이 버벅임).
+         막대(coBar)는 overflow:hidden 이라 안쪽 장식은 잘리므로, 감싸개(coBarW) 안의 형제로 둠 */
+      .coBarW{flex:1;min-width:0;position:relative;display:flex;align-items:center}
+      .coRing{position:absolute;inset:0;border-radius:999px;pointer-events:none;box-shadow:0 0 0 5px #ffe28a;opacity:0}
+      .coBar.near+.coRing{animation:coGlow 1s ease-in-out infinite alternate}
+      @keyframes coGlow{to{opacity:1}}
       .coActs{grid-area:acts;display:flex;gap:10px;justify-content:center;width:100%;max-width:560px}
       .coB{background:#fff;border-radius:20px;box-shadow:0 6px 0 rgba(47,58,102,.13);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 10px;min-height:72px;font-size:15px;line-height:1.1;flex:1}
       .coB .e{font-size:32px}
@@ -89,7 +94,9 @@ KP.game({
     const nowDot = U.el("span", "coDot");
     const bar = U.el("span", "coBar", "<i></i>");
     const goalDot = U.el("span", "coDot goal", KP.E("⭐"));
-    meter.append(nowDot, bar, goalDot);
+    const barW = U.el("span", "coBarW"); // 막대 + 빛 테두리(coRing) 감싸개
+    barW.append(bar, U.el("span", "coRing"));
+    meter.append(nowDot, barW, goalDot);
     cust.append(ani, say, meter);
     const acts = U.el("div", "coActs");
     const mk = (em, label, cls = "") => U.btn(KP.E(em) + "<span>" + label + "</span>", "coB " + cls);

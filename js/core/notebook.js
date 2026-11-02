@@ -47,7 +47,10 @@
           .hwTile.word .ch{font-size:clamp(20px,2.6vw,28px)}
           .hwTile .st{font-size:13px;letter-spacing:1px;color:#d9dce8;line-height:1}
           .hwTile .st b{color:#ffb800;font-weight:400}
-          .hwTile.next{border-color:var(--star);animation:glow 1.4s ease-in-out infinite}
+          /* 다음 칸 반짝: 빛을 따로 한 장(::after)에 그려 두고 밝기만 바꿈 (glowLoop, app.css) — 매번 다시 칠하면 저가 태블릿이 버벅임. inset:-3px = 테두리 두께. 예전 glow 의 brightness(1.12)가 빛까지 밝혔으므로 빛 색을 미리 12% 밝게(197,49→221,55) */
+          .hwTile.next{border-color:var(--star);animation:none}
+          .hwTile.next::after,.glowNext::after{content:"";position:absolute;inset:-3px;border-radius:inherit;pointer-events:none;opacity:0;background:rgba(255,255,255,.1);
+            box-shadow:0 0 0 10px rgba(255,221,55,.85),0 0 30px 10px rgba(255,221,55,.6);animation:glowLoop 1.4s ease-in-out infinite}
           .hwTile:active{transform:translateY(3px)}
           /* 쓰기 페이지 */
           .hwPage{flex:1;min-height:0;display:grid;grid-template-columns:minmax(150px,22%) 1fr minmax(120px,15%);grid-template-rows:minmax(0,1fr) auto;gap:8px 12px;padding:8px 12px 10px}
@@ -75,7 +78,8 @@
           .hwCell.cur{box-shadow:0 0 0 4px var(--star)}
           .hwCell .s{position:absolute;bottom:1px;left:0;right:0;text-align:center;font-size:11px;color:#ffb800;letter-spacing:-1px}
           .hwDone{opacity:.35;pointer-events:none}
-          .glowNext{animation:glow 1s ease-in-out infinite}
+          .glowNext{position:relative;animation:none}
+          .glowNext::after{inset:0;animation-duration:1s}
           @media (max-aspect-ratio:1/1){
             .hwPage{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) auto auto;padding:6px 8px 8px}
             .hwModel{grid-row:auto;flex-direction:row;gap:14px}

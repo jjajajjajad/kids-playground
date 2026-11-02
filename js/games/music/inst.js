@@ -15,12 +15,16 @@ KP.game({
       A = KP.audio;
     KP.css("inst", `
       .in-stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
-      .in-listen{display:flex;flex-direction:column;align-items:center;gap:6px;background:#fff;border-radius:50%;width:clamp(150px,26vh,230px);height:clamp(150px,26vh,230px);justify-content:center;
+      .in-listen{display:flex;flex-direction:column;align-items:center;gap:6px;background:#fff;border-radius:50%;width:clamp(150px,26vh,230px);height:clamp(150px,26vh,230px);justify-content:center;position:relative;
         box-shadow:0 10px 0 color-mix(in srgb,var(--cat) 45%,#fff),0 0 0 10px color-mix(in srgb,var(--cat) 18%,transparent);font-size:clamp(17px,2.4vw,22px);color:var(--cat)}
       .in-listen .e{font-size:clamp(64px,11vh,100px)}
       .in-listen:active{transform:translateY(5px)}
       .in-listen.play{animation:inPulse .5s ease-in-out infinite}
-      @keyframes inPulse{50%{transform:scale(1.08);box-shadow:0 10px 0 color-mix(in srgb,var(--cat) 45%,#fff),0 0 0 22px color-mix(in srgb,var(--cat) 12%,transparent)}}
+      @keyframes inPulse{50%{transform:scale(1.08)}}
+      /* 커지는 바깥 고리(10px→22px)는 따로 한 장(::after, 10~22px 띠)에 그려 두고 밝기만 바꿈 (매번 다시 칠하면 저가 태블릿이 버벅임) */
+      .in-listen::after{content:"";position:absolute;inset:-10px;border-radius:50%;pointer-events:none;opacity:0;box-shadow:0 0 0 12px color-mix(in srgb,var(--cat) 12%,transparent)}
+      .in-listen.play::after{animation:inPulseR .5s ease-in-out infinite}
+      @keyframes inPulseR{50%{opacity:1}}
       .in-ch{flex-direction:column;gap:4px;min-width:clamp(120px,19vw,190px);min-height:clamp(120px,19vw,190px)}
       .in-ch .e,.in-ch svg{width:clamp(64px,10vw,104px);height:clamp(64px,10vw,104px)}
       .in-ch span{font-size:clamp(17px,2.2vw,22px)}
@@ -30,6 +34,7 @@ KP.game({
         .in-stage{padding-top:10px}
         .in-listen{width:104px;height:104px;gap:2px;font-size:15px;box-shadow:0 6px 0 color-mix(in srgb,var(--cat) 45%,#fff),0 0 0 6px color-mix(in srgb,var(--cat) 18%,transparent)}
         .in-listen .e{font-size:46px}
+        .in-listen::after{inset:-6px;box-shadow:0 0 0 16px color-mix(in srgb,var(--cat) 12%,transparent)}
         .in-ch{min-width:96px;min-height:96px}
         .in-ch .e,.in-ch svg{width:56px;height:56px}
         .in-ch span{font-size:15px}

@@ -1346,6 +1346,9 @@ KP.game({
         st.glowUntil = now + 3000;
         st.lastMove = now;
       }
+      // 아무도 안 움직이고 둥실둥실만 할 때는 한 장 걸러 그림 (느린 흔들림이라 30장/초로도 부드러움, 그래픽 힘 절반)
+      const calm = !st.dragging && !st.won && st.bump <= 0 && !st.fx.length && !(st.glowUntil > now) && (!st.ch || st.ch.mode === "nap") && now - (st.lastMove || 0) > 600;
+      if (calm && (st._half = !st._half)) return;
       draw(now);
     };
     ctx.mzSolve = solve;

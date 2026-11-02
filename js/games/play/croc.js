@@ -18,8 +18,10 @@ KP.game({
       @keyframes cr-shake{20%{transform:translate(-10px,4px)}40%{transform:translate(9px,-4px)}60%{transform:translate(-6px,2px)}80%{transform:translate(4px,0)}}
       .cr-reed{position:absolute;bottom:38%;font-size:clamp(34px,5vw,56px);pointer-events:none}
       .cr-pad{position:absolute;width:clamp(50px,7vw,80px);height:clamp(20px,3vw,32px);border-radius:50%;background:#3fae5c;box-shadow:inset 0 -4px 0 rgba(0,0,0,.12);pointer-events:none}
-      .cr-wave{position:absolute;left:0;right:0;bottom:0;height:40%;background:repeating-linear-gradient(90deg,rgba(255,255,255,.18) 0 30px,transparent 30px 60px);animation:cr-wave 6s linear infinite;pointer-events:none}
-      @keyframes cr-wave{to{background-position:120px 0}}
+      .cr-wave{position:absolute;left:0;right:0;bottom:0;height:40%;overflow:hidden;pointer-events:none}
+      /* 물결 줄무늬는 120px(무늬 2칸) 더 넓은 한 장(::before)에 그려 두고 옆으로 밀기만 함 (무늬를 매번 다시 칠하면 저가 태블릿이 버벅임) */
+      .cr-wave::before{content:"";position:absolute;left:-120px;right:0;top:0;bottom:0;background:repeating-linear-gradient(90deg,rgba(255,255,255,.18) 0 30px,transparent 30px 60px);animation:cr-wave 6s linear infinite}
+      @keyframes cr-wave{to{transform:translateX(120px)}}
       .cr-croc{position:relative;width:var(--cw);height:calc(var(--cw)*1.02);z-index:1}
       .cr-lower{position:absolute;left:0;right:0;top:46%;height:54%;border-radius:12% 12% 50% 50%/10% 10% 60% 60%;z-index:1;
         background:radial-gradient(circle at 30% 80%,rgba(255,255,255,.12) 0 8%,transparent 9%),linear-gradient(#4fc46a,#2f9a4c);box-shadow:inset 0 -10px 0 rgba(0,0,0,.12),0 8px 0 rgba(0,0,0,.1)}

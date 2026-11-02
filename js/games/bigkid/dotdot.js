@@ -87,6 +87,8 @@ KP.game({
       cv.width = W * d;
       cv.height = H * d;
       cx.setTransform(d, 0, 0, d, 0, 0);
+      lastSig = ""; // 크기를 다시 넣으면 그림이 지워지므로 다음 장면은 꼭 다시 그림
+      st._half = false;
       if (st.ready) layout();
     }
     ctx.ddFit = fit;
@@ -105,11 +107,21 @@ KP.game({
     const X = (p) => st.ox + (p[0] / 100) * st.Sx,
       Y = (p) => st.oy + (p[1] / 100) * st.Sy;
 
+    // 바뀐 게 없으면 다시 그리지 않음 (가만히 있어도 매 장면 점·숫자를 다시 그려 저가 태블릿이 버벅였음)
+    // 움직이는 중(1단계 두근두근·반짝·톡·흔들·완성 장면)에는 계속 그림
+    let lastSig = "";
     function draw(now) {
       if (!W || !st.ready) return;
       const t = now / 1000;
       const pts = st.shape.pts,
         N = pts.length;
+      const moving = st.done || (st.lv === 1 && st.next < N) || st.flashUntil > now || (st.closeK > 0 && st.closeK < 1) || st.pop.some((v) => v > 0) || st.shake.some((v) => v > 0);
+      const sig = moving ? "" : [cv.width, cv.height, W, H, st.ox, st.oy, st.Sx, st.dr, st.shape.em, N, st.next, st.closeK, st.rubber ? st.rubber.x + "," + st.rubber.y : "-", document.fonts ? document.fonts.status : ""].join("|");
+      if (sig && sig === lastSig) return;
+      lastSig = sig;
+      // 1단계에서 다음 점 두근두근만 움직일 때는 한 장 걸러 그림 (느린 움직임이라 30장/초로도 부드러움)
+      const onlyPulse = !sig && !st.done && !st.rubber && !(st.flashUntil > now) && !(st.closeK > 0 && st.closeK < 1) && !st.pop.some((v) => v > 0) && !st.shake.some((v) => v > 0);
+      if (onlyPulse && (st._half = !st._half)) return;
       cx.clearRect(0, 0, W, H);
       cx.lineCap = "round";
       cx.lineJoin = "round";

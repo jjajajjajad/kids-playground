@@ -27,7 +27,7 @@ KP.game({
       .cp-dots{display:flex;gap:6px}
       .cp-dot{width:clamp(14px,2vw,20px);height:clamp(14px,2vw,20px);border-radius:50%;background:#e7eaf4;transition:transform .2s}
       .cp-dot.on{background:var(--c);transform:scale(1.25);box-shadow:0 0 0 3px #fff,0 0 0 5px var(--c)}
-      .cp-b{position:absolute;left:0;top:0;width:var(--w);height:calc(var(--w)*1.2);cursor:pointer;z-index:2}
+      .cp-b{position:absolute;left:0;top:0;width:var(--w);height:calc(var(--w)*1.2);cursor:pointer;z-index:2;will-change:translate,rotate}
       .cp-b.hintGlow{position:absolute;border-radius:50%}
       .cp-body{position:absolute;inset:0;border-radius:50% 50% 46% 46%/56% 56% 44% 44%;
         background:radial-gradient(circle at 33% 27%,var(--l) 0 7%,var(--c) 45%,var(--d) 100%);
@@ -179,8 +179,7 @@ KP.game({
         b.push *= Math.pow(0.04, dt);
         b.y -= (b.speed + b.push) * dt;
         b.x = U.clamp(b.x0 + Math.sin(t * b.fq + b.ph) * b.amp, b.w / 2, W - b.w / 2);
-        b.el.style.left = b.x - b.w / 2 + "px";
-        b.el.style.top = b.y + "px";
+        b.el.style.translate = b.x - b.w / 2 + "px " + b.y + "px"; // left/top 대신 (다시 칠하지 않고 옮기기만)
         b.el.style.rotate = Math.sin(t * b.fq * 1.3 + b.ph) * 6 + "deg";
         if (b.y < -b.h * 2.2) {
           b.dead = true;

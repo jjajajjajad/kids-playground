@@ -444,6 +444,7 @@ KP.game({
       cv.width = W * d;
       cv.height = H * d;
       cx.setTransform(d, 0, 0, d, 0, 0);
+      lastSig = ""; // 크기를 다시 넣으면 그림이 지워지므로 다음 장면은 꼭 다시 그림
       if (st.ready) layout(true);
     }
     ctx.jgFit = fit;

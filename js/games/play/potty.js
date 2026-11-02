@@ -25,7 +25,7 @@ KP.game({
     KP.css("potty", `
       .pt-scene{background:#e9e2cf}
       .pt-back{position:absolute;left:0;top:0;width:100%;height:100%;z-index:0;pointer-events:none}
-      .pt-pants{position:absolute;left:0;top:0;z-index:1;pointer-events:none;will-change:transform}
+      .pt-pants{position:absolute;left:0;top:0;z-index:1;pointer-events:none;will-change:transform;transform-origin:0 0}
       .pt-pants img{width:100%;height:100%;object-fit:fill;display:block;filter:drop-shadow(0 3px 3px rgba(60,40,20,.25))}
       /* 발목에 모인 바지의 주름 (바지 모양으로 잘라 겹침) */
       .pt-pants::after{content:"";position:absolute;inset:0;opacity:var(--wr,0);pointer-events:none;
@@ -33,8 +33,11 @@ KP.game({
           repeating-linear-gradient(189deg,rgba(30,80,140,0) 0 11%,rgba(30,80,140,.22) 14%,rgba(30,80,140,0) 18%);
         -webkit-mask:url(assets/play-clay/potty/pants.png) center/100% 100% no-repeat;mask:url(assets/play-clay/potty/pants.png) center/100% 100% no-repeat}
       .pt-hit{position:absolute;left:0;top:0;z-index:6;border-radius:40%;touch-action:manipulation;cursor:pointer}
-      .pt-hit.glow{animation:pt-ring 1.1s ease-in-out infinite alternate}
-      @keyframes pt-ring{from{box-shadow:0 0 0 0 rgba(255,205,40,0);background:rgba(255,240,170,0)}to{box-shadow:0 0 0 7px rgba(255,205,40,.75);background:rgba(255,240,170,.2)}}
+      /* 누를 곳 빛 고리는 가장 밝은 모습을 따로 한 장(::after)에 그려 두고 밝기만 바꿈 (매번 다시 칠하면 저가 태블릿이 버벅임) */
+      .pt-hit::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;box-shadow:0 0 0 7px rgba(255,205,40,.75);background:rgba(255,240,170,.2)}
+      .pt-hit.glow{animation:none}
+      .pt-hit.glow::after{animation:pt-ring 1.1s ease-in-out infinite alternate}
+      @keyframes pt-ring{to{opacity:1}}
       .pt-doll.glow{border-radius:45%}
       .pt-obj{position:absolute;left:0;top:0;z-index:6;touch-action:manipulation;cursor:pointer;transition:opacity .4s,transform .3s}
       .pt-obj img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none;filter:drop-shadow(0 5px 4px rgba(60,40,20,.3))}
@@ -426,7 +429,9 @@ KP.game({
       const x = KP.u.clamp(p.x - w / 2, 8, st.w - w - 8); // 좁은 세로 화면: 보이는 곳 안으로
       box(e, x, p.y - h, x + w, p.y);
     };
-    let wig = 0;
+    let wig = 0,
+      pantsBase = null,
+      pantsWr = "";
     ctx.track = (dt) => {
       const v = st.bc.view;
       for (const k of ["toilet", "flush", "paper", "sink"]) boxUV(ctx.hit[k], P.boxes[k]);
@@ -448,7 +453,15 @@ KP.game({
       const pww = pw * (1 + 0.25 * sq), phh = ph * (1 - 0.64 * sq);
       const upY = be.y * 0.3 + ky * 0.7, dnY = b.b - phh * 0.36;
       const py = upY + (dnY - upY) * k;
-      ctx.pants.style.cssText = `width:${pww}px;height:${phh}px;transform:translate(${kx - pww / 2}px,${py - phh / 2}px);--wr:${sq.toFixed(2)}`;
+      // 크기는 기준 크기를 정해 두고 늘이기(scale)로만 바꿈 — 매 장면 너비·높이를 바꾸면 그림자 그림을 매번 다시 칠함
+      if (!pantsBase || Math.abs(pww / pantsBase[0] - 1) > 0.3 || Math.abs(phh / pantsBase[1] - 1) > 0.4) {
+        pantsBase = [pww, phh];
+        ctx.pants.style.width = pww + "px";
+        ctx.pants.style.height = phh + "px";
+      }
+      ctx.pants.style.transform = `translate(${kx - pww / 2}px,${py - phh / 2}px) scale(${pww / pantsBase[0]},${phh / pantsBase[1]})`;
+      const wr = sq.toFixed(2);
+      if (wr !== pantsWr) ctx.pants.style.setProperty("--wr", (pantsWr = wr));
       if (ctx.sit) {
         // 앉으면 윗몸 — 오른쪽 휴지걸이(누르는 곳)와 겹치지 않게 잘라 냄
         const pr = ctx.hit.paper.hidden ? st.w : parseFloat(ctx.hit.paper.style.left);

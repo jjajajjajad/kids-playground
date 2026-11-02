@@ -38,8 +38,11 @@
       .kc-tb .kc-towel{width:62%;height:48%}
       .kc-tb span{font-size:clamp(12px,1.7vmin,16px);color:var(--ink2);line-height:1.1;margin-top:2px;white-space:nowrap}
       .kc-tb:active{transform:translateY(3px)}
-      .kc-tb.glow{animation:kc-glow 1.1s ease-in-out infinite alternate}
-      @keyframes kc-glow{from{box-shadow:0 5px 0 rgba(0,0,0,.13),0 0 0 0 rgba(255,200,40,.0)}to{box-shadow:0 5px 0 rgba(0,0,0,.13),0 0 0 7px rgba(255,200,40,.75)}}
+      /* 반짝이는 빛 고리는 가장 밝은 모습을 따로 한 장(::after)에 그려 두고 밝기만 바꿈 (매번 다시 칠하면 저가 태블릿이 버벅임) */
+      .kc-tb::after,.kc-ask .choice.kc-glowc::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;box-shadow:0 0 0 7px rgba(255,200,40,.75)}
+      .kc-tb.glow{animation:none}
+      .kc-tb.glow::after{animation:kc-glow 1.1s ease-in-out infinite alternate}
+      @keyframes kc-glow{to{opacity:1}}
       .kc-bar.off .kc-tb{opacity:.55}
       .kc-towel{display:block;border-radius:12%;background:repeating-linear-gradient(90deg,#ff8fb1 0 18%,#ffd1df 18% 30%);box-shadow:inset 0 -18% 0 rgba(0,0,0,.08),inset 0 0 0 3px rgba(255,255,255,.6)}
       .kc-pop{position:absolute;z-index:8;pointer-events:none;white-space:nowrap;font-size:clamp(24px,4.4vmin,44px);color:#fff;-webkit-text-stroke:0;
@@ -47,13 +50,22 @@
       .kc-pop.big{font-size:clamp(40px,8vmin,80px)}
       @keyframes kc-pop{0%{opacity:0;transform:translate(-50%,-30%) scale(.6)}20%{opacity:1;transform:translate(-50%,-60%) scale(1.1)}100%{opacity:0;transform:translate(-50%,-160%) scale(1)}}
       .kc-zone{position:absolute;z-index:6;pointer-events:none;border-radius:16px;border:4px dashed rgba(255,255,255,.95);box-shadow:0 0 0 5px rgba(255,205,60,.55);opacity:0;transition:opacity .3s}
-      .kc-zone.on{opacity:1;animation:kc-zone 1.3s ease-in-out infinite alternate}
-      @keyframes kc-zone{from{box-shadow:0 0 0 3px rgba(255,205,60,.35)}to{box-shadow:0 0 0 9px rgba(255,205,60,.75)}}
+      /* 구역 빛 고리: 얇은 고리(::before)와 굵은 고리(::after)를 따로 그려 두고 서로 밝기만 바꿈 (매번 다시 칠하면 저가 태블릿이 버벅임).
+         inset:-4px = 점선 테두리 두께만큼 밖 → 예전 box-shadow 와 같은 자리 */
+      .kc-zone::before,.kc-zone::after{content:"";position:absolute;inset:-4px;border-radius:inherit;pointer-events:none;opacity:0}
+      .kc-zone::before{box-shadow:0 0 0 3px rgba(255,205,60,.35)}
+      .kc-zone::after{box-shadow:0 0 0 9px rgba(255,205,60,.75)}
+      .kc-zone.on{opacity:1;box-shadow:none;animation:none}
+      .kc-zone.on::before{animation:kc-zoneA 1.3s ease-in-out infinite alternate}
+      .kc-zone.on::after{animation:kc-zone 1.3s ease-in-out infinite alternate}
+      @keyframes kc-zoneA{from{opacity:1}to{opacity:0}}
+      @keyframes kc-zone{from{opacity:0}to{opacity:1}}
       .kc-ask{position:absolute;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.35)}
       .kc-ask .qAns{gap:clamp(10px,2vw,22px)}
       .kc-ask .choice{width:clamp(92px,17vmin,150px);height:clamp(92px,17vmin,150px)}
       .kc-ask .choice .e{width:70%;height:70%}
-      .kc-ask .choice.kc-glowc{animation:kc-glow 1.1s ease-in-out infinite alternate}
+      .kc-ask .choice.kc-glowc{animation:none;position:relative;box-shadow:0 5px 0 rgba(0,0,0,.13)}
+      .kc-ask .choice.kc-glowc::after{animation:kc-glow 1.1s ease-in-out infinite alternate}
     `);
   };
 
@@ -638,7 +650,22 @@
     S.run = () => {
       if (sess === ctx._session) return;
       sess = ctx._session;
+      let half = false,
+        acc = 0,
+        lastF = "";
       ctx.loop((dt) => {
+        // 손을 안 대고, 튀는 것·사라지는 것·틀 움직임이 없으면 한 장 걸러 그림 (세균 꼼지락·거품 출렁은 느려서 30장/초로도 부드러움)
+        const F0 = S.frame(),
+          fk = F0 ? Math.round(F0.x) + "," + Math.round(F0.y) + "," + Math.round(F0.w) : "";
+        const sk0 = S.skin;
+        const live =
+          pid !== null || S.parts.length || fk !== lastF || S.spots.some((q) => q.fade) || S.foam.some((b) => b.fade) ||
+          (sk0 && (sk0.drips.length || sk0.L.dirt.fade || sk0.L.wet.fade || sk0.L.foam.fade));
+        lastF = fk;
+        acc += dt;
+        if (!live && (half = !half)) return;
+        dt = acc;
+        acc = 0;
         t += dt;
         fit();
         g.setTransform(dpr, 0, 0, dpr, 0, 0);

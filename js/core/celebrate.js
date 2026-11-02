@@ -60,25 +60,60 @@
   /* iPad 앱(전체 화면)에서는 innerHeight 가 실제 화면보다 작게 잡힐 때가 있어,
      창 크기 대신 판의 실제 크기로 맞추고 지울 때도 판 전체를 지운다.
      (예전엔 화면 맨 아래 띠가 지워지지 않아 색종이 자국이 줄처럼 남았음) */
+  // 색종이는 빠르게 움직여서 해상도를 조금 낮춰도 티가 안 남 → 칠할 점 수를 줄임 (저가 태블릿 렉)
+  const DPR = () => Math.min(window.devicePixelRatio || 1, 1.25);
+  let D = 1;
   function fitCanvas() {
     if (!cv) return;
-    const d = Math.min(window.devicePixelRatio || 1, 2);
+    D = DPR();
     CW = cv.clientWidth || innerWidth;
     CH = cv.clientHeight || innerHeight;
-    cv.width = Math.round(CW * d);
-    cv.height = Math.round(CH * d);
-    cx.setTransform(d, 0, 0, d, 0, 0);
+    cv.width = Math.round(CW * D);
+    cv.height = Math.round(CH * D);
+    box = null;
   }
   function clearAll() {
-    cx.save();
     cx.setTransform(1, 0, 0, 1, 0, 0);
+    cx.globalAlpha = 1;
     cx.clearRect(0, 0, cv.width, cv.height);
-    cx.restore();
+    box = null;
   }
+  /* 조각 그림은 처음 한 번만 그려 두고(색 7 × 모양 3) 매 장면에는 찍기만 함 — 매번 모양을 그리는 것보다 훨씬 가벼움 */
+  const SPR = 24; // 조각 그림 한 변(px) — 가장 큰 조각(r 10)의 별 지름(약 11)보다 넉넉히
+  let sprites = null;
+  function makeSprites() {
+    sprites = COLORS.map((c) =>
+      [0, 1, 2].map((sh) => {
+        const k = document.createElement("canvas");
+        k.width = k.height = SPR;
+        const g = k.getContext("2d");
+        g.translate(SPR / 2, SPR / 2);
+        g.fillStyle = c;
+        const r = SPR / 2.2; // 조각 크기 r 에 해당하는 그림 크기
+        if (sh === 0) g.fillRect(-r / 2, -r / 4, r, r / 2);
+        else if (sh === 1) {
+          g.beginPath();
+          g.arc(0, 0, r / 2.4, 0, Math.PI * 2);
+          g.fill();
+        } else {
+          g.beginPath();
+          for (let i = 0; i < 10; i++) {
+            const rr = i % 2 ? r / 4 : r / 1.8,
+              aa = (i * Math.PI) / 5;
+            g.lineTo(Math.cos(aa) * rr, Math.sin(aa) * rr);
+          }
+          g.fill();
+        }
+        return k;
+      })
+    );
+  }
+  let box = null; // 지난 장면에 그린 곳 (그 부분만 지움)
   KP.confetti = function (n = 140, x = innerWidth / 2, y = innerHeight * 0.38) {
     ensureCanvas();
     if (!cx) return;
-    if (cv.clientWidth !== CW || cv.clientHeight !== CH) fitCanvas();
+    if (cv.clientWidth !== CW || cv.clientHeight !== CH || D !== DPR()) fitCanvas();
+    if (!sprites) makeSprites();
     for (let i = 0; i < n; i++) {
       const a = U.randf(0, Math.PI * 2),
         sp = U.randf(4, 14);
@@ -89,47 +124,49 @@
         r: U.randf(5, 10),
         rot: U.randf(0, 6),
         vr: U.randf(-0.3, 0.3),
-        c: U.pick(COLORS),
+        c: U.rand(COLORS.length),
         s: U.rand(3),
         life: 1,
       });
     }
     if (!running) {
       running = true;
+      last = 0;
       requestAnimationFrame(tick);
     }
   };
-  function tick() {
-    clearAll();
-    parts = parts.filter((p) => p.life > 0 && p.y < CH + 40);
-    for (const p of parts) {
-      p.vx *= 0.985;
-      p.vy = p.vy * 0.985 + 0.32;
-      p.x += p.vx;
-      p.y += p.vy;
-      p.rot += p.vr;
-      p.life -= 0.006;
-      cx.save();
-      cx.globalAlpha = Math.min(1, p.life * 2);
-      cx.translate(p.x, p.y);
-      cx.rotate(p.rot);
-      cx.fillStyle = p.c;
-      if (p.s === 0) cx.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2);
-      else if (p.s === 1) {
-        cx.beginPath();
-        cx.arc(0, 0, p.r / 2.4, 0, Math.PI * 2);
-        cx.fill();
-      } else {
-        cx.beginPath();
-        for (let i = 0; i < 10; i++) {
-          const rr = i % 2 ? p.r / 4 : p.r / 1.8,
-            aa = (i * Math.PI) / 5;
-          cx.lineTo(Math.cos(aa) * rr, Math.sin(aa) * rr);
-        }
-        cx.fill();
-      }
-      cx.restore();
+  let last = 0;
+  function tick(now) {
+    // 움직임은 시간 기준 (느린 기기에서 장면이 빠져도 색종이가 느려지지 않게) — 60장/초일 때 예전과 같음
+    const k = last ? Math.min(3, (now - last) / (1000 / 60)) : 1;
+    last = now;
+    if (box) {
+      cx.setTransform(1, 0, 0, 1, 0, 0);
+      cx.globalAlpha = 1;
+      cx.clearRect(box[0], box[1], box[2] - box[0], box[3] - box[1]);
     }
+    parts = parts.filter((p) => p.life > 0 && p.y < CH + 40);
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    const f = Math.pow(0.985, k);
+    for (const p of parts) {
+      p.vx *= f;
+      p.vy = p.vy * f + 0.32 * k;
+      p.x += p.vx * k;
+      p.y += p.vy * k;
+      p.rot += p.vr * k;
+      p.life -= 0.006 * k;
+      const sc = (p.r / (SPR / 2.2)) * D, cs = Math.cos(p.rot) * sc, sn = Math.sin(p.rot) * sc;
+      cx.globalAlpha = Math.max(0, Math.min(1, p.life * 2));
+      cx.setTransform(cs, sn, -sn, cs, p.x * D, p.y * D);
+      cx.drawImage(sprites[p.c][p.s], -SPR / 2, -SPR / 2);
+      const e = p.r + 2;
+      if (p.x - e < x0) x0 = p.x - e;
+      if (p.y - e < y0) y0 = p.y - e;
+      if (p.x + e > x1) x1 = p.x + e;
+      if (p.y + e > y1) y1 = p.y + e;
+    }
+    // 다음 장면에 지울 곳 (화면 픽셀, 여유 2px)
+    box = parts.length ? [Math.max(0, Math.floor(x0 * D) - 2), Math.max(0, Math.floor(y0 * D) - 2), Math.min(cv.width, Math.ceil(x1 * D) + 2), Math.min(cv.height, Math.ceil(y1 * D) + 2)] : null;
     if (parts.length) requestAnimationFrame(tick);
     else {
       running = false;

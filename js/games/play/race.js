@@ -20,9 +20,11 @@ KP.game({
       .rc-crowd span{animation:rc-cheer 0.6s ease-in-out infinite alternate;animation-delay:var(--dl)}
       @keyframes rc-cheer{to{transform:translateY(-8px)}}
       .rc-road{position:absolute;left:0;right:0;top:32%;height:62%;background:linear-gradient(#6b7083,#585d70);box-shadow:inset 0 6px 0 #e9edf5,inset 0 -6px 0 #e9edf5}
-      .rc-mid{position:absolute;left:0;right:0;top:calc(50% - 3px);height:6px;background:repeating-linear-gradient(90deg,#fff 0 34px,transparent 34px 68px)}
-      .rc-road.move .rc-mid{animation:rc-dash .4s linear infinite}
-      @keyframes rc-dash{to{background-position:-68px 0}}
+      .rc-mid{position:absolute;left:0;right:0;top:calc(50% - 3px);height:6px;overflow:hidden}
+      /* 가운데 점선은 68px(무늬 1칸) 더 넓은 한 장(::before)에 그려 두고 옆으로 밀기만 함 (무늬를 매번 다시 칠하면 저가 태블릿이 버벅임) */
+      .rc-mid::before{content:"";position:absolute;left:0;right:-68px;top:0;bottom:0;background:repeating-linear-gradient(90deg,#fff 0 34px,transparent 34px 68px)}
+      .rc-road.move .rc-mid::before{animation:rc-dash .4s linear infinite}
+      @keyframes rc-dash{to{transform:translateX(-68px)}}
       .rc-start{position:absolute;top:0;bottom:0;left:calc(var(--cw)*1.02 + 14px);width:8px;background:#fff;opacity:.85}
       .rc-finish{position:absolute;top:0;bottom:0;right:clamp(14px,3vw,40px);width:clamp(20px,2.6vw,30px);
         background:conic-gradient(#222 25%,#fff 0 50%,#222 0 75%,#fff 0) 0 0/clamp(10px,1.3vw,15px) clamp(10px,1.3vw,15px)}

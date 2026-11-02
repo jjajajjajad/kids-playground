@@ -25,10 +25,13 @@ KP.game({
       .hw-stream{position:absolute;left:0;top:0;z-index:3;pointer-events:none;transform-origin:50% 0;transform:scaleY(0);opacity:0;transition:transform .3s ease-in,opacity .2s;
         border-radius:45% 45% 40% 40%/6% 6% 5% 5%;
         background:linear-gradient(90deg,rgba(140,200,250,.35),rgba(215,240,255,.85) 28%,rgba(255,255,255,.95) 40%,rgba(180,222,252,.7) 62%,rgba(120,185,240,.4));
-        -webkit-mask-image:linear-gradient(#000 82%,transparent);mask-image:linear-gradient(#000 82%,transparent)}
-      .hw-stream::after{content:"";position:absolute;inset:0 12%;border-radius:inherit;opacity:.9;
+        -webkit-mask-image:linear-gradient(#000 82%,transparent);mask-image:linear-gradient(#000 82%,transparent);
+        clip-path:inset(0 round 45% 45% 40% 40%/6% 6% 5% 5%)}
+      /* 흐르는 물결 무늬는 30px 더 긴 한 장(::after)에 그려 두고 통째로 아래로 밀기만 함 (무늬를 매번 다시 칠하면 저가 태블릿이 버벅임).
+         위로 삐져나온 부분은 물줄기의 clip-path(둥근 모양 그대로)가 잘라 줌 */
+      .hw-stream::after{content:"";position:absolute;left:12%;right:12%;top:-30px;bottom:0;border-radius:0 0 40% 40%/0 0 5% 5%;opacity:.9;
         background:repeating-linear-gradient(176deg,rgba(255,255,255,0) 0 14px,rgba(255,255,255,.8) 14px 17px,rgba(255,255,255,0) 17px 30px);animation:hw-flow .28s linear infinite}
-      @keyframes hw-flow{to{background-position:0 30px}}
+      @keyframes hw-flow{to{transform:translateY(30px)}}
       .hw-on .hw-stream{transform:scaleY(1);opacity:1}
       .hw-hands{position:absolute;left:0;top:0;z-index:4;pointer-events:none;transition:transform .16s ease-in,filter .4s}
       .hw-hands img{width:100%;height:100%;display:block;filter:drop-shadow(0 8px 8px rgba(60,40,20,.25))}
@@ -42,9 +45,12 @@ KP.game({
       @keyframes hw-press{40%{transform:scale(1.04,.84);transform-origin:50% 100%}}
       .hw-obj.away img{opacity:.25}
       .hw-hit{position:absolute;left:0;top:0;z-index:6;border-radius:50%;touch-action:manipulation;cursor:pointer}
-      .hw-hit.glow{animation:hw-ring 1.1s ease-in-out infinite alternate}
-      @keyframes hw-ring{from{box-shadow:0 0 0 0 rgba(255,205,40,0);background:rgba(255,240,170,0)}to{box-shadow:0 0 0 7px rgba(255,205,40,.75);background:rgba(255,240,170,.18)}}
-      .hw-handsHit.glow{animation:none}
+      /* 누를 곳 빛 고리는 가장 밝은 모습을 따로 한 장(::after)에 그려 두고 밝기만 바꿈 (매번 다시 칠하면 저가 태블릿이 버벅임) */
+      .hw-hit::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;box-shadow:0 0 0 7px rgba(255,205,40,.75);background:rgba(255,240,170,.18)}
+      .hw-hit.glow{animation:none}
+      .hw-hit.glow::after{animation:hw-ring 1.1s ease-in-out infinite alternate}
+      @keyframes hw-ring{to{opacity:1}}
+      .hw-handsHit.glow::after{animation:none}
       .hw-scene.rubbing .hw-obj,.hw-scene.rubbing .hw-hit{pointer-events:none}
       .hw-blob{position:absolute;left:0;top:0;z-index:5;pointer-events:none;width:var(--s);height:var(--s);margin:calc(var(--s)*-.5) 0 0 calc(var(--s)*-.5);border-radius:50%;
         background:radial-gradient(circle at 35% 35%,#fff 0 18%,rgba(255,255,255,0) 19%),radial-gradient(circle at 30% 60%,#f6faff 0 26%,rgba(255,255,255,0) 27%),

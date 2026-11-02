@@ -407,7 +407,18 @@
   /** 매 장면: 크기 확인 → 움직임 → 그리기 */
   SP.tick = function (dt) {
     if (this.dead || this.lost) return;
-    if (this.gl) this.measure();
+    // 칭찬 화면이 덮고 있는 동안은 한 장 걸러 그림 → 그래픽 힘을 앞의 축하 효과에 양보 (화질 판단에서도 뺌)
+    if (KP.celebrating) {
+      this._lt = 0;
+      this._acc = (this._acc || 0) + dt;
+      if ((this._skip = !this._skip)) return;
+      dt = this._acc;
+      this._acc = 0;
+    } else {
+      if (this._acc) dt += this._acc;
+      this._acc = 0;
+      if (this.gl) this.measure();
+    }
     dt = Math.min(dt, 0.05);
     this.time += dt;
     this.resize();
