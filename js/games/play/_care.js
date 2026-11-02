@@ -229,7 +229,7 @@
     const S = {
       cv,
       toolEl,
-      frame: o.frame || (() => ({ x: 0, y: 0, w: host.clientWidth, h: host.clientHeight })),
+      frame: o.frame || (() => { const hs = KP.u.sizeOf(host); return { x: 0, y: 0, w: hs.cw, h: hs.ch }; }),
       spots: [],
       foam: [],
       parts: [],
@@ -253,8 +253,9 @@
       sess = -1,
       t = 0;
     function fit() {
-      const w = host.clientWidth,
-        h = host.clientHeight,
+      const hs = KP.u.sizeOf(host), // 매 장면 재지 않고 크기가 바뀔 때만 (매번 재면 배치를 억지로 다시 계산)
+        w = hs.cw,
+        h = hs.ch,
         d = Math.min(2, window.devicePixelRatio || 1);
       if (w === W && h === H && d === dpr) return;
       W = w;
@@ -494,7 +495,7 @@
       const sk = S.skin;
       let g = g0;
       if (sk.el) {
-        const el = sk.el, w = el.clientWidth, h = el.clientHeight;
+        const el = sk.el, es = KP.u.sizeOf(el), w = es.cw, h = es.ch;
         if (el.width !== Math.round(w * dpr) || el.height !== Math.round(h * dpr)) {
           el.width = Math.max(1, Math.round(w * dpr));
           el.height = Math.max(1, Math.round(h * dpr));

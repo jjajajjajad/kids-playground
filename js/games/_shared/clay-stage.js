@@ -421,7 +421,8 @@
     }
     dt = Math.min(dt, 0.05);
     this.time += dt;
-    this.resize();
+    // 크기 변화는 ResizeObserver 가 알려 줌 → 매 장면 재지 않고 가끔만 확인 (매번 재면 배치를 억지로 다시 계산)
+    if (!this.ro || (this._rc = (this._rc || 0) + 1) % 60 === 0) this.resize();
     for (const f of this.updaters) f(dt, this.time);
     this.render();
   };

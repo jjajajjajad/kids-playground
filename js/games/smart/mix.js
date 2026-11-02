@@ -383,8 +383,9 @@ KP.game({
         hp = act.anchor("headTop");
       const dh = Math.max(80, bx.h);
       B.style.setProperty("--dh", Math.min(dh, 320) + "px");
-      const bw = B.offsetWidth,
-        bh = B.offsetHeight;
+      const bsz = U.sizeOf(B), // 매 장면 재지 않고 바뀔 때만
+        bw = bsz.w,
+        bh = bsz.h;
       // 머리 위 (자리가 없으면 옆) — 그릇과 겹치지 않게
       let x = hp.x - bw * 0.2,
         y = hp.y - bh - dh * 0.1;

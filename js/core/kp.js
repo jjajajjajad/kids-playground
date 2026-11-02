@@ -49,6 +49,23 @@ window.KP = window.KP || {};
     const r = el.getBoundingClientRect();
     return { x: r.left + r.width / 2, y: r.top + r.height / 2, r };
   };
+  /** 요소 크기 {w,h (offsetWidth/Height), cw,ch (clientWidth/Height)} — 크기가 바뀔 때만 알려 받아 둠
+   *  (매 장면 offsetWidth 를 읽으면 배치를 억지로 다시 계산해 버벅임)
+   *  같은 객체를 돌려주므로 매 장면 sizeOf(el).w 로 읽으면 됨. ResizeObserver 가 없으면 그때그때 잼 */
+  const measure = (el, sz) => {
+    sz.w = el.offsetWidth;
+    sz.h = el.offsetHeight;
+    sz.cw = el.clientWidth;
+    sz.ch = el.clientHeight;
+    return sz;
+  };
+  U.sizeOf = (el) => {
+    if (!window.ResizeObserver) return measure(el, {});
+    if (el._kpSize) return el._kpSize;
+    const sz = (el._kpSize = measure(el, {}));
+    new ResizeObserver(() => measure(el, sz)).observe(el); // 크기가 바뀐 직후(배치가 끝난 뒤)라 여기서 재는 건 가벼움
+    return sz;
+  };
   /** 한국어 조사 자동 선택: josa("사과","을/를") → "사과를" */
   U.josa = (word, pair) => {
     const [a, b] = pair.split("/");

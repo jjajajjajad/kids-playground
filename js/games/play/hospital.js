@@ -331,7 +331,7 @@ KP.game({
       fw.dh = dh;
       for (const o of fw.list) fw.place(o);
       // 말풍선: 머리 오른쪽 위 (방 안으로)
-      const hp = act.anchor("forehead"), bw = bub.offsetWidth, bh = bub.offsetHeight;
+      const hp = act.anchor("forehead"), bsz = U.sizeOf(bub), bw = bsz.w, bh = bsz.h;
       const bx = U.clamp(hp.x + dh * 0.18, 6, st.w - bw - 6), by = U.clamp(hp.y - dh * 0.42 - bh, 6, st.h - bh - 6);
       bubW.style.transform = `translate(${bx}px,${by}px)`;
     };
