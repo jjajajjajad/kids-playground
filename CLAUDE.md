@@ -22,6 +22,7 @@ node tools/phone-audit.js        # 폰 화면 넘침 점검 (n100 은 알려진 
 ```
 - `build.js`가 생성: `index.html`, `sw.js`, `js/gen/{clips,version,emoji-map}.js`, `assets/e/`, `fonts/`, `css/fonts.css`.
   생성 파일은 직접 고치지 말 것. 충돌 나면 `git checkout -- <생성파일>` 후 다시 빌드.
+  - 새 이모지를 쓰면 빌드가 `assets/e/*.svg`(새 파일)·`js/gen/emoji-map.js` 를 바꿈 → 커밋 전에 `git status` 로 `??`·` M` 확인해 함께 넣을 것 (두 번 빠뜨려 아이콘이 기기 이모지로 보일 뻔함).
 - 오프라인 저장(sw.js): 저장소 하나(`kp-app`) 고정, 파일마다 내용 지문(`?v=지문`). 업데이트 때 지문이 바뀐 파일만 새로 받음
   (예전엔 버전마다 640개 전부 다시 받아 업데이트 직후 렉). 점검: `tools/out/sw-update-test.js`.
   - **받은 내용은 지문을 확인**(다르면 설치 중단 → 옛 버전 유지). 지문은 줄바꿈을 LF 로 맞춰 계산(`.gitattributes` eol=lf) — CRLF 로 계산하면 업데이트가 늘 실패.
