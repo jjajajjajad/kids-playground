@@ -48,6 +48,7 @@ KP.game({
     const bag = U.el("div", "mzBag");
     board.append(cv, spot, bag, bChase);
     ctx.bChase = bChase;
+    ctx.mzBag = bag;
     ctx.body.appendChild(board);
     const cx = cv.getContext("2d");
 
@@ -311,7 +312,7 @@ KP.game({
       // 세로 화면은 위쪽에 버튼(모은 것·술래) 자리를 비워 둠, 가로 화면은 옆 빈 곳에 버튼
       const top = H > W * 1.08 ? Math.min(70, H * 0.09) : 0;
       const pad = Math.max(12, Math.min(W, H) * 0.025);
-      s = Math.min((W - pad * 2) / (cols + 0.4), (H - top - pad * 2) / (rows + 0.6));
+      s = Math.min((W - Math.max(pad, st.side || 0) * 2) / (cols + 0.4), (H - top - pad * 2) / (rows + 0.6)); // 넓힌 3단계는 양옆 버튼 자리를 비움
       dep = Math.max(4, Math.min(26, s * 0.13));
       fo = dep * 0.7;
       ox = (W - s * cols) / 2;
@@ -1422,8 +1423,23 @@ KP.game({
     let [a, b] = [[3, 3], [5, 4], [7, 6]][ctx.level - 1];
     // 1단계: 길쭉한 화면은 긴 쪽 칸을 늘려 화면을 채움 (폰 세로 3×5, 태블릿 4×3)
     if (ctx.level === 1) a = phone ? (ratio > 1.6 ? 5 : ratio > 1.25 ? 4 : 3) : ratio > 1.3 ? 4 : 3;
-    const cols = land ? a : b;
+    let cols = land ? a : b;
     let rows = land ? b : a;
+    st.side = 0;
+    // 가로 화면 3단계: 칸 크기는 그대로 두고 좌우 빈 풀밭을 칸으로 채움 (태블릿 약 10~11칸) — 양옆 버튼(모은 것·술래) 자리는 비워 둠
+    if (land && ctx.level === 3 && st.W && st.H) {
+      // 버튼 자리 = 실제 버튼 너비 (모은 것 칸은 별 개수에 따라 넓어지므로 넉넉히 별 3개 기준) + 여유
+      const bagW = Math.max(ctx.mzBag ? ctx.mzBag.offsetWidth : 0, 130),
+        chW = ctx.bChase ? ctx.bChase.offsetWidth : 100;
+      const pad = Math.max(12, Math.min(st.W, st.H) * 0.025),
+        side = Math.max(bagW, chW) + 10 + 12;
+      const sh = (st.H - pad * 2) / (rows + 0.6);
+      const fitCols = Math.floor((st.W - side * 2) / sh - 0.4);
+      if (fitCols > cols) {
+        cols = Math.min(fitCols, 13);
+        st.side = side;
+      }
+    }
     // 세로로 긴 화면(폰 세로)은 2·3단계에서 칸 크기는 그대로 두고 아래 빈 곳을 줄로 채움 (2단계 최대 7줄, 3단계 최대 9줄)
     if (!land && ctx.level > 1 && st.W && st.H) {
       const top = st.H > st.W * 1.08 ? Math.min(70, st.H * 0.09) : 0,
