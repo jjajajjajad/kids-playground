@@ -31,7 +31,23 @@ KP.game({
         box-shadow:inset 0 0 0 7px rgba(255,200,90,.8),inset 0 0 30px 10px rgba(255,170,120,.45)}
       .mzBoard.near::after{animation:mzPulse .5s ease-in-out infinite alternate}
       @keyframes mzPulse{from{opacity:.1}to{opacity:.85}}
-      .mzChase{position:absolute;right:10px;top:8px;z-index:3;height:60px;min-width:96px;padding:0 12px;border-radius:999px;
+      .mzRight{position:absolute;right:10px;top:8px;z-index:3;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+      .mzBoard.tall .mzRight{flex-direction:row-reverse;align-items:flex-start}
+      .mzMe{height:60px;min-width:60px;padding:0 8px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:32px;line-height:1;
+        background:rgba(255,255,255,.92);box-shadow:0 4px 0 rgba(0,0,0,.14)}
+      .mzMe img{width:46px;height:46px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 0 0 2px #ffd54a;display:block}
+      .mzPick{position:absolute;inset:0;z-index:8;background:rgba(29,34,70,.55);display:flex;align-items:center;justify-content:center;padding:12px}
+      .mzPickBox{background:#fff;border-radius:26px;padding:16px 18px 18px;max-width:min(560px,94%);max-height:94%;overflow:auto;box-shadow:0 8px 0 rgba(0,0,0,.15);text-align:center}
+      .mzPickBox h3{margin:0 0 12px;font-size:clamp(22px,3vw,28px);font-weight:400;color:var(--ink)}
+      .mzPickGrid{display:flex;flex-wrap:wrap;gap:14px;justify-content:center}
+      .mzPickT{position:relative;width:92px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:15px;color:var(--ink2)}
+      .mzPickT .ph{width:84px;height:84px;border-radius:50%;background:#f1f4fb;display:flex;align-items:center;justify-content:center;font-size:46px;overflow:hidden;box-shadow:0 4px 0 rgba(47,58,102,.15)}
+      .mzPickT .ph img{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none}
+      .mzPickT.now .ph{box-shadow:0 0 0 5px #ffd54a,0 4px 0 rgba(47,58,102,.15)}
+      .mzPickT:active .ph{transform:scale(.94)}
+      .mzPickDel{position:absolute;top:-6px;right:0;width:30px;height:30px;border-radius:50%;background:#ff7b54;color:#fff;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 0 rgba(0,0,0,.2)}
+      .mzPickNote{margin-top:12px;font-size:13px;color:var(--ink2)}
+      .mzChase{position:relative;height:60px;min-width:96px;padding:0 12px;border-radius:999px;
         display:flex;align-items:center;justify-content:center;gap:2px;font-size:32px;line-height:1;
         background:rgba(255,255,255,.92);box-shadow:0 4px 0 rgba(0,0,0,.14)}
       .mzChase .e:last-child{font-size:24px;width:24px;height:24px;opacity:.85}
@@ -45,10 +61,15 @@ KP.game({
     const cv = U.el("canvas");
     const spot = U.el("div", "mzSpot");
     const bChase = U.btn("", "mzChase");
+    const bMe = U.btn("", "mzMe"); // 누구로 할까? (동물 친구 / 내 얼굴 사진)
+    bMe.setAttribute("aria-label", "누구로 할까요");
+    const right = U.el("div", "mzRight");
+    right.append(bChase, bMe);
     const bag = U.el("div", "mzBag");
-    board.append(cv, spot, bag, bChase);
+    board.append(cv, spot, bag, right);
     ctx.bChase = bChase;
     ctx.mzBag = bag;
+    ctx.mzRight = right;
     ctx.body.appendChild(board);
     const cx = cv.getContext("2d");
 
@@ -310,6 +331,7 @@ KP.game({
       board.style.background = th.bg;
       const { cols, rows, open } = st;
       // 세로 화면은 위쪽에 버튼(모은 것·술래) 자리를 비워 둠, 가로 화면은 옆 빈 곳에 버튼
+      board.classList.toggle("tall", H > W * 1.08); // 세로 화면: 오른쪽 버튼(술래·내 얼굴)을 가로로 나란히
       const top = H > W * 1.08 ? Math.min(70, H * 0.09) : 0;
       const pad = Math.max(12, Math.min(W, H) * 0.025);
       s = Math.min((W - Math.max(pad, st.side || 0) * 2) / (cols + 0.4), (H - top - pad * 2) / (rows + 0.6)); // 넓힌 3단계는 양옆 버튼 자리를 비움
@@ -617,7 +639,15 @@ KP.game({
       const hop = st.won ? Math.abs(Math.sin(t * 9)) * s * 0.14 : 0;
       const wig = ch && ch.mode === "hug" ? Math.sin(t * 22) * 0.22 : 0;
       shadow(px(p.x) + bx, fy(p.y) + s * 0.3, s * 0.26 * (1 + Math.abs(st.tilt) * 0.8));
-      KP.drawE(cx, st.pair[0], px(p.x) + bx, fy(p.y) + by - hop - (lift - 1) * s * 0.4, s * 0.74 * lift, st.tilt + wig);
+      if (ctx.me) {
+        // 내 얼굴: 동그란 얼굴 그림 (동물 그림과 같은 자리·기울기·폴짝)
+        const sz = s * 0.72 * lift;
+        cx.save();
+        cx.translate(px(p.x) + bx, fy(p.y) + by - hop - (lift - 1) * s * 0.4);
+        cx.rotate(st.tilt + wig);
+        cx.drawImage(ctx.me.spr, -sz / 2, -sz / 2, sz, sz);
+        cx.restore();
+      } else KP.drawE(cx, st.pair[0], px(p.x) + bx, fy(p.y) + by - hop - (lift - 1) * s * 0.4, s * 0.74 * lift, st.tilt + wig);
       if (hidden) drawBush(st.bushCell, 0.93);
       // 소풍: 모은 것들이 목표 둘레에서 폴짝, 과일은 냠냠 먹으면 작아짐
       if (st.won && st.got && st.got.length) {
@@ -758,7 +788,7 @@ KP.game({
         A.sfx("tap");
         if (performance.now() - lastGrabTalk > 4000) {
           lastGrabTalk = performance.now();
-          ctx.tell(U.josa(st.pair[1], "을/를") + " 손가락으로 꾹 잡고 끌어요!");
+          ctx.tell(ctx.me ? "내 얼굴을 손가락으로 꾹 잡고 끌어요!" : U.josa(st.pair[1], "을/를") + " 손가락으로 꾹 잡고 끌어요!");
         }
         return;
       }
@@ -836,9 +866,125 @@ KP.game({
     };
 
     function setHint() {
-      ctx.hint(() => spot, U.josa(st.pair[1], "을/를") + " 끌어서 " + st.pair[3] + "까지" + " 데려다 줘요!");
+      ctx.hint(() => spot, (ctx.me ? "내 얼굴을" : U.josa(st.pair[1], "을/를")) + " 끌어서 " + st.pair[3] + "까지" + " 데려다 줘요!");
     }
     ctx.mzSetHint = setHint;
+
+    /* ---------- 내 얼굴로 하기 ----------
+       사진을 찍거나 골라 얼굴을 동그랗게 맞추면(KP.faceCrop) 그 얼굴이 미로를 달림. 여러 명 등록 가능(형제).
+       KP.db "photos" {id:"me-…", kind:"me", img, t} — 이 기기 안에만 저장. 고른 것은 store "maze:me" (없으면 동물 친구) */
+    ctx.me = null; // { id, img, spr(동그란 얼굴 그림) }
+    const meSprite = (url) =>
+      new Promise((res) => {
+        const im = new Image();
+        im.onload = () => {
+          const Z = 256,
+            c = document.createElement("canvas");
+          c.width = c.height = Z;
+          const g = c.getContext("2d");
+          g.save();
+          g.beginPath();
+          g.arc(Z / 2, Z / 2, Z / 2 - 10, 0, Math.PI * 2);
+          g.clip();
+          g.drawImage(im, 10, 10, Z - 20, Z - 20);
+          g.restore();
+          // 노란 둘레 + 하얀 테두리 (길 바닥색과 구분)
+          g.lineWidth = 14;
+          g.strokeStyle = "#ffd54a";
+          g.beginPath();
+          g.arc(Z / 2, Z / 2, Z / 2 - 7, 0, Math.PI * 2);
+          g.stroke();
+          g.lineWidth = 10;
+          g.strokeStyle = "#fff";
+          g.beginPath();
+          g.arc(Z / 2, Z / 2, Z / 2 - 15, 0, Math.PI * 2);
+          g.stroke();
+          res(c);
+        };
+        im.onerror = () => res(null);
+        im.src = url;
+      });
+    const paintMe = () => {
+      bMe.innerHTML = ctx.me ? '<img alt="" src="' + KP.safeImg(ctx.me.img) + '">' : KP.E("🧒");
+    };
+    const useMe = async (rec) => {
+      if (!rec) {
+        ctx.me = null;
+        KP.store.set("maze:me", "");
+      } else {
+        const spr = await meSprite(rec.img);
+        ctx.me = spr ? { id: rec.id, img: rec.img, spr } : null;
+        KP.store.set("maze:me", ctx.me ? rec.id : "");
+      }
+      paintMe();
+      if (st.ready && ctx._active) {
+        ctx.say(ctx.mzIntro(), false);
+        setHint();
+      }
+    };
+    ctx.mzLoadMe = async () => {
+      const id = KP.store.get("maze:me", "");
+      const rec = id ? await KP.db.get("photos", id) : null;
+      if (rec && rec.img) await useMe(rec);
+      else paintMe();
+    };
+    const closePick = () => board.querySelectorAll(".mzPick").forEach((e) => e.remove());
+    ctx.mzClosePick = closePick;
+    async function openPick() {
+      const list = ((await KP.db.all("photos")) || []).filter((p) => p.kind === "me" && p.img).sort((a, b) => a.t - b.t);
+      if (!ctx._active) return;
+      closePick();
+      const ov = U.el("div", "mzPick"),
+        boxEl = U.el("div", "mzPickBox", "<h3>" + KP.E("🧒") + " 누구로 할까요?</h3>"),
+        grid = U.el("div", "mzPickGrid");
+      const tile = (html, label, now, fn) => {
+        const t = U.btn('<span class="ph">' + html + "</span><span>" + label + "</span>", "mzPickT" + (now ? " now" : ""));
+        t.addEventListener("click", fn);
+        grid.appendChild(t);
+        return t;
+      };
+      tile(KP.E(st.pair ? st.pair[0] : "🐶"), "동물 친구", !ctx.me, () => {
+        closePick();
+        A.sfx("pop");
+        useMe(null);
+      });
+      list.forEach((p, i) => {
+        const t = tile('<img alt="" src="' + KP.safeImg(p.img) + '">', "얼굴 " + (i + 1), ctx.me && ctx.me.id === p.id, () => {
+          closePick();
+          A.sfx("select");
+          useMe(p);
+        });
+        // ✖ 꾹 누르면 지우기 (숨은 그림 찾기 사진과 같은 방식)
+        const del = U.el("span", "mzPickDel", "✖");
+        t.appendChild(del);
+        del.addEventListener("click", (e) => e.stopPropagation());
+        KP.hold(del, 1500, async () => {
+          if ((await KP.db.del("photos", p.id)) === false) return KP.toast("지우지 못했어요. 다시 해 주세요");
+          if (ctx.me && ctx.me.id === p.id) await useMe(null);
+          openPick();
+        });
+      });
+      tile(KP.E("📷"), "새 얼굴", false, async () => {
+        KP.audio.unlock();
+        const url = await KP.faceCrop.pick();
+        if (!url || !ctx._active) return;
+        const rec = { id: "me-" + Date.now(), kind: "me", img: url, t: Date.now() };
+        if ((await KP.db.put("photos", rec)) === false) return KP.toast("저장하지 못했어요. 기기 저장공간을 확인해 주세요");
+        closePick();
+        A.sfx("levelup");
+        await useMe(rec);
+      });
+      boxEl.append(grid, U.el("div", "mzPickNote", "사진은 이 기기 안에만 저장돼요 · ✖ 꾹 누르면 지워요"));
+      ov.appendChild(boxEl);
+      ov.addEventListener("click", (e) => e.target === ov && closePick());
+      board.appendChild(ov);
+    }
+    bMe.addEventListener("click", () => {
+      KP.audio.unlock();
+      if (st.dragging) return;
+      A.sfx("tap");
+      openPick();
+    });
     const fx = (x, y, e, o = {}) => st.fx.push(Object.assign({ x, y, e, t0: performance.now(), dur: 700, up: 0.6, vx: 0, size: 0.32 }, o));
 
     /* ---------- 길 위 특수 칸 ---------- */
@@ -1356,6 +1502,8 @@ KP.game({
   },
   start(ctx) {
     ctx.round = 0;
+    ctx.mzClosePick && ctx.mzClosePick();
+    ctx.mzLoadMe && ctx.mzLoadMe(); // 지난번에 고른 얼굴(없으면 동물 친구)
     // 술래 속도 배율: 단계별로 기억(2단계에서 잘해도 3단계 첫 판이 갑자기 빠르지 않게). 예전 공용 값은 처음 한 번 옮겨 옴
     const kKey = () => "maze:chaseK:" + Math.max(2, ctx.level);
     ctx.chaseK = () => {
@@ -1404,8 +1552,9 @@ KP.game({
       const U = KP.u,
         st = ctx.mz;
       const [, cn, , gn] = st.pair;
-      if (st.ch) return st.ch.e + " " + U.josa(st.ch.name, "이/가") + " 쫓아와요! " + st.pair[0] + " " + U.josa(cn, "을/를") + " " + gn + "까지 먼저 데려가요!";
-      return st.pair[0] + " " + U.josa(cn, "을/를") + " 끌어서 " + st.pair[2] + " " + gn + "까지 데려다 줘요!";
+      const who = ctx.me ? "내 얼굴을" : st.pair[0] + " " + U.josa(cn, "을/를"); // 내 얼굴로 하는 중이면 "내 얼굴을"
+      if (st.ch) return st.ch.e + " " + U.josa(st.ch.name, "이/가") + " 쫓아와요! " + who + " " + gn + "까지 먼저 데려가요!";
+      return who + " 끌어서 " + st.pair[2] + " " + gn + "까지 데려다 줘요!";
     };
     ctx.pairIdx = KP.u.rand(ctx.PAIRS.length);
     this.next(ctx);
@@ -1430,7 +1579,7 @@ KP.game({
     if (land && ctx.level === 3 && st.W && st.H) {
       // 버튼 자리 = 실제 버튼 너비 (모은 것 칸은 별 개수에 따라 넓어지므로 넉넉히 별 3개 기준) + 여유
       const bagW = Math.max(ctx.mzBag ? ctx.mzBag.offsetWidth : 0, 130),
-        chW = ctx.bChase ? ctx.bChase.offsetWidth : 100;
+        chW = ctx.mzRight ? ctx.mzRight.offsetWidth : 100;
       const pad = Math.max(12, Math.min(st.W, st.H) * 0.025),
         side = Math.max(bagW, chW) + 10 + 12;
       const sh = (st.H - pad * 2) / (rows + 0.6);
