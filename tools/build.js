@@ -137,10 +137,27 @@ const gameFiles = walk(P("js", "games"), [".js"]).map((f) => path.relative(ROOT,
 const gameCss = walk(P("css", "games"), [".css"]).map((f) => path.relative(ROOT, f).split(path.sep).join("/")).sort();
 const coreFiles = CORE.map((c) => (c.startsWith("GEN:") ? "js/gen/" + c.slice(4) + ".js" : "js/core/" + c + ".js"));
 const allScripts = [...coreFiles, ...gameFiles, "js/core/app.js"];
+// 묶음(번들): 켤 때 파일 107개를 하나씩 꺼내 읽는 대기가 시작 시간의 대부분이라(2026-11-06 측정, 묶으면 홈 표시 약 -40%)
+// 코어·공용은 한 묶음, 놀이는 탭(폴더)별 묶음으로 이어 붙여 js/gen/ 에 생성. 원본 파일은 그대로 두고(편집·시험판·도구용) index.html 은 묶음만 부름.
+// version.js(매 빌드 바뀜)·clips.js(음성 추가 때만 바뀜)는 따로 두어 업데이트 때 받는 양을 줄임. 파일 사이는 ";" 로 끊어 자동 세미콜론 문제 방지.
+const bundle = (name, files) => {
+  const body = files.map((p) => "\n/* ==== " + p + " ==== */\n" + fs.readFileSync(P(p), "utf8").replace(/\r\n/g, "\n")).join("\n;\n");
+  fs.writeFileSync(P("js", "gen", name), "/* 자동 생성 — tools/build.js 묶음. 고치려면 원본(" + files.length + "개)을 고치고 다시 빌드 */\n" + body);
+  return "js/gen/" + name;
+};
+const sharedFiles = gameFiles.filter((g) => g.startsWith("js/games/_shared/"));
+const gameDirs = [...new Set(gameFiles.filter((g) => !sharedFiles.includes(g)).map((g) => g.split("/")[2]))].sort();
+const loadScripts = [
+  bundle("core.bundle.js", [...coreFiles.filter((c) => !/\/(version|clips)\.js$/.test(c)), ...sharedFiles]),
+  "js/gen/version.js",
+  "js/gen/clips.js",
+  ...gameDirs.map((d) => bundle("games-" + d + ".bundle.js", gameFiles.filter((g) => g.startsWith("js/games/" + d + "/")))),
+  "js/core/app.js",
+];
 
 /* ---------- 4) 버전 + sw.js ---------- */
 const optional = (f) => /^(assets|fonts|icons)\//.test(f); // sw.js 설치 때 몇 개 실패해도 되는 파일(그림·폰트)
-const versioned = ["css/app.css", "css/fonts.css", ...gameCss, ...allScripts]; // index.html 에서 ?v=버전 을 붙여 부르는 파일
+const versioned = ["css/app.css", "css/fonts.css", ...gameCss, ...loadScripts]; // index.html 에서 ?v=버전 을 붙여 부르는 파일
 const precache = [
   "./",
   "index.html",
@@ -173,7 +190,7 @@ const html = tpl
   .replace(/(href|src)="([^"?]+)\?v=__VERSION__"/g, (m, a, f) => a + '="' + vurl(f) + '"')
   .replace(/__VERSION__/g, VERSION)
   .replace("__GAME_CSS__", gameCss.map((c) => '<link rel="stylesheet" href="' + vurl(c) + '">').join("\n"))
-  .replace("__SCRIPTS__", allScripts.map((s) => '<script src="' + vurl(s) + '"></script>').join("\n"))
+  .replace("__SCRIPTS__", loadScripts.map((s) => '<script src="' + vurl(s) + '"></script>').join("\n"))
   .replace("</html>", "<!-- kp:" + VERSION + " -->\n</html>"); // 서비스 워커가 '이 버전' 화면인지 알아보는 표시
 fs.writeFileSync(P("index.html"), html);
 // 서비스 워커가 저장할 주소 → 지문 (코드·스타일은 주소에 지문이 들어 있고, 그림·폰트는 주소 그대로 + 지문으로 바뀜 여부 확인)
@@ -198,6 +215,9 @@ const EXTRA = ${JSON.stringify(MAN_EXTRA)};
 const ALWAYS = ["./", "index.html"]; // 화면은 늘 새로
 const req = (f) => new Request(f, { cache: "reload" });
 const abs = (f) => new URL(f, self.registration.scope).href;
+// 저장소는 한 번 열어 두고 같이 씀 (요청 100여 개가 저마다 열던 비용 절약). 열기 실패 때는 다음 요청이 다시 시도
+let cacheP = null;
+const openCache = () => cacheP || (cacheP = caches.open(CACHE).catch((e) => { cacheP = null; throw e; }));
 const KNOWN = new Set([...ALWAYS, ...Object.keys(CORE), ...Object.keys(EXTRA)].map(abs));
 const SHELL = new Set(ALWAYS.map(abs)); // 앱 화면 주소(루트·index.html) — 이 주소로 열 때만 저장본 화면을 줌 (lab/ 등 다른 페이지는 제외)
 async function getMan(c, key) {
@@ -246,7 +266,7 @@ self.addEventListener("install", (e) => {
   e.waitUntil(
     (async () => {
      try {
-      const c = await caches.open(CACHE);
+      const c = await openCache();
       const old = await getMan(c, MANIFEST);
       const migrate = !Object.keys(old).length;
       // 1) 화면 + 꼭 필요한 파일: 전부 받은 것을 확인한 뒤에만 저장 (중간에 실패하면 아무것도 안 바꿈 → 옛 버전 그대로)
@@ -333,7 +353,7 @@ self.addEventListener("activate", (e) => {
       // 옛 음성 저장소 지우기
       for (const k of await caches.keys()) if (k !== CACHE && k !== VOICE_CACHE && !k.startsWith("kids-playground-")) await caches.delete(k);
       // 이번 목록과 직전 버전 목록 어디에도 없는 파일만 지움
-      const c = await caches.open(CACHE);
+      const c = await openCache();
       const keep = new Set([...KNOWN, ...Object.keys(await getMan(c, PREV)).map(abs), abs(MANIFEST), abs(PREV), abs(UPD)]);
       for (const r of await c.keys()) if (!keep.has(r.url)) await c.delete(r);
       await self.clients.claim();
@@ -351,7 +371,7 @@ self.addEventListener("fetch", (e) => {
   // 새 버전은 브라우저가 sw.js 를 확인해 설치(install 이 새 화면을 저장)하고, '지금 적용' 또는 다음에 켤 때 반영. 저장본이 없을 때(처음)만 인터넷
   if (e.request.mode === "navigate" && SHELL.has(url.origin + url.pathname)) {
     e.respondWith((async () => {
-      const c = await caches.open(CACHE);
+      const c = await openCache();
       const hit = await c.match("index.html");
       if (hit) return hit;
       let r;
@@ -371,8 +391,8 @@ self.addEventListener("fetch", (e) => {
   }
   // 정확히 같은 버전(?v=)이 있으면 저장본, 없으면 인터넷(새 버전), 인터넷도 안 되면 아무 버전 저장본
   e.respondWith(
-    caches.open(CACHE).then((c) => c.match(e.request)).then((h) => h || caches.match(e.request)).then((hit) => hit || fetch(e.request).then((r) => {
-      if (r.ok && KNOWN.has(url.href)) { const cp = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, cp)); }
+    openCache().then((c) => c.match(e.request)).then((h) => h || caches.match(e.request)).then((hit) => hit || fetch(e.request).then((r) => {
+      if (r.ok && KNOWN.has(url.href)) { const cp = r.clone(); openCache().then((c) => c.put(e.request, cp)); }
       return r;
     }).catch(() => caches.match(e.request, { ignoreSearch: true })))
   );

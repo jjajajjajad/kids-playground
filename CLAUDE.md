@@ -20,8 +20,11 @@ node tools/serve.js              # 로컬 서버 (기기에서 같은 와이파�
 node tools/test.js               # 전체 70개 놀이 자동 점검 (태블릿+폰)
 node tools/phone-audit.js        # 폰 화면 넘침 점검 (n100 은 알려진 예외)
 ```
-- `build.js`가 생성: `index.html`, `sw.js`, `js/gen/{clips,version,emoji-map}.js`, `assets/e/`, `fonts/`, `css/fonts.css`.
+- `build.js`가 생성: `index.html`, `sw.js`, `js/gen/{clips,version,emoji-map}.js`, `js/gen/*.bundle.js`, `assets/e/`, `fonts/`, `css/fonts.css`.
   생성 파일은 직접 고치지 말 것. 충돌 나면 `git checkout -- <생성파일>` 후 다시 빌드.
+  - **묶음(번들)**: index.html 은 원본 js 107개 대신 `js/gen/core.bundle.js`(코어+`_shared`)·`games-<탭폴더>.bundle.js` 5개·`version.js`·`clips.js`·`app.js` 만 부름
+    (2026-11-06: 파일을 하나씩 꺼내 읽는 대기가 시작 시간의 대부분이라 묶음으로 홈 표시 약 -40%). 원본 `js/core`·`js/games` 는 그대로 고치고 빌드하면 됨.
+    묶음 파일도 커밋 대상. 브라우저 오류의 파일명·줄 번호는 묶음 기준 — 묶음 안 `/* ==== 원본경로 ==== */` 표시로 찾을 것.
   - 새 이모지를 쓰면 빌드가 `assets/e/*.svg`(새 파일)·`js/gen/emoji-map.js` 를 바꿈 → 커밋 전에 `git status` 로 `??`·` M` 확인해 함께 넣을 것 (두 번 빠뜨려 아이콘이 기기 이모지로 보일 뻔함).
 - 오프라인 저장(sw.js): 저장소 하나(`kp-app`) 고정, 파일마다 내용 지문(`?v=지문`). 업데이트 때 지문이 바뀐 파일만 새로 받음
   (예전엔 버전마다 640개 전부 다시 받아 업데이트 직후 렉). 점검: `tools/out/sw-update-test.js`.
