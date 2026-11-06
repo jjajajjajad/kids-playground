@@ -6,6 +6,17 @@
 "use strict";
 (function (KP) {
   const MAP = () => KP.EMAP || {};
+  // 미리 구운 그림(webp)을 읽을 수 있는 기기인지 — 못 읽는 옛 iPad(iOS 14 미만) 등은 SVG 그대로
+  // 크롬 계열은 바로 판별(캔버스가 webp 를 만들 수 있으면 읽기도 됨), 사파리는 아래 그림 읽기가 끝나면 그때부터 씀
+  let webp = false;
+  try {
+    webp = document.createElement("canvas").toDataURL("image/webp").indexOf("data:image/webp") === 0;
+  } catch (e) {}
+  try {
+    const im = new Image();
+    im.onload = () => { if (im.width === 1) webp = true; };
+    im.src = "data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==";
+  } catch (e) {}
   const seg =
     typeof Intl !== "undefined" && Intl.Segmenter
       ? new Intl.Segmenter("ko", { granularity: "grapheme" })
@@ -25,13 +36,16 @@
     const f = lookup(ch);
     return f ? "assets/e/" + f + ".svg" : null;
   };
-  /** 이모지가 섞인 문자열 → HTML (이모지는 <img>, 나머지는 글자 그대로) */
-  KP.E = (str, cls = "") => {
+  /** 이모지가 섞인 문자열 → HTML (이모지는 <img>, 나머지는 글자 그대로)
+   *  pre: 홈 화면용 — 미리 구운 그림(assets/ep/*.webp, 192px)이 있으면 그걸 씀. SVG 는 흐림 효과가 많아 켤 때마다 그리는 비용이 큼.
+   *  크게 보이는 곳(큰 카드 hero 등)에는 쓰지 말 것(192px 라 흐려짐) */
+  KP.E = (str, cls = "", pre = false) => {
     if (str == null) return "";
     let out = "";
+    const P = pre && webp && KP.EPRE;
     for (const g of graphemes(String(str))) {
       const f = lookup(g);
-      if (f) out += '<img class="e ' + cls + '" src="assets/e/' + f + '.svg" alt="" draggable="false">';
+      if (f) out += '<img class="e ' + cls + '" src="' + (P && P[f] ? "assets/ep/" + f + ".webp" : "assets/e/" + f + ".svg") + '" alt="" draggable="false">';
       else if (/\p{Extended_Pictographic}/u.test(g)) out += '<span class="e et ' + cls + '">' + g + "</span>";
       else out += g.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
     }

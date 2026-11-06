@@ -445,7 +445,7 @@
     home.innerHTML = "";
     const top = U.el("header", "homeTop");
     const brand = U.el("div", "brand");
-    const mascot = U.el("button", "homeMascot", KP.E(KP.MASCOT));
+    const mascot = U.el("button", "homeMascot", KP.E(KP.MASCOT, "", true));
     mascot.setAttribute("aria-label", "곰돌이");
     brand.append(U.el("h1", "", "아이 놀이터"));
     const acts = U.el("div", "homeActs");
@@ -462,10 +462,10 @@
       KP.settings.set({ lastCat: (KP.CATS.find((c) => !st.lockCats.includes(c.id)) || {}).id || st.lastCat });
       KP.renderHome();
     });
-    const bSt = U.btn(KP.E("📒") + "<b>0</b>", "act stickerBtn");
-    const bGal = U.btn(KP.E("🖼️"), "act galBtn");
-    const bMusic = U.btn(KP.E("🎵"), "act musicBtn");
-    const bSet = U.btn(KP.E("⚙️"), "act setBtn");
+    const bSt = U.btn(KP.E("📒", "", true) + "<b>0</b>", "act stickerBtn");
+    const bGal = U.btn(KP.E("🖼️", "", true), "act galBtn");
+    const bMusic = U.btn(KP.E("🎵", "", true), "act musicBtn");
+    const bSet = U.btn(KP.E("⚙️", "", true), "act setBtn");
     acts.append(bKey, bSt, bGal, bMusic, bSet); // 전체 화면(📺)은 아이가 잘못 눌러 풀지 않게 설정 화면으로 옮김
     top.append(brand, acts);
 
@@ -504,7 +504,7 @@
 
     KP.CATS.forEach((c) => {
       // 이름(음성으로도 읽음) + 좁은 화면용 짧은 이름(폰에서 잘리지 않게)
-      const t = U.btn(KP.E(c.icon) + '<span class="tFull">' + c.name + '</span><span class="tShort">' + (c.short || c.name) + "</span>", "tab");
+      const t = U.btn(KP.E(c.icon, "", true) + '<span class="tFull">' + c.name + '</span><span class="tShort">' + (c.short || c.name) + "</span>", "tab");
       t.dataset.cat = c.id;
       t.style.setProperty("--cat", c.color);
       t.style.setProperty("--tsoft", c.soft);
@@ -572,7 +572,7 @@
       const card = U.btn(
         isHero
           ? '<span class="hTag">오늘의 도전</span><span class="cIco">' + KP.E(g.icon) + '</span><span class="cName">' + g.name + '</span><span class="hGo">시작!</span>'
-          : '<span class="cIco">' + KP.E(g.icon) + '</span><span class="cName">' + g.name + "</span>",
+          : '<span class="cIco">' + KP.E(g.icon, "", true) + '</span><span class="cName">' + g.name + "</span>",
         "card" + (isHero ? " hero" : "")
       );
       card.style.setProperty("--i", i);
@@ -581,7 +581,7 @@
       // 방금 한 놀이: 테두리가 은은하게 반짝 (자리는 그대로 — 아이가 다시 찾기 쉽게)
       if (id === lastId && !isHero) card.classList.add("last");
       const lv = KP.level.get(id);
-      if (g.levels > 1 && lv.lvl > 1) card.appendChild(U.el("span", "cLv", KP.E("🏅") + Math.min(lv.lvl, g.levels)));
+      if (g.levels > 1 && lv.lvl > 1) card.appendChild(U.el("span", "cLv", KP.E("🏅", "", true) + Math.min(lv.lvl, g.levels)));
       card.addEventListener("click", () => {
         if (card.dataset.busy) return; // 연타 시 두 번 열리지 않게
         card.dataset.busy = "1";

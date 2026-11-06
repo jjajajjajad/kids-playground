@@ -25,6 +25,8 @@ node tools/phone-audit.js        # 폰 화면 넘침 점검 (n100 은 알려진 
   - **묶음(번들)**: index.html 은 원본 js 107개 대신 `js/gen/core.bundle.js`(코어+`_shared`)·`games-<탭폴더>.bundle.js` 5개·`version.js`·`clips.js`·`app.js` 만 부름
     (2026-11-06: 파일을 하나씩 꺼내 읽는 대기가 시작 시간의 대부분이라 묶음으로 홈 표시 약 -40%). 원본 `js/core`·`js/games` 는 그대로 고치고 빌드하면 됨.
     묶음 파일도 커밋 대상. 브라우저 오류의 파일명·줄 번호는 묶음 기준 — 묶음 안 `/* ==== 원본경로 ==== */` 표시로 찾을 것.
+  - **홈 아이콘 미리 굽기**: 놀이 `icon`·탭·마스코트·홈 버튼의 SVG 를 빌드가 `assets/ep/<슬러그>.webp`(192px) 로 구움(`tools/render-icons.js`, Playwright 필요·없으면 건너뜀).
+    `KP.E(문자, 클래스, true)` 가 webp 를 씀(기기가 webp 를 못 읽으면 SVG). 큰 카드(hero)처럼 크게 보이는 곳엔 `true` 를 주지 말 것(흐려짐). `assets/ep/` 도 커밋 대상.
   - 새 이모지를 쓰면 빌드가 `assets/e/*.svg`(새 파일)·`js/gen/emoji-map.js` 를 바꿈 → 커밋 전에 `git status` 로 `??`·` M` 확인해 함께 넣을 것 (두 번 빠뜨려 아이콘이 기기 이모지로 보일 뻔함).
 - 오프라인 저장(sw.js): 저장소 하나(`kp-app`) 고정, 파일마다 내용 지문(`?v=지문`). 업데이트 때 지문이 바뀐 파일만 새로 받음
   (예전엔 버전마다 640개 전부 다시 받아 업데이트 직후 렉). 점검: `tools/out/sw-update-test.js`.

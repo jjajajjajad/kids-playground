@@ -116,7 +116,28 @@ fs.mkdirSync(P("js", "gen"), { recursive: true });
   );
   console.log(" 자연 음성 " + Object.keys(clips).length + "개");
 }
-fs.writeFileSync(P("js", "gen", "emoji-map.js"), "/* 자동 생성 — tools/build.js */\nKP.EMAP=" + JSON.stringify(map) + ";\n");
+// 홈 화면 아이콘(놀이 카드·탭·마스코트·버튼)은 미리 구운 webp 를 씀 — tools/render-icons.js (SVG 를 켤 때마다 그리는 비용 절약)
+const homeEmoji = new Set(["📒", "🖼️", "🎵", "⚙️", "🏅"]); // home.js 의 버튼·배지
+for (const g of walk(P("js", "games"), [".js"])) for (const m of fs.readFileSync(g, "utf8").matchAll(/icon:\s*"([^"]+)"/g)) homeEmoji.add(m[1]);
+for (const m of fs.readFileSync(P("js", "core", "ui.js"), "utf8").matchAll(/(?:icon|MASCOT)\s*[:=]\s*"([^"]+)"/g)) homeEmoji.add(m[1]);
+const homeSlugs = [...new Set([...homeEmoji].map((e) => map[e]).filter(Boolean))].sort();
+let pre = {};
+{
+  const listFile = P("js", "gen", ".home-icons.json");
+  fs.writeFileSync(listFile, JSON.stringify(homeSlugs));
+  let r;
+  try {
+    r = JSON.parse(require("child_process").execFileSync(process.execPath, [P("tools", "render-icons.js"), listFile], { encoding: "utf8" }) || "{}");
+  } catch (e) {
+    r = { skipped: true, reason: String(e.message || e).split("\n")[0] }; // 굽기 실패해도 빌드는 계속 (이미 구운 것은 그대로 씀)
+  } finally {
+    fs.rmSync(listFile, { force: true });
+  }
+  if (r.skipped) console.warn(" ⚠ 홈 아이콘 미리 굽기 건너뜀: " + r.reason + " (SVG 로 동작)");
+  else console.log(" 홈 아이콘 " + r.total + "개 (새로 구움 " + r.rendered + "개)");
+  for (const sl of homeSlugs) if (fs.existsSync(P("assets", "ep", sl + ".webp"))) pre[sl] = 1;
+}
+fs.writeFileSync(P("js", "gen", "emoji-map.js"), "/* 자동 생성 — tools/build.js */\nKP.EMAP=" + JSON.stringify(map) + ";\nKP.EPRE=" + JSON.stringify(pre) + ";\n");
 
 /* ---------- 2) 폰트 ---------- */
 const fontDir = P("node_modules", "@fontsource", "jua");
@@ -164,7 +185,7 @@ const precache = [
   "manifest.webmanifest",
   ...versioned,
   ...walk(P("fonts"), [".woff2"]).map((f) => "fonts/" + path.basename(f)),
-  ...walk(P("assets"), [".svg", ".png", ".jpg", ".mp3", ".m4a", ".glb", ".bin"]).map((f) => path.relative(ROOT, f).split(path.sep).join("/")),
+  ...walk(P("assets"), [".svg", ".png", ".jpg", ".webp", ".mp3", ".m4a", ".glb", ".bin"]).map((f) => path.relative(ROOT, f).split(path.sep).join("/")),
   ...walk(P("vendor"), [".js"]).map((f) => "vendor/" + path.basename(f)), // 3D 동물원(Three.js) — 필요할 때만 불러오지만 오프라인용으로 미리 저장
   ...walk(P("icons"), [".png"]).map((f) => "icons/" + path.basename(f)),
 ];
