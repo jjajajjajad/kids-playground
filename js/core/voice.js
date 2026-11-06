@@ -532,7 +532,9 @@
     if (prefetching && !onProg) return prefetching;
     const run = async () => {
       await loadStored();
-      const L = Object.values(KP.VOICE_CLIPS || {});
+      // 아이 이름 음성("OO아~"·"OO이")은 공용 목록에 없으므로 맨 앞에 넣어 함께 받아 둠 (안 받으면 오프라인에서 이름만 기기 목소리)
+      const nv = KP.kid && KP.kid.voice ? KP.kid.voice() : null;
+      const L = [...(nv ? [nv.v, nv.n].filter(Boolean) : []), ...Object.values(KP.VOICE_CLIPS || {})];
       let cache = null;
       try {
         cache = await caches.open(VCACHE());

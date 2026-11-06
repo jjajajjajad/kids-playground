@@ -199,6 +199,7 @@ const ALWAYS = ["./", "index.html"]; // 화면은 늘 새로
 const req = (f) => new Request(f, { cache: "reload" });
 const abs = (f) => new URL(f, self.registration.scope).href;
 const KNOWN = new Set([...ALWAYS, ...Object.keys(CORE), ...Object.keys(EXTRA)].map(abs));
+const SHELL = new Set(ALWAYS.map(abs)); // 앱 화면 주소(루트·index.html) — 이 주소로 열 때만 저장본 화면을 줌 (lab/ 등 다른 페이지는 제외)
 async function getMan(c, key) {
   try {
     const r = await c.match(key);
@@ -253,7 +254,7 @@ self.addEventListener("install", (e) => {
         const r = await fetch(req(f));
         const t = r.ok ? await r.clone().text() : "";
         if (!t.includes("kp:" + VERSION)) throw new Error(f + " 이 버전 화면이 아님"); // 와이파이 로그인 화면·옛 화면 방지
-        return [f, r];
+        return [f, new Response(t, { headers: { "Content-Type": "text/html; charset=utf-8" } })]; // 리다이렉트 표시 등이 붙지 않은 깨끗한 응답으로 저장 (fetch 쪽과 같은 형태)
       }));
       const core = Object.entries(CORE);
       const extra = Object.entries(EXTRA);
@@ -346,26 +347,26 @@ self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
-  // 화면(html)은 인터넷 우선 → 새 버전 즉시 반영, 나머지는 저장본 우선 → 빠르고 오프라인 가능
-  // 단 3초 안에 답이 없으면(인터넷 안 되는 와이파이 등) 저장본으로 먼저 열고, 받는 건 계속해서 저장만
-  if (e.request.mode === "navigate") {
-    let saved = null;
-    const net = fetch(e.request).then((r) => {
+  // 화면(html)은 저장본으로 바로 엶 — 인터넷을 기다리지 않아 약한 와이파이에서도 늘 바로 켜짐(예전엔 인터넷을 3초까지 기다려 가끔 느리게 켜졌음)
+  // 새 버전은 브라우저가 sw.js 를 확인해 설치(install 이 새 화면을 저장)하고, '지금 적용' 또는 다음에 켤 때 반영. 저장본이 없을 때(처음)만 인터넷
+  if (e.request.mode === "navigate" && SHELL.has(url.origin + url.pathname)) {
+    e.respondWith((async () => {
+      const c = await caches.open(CACHE);
+      const hit = await c.match("index.html");
+      if (hit) return hit;
+      let r;
+      try {
+        r = await fetch(e.request);
+      } catch (err) {
+        return Response.error(); // 저장본도 없고 인터넷도 안 됨
+      }
       // 정상 응답이고 '이 버전'의 화면일 때만 저장 (와이파이 로그인 화면·오류 페이지·다른 버전 저장 방지)
       if (r.ok && (r.headers.get("content-type") || "").includes("text/html")) {
-        saved = r.clone().text().then((t) => { if (t.includes("kp:" + VERSION)) return caches.open(CACHE).then((c) => c.put("index.html", new Response(t, { headers: { "Content-Type": "text/html; charset=utf-8" } }))); });
+        const t = await r.clone().text();
+        if (t.includes("kp:" + VERSION)) await c.put("index.html", new Response(t, { headers: { "Content-Type": "text/html; charset=utf-8" } })).catch(() => {});
       }
       return r;
-    });
-    e.waitUntil(net.then(() => saved).catch(() => {})); // 저장본으로 먼저 열어도 받기·저장은 끝까지
-    e.respondWith(new Promise((resolve) => {
-      let sent = false;
-      const give = (r) => { if (!sent && r) { sent = true; resolve(r); } };
-      const fromCache = () => caches.open(CACHE).then((c) => c.match("index.html")).then((r) => r || caches.match("index.html")); // 지금 저장소의 화면 먼저
-      // 저장본이 없으면(첫 방문) 인터넷을 계속 기다림
-      const t = setTimeout(() => fromCache().then(give), 3000);
-      net.then((r) => { clearTimeout(t); give(r); }, () => { clearTimeout(t); fromCache().then((c) => give(c || Response.error())); });
-    }));
+    })());
     return;
   }
   // 정확히 같은 버전(?v=)이 있으면 저장본, 없으면 인터넷(새 버전), 인터넷도 안 되면 아무 버전 저장본
