@@ -1,0 +1,12 @@
+# 아이 놀이터 사용 통계 서버 — Cloudflare Workers + D1
+# 배포 순서는 server/README.md
+name = "kp-stats"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kp-stats"
+database_id = "채워 넣기"  # `npx wrangler d1 create kp-stats` 결과의 database_id
+
+# 비밀키(REPORT_KEY)는 여기 적지 말고: npx wrangler secret put REPORT_KEY

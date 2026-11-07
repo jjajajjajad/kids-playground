@@ -78,6 +78,13 @@ node tools/phone-audit.js        # 폰 화면 넘침 점검 (n100 은 알려진 
     - 새 이름 추가: "OO아~"/"OO야~", "OO이"/"OO" 음성 2개 생성 → 글자 비교 → `fnv("OO")` 키로 NAME_VOICES 에 추가 (tsv 에는 넣지 않음).
   - 그 밖의 이름은 voice.js `sayMixed` 가 [자연 음성 앞부분] → [이름만 기기 목소리] → [자연 음성 뒷부분]으로 이어 말함.
 
+## 사용 통계 (익명, 놀이 보완용 — 2026-11-07)
+- `js/core/stats.js`: 앱 켬·놀이 열기/나감(초)·이김/틀림/단계·문 열기·오류·주요 설정 변경을 기기에 모았다가 인터넷 될 때 `KP.STATS_URL/e` 로 묶어 보냄.
+  이름·사진·소리·위치는 안 보냄(이름은 있음/없음만). 설정 `stats`(기본 켜짐) 끄면 모은 것도 지우고 기기번호 새로. 점검: `tools/out/stats-test.js`.
+- 서버: `server/`(Cloudflare Worker + D1). 주소는 `.env` 의 `KP_STATS_URL` → 빌드가 `js/gen/version.js` 의 `KP.STATS_URL` 로 넣음(빈 값이면 아무것도 안 보냄).
+  CSP connect-src 에 `https://*.workers.dev` 허용. 집계 Excel: `node tools/stats-report.js [일수]` (`.env` 의 `KP_STATS_KEY`).
+- 놀이 코드는 손대지 않음 — `KP.open`/`KP.home`/`KP.level.save`/`KP.gate.unlockFor`/`KP.settings.set` 을 감싸서 알아냄. 이 함수들 이름·역할을 바꾸면 stats.js 도 확인.
+
 ## 테스트 습관
 - 기능 변경 후: build → test.js → 필요 시 Playwright 스크린샷(태블릿 1180×820, 폰 390×844)으로 눈 확인.
 - 임시 점검 스크립트는 `tools/out/`(gitignore)에 두기.

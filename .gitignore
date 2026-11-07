@@ -4,3 +4,7 @@ tools/out/
 .env
 credentials.json
 token.json
+server/.wrangler/
+server/node_modules/
+server/.dev.vars
+server/wrangler.local.toml

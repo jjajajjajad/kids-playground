@@ -36,7 +36,7 @@ const OVERRIDE = {
 };
 // 자연 음성 저장소 이름 — sw.js(옛 저장소 정리)와 voice.js(KP.VOICE_CACHE)가 함께 씀. 바꾸면 옛 저장소는 지워짐
 const VOICE_CACHE = "kp-voice-1";
-const CORE = ["kp", "GEN:emoji-map", "GEN:version", "art", "store", "settings", "audio", "voice", "GEN:clips", "ui", "drag", "paint", "notebook", "celebrate", "home", "earn", "perfmon", "pages", "catalog"];
+const CORE = ["kp", "GEN:emoji-map", "GEN:version", "art", "store", "settings", "audio", "voice", "GEN:clips", "ui", "drag", "paint", "notebook", "celebrate", "home", "earn", "perfmon", "stats", "pages", "catalog"];
 
 const srcFiles = [...walk(P("js"), [".js"]).filter((f) => !f.includes(path.join("js", "gen"))), ...walk(P("css"), [".css"])];
 const RE = /(?:\p{Extended_Pictographic}|\p{Regional_Indicator})(?:️|⃣|[\u{1F3FB}-\u{1F3FF}]|‍(?:\p{Extended_Pictographic}|[♀♂])️?)*|[#*0-9]️⃣/gu;
@@ -199,7 +199,17 @@ for (const f of precache) if (f !== "./" && f !== "index.html" && f !== "js/gen/
 const VERSION = h.digest("hex").slice(0, 8);
 const d = new Date(Date.now() + 9 * 3600e3); // KST
 const stamp = d.toISOString().slice(0, 16).replace("T", " ");
-fs.writeFileSync(P("js", "gen", "version.js"), "/* 자동 생성 */\nKP.VERSION=" + JSON.stringify(VERSION + " (" + stamp + " KST)") + ";\n");
+// 사용 통계 서버 주소(비밀 아님): .env 의 KP_STATS_URL — 없으면 아래 기본값, 둘 다 없으면 빈 값(앱은 아무것도 보내지 않음)
+const STATS_URL_DEFAULT = "";
+const envStats = (() => {
+  try {
+    return (/^\s*KP_STATS_URL\s*=\s*(\S+)/m.exec(fs.readFileSync(P(".env"), "utf8")) || [])[1] || "";
+  } catch (e) {
+    return "";
+  }
+})();
+const STATS_URL = (envStats || STATS_URL_DEFAULT).replace(/^["']|["']$/g, "");
+fs.writeFileSync(P("js", "gen", "version.js"), "/* 자동 생성 */\nKP.VERSION=" + JSON.stringify(VERSION + " (" + stamp + " KST)") + ";\nKP.STATS_URL=" + JSON.stringify(STATS_URL) + ";\n");
 
 // 파일마다 내용 지문(8자리) — 내용이 바뀐 파일만 주소(?v=)가 바뀌어, 업데이트 때 바뀐 파일만 새로 받음
 const FH = {};

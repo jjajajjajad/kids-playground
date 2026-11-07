@@ -660,6 +660,25 @@
       draw();
     });
 
+    // 사용 통계 (익명) — 놀이 보완용
+    if (KP.stats) {
+      const sSt = sec(KP.E("📊") + " 사용 통계");
+      const stRow = U.el("label", "pRow", "<span>어떤 놀이를 얼마나 하는지 익명으로 보내기 (놀이를 고치는 데 써요)</span>");
+      const sc = U.el("input");
+      sc.type = "checkbox";
+      sc.checked = s.stats !== false;
+      stRow.appendChild(sc);
+      const stNote = U.el("p", "pNote", "");
+      const drawSt = () => {
+        stNote.textContent = (KP.STATS_URL ? "" : "(아직 받는 서버가 없어 보내지 않아요) ") + (sc.checked
+          ? "보내는 것: 놀이 열기·머문 시간·이김·틀림·단계·문 열기·오류·기기 종류. 안 보내는 것: 이름·사진·작품·소리·위치. 기기번호 " + KP.stats.dev().slice(0, 6) + "… · 보낼 기록 " + KP.stats.pending() + "개"
+          : "꺼져 있어요. 모아 둔 기록도 지웠어요.");
+      };
+      sc.addEventListener("change", () => (KP.settings.set({ stats: sc.checked }), drawSt()));
+      drawSt();
+      sSt.append(stRow, stNote);
+    }
+
     // 렉 측정 (실제 기기에서 어느 놀이가 버벅이는지 기록)
     if (KP.perf) {
       const sPerf = sec(KP.E("📈") + " 렉 측정");

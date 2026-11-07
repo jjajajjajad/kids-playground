@@ -1,4 +1,4 @@
-/* 자동 생성 — tools/build.js 묶음. 고치려면 원본(23개)을 고치고 다시 빌드 */
+/* 자동 생성 — tools/build.js 묶음. 고치려면 원본(24개)을 고치고 다시 빌드 */
 
 /* ==== js/core/kp.js ==== */
 /* =====================================================================
@@ -125,7 +125,7 @@ window.KP = window.KP || {};
 
 /* ==== js/gen/emoji-map.js ==== */
 /* 자동 생성 — tools/build.js */
-KP.EMAP={"1️⃣":"keycap-1","1⃣":"keycap-1","2️⃣":"keycap-2","2⃣":"keycap-2","3️⃣":"keycap-3","3⃣":"keycap-3","4️⃣":"keycap-4","4⃣":"keycap-4","5️⃣":"keycap-5","5⃣":"keycap-5","↔":"left-right-arrow","↩️":"right-arrow-curving-left","↩":"right-arrow-curving-left","⌚":"watch","⏰":"alarm-clock","⏳":"hourglass-not-done","⏹️":"stop-button","⏹":"stop-button","⏺":"record-button","▶":"play-button","▶️":"play-button","☀️":"sun","☀":"sun","☁️":"cloud","☁":"cloud","☂️":"umbrella","☂":"umbrella","☕":"hot-beverage","☝️":"index-pointing-up","☝":"index-pointing-up","⚖️":"balance-scale","⚖":"balance-scale","⚙️":"gear","⚙":"gear","⚡":"high-voltage","⚪":"white-circle","⚽":"soccer-ball","⚾":"baseball","⛄":"snowman-without-snow","⛈️":"cloud-with-lightning-and-rain","⛈":"cloud-with-lightning-and-rain","⛰️":"mountain","⛰":"mountain","⛱️":"umbrella-on-ground","⛱":"umbrella-on-ground","⛵":"sailboat","⛺":"tent","⛽":"fuel-pump","✂️":"scissors","✂":"scissors","✅":"check-mark-button","✈️":"airplane","✈":"airplane","✊":"raised-fist","✋":"raised-hand","✌️":"victory-hand","✌":"victory-hand","✍️":"writing-hand","✍":"writing-hand","✏️":"pencil","✏":"pencil","✔":"check-mark","✔️":"check-mark","✖":"multiply","✖️":"multiply","✨":"sparkles","❄️":"snowflake","❄":"snowflake","❓":"red-question-mark","❗":"red-exclamation-mark","❤️":"red-heart","❤":"red-heart","➕":"plus","➖":"minus","➡️":"right-arrow","➡":"right-arrow","⬆️":"up-arrow","⬆":"up-arrow","⬇️":"down-arrow","⬇":"down-arrow","⬛":"black-large-square","⭐":"star","⭕":"hollow-red-circle","〰️":"wavy-dash","〰":"wavy-dash","🃏":"joker","🌀":"cyclone","🌃":"night-with-stars","🌈":"rainbow","🌊":"water-wave","🌋":"volcano","🌍":"globe-showing-europe-africa","🌐":"globe-with-meridians","🌓":"first-quarter-moon","🌙":"crescent-moon","🌟":"glowing-star","🌧️":"cloud-with-rain","🌧":"cloud-with-rain","🌰":"chestnut","🌱":"seedling","🌲":"evergreen-tree","🌳":"deciduous-tree","🌴":"palm-tree","🌶️":"hot-pepper","🌶":"hot-pepper","🌷":"tulip","🌸":"cherry-blossom","🌹":"rose","🌺":"hibiscus","🌻":"sunflower","🌼":"blossom","🌽":"ear-of-corn","🌾":"sheaf-of-rice","🌿":"herb","🍁":"maple-leaf","🍂":"fallen-leaf","🍃":"leaf-fluttering-in-wind","🍄":"mushroom","🍅":"tomato","🍆":"eggplant","🍇":"grapes","🍉":"watermelon","🍊":"tangerine","🍋":"lemon","🍌":"banana","🍍":"pineapple","🍎":"red-apple","🍏":"green-apple","🍐":"pear","🍑":"peach","🍒":"cherries","🍓":"strawberry","🍔":"hamburger","🍕":"pizza","🍖":"meat-on-bone","🍙":"rice-ball","🍚":"cooked-rice","🍛":"curry-rice","🍜":"steaming-bowl","🍞":"bread","🍠":"roasted-sweet-potato","🍢":"oden","🍦":"soft-ice-cream","🍩":"doughnut","🍪":"cookie","🍫":"chocolate-bar","🍬":"candy","🍭":"lollipop","🍯":"honey-pot","🍰":"shortcake","🍲":"pot-of-food","🍳":"cooking","🍴":"fork-and-knife","🍽️":"fork-and-knife-with-plate","🍽":"fork-and-knife-with-plate","🎀":"ribbon","🎁":"wrapped-gift","🎂":"birthday-cake","🎃":"jack-o-lantern","🎆":"fireworks","🎈":"balloon","🎉":"party-popper","🎋":"tanabata-tree","🎐":"wind-chime","🎒":"backpack","🎞️":"film-frames","🎞":"film-frames","🎤":"microphone","🎧":"headphone","🎨":"artist-palette","🎩":"top-hat","🎪":"circus-tent","🎮":"video-game","🎯":"bullseye","🎲":"game-die","🎵":"musical-note","🎶":"musical-notes","🎸":"guitar","🎹":"musical-keyboard","🎺":"trumpet","🎻":"violin","🎼":"musical-score","🏀":"basketball","🏁":"chequered-flag","🏃":"person-running","🏅":"sports-medal","🏆":"trophy","🏎️":"racing-car","🏎":"racing-car","🏖️":"beach-with-umbrella","🏖":"beach-with-umbrella","🏜️":"desert","🏜":"desert","🏝️":"desert-island","🏝":"desert-island","🏞️":"national-park","🏞":"national-park","🏠":"house","🏡":"house-with-garden","🏥":"hospital","🏰":"castle","🐄":"cow","🐇":"rabbit","🐉":"dragon","🐊":"crocodile","🐌":"snail","🐍":"snake","🐑":"ewe","🐒":"monkey","🐓":"rooster","🐔":"chicken","🐕":"dog","🐘":"elephant","🐙":"octopus","🐚":"spiral-shell","🐛":"bug","🐜":"ant","🐝":"honeybee","🐞":"lady-beetle","🐟":"fish","🐠":"tropical-fish","🐡":"blowfish","🐢":"turtle","🐣":"hatching-chick","🐤":"baby-chick","🐥":"front-facing-baby-chick","🐦":"bird","🐧":"penguin","🐨":"koala","🐫":"two-hump-camel","🐬":"dolphin","🐭":"mouse-face","🐮":"cow-face","🐯":"tiger-face","🐰":"rabbit-face","🐱":"cat-face","🐳":"spouting-whale","🐴":"horse-face","🐵":"monkey-face","🐶":"dog-face","🐷":"pig-face","🐸":"frog","🐹":"hamster","🐺":"wolf","🐻":"bear","🐼":"panda","🐾":"paw-prints","🐿️":"chipmunk","🐿":"chipmunk","👀":"eyes","👂":"ear","👃":"nose","👄":"mouth","👆":"backhand-index-pointing-up","👇":"backhand-index-pointing-down","👈":"backhand-index-pointing-left","👋":"waving-hand","👍":"thumbs-up","👏":"clapping-hands","👐":"open-hands","👑":"crown","👓":"glasses","👕":"t-shirt","👖":"jeans","👗":"dress","👙":"bikini","👜":"handbag","👟":"running-shoe","👦":"boy","👧":"girl","👨":"man","👩":"woman","👩‍⚕️":"woman-health-worker","👩‍⚕":"woman-health-worker","👴":"old-man","👵":"old-woman","👶":"baby","👸":"princess","👻":"ghost","💇":"person-getting-haircut","💊":"pill","💎":"gem-stone","💓":"beating-heart","💕":"two-hearts","💖":"sparkling-heart","💗":"growing-heart","💙":"blue-heart","💚":"green-heart","💛":"yellow-heart","💜":"purple-heart","💡":"light-bulb","💢":"anger-symbol","💤":"zzz","💥":"collision","💦":"sweat-droplets","💧":"droplet","💨":"dashing-away","💪":"flexed-biceps","💫":"dizzy","💮":"white-flower","💯":"hundred-points","💰":"money-bag","💾":"floppy-disk","📂":"open-file-folder","📄":"page-facing-up","📈":"chart-increasing","📋":"clipboard","📌":"pushpin","📍":"round-pushpin","📒":"ledger","📓":"notebook","📕":"closed-book","📖":"open-book","📗":"green-book","📘":"blue-book","📙":"orange-book","📚":"books","📝":"memo","📣":"megaphone","📦":"package","📴":"mobile-phone-off","📷":"camera","📸":"camera-with-flash","📺":"television","📻":"radio","🔁":"repeat-button","🔄":"counterclockwise-arrows-button","🔊":"speaker-high-volume","🔍":"magnifying-glass-tilted-left","🔐":"locked-with-key","🔑":"key","🔒":"locked","🔓":"unlocked","🔔":"bell","🔗":"link","🔟":"keycap-10","🔢":"input-numbers","🔤":"input-latin-letters","🔥":"fire","🔦":"flashlight","🔨":"hammer","🔴":"red-circle","🔵":"blue-circle","🔶":"large-orange-diamond","🔷":"large-blue-diamond","🔺":"red-triangle","🕊️":"dove","🕊":"dove","🕯️":"candle","🕯":"candle","🕶️":"sunglasses","🕶":"sunglasses","🕷️":"spider","🕷":"spider","🖊️":"pen","🖊":"pen","🖌️":"paintbrush","🖌":"paintbrush","🖍️":"crayon","🖍":"crayon","🖤":"black-heart","🖨️":"printer","🖨":"printer","🖼️":"framed-picture","🖼":"framed-picture","🗂️":"card-index-dividers","🗂":"card-index-dividers","🗑️":"wastebasket","🗑":"wastebasket","🗺️":"world-map","🗺":"world-map","🗽":"statue-of-liberty","😀":"grinning-face","😆":"grinning-squinting-face","😊":"smiling-face-with-smiling-eyes","😋":"face-savoring-food","😎":"smiling-face-with-sunglasses","😖":"confounded-face","😠":"angry-face","😢":"crying-face","😣":"persevering-face","😨":"fearful-face","😲":"astonished-face","😳":"flushed-face","😴":"sleeping-face","😷":"face-with-medical-mask","🙂":"slightly-smiling-face","🙈":"see-no-evil-monkey","🙋":"person-raising-hand","🙌":"raising-hands","🚀":"rocket","🚁":"helicopter","🚂":"locomotive","🚌":"bus","🚑":"ambulance","🚒":"fire-engine","🚓":"police-car","🚗":"automobile","🚙":"sport-utility-vehicle","🚛":"articulated-lorry","🚜":"tractor","🚦":"vertical-traffic-light","🚧":"construction","🚩":"triangular-flag","🚪":"door","🚲":"bicycle","🚶":"person-walking","🚽":"toilet","🚿":"shower","🛁":"bathtub","🛏️":"bed","🛏":"bed","🛝":"playground-slide","🛣️":"motorway","🛣":"motorway","🛤️":"railway-track","🛤":"railway-track","🛷":"sled","🛸":"flying-saucer","🟡":"yellow-circle","🟢":"green-circle","🟣":"purple-circle","🟥":"red-square","🟦":"blue-square","🟧":"orange-square","🟨":"yellow-square","🟩":"green-square","🟪":"purple-square","🟰":"heavy-equals-sign","🤍":"white-heart","🤎":"brown-heart","🤔":"thinking-face","🤖":"robot","🤝":"handshake","🤡":"clown-face","🤧":"sneezing-face","🤨":"face-with-raised-eyebrow","🤲":"palms-up-together","🥁":"drum","🥄":"spoon","🥅":"goal-net","🥒":"cucumber","🥕":"carrot","🥚":"egg","🥛":"glass-of-milk","🥜":"peanuts","🥝":"kiwi-fruit","🥣":"bowl-with-spoon","🥦":"broccoli","🥬":"leafy-green","🥳":"partying-face","🥵":"hot-face","🥾":"hiking-boot","🦀":"crab","🦁":"lion","🦄":"unicorn","🦅":"eagle","🦆":"duck","🦇":"bat","🦈":"shark","🦉":"owl","🦊":"fox","🦋":"butterfly","🦌":"deer","🦑":"squid","🦒":"giraffe","🦓":"zebra","🦕":"sauropod","🦖":"t-rex","🦙":"llama","🦛":"hippopotamus","🦜":"parrot","🦝":"raccoon","🦟":"mosquito","🦠":"microbe","🦩":"flamingo","🦭":"seal","🦴":"bone","🦵":"leg","🦶":"foot","🦷":"tooth","🦸":"person-superhero","🧀":"cheese-wedge","🧁":"cupcake","🧃":"beverage-box","🧊":"ice","🧒":"child","🧠":"brain","🧡":"orange-heart","🧢":"billed-cap","🧣":"scarf","🧤":"gloves","🧥":"coat","🧦":"socks","🧩":"puzzle-piece","🧪":"test-tube","🧮":"abacus","🧱":"brick","🧲":"magnet","🧸":"teddy-bear","🧹":"broom","🧺":"basket","🧻":"roll-of-paper","🧼":"soap","🧽":"sponge","🩳":"shorts","🩴":"thong-sandal","🩷":"pink-heart","🩻":"x-ray","🪀":"yo-yo","🪁":"kite","🪄":"magic-wand","🪇":"maracas","🪈":"flute","🪐":"ringed-planet","🪜":"ladder","🪣":"bucket","🪥":"toothbrush","🪵":"wood","🪸":"coral","🪺":"nest-with-eggs","🪻":"hyacinth","🪼":"jellyfish","🫂":"people-hugging","🫐":"blueberries","🫗":"pouring-liquid","🫘":"beans","🫙":"jar","🫧":"bubbles"};
+KP.EMAP={"1️⃣":"keycap-1","1⃣":"keycap-1","2️⃣":"keycap-2","2⃣":"keycap-2","3️⃣":"keycap-3","3⃣":"keycap-3","4️⃣":"keycap-4","4⃣":"keycap-4","5️⃣":"keycap-5","5⃣":"keycap-5","↔":"left-right-arrow","↩️":"right-arrow-curving-left","↩":"right-arrow-curving-left","⌚":"watch","⏰":"alarm-clock","⏳":"hourglass-not-done","⏹️":"stop-button","⏹":"stop-button","⏺":"record-button","▶":"play-button","▶️":"play-button","☀️":"sun","☀":"sun","☁️":"cloud","☁":"cloud","☂️":"umbrella","☂":"umbrella","☕":"hot-beverage","☝️":"index-pointing-up","☝":"index-pointing-up","⚖️":"balance-scale","⚖":"balance-scale","⚙️":"gear","⚙":"gear","⚡":"high-voltage","⚪":"white-circle","⚽":"soccer-ball","⚾":"baseball","⛄":"snowman-without-snow","⛈️":"cloud-with-lightning-and-rain","⛈":"cloud-with-lightning-and-rain","⛰️":"mountain","⛰":"mountain","⛱️":"umbrella-on-ground","⛱":"umbrella-on-ground","⛵":"sailboat","⛺":"tent","⛽":"fuel-pump","✂️":"scissors","✂":"scissors","✅":"check-mark-button","✈️":"airplane","✈":"airplane","✊":"raised-fist","✋":"raised-hand","✌️":"victory-hand","✌":"victory-hand","✍️":"writing-hand","✍":"writing-hand","✏️":"pencil","✏":"pencil","✔":"check-mark","✔️":"check-mark","✖":"multiply","✖️":"multiply","✨":"sparkles","❄️":"snowflake","❄":"snowflake","❓":"red-question-mark","❗":"red-exclamation-mark","❤️":"red-heart","❤":"red-heart","➕":"plus","➖":"minus","➡️":"right-arrow","➡":"right-arrow","⬆️":"up-arrow","⬆":"up-arrow","⬇️":"down-arrow","⬇":"down-arrow","⬛":"black-large-square","⭐":"star","⭕":"hollow-red-circle","〰️":"wavy-dash","〰":"wavy-dash","🃏":"joker","🌀":"cyclone","🌃":"night-with-stars","🌈":"rainbow","🌊":"water-wave","🌋":"volcano","🌍":"globe-showing-europe-africa","🌐":"globe-with-meridians","🌓":"first-quarter-moon","🌙":"crescent-moon","🌟":"glowing-star","🌧️":"cloud-with-rain","🌧":"cloud-with-rain","🌰":"chestnut","🌱":"seedling","🌲":"evergreen-tree","🌳":"deciduous-tree","🌴":"palm-tree","🌶️":"hot-pepper","🌶":"hot-pepper","🌷":"tulip","🌸":"cherry-blossom","🌹":"rose","🌺":"hibiscus","🌻":"sunflower","🌼":"blossom","🌽":"ear-of-corn","🌾":"sheaf-of-rice","🌿":"herb","🍁":"maple-leaf","🍂":"fallen-leaf","🍃":"leaf-fluttering-in-wind","🍄":"mushroom","🍅":"tomato","🍆":"eggplant","🍇":"grapes","🍉":"watermelon","🍊":"tangerine","🍋":"lemon","🍌":"banana","🍍":"pineapple","🍎":"red-apple","🍏":"green-apple","🍐":"pear","🍑":"peach","🍒":"cherries","🍓":"strawberry","🍔":"hamburger","🍕":"pizza","🍖":"meat-on-bone","🍙":"rice-ball","🍚":"cooked-rice","🍛":"curry-rice","🍜":"steaming-bowl","🍞":"bread","🍠":"roasted-sweet-potato","🍢":"oden","🍦":"soft-ice-cream","🍩":"doughnut","🍪":"cookie","🍫":"chocolate-bar","🍬":"candy","🍭":"lollipop","🍯":"honey-pot","🍰":"shortcake","🍲":"pot-of-food","🍳":"cooking","🍴":"fork-and-knife","🍽️":"fork-and-knife-with-plate","🍽":"fork-and-knife-with-plate","🎀":"ribbon","🎁":"wrapped-gift","🎂":"birthday-cake","🎃":"jack-o-lantern","🎆":"fireworks","🎈":"balloon","🎉":"party-popper","🎋":"tanabata-tree","🎐":"wind-chime","🎒":"backpack","🎞️":"film-frames","🎞":"film-frames","🎤":"microphone","🎧":"headphone","🎨":"artist-palette","🎩":"top-hat","🎪":"circus-tent","🎮":"video-game","🎯":"bullseye","🎲":"game-die","🎵":"musical-note","🎶":"musical-notes","🎸":"guitar","🎹":"musical-keyboard","🎺":"trumpet","🎻":"violin","🎼":"musical-score","🏀":"basketball","🏁":"chequered-flag","🏃":"person-running","🏅":"sports-medal","🏆":"trophy","🏎️":"racing-car","🏎":"racing-car","🏖️":"beach-with-umbrella","🏖":"beach-with-umbrella","🏜️":"desert","🏜":"desert","🏝️":"desert-island","🏝":"desert-island","🏞️":"national-park","🏞":"national-park","🏠":"house","🏡":"house-with-garden","🏥":"hospital","🏰":"castle","🐄":"cow","🐇":"rabbit","🐉":"dragon","🐊":"crocodile","🐌":"snail","🐍":"snake","🐑":"ewe","🐒":"monkey","🐓":"rooster","🐔":"chicken","🐕":"dog","🐘":"elephant","🐙":"octopus","🐚":"spiral-shell","🐛":"bug","🐜":"ant","🐝":"honeybee","🐞":"lady-beetle","🐟":"fish","🐠":"tropical-fish","🐡":"blowfish","🐢":"turtle","🐣":"hatching-chick","🐤":"baby-chick","🐥":"front-facing-baby-chick","🐦":"bird","🐧":"penguin","🐨":"koala","🐫":"two-hump-camel","🐬":"dolphin","🐭":"mouse-face","🐮":"cow-face","🐯":"tiger-face","🐰":"rabbit-face","🐱":"cat-face","🐳":"spouting-whale","🐴":"horse-face","🐵":"monkey-face","🐶":"dog-face","🐷":"pig-face","🐸":"frog","🐹":"hamster","🐺":"wolf","🐻":"bear","🐼":"panda","🐾":"paw-prints","🐿️":"chipmunk","🐿":"chipmunk","👀":"eyes","👂":"ear","👃":"nose","👄":"mouth","👆":"backhand-index-pointing-up","👇":"backhand-index-pointing-down","👈":"backhand-index-pointing-left","👋":"waving-hand","👍":"thumbs-up","👏":"clapping-hands","👐":"open-hands","👑":"crown","👓":"glasses","👕":"t-shirt","👖":"jeans","👗":"dress","👙":"bikini","👜":"handbag","👟":"running-shoe","👦":"boy","👧":"girl","👨":"man","👩":"woman","👩‍⚕️":"woman-health-worker","👩‍⚕":"woman-health-worker","👴":"old-man","👵":"old-woman","👶":"baby","👸":"princess","👻":"ghost","💇":"person-getting-haircut","💊":"pill","💎":"gem-stone","💓":"beating-heart","💕":"two-hearts","💖":"sparkling-heart","💗":"growing-heart","💙":"blue-heart","💚":"green-heart","💛":"yellow-heart","💜":"purple-heart","💡":"light-bulb","💢":"anger-symbol","💤":"zzz","💥":"collision","💦":"sweat-droplets","💧":"droplet","💨":"dashing-away","💪":"flexed-biceps","💫":"dizzy","💮":"white-flower","💯":"hundred-points","💰":"money-bag","💾":"floppy-disk","📂":"open-file-folder","📄":"page-facing-up","📈":"chart-increasing","📊":"bar-chart","📋":"clipboard","📌":"pushpin","📍":"round-pushpin","📒":"ledger","📓":"notebook","📕":"closed-book","📖":"open-book","📗":"green-book","📘":"blue-book","📙":"orange-book","📚":"books","📝":"memo","📣":"megaphone","📦":"package","📴":"mobile-phone-off","📷":"camera","📸":"camera-with-flash","📺":"television","📻":"radio","🔁":"repeat-button","🔄":"counterclockwise-arrows-button","🔊":"speaker-high-volume","🔍":"magnifying-glass-tilted-left","🔐":"locked-with-key","🔑":"key","🔒":"locked","🔓":"unlocked","🔔":"bell","🔗":"link","🔟":"keycap-10","🔢":"input-numbers","🔤":"input-latin-letters","🔥":"fire","🔦":"flashlight","🔨":"hammer","🔴":"red-circle","🔵":"blue-circle","🔶":"large-orange-diamond","🔷":"large-blue-diamond","🔺":"red-triangle","🕊️":"dove","🕊":"dove","🕯️":"candle","🕯":"candle","🕶️":"sunglasses","🕶":"sunglasses","🕷️":"spider","🕷":"spider","🖊️":"pen","🖊":"pen","🖌️":"paintbrush","🖌":"paintbrush","🖍️":"crayon","🖍":"crayon","🖤":"black-heart","🖨️":"printer","🖨":"printer","🖼️":"framed-picture","🖼":"framed-picture","🗂️":"card-index-dividers","🗂":"card-index-dividers","🗑️":"wastebasket","🗑":"wastebasket","🗺️":"world-map","🗺":"world-map","🗽":"statue-of-liberty","😀":"grinning-face","😆":"grinning-squinting-face","😊":"smiling-face-with-smiling-eyes","😋":"face-savoring-food","😎":"smiling-face-with-sunglasses","😖":"confounded-face","😠":"angry-face","😢":"crying-face","😣":"persevering-face","😨":"fearful-face","😲":"astonished-face","😳":"flushed-face","😴":"sleeping-face","😷":"face-with-medical-mask","🙂":"slightly-smiling-face","🙈":"see-no-evil-monkey","🙋":"person-raising-hand","🙌":"raising-hands","🚀":"rocket","🚁":"helicopter","🚂":"locomotive","🚌":"bus","🚑":"ambulance","🚒":"fire-engine","🚓":"police-car","🚗":"automobile","🚙":"sport-utility-vehicle","🚛":"articulated-lorry","🚜":"tractor","🚦":"vertical-traffic-light","🚧":"construction","🚩":"triangular-flag","🚪":"door","🚲":"bicycle","🚶":"person-walking","🚽":"toilet","🚿":"shower","🛁":"bathtub","🛏️":"bed","🛏":"bed","🛝":"playground-slide","🛣️":"motorway","🛣":"motorway","🛤️":"railway-track","🛤":"railway-track","🛷":"sled","🛸":"flying-saucer","🟡":"yellow-circle","🟢":"green-circle","🟣":"purple-circle","🟥":"red-square","🟦":"blue-square","🟧":"orange-square","🟨":"yellow-square","🟩":"green-square","🟪":"purple-square","🟰":"heavy-equals-sign","🤍":"white-heart","🤎":"brown-heart","🤔":"thinking-face","🤖":"robot","🤝":"handshake","🤡":"clown-face","🤧":"sneezing-face","🤨":"face-with-raised-eyebrow","🤲":"palms-up-together","🥁":"drum","🥄":"spoon","🥅":"goal-net","🥒":"cucumber","🥕":"carrot","🥚":"egg","🥛":"glass-of-milk","🥜":"peanuts","🥝":"kiwi-fruit","🥣":"bowl-with-spoon","🥦":"broccoli","🥬":"leafy-green","🥳":"partying-face","🥵":"hot-face","🥾":"hiking-boot","🦀":"crab","🦁":"lion","🦄":"unicorn","🦅":"eagle","🦆":"duck","🦇":"bat","🦈":"shark","🦉":"owl","🦊":"fox","🦋":"butterfly","🦌":"deer","🦑":"squid","🦒":"giraffe","🦓":"zebra","🦕":"sauropod","🦖":"t-rex","🦙":"llama","🦛":"hippopotamus","🦜":"parrot","🦝":"raccoon","🦟":"mosquito","🦠":"microbe","🦩":"flamingo","🦭":"seal","🦴":"bone","🦵":"leg","🦶":"foot","🦷":"tooth","🦸":"person-superhero","🧀":"cheese-wedge","🧁":"cupcake","🧃":"beverage-box","🧊":"ice","🧒":"child","🧠":"brain","🧡":"orange-heart","🧢":"billed-cap","🧣":"scarf","🧤":"gloves","🧥":"coat","🧦":"socks","🧩":"puzzle-piece","🧪":"test-tube","🧮":"abacus","🧱":"brick","🧲":"magnet","🧸":"teddy-bear","🧹":"broom","🧺":"basket","🧻":"roll-of-paper","🧼":"soap","🧽":"sponge","🩳":"shorts","🩴":"thong-sandal","🩷":"pink-heart","🩻":"x-ray","🪀":"yo-yo","🪁":"kite","🪄":"magic-wand","🪇":"maracas","🪈":"flute","🪐":"ringed-planet","🪜":"ladder","🪣":"bucket","🪥":"toothbrush","🪵":"wood","🪸":"coral","🪺":"nest-with-eggs","🪻":"hyacinth","🪼":"jellyfish","🫂":"people-hugging","🫐":"blueberries","🫗":"pouring-liquid","🫘":"beans","🫙":"jar","🫧":"bubbles"};
 KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,"bathtub":1,"bear":1,"beating-heart":1,"bell":1,"birthday-cake":1,"books":1,"bowl-with-spoon":1,"brain":1,"bubbles":1,"bullseye":1,"butterfly":1,"card-index-dividers":1,"carrot":1,"clown-face":1,"crayon":1,"crocodile":1,"cyclone":1,"dashing-away":1,"deciduous-tree":1,"dog-face":1,"door":1,"drum":1,"duck":1,"ear":1,"egg":1,"film-frames":1,"fireworks":1,"first-quarter-moon":1,"fish":1,"framed-picture":1,"gear":1,"glowing-star":1,"guitar":1,"hamster":1,"handshake":1,"hospital":1,"hundred-points":1,"input-latin-letters":1,"input-numbers":1,"joker":1,"keycap-1":1,"large-blue-diamond":1,"ledger":1,"light-bulb":1,"link":1,"lion":1,"locomotive":1,"lollipop":1,"magnet":1,"magnifying-glass-tilted-left":1,"memo":1,"musical-keyboard":1,"musical-note":1,"musical-notes":1,"musical-score":1,"notebook":1,"open-book":1,"package":1,"paintbrush":1,"pen":1,"pencil":1,"people-hugging":1,"person-superhero":1,"puzzle-piece":1,"racing-car":1,"rainbow":1,"raised-hand":1,"raising-hands":1,"red-apple":1,"red-question-mark":1,"red-triangle":1,"repeat-button":1,"rocket":1,"round-pushpin":1,"seedling":1,"smiling-face-with-smiling-eyes":1,"soap":1,"soft-ice-cream":1,"sponge":1,"sports-medal":1,"t-shirt":1,"test-tube":1,"toilet":1,"toothbrush":1,"vertical-traffic-light":1,"wavy-dash":1,"wind-chime":1};
 
 ;
@@ -634,6 +634,7 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
     pin: "", // 부모 비밀번호 4자리 ("" = 오늘 날짜 8자리 사용)
     kidName: "", // 아이 이름 (예: "동훈") — 칭찬할 때 "동훈아, 최고!" / 비우면 이름 없이 칭찬
     kidVoice: null, // (예비) 이 기기 전용 이름 음성 {v: "동훈아" 주소, n: "동훈이" 주소} — 없으면 미리 만든 이름 음성(NAME_VOICES) 또는 기기 목소리
+    stats: true, // 익명 사용 통계 보내기 (놀이 보완용, stats.js) — 이름·사진·소리는 안 보냄
     ver: 2,
   };
   // 이름: 한글·영문·숫자만, 8자까지 (화면에 그대로 넣으므로 꺾쇠 등은 버림)
@@ -6477,6 +6478,162 @@ void main(){
 
 ;
 
+/* ==== js/core/stats.js ==== */
+/* =====================================================================
+   사용 통계 (익명) — 놀이 보완용. 부모 설정 → 사용 통계 에서 끌 수 있음
+   - 무엇을: 앱 켬 / 놀이 열기·나감(머문 초) / 이김·틀림 / 단계 오르내림 / 문 열기(방법·분) / 오류 / 주요 설정 변경
+   - 무엇을 안 보내나: 아이 이름(있는지만), 사진·작품, 음성, 위치, IP(서버도 저장 안 함)
+   - 어떻게: 기기에 모아 두었다가(최대 500개) 인터넷 될 때 묶어 보냄. 실패해도 놀이에 영향 없음. 서버 주소(KP.STATS_URL)가 없으면 아무것도 안 함
+   - 기기번호: 처음 켤 때 무작위로 만든 글자 (설정에서 '기록 지우기' 하면 새로 만듦)
+   KP.stats.on() · dev() · pending() · flush() · reset()
+===================================================================== */
+"use strict";
+(function (KP) {
+  const S = KP.store;
+  const url = () => (typeof KP.STATS_URL === "string" && /^https:\/\//.test(KP.STATS_URL) ? KP.STATS_URL.replace(/\/$/, "") : "");
+  const on = () => !!url() && KP.settings.get().stats !== false;
+  const rnd = () => {
+    const a = new Uint8Array(12);
+    (self.crypto || {}).getRandomValues ? crypto.getRandomValues(a) : a.forEach((_, i) => (a[i] = (Math.random() * 256) | 0));
+    return [...a].map((x) => x.toString(16).padStart(2, "0")).join("");
+  };
+  let dev = S.get("stats:dev", "");
+  if (typeof dev !== "string" || !/^[0-9a-f]{24}$/.test(dev)) S.set("stats:dev", (dev = rnd()));
+  let q = S.get("stats:q", []);
+  if (!Array.isArray(q)) q = [];
+  let saveT = 0,
+    sending = false,
+    errN = 0,
+    cur = "", // 지금 열린 놀이
+    openAt = 0;
+  const save = () => {
+    if (saveT) return;
+    saveT = setTimeout(() => {
+      saveT = 0;
+      S.set("stats:q", q);
+    }, 800);
+  };
+  const push = (kind, game, a, b, c) => {
+    if (!on()) return;
+    q.push([Date.now(), kind, game || "", a == null ? null : a, b == null ? null : b, c == null ? null : String(c).slice(0, 40)]);
+    if (q.length > 500) q.splice(0, q.length - 500);
+    save();
+  };
+  const info = () => {
+    const ua = navigator.userAgent || "";
+    const os = /android/i.test(ua) ? "android" : /iP(hone|ad|od)/.test(ua) || (/Mac/.test(ua) && navigator.maxTouchPoints > 1) ? "ios" : /Windows/.test(ua) ? "windows" : "other";
+    const st = matchMedia && matchMedia("(display-mode: standalone)").matches ? "app" : "browser";
+    return { os: os + "-" + st, scr: screen.width + "x" + screen.height, dpr: Math.round((devicePixelRatio || 1) * 10) / 10, lang: navigator.language || "", named: !!KP.settings.get().kidName };
+  };
+  function flush(keepalive) {
+    if (!on() || !q.length || sending || navigator.onLine === false) return Promise.resolve(false);
+    const batch = q.slice(0, 200);
+    sending = true;
+    const body = JSON.stringify({ d: dev, v: (KP.VERSION || "").split(" ")[0], p: info(), e: batch });
+    return fetch(url() + "/e", { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: !!keepalive })
+      .then((r) => {
+        if (r.ok) {
+          q.splice(0, batch.length);
+          S.set("stats:q", q);
+        }
+        return r.ok;
+      })
+      .catch(() => false)
+      .finally(() => (sending = false));
+  }
+  KP.stats = {
+    on,
+    dev: () => dev,
+    pending: () => q.length,
+    flush: () => flush(false),
+    /** 기록과 기기번호를 지우고 새로 시작 (끌 때·지우기 버튼) */
+    reset() {
+      q = [];
+      S.set("stats:q", q);
+      S.set("stats:dev", (dev = rnd()));
+    },
+  };
+
+  /* ---- 걸어 두기: 놀이 열기·나감 ---- */
+  const leaveNow = () => {
+    if (!cur) return;
+    push("leave", cur, Math.round((Date.now() - openAt) / 1000));
+    cur = "";
+  };
+  const open0 = KP.open;
+  KP.open = function (id) {
+    if (KP.GAMES && KP.GAMES[id]) {
+      leaveNow();
+      const lv = KP.level.get(id);
+      push("open", id, null, lv.lvl);
+      cur = id;
+      openAt = Date.now();
+    }
+    return open0.apply(this, arguments);
+  };
+  const home0 = KP.home;
+  KP.home = function () {
+    leaveNow();
+    return home0.apply(this, arguments);
+  };
+  /* ---- 이김·틀림·단계: 난이도 저장을 보고 알아냄 (놀이 코드는 손대지 않음) ---- */
+  const save0 = KP.level.save;
+  KP.level.save = function (id, v) {
+    try {
+      const p = KP.level.get(id);
+      if (v && typeof v === "object") {
+        if ((v.wins || 0) > (p.wins || 0)) push("win", id, null, p.lvl);
+        if ((v.miss || 0) > (p.miss || 0)) push("miss", id, null, p.lvl);
+        if (Number.isFinite(v.lvl) && v.lvl !== p.lvl) push("lvl", id, v.lvl > p.lvl ? 1 : -1, v.lvl);
+      }
+    } catch (e) {}
+    return save0.apply(this, arguments);
+  };
+  /* ---- 문 열기 ---- */
+  if (KP.gate && typeof KP.gate.unlockFor === "function") {
+    const u0 = KP.gate.unlockFor;
+    KP.gate.unlockFor = function (min, src) {
+      push("unlock", "", min, null, src || "quiz");
+      return u0.apply(this, arguments);
+    };
+  }
+  /* ---- 주요 설정 변경 (값이 숫자/참거짓인 것만) ---- */
+  const WATCH = ["timer", "lock", "earnOn", "earnStars", "earnMin", "kidGate", "natural", "hints", "oneMore", "stats"];
+  const set0 = KP.settings.set;
+  KP.settings.set = function (patch) {
+    const r = set0.apply(this, arguments);
+    try {
+      if (patch && typeof patch === "object") for (const k of WATCH) if (k in patch) push("set", "", +patch[k] || 0, null, k);
+      if (patch && patch.stats === false) KP.stats.reset(); // 끄면 모아 둔 것도 지움
+    } catch (e) {}
+    return r;
+  };
+  /* ---- 오류 ---- */
+  const onErr = (msg) => {
+    if (errN++ < 20) push("err", cur, null, null, String(msg || "").replace(/^Uncaught\s+/i, "").slice(0, 40));
+  };
+  addEventListener("error", (e) => onErr(e.message));
+  addEventListener("unhandledrejection", (e) => onErr(e.reason && (e.reason.message || e.reason)));
+
+  /* ---- 보내기 시점: 켠 뒤 8초, 그 뒤 5분마다, 화면이 가려질 때(앱 닫힘), 인터넷이 돌아올 때 ---- */
+  push("app", "", null, null, info().os);
+  setTimeout(() => flush(false), 8000);
+  setInterval(() => flush(false), 300000);
+  addEventListener("online", () => setTimeout(() => flush(false), 3000));
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      leaveNow(); // 앱을 닫는 중이면 머문 시간을 남김
+      if (cur === "" && KP.current && KP.current()) {
+        cur = KP.current().id; // 돌아오면 이어서 잼
+        openAt = Date.now();
+      }
+      flush(true);
+    }
+  });
+})(window.KP);
+
+;
+
 /* ==== js/core/pages.js ==== */
 /* =====================================================================
    특별 화면: 스티커북 · 내 작품 갤러리 · 부모 설정 패널
@@ -7139,6 +7296,25 @@ void main(){
       };
       draw();
     });
+
+    // 사용 통계 (익명) — 놀이 보완용
+    if (KP.stats) {
+      const sSt = sec(KP.E("📊") + " 사용 통계");
+      const stRow = U.el("label", "pRow", "<span>어떤 놀이를 얼마나 하는지 익명으로 보내기 (놀이를 고치는 데 써요)</span>");
+      const sc = U.el("input");
+      sc.type = "checkbox";
+      sc.checked = s.stats !== false;
+      stRow.appendChild(sc);
+      const stNote = U.el("p", "pNote", "");
+      const drawSt = () => {
+        stNote.textContent = (KP.STATS_URL ? "" : "(아직 받는 서버가 없어 보내지 않아요) ") + (sc.checked
+          ? "보내는 것: 놀이 열기·머문 시간·이김·틀림·단계·문 열기·오류·기기 종류. 안 보내는 것: 이름·사진·작품·소리·위치. 기기번호 " + KP.stats.dev().slice(0, 6) + "… · 보낼 기록 " + KP.stats.pending() + "개"
+          : "꺼져 있어요. 모아 둔 기록도 지웠어요.");
+      };
+      sc.addEventListener("change", () => (KP.settings.set({ stats: sc.checked }), drawSt()));
+      drawSt();
+      sSt.append(stRow, stNote);
+    }
 
     // 렉 측정 (실제 기기에서 어느 놀이가 버벅이는지 기록)
     if (KP.perf) {
