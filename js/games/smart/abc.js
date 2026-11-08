@@ -140,6 +140,7 @@ KP.game({
     this.mode(ctx, ctx.level === 1 ? "learn" : "quiz", true);
   },
   mode(ctx, m, first) {
+    ctx._resetFew(); // 모드를 바꾸면 새 판 — 앞 모드의 '보기 적은 판' 표시를 지움
     ctx.m = m;
     ctx.spTok = (ctx.spTok || 0) + 1;
     ctx.bLearn.classList.toggle("sel", m === "learn");

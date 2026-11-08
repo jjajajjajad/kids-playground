@@ -532,11 +532,14 @@ KP.game({
       P.list.forEach(([id, name], i) => {
         const c = Object.assign({}, cfg, { [tab]: id });
         if (tab === "brows" || tab === "eyes" || tab === "nose" || tab === "mouth" || tab === "glasses") Object.assign(c, { hat: "none", hair: tab === "glasses" ? "none" : c.hair });
+        // 머리 색 칸: 민머리면 색이 안 보여 8칸이 똑같아 보임 → 미리보기는 짧은 머리로, 모자도 벗겨서 색이 잘 보이게
+        if (tab === "hairC") Object.assign(c, { hat: "none", hair: cfg.hair === "none" ? "short" : cfg.hair });
         const b = U.btn(faceSVG(c, { vb: VB[tab] }), "fc-opt" + (cfg[tab] === id ? " sel" : ""));
         b.style.setProperty("--i", i);
         ctx.tap(b, () => {
           if (locked()) return;
           cfg[tab] = id;
+          if (tab === "hairC" && cfg.hair === "none") cfg.hair = "short"; // 민머리에서 머리 색을 고르면 고른 색 머리가 보이게 (미리보기와 같게)
           saveCfg();
           U.$$(".fc-opt", opts).forEach((x) => x.classList.toggle("sel", x === b));
           stopReact();

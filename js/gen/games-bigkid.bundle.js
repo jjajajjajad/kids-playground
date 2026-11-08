@@ -133,6 +133,8 @@ KP.game({
     const studio = P.studio({
       ctx,
       capacity: 40,
+      // 1단계: 통을 한 번 누르면 한 방울만 (꾹 눌러도 계속 붓지 않음) — 누를 때마다 지금 단계를 물음
+      hold: () => ctx.level !== 1,
       onPour: () => {
         if (!ctx.poured) ctx.hint(() => studio.bowl.cv, "숟가락으로 빙글빙글 저어 봐요!");
         ctx.poured = true;
@@ -144,13 +146,6 @@ KP.game({
     jarsCell.appendChild(studio.jarsEl);
     bowlCell.appendChild(studio.bowlEl);
     Object.assign(ctx, { studio, ani, card, rec, bar, nowDot, goalDot, bGive, bDrain, cust, stepEls });
-    // 1단계: 통을 한 번 누르면 한 방울만 — 공용 작업대(paint.js)는 꾹 누르면 0.2초마다 계속 부음.
-    // 작업대의 '손 뗌' 처리(pointerleave)를 바로 불러 계속 붓기만 끔 (첫 방울은 그대로). 공용 옵션이 생기면 그걸로 바꿀 것
-    studio.jarsEl.querySelectorAll(".psJar").forEach((j) =>
-      j.addEventListener("pointerdown", () => {
-        if (ctx.level === 1) j.dispatchEvent(new Event("pointerleave"));
-      })
-    );
 
     ctx.fitBowl = () => {
       const r = bowlCell.getBoundingClientRect();
@@ -1442,7 +1437,7 @@ KP.game({
       { f: "sad", t: "아이스크림을 땅에 툭 떨어뜨렸어요.", no: ["surprise"], it: [["🍦", 64, 78, 18, "", 160], ["💧", 52, 40, 8, "float"]] },
       { f: "sad", t: "풍선이 하늘로 날아가 버렸어요.", no: ["surprise"], it: [["🎈", 72, 22, 16, "float"], ["☁️", 88, 12, 12]] },
       { f: "sad", t: "아끼는 장난감 자동차가 부서졌어요.", no: ["angry"], bg: "emIn", it: [["🚗", 66, 68, 20, "", 30], ["⚙️", 82, 80, 8, "", 20], ["💧", 50, 38, 8, "float"]] },
-      { f: "sad", t: "넘어져서 무릎이 아파요.", no: ["surprise", "angry", "fear"], it: [["🩹", 66, 64, 18, "", -20], ["💧", 50, 38, 8, "float"], ["🪨", 82, 82, 10]] },
+      { f: "sad", t: "넘어져서 무릎이 아파요.", no: ["surprise", "fear"], it: [["🩹", 66, 64, 18, "", -20], ["💧", 50, 38, 8, "float"], ["🪨", 82, 82, 10]] },
       { f: "sad", t: "비가 와서 밖에서 못 놀아요.", no: ["angry"], bg: "emIn", it: [["🌧️", 72, 26, 20, "float"], ["🛝", 76, 68, 18], ["💧", 50, 38, 8, "float"]] },
       { f: "angry", lv: 3, t: "친구가 내 장난감을 확 뺏어 갔어요!", no: ["sad"], it: [["🏃", 76, 56, 20, "run"], ["🧸", 66, 50, 11, "run"], ["💢", 48, 26, 10, "shake"]] },
       { f: "angry", t: "열심히 쌓은 블록 탑을 누가 쾅 무너뜨렸어요!", no: ["sad", "surprise"], bg: "emIn", it: [["🧱", 62, 80, 12, "", 30], ["🧱", 76, 76, 12, "", -20], ["🧱", 70, 60, 11, "", 60], ["💥", 72, 40, 14], ["💢", 46, 24, 10, "shake"]] },
@@ -5727,6 +5722,10 @@ KP.game({
       .trWrap{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;padding:4px 10px 14px;gap:8px;overflow:hidden;--cw:clamp(62px,8.2vw,104px)}
       .trWrap.big{--cw:clamp(76px,13vw,128px)}
       .trTrain.split{justify-content:flex-start}
+      .trWrap.tight{padding-left:2px;padding-right:2px}
+      .trTrain.split .trCar,.trTrain.split .trSlot{margin:0 1px}
+      .trTrain.split .trLoco{font-size:var(--cw);width:var(--cw)}
+      .trTrain.split .trLink{left:-4px;width:5px}
       .trTrack{width:100%;display:flex;justify-content:center;position:relative}
       .trTrain{position:relative;z-index:0;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;row-gap:16px;max-width:100%;transition:transform 2.6s cubic-bezier(.55,0,.75,.4)}
       .trTrain.enter{animation:trEnter 1.1s cubic-bezier(.2,.9,.3,1)}
@@ -5778,26 +5777,35 @@ KP.game({
       rt = ctx.after(250, () => this.fit(ctx));
     });
   },
-  /** 칸 크기 맞추기: 기관차 + 칸 total 개가 한 줄에 들어가는 가장 큰 크기. 50px 보다 작아지면 반씩 2줄 */
+  /** 칸 크기 맞추기: 기관차 + 칸 total 개가 한 줄에 들어가는 가장 큰 크기. 50px 보다 작아지면 반씩 2줄.
+      2줄일 때는 '촘촘' 배치(좌우 여백 10→2px, 칸 사이 6→2px, 기관차 1.25→1칸)로 칸을 키움
+      — 폰 세로(390)에서 10칸 기차 칸이 48→56px (끌어 놓기 쉽게) */
   fit(ctx) {
     const total = ctx.total || 0;
+    ctx.wrap.classList.remove("tight");
     const W = ctx.track.clientWidth;
     if (!total || !W) return;
     const lv = ctx.level;
     const max = lv === 1 ? 128 : 104;
-    const room = (per) => (W - 8 - per * 6) / (per + 1.25); // 칸 여백 6px, 기관차 1.25칸 + 2px
+    // 칸 하나 = cw + 여백 g, 기관차 = L칸 + 2px
+    const room = (per, w, g, L) => (w - 8 - per * g) / (per + L);
     let per = total,
-      cw = Math.min(max, room(total));
+      g = 6,
+      L = 1.25,
+      cw = Math.min(max, room(total, W, g, L));
     if (cw < 50) {
       per = Math.ceil(total / 2);
-      cw = Math.min(max, room(per));
+      g = 2;
+      L = 1;
+      cw = Math.min(max, room(per, W + 16, g, L)); // tight: 좌우 여백이 8px씩 늘어남
     }
     cw = Math.floor(Math.max(44, cw));
     const split = per < total;
+    ctx.wrap.classList.toggle("tight", split);
     ctx.wrap.style.setProperty("--cw", cw + "px");
     ctx.train.classList.toggle("split", split);
-    const lw = cw * 1.25 + 2;
-    ctx.train.style.width = split ? Math.ceil(lw + per * (cw + 6)) + 1 + "px" : "";
+    const lw = cw * L + 2;
+    ctx.train.style.width = split ? Math.ceil(lw + per * (cw + g)) + 1 + "px" : "";
     // 둘째 줄 첫 칸은 기관차 폭만큼 들여서 윗줄 칸 아래에 맞춤
     (ctx.units || []).forEach((u) => (u.style.marginLeft = split && +u.dataset.n === per + 1 ? lw + "px" : ""));
   },
@@ -5869,6 +5877,8 @@ KP.game({
     else units.forEach((u) => blanks.has(+u.dataset.n) && u.firstChild.classList.add("next"));
 
     ctx.say(seq ? "기차 칸을 1부터 순서대로 이어 주세요!" : "빈 칸에 어떤 숫자가 들어갈까요? 기차를 이어 주세요!");
+    // 디딤판(끌 것 2개·빈 칸 2개): 첫 카드를 아무 칸에 놓아도 반은 맞고 나머지는 저절로 맞음 → 열쇠 별 없음
+    if (step) ctx.fewChoice();
 
     const openSlots = () => units.filter((u) => u.isConnected && u.firstChild.classList.contains("trSlot"));
     const cars = U.shuffle([...blanks]).map((n, k) => {

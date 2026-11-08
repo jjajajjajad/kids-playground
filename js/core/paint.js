@@ -1104,7 +1104,8 @@ void main(){
 
   /* =================================================================
      물감 작업대 (실험실·색깔 섞기·색 주문 맞추기 공용 화면 부품)
-     KP.paint.studio({ctx, jars:[0,1,2,3,4], capacity, tilt, onPour(id), onStir()})
+     KP.paint.studio({ctx, jars:[0,1,2,3,4], capacity, tilt, hold, onPour(id), onStir()})
+       hold: false 또는 () => boolean (누를 때마다 물음) — false 면 꾹 눌러도 계속 붓지 않고 한 방울만
      → { jarsEl, bowlEl, meterEl, bowl, fit(px), tick(dt), drain(), state, jar(id) }
      - 물감 튜브(점토): 톡 누르면 한 방울 쭉, 꾹 누르고 있으면 계속 (튜브가 눌렸다 펴짐, 방울이 날아가 그릇에 퐁)
      - 그릇: 손가락으로 빙글빙글 저으면 마블링처럼 섞임 (나무 주걱이 손가락을 따라감, 지나간 자리에 홈)
@@ -1241,6 +1242,9 @@ void main(){
         j.classList.add("pour");
         drop();
         clearInterval(t);
+        // hold:false (또는 false 를 돌려주는 함수) → 꾹 눌러도 한 방울만 (톡 = 한 방울을 익히는 단계용)
+        const hold = typeof o.hold === "function" ? o.hold() : o.hold !== false;
+        if (!hold) return;
         t = setInterval(() => (held && (!ctx || ctx._active) ? drop() : clearInterval(t)), 200);
       });
       const end = () => {

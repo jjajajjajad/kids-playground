@@ -778,6 +778,7 @@
               this.hit(ctx, q);
             }
             if (d > 1.2 && Math.random() < 0.12) KP.audio.sfx("rub");
+            if (T.pend) T.moveAt = Date.now(); // 다 찬 뒤에도 쓰는 중 → 자동 마무리 미룸
             T.last = p;
             if (T.done) break;
           }
@@ -919,14 +920,21 @@
         if (c.mode !== "alone") this.drawGuide(ctx);
         if (T.sdone.every(Boolean)) {
           if (T.pid === null) return this.finishCell(ctx, false);
-          // 아직 쓰는 중: 손을 뗄 때 마무리 (그동안 선은 계속 그려짐). 손을 오래 안 떼면 1.1초 뒤 마무리
+          // 아직 쓰는 중: 손을 뗄 때 마무리 (그동안 선은 계속 그려짐).
+          // 손을 안 떼면 '손가락이 1.1초 동안 안 움직였을 때' 마무리 (움직이면 다시 기다림, 최대 4초)
+          // — 천천히 쓰는 아이도 획 끝까지 그린 뒤 마무리됨 (예전엔 다 찬 순간부터 1.1초라 끝이 끊김)
           T.pend = true;
+          T.pendAt = T.moveAt = Date.now();
           ctx.spot.classList.remove("on");
           const dt0 = ctx.dtok,
             cell = ctx.cell;
-          ctx.after(1100, () => {
-            if (T.pend && !T.done && dt0 === ctx.dtok && ctx.cell === cell) this.finishCell(ctx, false);
-          });
+          const wait = () => {
+            if (!T.pend || T.done || dt0 !== ctx.dtok || ctx.cell !== cell) return;
+            const now = Date.now();
+            if (now - T.moveAt >= 1100 || now - T.pendAt >= 4000) this.finishCell(ctx, false);
+            else ctx.after(Math.max(50, Math.min(1100 - (now - T.moveAt), 4000 - (now - T.pendAt))), wait);
+          };
+          ctx.after(1100, wait);
         }
       },
       /** 칸 채점: 따라간 정도(coverage) + 선 안에 쓴 정도(accuracy) → 별 1~3 */

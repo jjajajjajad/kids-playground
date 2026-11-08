@@ -572,7 +572,7 @@
       setTimeout(() => location.reload(), r.fail ? 2500 : 900);
     });
     KP.hold(bReset, 2000, () => {
-      KP.store.keys().filter((k) => k.startsWith("lv:") || k === "stickers" || k === "winCount").forEach((k) => KP.store.del(k));
+      KP.store.keys().filter((k) => k.startsWith("lv:") || k.startsWith("rp:lvl:") || k === "rp:lvMode" || k === "stickers" || k === "winCount").forEach((k) => KP.store.del(k));
       KP.toast("초기화했어요");
     });
     const bZoo = U.btn(KP.E("🦁") + " 동물원 정리", "chip");

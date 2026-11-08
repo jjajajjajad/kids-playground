@@ -19,6 +19,10 @@ KP.game({
       .trWrap{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;padding:4px 10px 14px;gap:8px;overflow:hidden;--cw:clamp(62px,8.2vw,104px)}
       .trWrap.big{--cw:clamp(76px,13vw,128px)}
       .trTrain.split{justify-content:flex-start}
+      .trWrap.tight{padding-left:2px;padding-right:2px}
+      .trTrain.split .trCar,.trTrain.split .trSlot{margin:0 1px}
+      .trTrain.split .trLoco{font-size:var(--cw);width:var(--cw)}
+      .trTrain.split .trLink{left:-4px;width:5px}
       .trTrack{width:100%;display:flex;justify-content:center;position:relative}
       .trTrain{position:relative;z-index:0;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;row-gap:16px;max-width:100%;transition:transform 2.6s cubic-bezier(.55,0,.75,.4)}
       .trTrain.enter{animation:trEnter 1.1s cubic-bezier(.2,.9,.3,1)}
@@ -70,26 +74,35 @@ KP.game({
       rt = ctx.after(250, () => this.fit(ctx));
     });
   },
-  /** 칸 크기 맞추기: 기관차 + 칸 total 개가 한 줄에 들어가는 가장 큰 크기. 50px 보다 작아지면 반씩 2줄 */
+  /** 칸 크기 맞추기: 기관차 + 칸 total 개가 한 줄에 들어가는 가장 큰 크기. 50px 보다 작아지면 반씩 2줄.
+      2줄일 때는 '촘촘' 배치(좌우 여백 10→2px, 칸 사이 6→2px, 기관차 1.25→1칸)로 칸을 키움
+      — 폰 세로(390)에서 10칸 기차 칸이 48→56px (끌어 놓기 쉽게) */
   fit(ctx) {
     const total = ctx.total || 0;
+    ctx.wrap.classList.remove("tight");
     const W = ctx.track.clientWidth;
     if (!total || !W) return;
     const lv = ctx.level;
     const max = lv === 1 ? 128 : 104;
-    const room = (per) => (W - 8 - per * 6) / (per + 1.25); // 칸 여백 6px, 기관차 1.25칸 + 2px
+    // 칸 하나 = cw + 여백 g, 기관차 = L칸 + 2px
+    const room = (per, w, g, L) => (w - 8 - per * g) / (per + L);
     let per = total,
-      cw = Math.min(max, room(total));
+      g = 6,
+      L = 1.25,
+      cw = Math.min(max, room(total, W, g, L));
     if (cw < 50) {
       per = Math.ceil(total / 2);
-      cw = Math.min(max, room(per));
+      g = 2;
+      L = 1;
+      cw = Math.min(max, room(per, W + 16, g, L)); // tight: 좌우 여백이 8px씩 늘어남
     }
     cw = Math.floor(Math.max(44, cw));
     const split = per < total;
+    ctx.wrap.classList.toggle("tight", split);
     ctx.wrap.style.setProperty("--cw", cw + "px");
     ctx.train.classList.toggle("split", split);
-    const lw = cw * 1.25 + 2;
-    ctx.train.style.width = split ? Math.ceil(lw + per * (cw + 6)) + 1 + "px" : "";
+    const lw = cw * L + 2;
+    ctx.train.style.width = split ? Math.ceil(lw + per * (cw + g)) + 1 + "px" : "";
     // 둘째 줄 첫 칸은 기관차 폭만큼 들여서 윗줄 칸 아래에 맞춤
     (ctx.units || []).forEach((u) => (u.style.marginLeft = split && +u.dataset.n === per + 1 ? lw + "px" : ""));
   },
@@ -161,6 +174,8 @@ KP.game({
     else units.forEach((u) => blanks.has(+u.dataset.n) && u.firstChild.classList.add("next"));
 
     ctx.say(seq ? "기차 칸을 1부터 순서대로 이어 주세요!" : "빈 칸에 어떤 숫자가 들어갈까요? 기차를 이어 주세요!");
+    // 디딤판(끌 것 2개·빈 칸 2개): 첫 카드를 아무 칸에 놓아도 반은 맞고 나머지는 저절로 맞음 → 열쇠 별 없음
+    if (step) ctx.fewChoice();
 
     const openSlots = () => units.filter((u) => u.isConnected && u.firstChild.classList.contains("trSlot"));
     const cars = U.shuffle([...blanks]).map((n, k) => {

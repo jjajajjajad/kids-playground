@@ -205,7 +205,8 @@ KP.game({
       U.replay(ctx.ask, "pop");
       ctx.say(U.josa(t[1], "은/는") + " 어디 있을까? 문을 콕! 🚪");
       busy = false;
-      ctx.hint(() => houses.find((h) => h.a === t), U.josa(t[1], "은/는") + " 어느 집에 있었지?");
+      // 정답 집을 가리키는 힌트 → 가리킨 판은 열쇠 별 없음(answer)
+      ctx.hint(() => houses.find((h) => h.a === t), U.josa(t[1], "은/는") + " 어느 집에 있었지?", { answer: true });
     };
     // 처음에 모두 보여 주기
     ctx.after(500, () => {

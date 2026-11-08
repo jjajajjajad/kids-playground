@@ -151,6 +151,7 @@ KP.game({
     this.mode(ctx, ctx.level === 1 ? "chart" : "quiz", true);
   },
   mode(ctx, m, first) {
+    ctx._resetFew(); // 모드를 바꾸면 새 판 — 앞 모드의 '보기 적은 판' 표시를 지움
     ctx.m = m;
     ctx.tok = (ctx.tok || 0) + 1;
     [["chart", ctx.bChart, ctx.vChart], ["tens", ctx.bTens, ctx.vTens], ["quiz", ctx.bQuiz, ctx.vQuiz]].forEach(([k, b, v]) => {
@@ -266,11 +267,12 @@ KP.game({
         if (tk !== ctx.tok) return;
         const talk = KP.voice.say("십이 열 개면 백! 백까지 다 셌어요!");
         ctx.score.add();
-        // 반짝이는 다음 단추만 차례로 눌러도 끝나는 놀이 → ctx.win(열쇠 별·단계·스티커) 대신 축하 연출만
+        // 반짝이는 다음 단추만 차례로 눌러도 끝나는 놀이 → 열쇠 별·단계·스티커 없이 축하만 (noLevel)
+        // ctx.win 을 거쳐야 시간이 끝난 '마지막 판'도 여기서 바로 마무리됨
         await Promise.race([talk, ctx.wait(3500)]);
         if (tk !== ctx.tok || !ctx._active) return;
-        await KP.celebrate({ big: true, msg: "백까지 성공!", ctx, sticker: false });
-        if (ctx._active && ctx.m === "tens" && tk === ctx.tok) this.mode(ctx, "tens", true);
+        const ok = await ctx.win({ noLevel: true, big: true, msg: "백까지 성공!", sticker: false });
+        if (ok && ctx._active && ctx.m === "tens" && tk === ctx.tok) this.mode(ctx, "tens", true);
       });
     }
   },

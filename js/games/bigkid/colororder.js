@@ -130,6 +130,8 @@ KP.game({
     const studio = P.studio({
       ctx,
       capacity: 40,
+      // 1단계: 통을 한 번 누르면 한 방울만 (꾹 눌러도 계속 붓지 않음) — 누를 때마다 지금 단계를 물음
+      hold: () => ctx.level !== 1,
       onPour: () => {
         if (!ctx.poured) ctx.hint(() => studio.bowl.cv, "숟가락으로 빙글빙글 저어 봐요!");
         ctx.poured = true;
@@ -141,13 +143,6 @@ KP.game({
     jarsCell.appendChild(studio.jarsEl);
     bowlCell.appendChild(studio.bowlEl);
     Object.assign(ctx, { studio, ani, card, rec, bar, nowDot, goalDot, bGive, bDrain, cust, stepEls });
-    // 1단계: 통을 한 번 누르면 한 방울만 — 공용 작업대(paint.js)는 꾹 누르면 0.2초마다 계속 부음.
-    // 작업대의 '손 뗌' 처리(pointerleave)를 바로 불러 계속 붓기만 끔 (첫 방울은 그대로). 공용 옵션이 생기면 그걸로 바꿀 것
-    studio.jarsEl.querySelectorAll(".psJar").forEach((j) =>
-      j.addEventListener("pointerdown", () => {
-        if (ctx.level === 1) j.dispatchEvent(new Event("pointerleave"));
-      })
-    );
 
     ctx.fitBowl = () => {
       const r = bowlCell.getBoundingClientRect();

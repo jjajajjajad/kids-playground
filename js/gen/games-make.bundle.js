@@ -3440,11 +3440,14 @@ KP.game({
       P.list.forEach(([id, name], i) => {
         const c = Object.assign({}, cfg, { [tab]: id });
         if (tab === "brows" || tab === "eyes" || tab === "nose" || tab === "mouth" || tab === "glasses") Object.assign(c, { hat: "none", hair: tab === "glasses" ? "none" : c.hair });
+        // 머리 색 칸: 민머리면 색이 안 보여 8칸이 똑같아 보임 → 미리보기는 짧은 머리로, 모자도 벗겨서 색이 잘 보이게
+        if (tab === "hairC") Object.assign(c, { hat: "none", hair: cfg.hair === "none" ? "short" : cfg.hair });
         const b = U.btn(faceSVG(c, { vb: VB[tab] }), "fc-opt" + (cfg[tab] === id ? " sel" : ""));
         b.style.setProperty("--i", i);
         ctx.tap(b, () => {
           if (locked()) return;
           cfg[tab] = id;
+          if (tab === "hairC" && cfg.hair === "none") cfg.hair = "short"; // 민머리에서 머리 색을 고르면 고른 색 머리가 보이게 (미리보기와 같게)
           saveCfg();
           U.$$(".fc-opt", opts).forEach((x) => x.classList.toggle("sel", x === b));
           stopReact();
@@ -5257,6 +5260,8 @@ KP.game({
       .pb-sw.myPaint .tag{position:absolute;right:-9px;top:-9px;font-size:calc(var(--sw) * .36);line-height:1;pointer-events:none}
       .pb-sep{grid-column:1/-1;height:3px;margin:1px 4px;border-radius:3px;background:repeating-linear-gradient(90deg,#c9d2e6 0 6px,transparent 6px 11px)}
       .pb-pal.mine3{grid-template-columns:repeat(3,var(--sw))}
+      /* 내 물감 묶음: 넓은 화면에선 격자에 그대로 섞임(display:contents), 폰에선 한 줄 가로 스크롤 */
+      .pb-mine{display:contents}
       .pb-svg .pb-r{cursor:pointer;transition:fill .18s}
       .pb-svg .pb-r.pop{animation:pbPop .35s ease-out;transform-box:fill-box;transform-origin:center}
       @keyframes pbPop{40%{transform:scale(1.06)}}
@@ -5276,14 +5281,31 @@ KP.game({
           grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"acts" "board" "pal"}
         .pb-acts{flex-direction:row;gap:6px}
         .pb-pal,.pb-pal.mine3{grid-template-columns:repeat(auto-fit,var(--sw));gap:6px 5px}
+        /* 내 물감이 많아도 그림판이 작아지지 않게: 한 줄로 두고 옆으로 밀어 봄 (2026-11-08) */
+        .pb-mine{grid-column:1/-1;display:flex;gap:8px;overflow-x:auto;overflow-y:hidden;padding:8px 10px;margin:-6px 0;scrollbar-width:none;touch-action:pan-x}
+        .pb-mine::-webkit-scrollbar{display:none}
+        .pb-mine>.pb-sw{flex:none}
+        .pb-mine>:first-child{margin-left:auto}
+        .pb-mine>:last-child{margin-right:auto}
+      }
+      /* 폰 세로 + 내 물감: 도구 2개(글자 숨김)와 내 물감 줄을 한 줄에 → 그림판이 덜 줄어듦 */
+      @media (max-aspect-ratio:1/1) and (max-width:560px){
+        .pb-pal.hasMine .pb-tools{grid-column:1/span 2;gap:5px}
+        .pb-pal.hasMine .pb-tool{padding:0;width:var(--sw)}
+        .pb-pal.hasMine .pb-tool span{display:none}
+        .pb-pal.hasMine .pb-mine{grid-column:3/-1;padding:8px 6px;margin:-8px 0}
         .pb-tool span{display:inline}
         .pb-tool{padding:0 14px}
         .pb-grid{grid-template-columns:repeat(2,1fr);gap:10px}
       }
       @media (orientation:landscape) and (max-height:500px){
-        .pb{gap:8px;padding:2px 10px 8px;--sw:min(15vh,60px);--ab:min(16vh,62px)}
+        /* 폰 가로: 5칸 격자 → 기본 14색이 3줄에 다 보임(무지개·반짝이 안 잘림), 내 물감은 위 한 줄 가로 스크롤 (2026-11-08) */
+        .pb{gap:8px;padding:2px 10px 8px;--sw:min(13.6vh,56px);--ab:min(16vh,62px)}
         .pb-acts{gap:6px}
-        .pb-pal,.pb-pal.mine3{grid-template-columns:repeat(4,var(--sw));gap:7px;align-content:start;overflow-y:auto;padding:4px}
+        .pb-pal,.pb-pal.mine3{grid-template-columns:repeat(5,var(--sw));gap:6px;align-content:center;overflow-y:auto;padding:8px 10px}
+        .pb-mine{grid-column:1/-1;display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;padding:7px 9px;margin:-7px -9px;scrollbar-width:none;touch-action:pan-x}
+        .pb-mine::-webkit-scrollbar{display:none}
+        .pb-mine>.pb-sw{flex:none}
       }
     `);
 
@@ -5446,14 +5468,84 @@ KP.game({
     if (!SCENES.find((s) => s.id === sceneId)) sceneId = "house";
     let color = KP.store.get("paintbook:color", "#ff3b30");
     let tool = KP.store.get("paintbook:tool", "fill"); // "fill" 붓기 | "crayon" 크레파스
-    // 크레파스 획: 장면마다 [[칸 번호, 색, 굵기, 경로], ...] (오래된 것부터, 장면당 최근 MAX_STROKES 개만 저장)
-    const strokes = KP.store.get("paintbook:strokes", {});
-    const MAX_STROKES = 160;
+    // 크레파스 획: 장면마다 [[칸 번호, 색, 굵기, 경로], ...] (오래된 것부터, 장면당 최근 MAX_STROKES 개·MAX_CHARS 글자까지만 저장)
+    // 저장 용량(2026-11-08): 좌표는 정수, 획을 뗄 때 거의 일직선인 점은 빼고(간략화), 장면당 약 90KB 이하
+    //   → iPad Safari localStorage(약 5MB)를 크레파스가 다 차지해 설정·사용 시간 저장까지 실패하는 일 방지
+    let strokes = KP.store.get("paintbook:strokes", {});
+    if (!strokes || typeof strokes !== "object" || Array.isArray(strokes)) strokes = {};
+    const MAX_STROKES = 120,
+      MAX_CHARS = 90000;
+    /** 저장된 획 하나가 쓸 수 있는 모양인지 ([칸 번호, 색 글자, 굵기, 경로 글자]) — 깨진 백업이 와도 놀이가 안 터지게 */
+    const okStroke = (x) =>
+      Array.isArray(x) && x.length === 4 && Number.isInteger(x[0]) && x[0] >= 0 && typeof x[1] === "string" && x[1].length < 40 && Number.isFinite(+x[2]) && typeof x[3] === "string" && /^M[-\d. ML]+$/.test(x[3]);
+    /** 경로 간략화: "M x y L x y …" → 정수 좌표 + 1.2px 안쪽으로 일직선인 점 빼기(더글러스-포커). 점 하나(콕 찍기)는 1px 짧은 선으로 */
+    function simplify(d) {
+      const n = (d.match(/-?\d+(?:\.\d+)?/g) || []).map(Number);
+      const pts = [];
+      for (let i = 0; i + 1 < n.length; i += 2) {
+        const q = [Math.round(n[i]), Math.round(n[i + 1])];
+        const last = pts[pts.length - 1];
+        if (!last || last[0] !== q[0] || last[1] !== q[1]) pts.push(q);
+      }
+      if (!pts.length) return d;
+      if (pts.length === 1) return "M" + pts[0][0] + " " + pts[0][1] + "L" + (pts[0][0] + 1) + " " + pts[0][1];
+      const keep = new Uint8Array(pts.length);
+      keep[0] = keep[pts.length - 1] = 1;
+      const stack = [[0, pts.length - 1]];
+      while (stack.length) {
+        const [a, b] = stack.pop();
+        const [ax, ay] = pts[a],
+          [bx, by] = pts[b];
+        const L = Math.hypot(bx - ax, by - ay);
+        let best = -1,
+          bd = 1.2;
+        for (let i = a + 1; i < b; i++) {
+          // 양 끝이 거의 같은 점(동그라미처럼 시작점으로 돌아온 획)이면 선까지의 거리 대신 시작점에서 떨어진 거리로 — 아니면 중간 점이 전부 지워짐
+          const dd = L < 0.5 ? Math.hypot(pts[i][0] - ax, pts[i][1] - ay) : Math.abs((bx - ax) * (ay - pts[i][1]) - (ax - pts[i][0]) * (by - ay)) / L;
+          if (dd > bd) {
+            bd = dd;
+            best = i;
+          }
+        }
+        if (best > 0) {
+          keep[best] = 1;
+          stack.push([a, best], [best, b]);
+        }
+      }
+      let out = "";
+      pts.forEach((q, i) => keep[i] && (out += (out ? "L" : "M") + q[0] + " " + q[1]));
+      return out;
+    }
+    /** 장면 하나의 획 목록 → 최근 것부터 MAX_STROKES 개·MAX_CHARS 글자까지 (오래된 획부터 빠짐) */
+    function capList(list) {
+      let chars = 0,
+        k = list.length;
+      while (k > 0 && list.length - k < MAX_STROKES) {
+        const c = JSON.stringify(list[k - 1]).length + 1;
+        if (chars + c > MAX_CHARS) break;
+        chars += c;
+        k--;
+      }
+      return list.slice(k);
+    }
+    // 예전 저장값(간략화 전)은 한 번만 줄여 둠 — 읽기는 그대로 되고, 모양이 이상한 획만 빠짐
+    if (KP.store.get("paintbook:strokesV", 0) < 2) {
+      try {
+        for (const k of Object.keys(strokes)) {
+          const list = Array.isArray(strokes[k]) ? strokes[k].filter(okStroke).map(([ri, c, w, d]) => [ri, c, w, simplify(d)]) : [];
+          if (list.length) strokes[k] = capList(list);
+          else delete strokes[k];
+        }
+        KP.store.set("paintbook:strokes", strokes);
+        KP.store.set("paintbook:strokesV", 2);
+      } catch (_) {}
+    }
     let undo = []; // {f:[[칸, 이전 색]...], p:[[획, 층]...] (지운 획 되살리기), add:획(새 획 지우기)}
     let regions = [];
     let doneSaid = false,
       unsaved = false,
-      saving = false;
+      saving = false,
+      loadGen = 0; // 그림판을 새로 열 때마다 +1 (저장 축하 뒤 '새 종이'가 다른 그림을 지우지 않게)
     const NS = "http://www.w3.org/2000/svg";
     /** 칸 바로 뒤의 크레파스 층(<g class="pb-lay">) — 칸 모양으로 잘려서 밖으로 안 나감, 뒤에 그려지는 칸에는 가려짐 */
     const layOf = (e) => (e && e.nextSibling && e.nextSibling.classList && e.nextSibling.classList.contains("pb-lay") ? e.nextSibling : null);
@@ -5489,19 +5581,50 @@ KP.game({
       lay.appendChild(p);
       return p;
     }
-    const drawSaved = (svg, sid, regs) => (strokes[sid] || []).forEach(([ri, c, w, d]) => strokeEl(svg, sid, regs, ri, c, w, d));
+    /** 저장된 획 그리기 — 모양이 깨진 획은 조용히 건너뜀(예외 없음) */
+    const drawSaved = (svg, sid, regs) => {
+      const list = strokes[sid];
+      if (!Array.isArray(list)) return;
+      list.forEach((x) => {
+        if (!okStroke(x)) return;
+        try {
+          strokeEl(svg, sid, regs, x[0], x[1], x[2], x[3]);
+        } catch (_) {}
+      });
+    };
+    /** 칸 색 저장 (작아서 바로) */
     const saveFills = () => {
       fills[sceneId] = regions.map((e) => e.getAttribute("fill"));
       KP.store.set("paintbook:fills", fills);
+    };
+    /** 크레파스 획 저장 — 지금 그림판(sceneId)의 획을 모아 씀 */
+    let strokeT = 0;
+    const saveStrokes = () => {
+      clearTimeout(strokeT);
+      strokeT = 0;
       const list = [];
       regions.forEach((e, i) => {
         const lay = layOf(e);
         if (lay) [...lay.children].forEach((p) => list.push([i, p.getAttribute("stroke"), +p.getAttribute("stroke-width"), p.getAttribute("d")]));
       });
-      if (list.length) strokes[sceneId] = list.slice(-MAX_STROKES);
+      if (list.length) strokes[sceneId] = capList(list);
       else delete strokes[sceneId];
       KP.store.set("paintbook:strokes", strokes);
     };
+    /** 획을 뗄 때마다 전체를 다시 쓰지 않고 0.8초 모았다가 한 번에 (저가 태블릿 멈칫 방지) */
+    const saveStrokesSoon = () => {
+      clearTimeout(strokeT);
+      strokeT = setTimeout(saveStrokes, 800);
+    };
+    /** 모아 둔 획 저장이 남아 있으면 지금 저장 (그림 바꾸기·나가기·앱 숨김 전에) */
+    const flushStrokes = () => strokeT && saveStrokes();
+    const saveAll = () => {
+      saveFills();
+      saveStrokes();
+    };
+    document.addEventListener("visibilitychange", () => document.hidden && flushStrokes());
+    window.addEventListener("pagehide", flushStrokes);
+    ctx.flushStrokes = flushStrokes;
 
     /* ---------- 화면 ---------- */
     const wrap = U.el("div", "pb");
@@ -5524,6 +5647,7 @@ KP.game({
         ? KP.paint.mine().map((m) => ({ hex: m.hex.toLowerCase(), n: m.n })).filter((m) => !COLORS.some((c) => c[0] === m.hex)).slice(0, 6)
         : [];
       pal.classList.toggle("mine3", mine.length > 2);
+      pal.classList.toggle("hasMine", mine.length > 0);
       // 도구: 🪣 붓기(칸 한 번에) / 🖍️ 크레파스(칸 안에서만 쓱쓱)
       const tools = U.el("div", "pb-tools");
       [["fill", "🪣", "붓기"], ["crayon", "🖍️", "크레파스"]].forEach(([k, em, nm]) => {
@@ -5541,6 +5665,7 @@ KP.game({
         tools.appendChild(b);
       });
       pal.appendChild(tools);
+      const mineBox = mine.length ? pal.appendChild(U.el("div", "pb-mine")) : null;
       mine.map((m) => [m.hex, m.n, true]).concat(COLORS).forEach(([c, name, my], i) => {
         if (mine.length && i === mine.length) pal.appendChild(U.el("span", "pb-sep"));
         const b = U.btn(my ? '<span class="tag">' + KP.E("🎨") + "</span>" : "", "pb-sw" + (my ? " myPaint" : "") + (c === "#ffffff" ? " light" : "") + (c === "url(#pbRainbow)" ? " rainbow swatch" : "") + (c === "url(#pbGlitter)" ? " glitter swatch" : ""));
@@ -5555,7 +5680,7 @@ KP.game({
           if (c === "url(#pbGlitter)") A.sfx("sparkle");
           KP.voice.say(my ? "내가 만든 " + (name || "물감") : name);
         });
-        pal.appendChild(b);
+        (my ? mineBox : pal).appendChild(b);
       });
     }
     renderPal();
@@ -5563,6 +5688,8 @@ KP.game({
     const markColor = () => U.$$(".pb-sw", pal).forEach((x) => x.classList.toggle("sel", x.dataset.c === color));
 
     function load(id) {
+      flushStrokes(); // 앞 그림의 모아 둔 획부터 저장 (sceneId 가 바뀌기 전에)
+      loadGen++;
       sceneId = id;
       KP.store.set("paintbook:scene", id);
       const sc = SCENES.find((s) => s.id === id);
@@ -5631,8 +5758,12 @@ KP.game({
     }
     function endStroke(e) {
       if (!st || (e && e.pointerId !== st.id)) return;
+      const done = st;
       st = null;
-      saveFills();
+      const p = done.p;
+      const d2 = simplify(p.getAttribute("d") || "");
+      if (d2) p.setAttribute("d", d2);
+      saveStrokesSoon();
       afterPaint();
     }
     function updateUndo() {
@@ -5715,7 +5846,7 @@ KP.game({
         U.replay(t, "pop");
       });
       (op.p || []).forEach(([p, lay]) => lay.appendChild(p));
-      saveFills();
+      saveAll();
       updateUndo();
       U.replay(bUndo, "wig");
       A.sfx("slide");
@@ -5736,7 +5867,7 @@ KP.game({
         undo.push({ f, p });
         regions.forEach((t) => t.setAttribute("fill", "#ffffff"));
         p.forEach(([x]) => x.remove());
-        saveFills();
+        saveAll();
         updateUndo();
         doneSaid = false;
         A.sfx("whoosh");
@@ -5780,6 +5911,11 @@ KP.game({
       KP.voice.say("어떤 그림을 칠할까요?");
     }
     ctx.tap(bScene, () => {
+      if (saving || bDone.dataset.busy) {
+        // 액자·축하 중: 다른 그림을 고르면 '새 종이'가 그 그림을 지워 버리던 문제 → 잠깐 막음
+        U.replay(bScene, "wig");
+        return;
+      }
       A.sfx("open");
       openPicker();
     });
@@ -5808,6 +5944,9 @@ KP.game({
       if (ok) {
         unsaved = false;
         saving = true; // 축하가 끝날 때까지 그림은 그대로 보여 주고 칠하기는 잠시 멈춤
+        const gen = loadGen; // 저장한 그림판 — 그사이 다른 그림(또는 다시 연 그림판)이면 지우지 않음
+        clearTimeout(strokeT); // 모아 둔 획 저장은 버림 (이 그림 기록은 아래에서 비움)
+        strokeT = 0;
         const full = isComplete();
         // 칠한 기록은 바로 비워 둠 (축하 중에 나가도 다음엔 새 종이) — 화면의 그림은 축하 뒤에 지움
         delete fills[sceneId];
@@ -5828,12 +5967,14 @@ KP.game({
         if (nColored < Math.max(4, Math.ceil(regions.length * 0.3))) ctx._fewChoice = true;
         const res = await ctx.win({ big: full, msg: "내 작품에 저장했어요!" });
         if (res === false) return;
+        if (gen !== loadGen) return; // 그사이 다른 그림을 열었음 → 그 그림은 그대로 (load 가 saving 을 풀어 둠)
         // 새 종이: 종이를 휙 바꾸는 연출과 함께 하얗게
         board.classList.remove("wipe");
         void board.offsetWidth;
         board.classList.add("wipe");
         A.sfx("whoosh");
         await ctx.wait(330);
+        if (gen !== loadGen) return;
         regions.forEach((t) => {
           t.setAttribute("fill", "#ffffff");
           const lay = layOf(t);
@@ -5906,6 +6047,9 @@ KP.game({
     ctx.markColor();
     ctx.say("색을 고르고 그림을 톡 눌러 칠해 봐요! " + KP.u.josa(ctx.sceneName(), "을/를") + " 칠해 볼까요?");
     ctx.hint(() => ctx.firstRegion(), "그림을 톡 눌러 칠해 봐요!");
+  },
+  stop(ctx) {
+    ctx.flushStrokes(); // 모아 둔 크레파스 획 저장
   },
 });
 

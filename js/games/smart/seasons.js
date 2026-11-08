@@ -1540,7 +1540,9 @@
         const imgs = await Promise.all(pick.map((it) => clayEmoji(it[0], 110).catch(() => null)));
         if (!alive(r)) return;
         const src = (it) => imgs[pick.indexOf(it)] || KP.esrc(it[0]);
-        ctx._fewChoice = false; // 나무 4그루 중에서 고름
+        // 나무 4그루(놓을 곳 4곳) 중에서 고르는 판 = 보기 충분 → 열쇠 별 받을 수 있음.
+        // fewChoice(false): 놀이가 직접 정함(KP.drag 자동 판정 끔). 자동 판정도 놓을 곳이 4곳이라 같은 결과지만 뜻을 분명히 함
+        ctx.fewChoice(false);
         let left = pick.length;
         const els = U.shuffle(pick.slice()).map((it, i) => {
           const el = U.el("div", "ssItem item", '<img alt="" draggable="false" src="' + src(it) + '">');

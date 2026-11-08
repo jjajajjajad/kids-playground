@@ -129,7 +129,14 @@ KP.game({
     ctx.row.innerHTML = "";
     let left = n,
       busy = false;
-    ctx.say("달걀을 톡톡톡! 세 번 두드려 봐요. 누가 나올까? 🥚");
+    if (hardAt < 0) ctx.say("달걀을 톡톡톡! 세 번 두드려 봐요. 누가 나올까? 🥚");
+    else {
+      // 단단한 알(다섯 번)이 있는 판: 횟수 안내를 맞춤. "단단한 알은 다섯 번!" 자연 음성은 new-voice/egg.txt —
+      // 녹음 전에는 그 문장만 말하지 않음(화면 글자로만), 톡톡할 때 "조금 더!"·"딱 한 번만 더!"로 이어서 안내
+      const HARD_TXT = "단단한 알은 다섯 번!";
+      const nat = KP.voice._natUrls && KP.voice._natUrls(HARD_TXT);
+      ctx.say("달걀을 톡톡톡! 세 번 두드려 봐요. " + HARD_TXT + " 🥚", "달걀을 톡톡톡! 세 번 두드려 봐요. " + (nat ? HARD_TXT : "누가 나올까?"));
+    }
     const eggs = babies.map((bb, i) => {
       const gold = i === goldAt,
         hard = i === hardAt,
@@ -169,8 +176,12 @@ KP.game({
           egg.dataset.k = Math.floor((k * 2) / (need - 1));
           A.note(hard ? ["C5", "D5", "E5", "G5"][k - 1] : k === 1 ? "E5" : "G5", { inst: "marimba", dur: 0.2, vol: 0.3 });
           A.noise({ dur: 0.05, vol: 0.12, hp: 2500 });
-          if (hard && k === 2) KP.voice.say("한 번 더!");
-          else if (k === need - 1) KP.voice.say(U.pick(["금이 갔어요!", "한 번 더!", "어? 움직여요!"]));
+          // 단단한 알: 세 번째에 안 깨지는 까닭을 말로 ("조금 더!") → 네 번째 "딱 한 번만 더!"
+          if (hard && k === 3) KP.voice.say("조금 더!");
+          else if (hard && k === need - 1) KP.voice.say("딱 한 번만 더!");
+          else if (hard) {
+            /* 1·2번째는 소리만 */
+          } else if (k === need - 1) KP.voice.say(U.pick(["금이 갔어요!", "한 번 더!", "어? 움직여요!"]));
           hint();
           return;
         }

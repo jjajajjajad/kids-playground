@@ -51,9 +51,11 @@ KP.game({
 | `ctx.tell(text)` | 읽어주기만 |
 | `ctx.level` | 현재 단계(1..levels). 3번 연속 성공하면 자동으로 오르고, 5번 연속 실패하면 내려감 |
 | `await ctx.win({msg?, big?})` | 성공 연출(색종이·칭찬·징글·단계·스티커). 연출이 끝나면 resolve. 반환값 false = 이미 화면을 나감 → 다음 판 시작하지 말 것 |
+| `await ctx.win({noLevel: true, ...})` | 축하 화면·마지막 판 처리(KP.lastRound)는 그대로, 단계(lvl/streak)·열쇠 별에는 넣지 않음. 녹음 축하·'10씩 세기' 완성·악어 운 판처럼 '문제를 맞힌 것'이 아닌 축하용 — KP.celebrate 를 직접 부르지 말고 이것을 쓸 것 |
 | `ctx.miss(el?, msg?)` | 틀림: 흔들기 + 부드러운 소리 + 안내 |
 | `ctx.milestone(n, every)` | 진행형(풍선 터뜨리기 등) n개마다 win |
 | `ctx.hint(() => el, text?)` | 아이가 8초 멈춰 있으면 손가락이 el 을 가리키고 다시 읽어줌. 판이 바뀌거나 정답 대상이 바뀌면 다시 설정. `ctx.hint(null)` 해제 — win 이 축하 동안 힌트를 끄고, win 뒤 놀이가 힌트를 새로 걸거나 지우지 않으면 마지막 힌트를 되살림(대상이 사라졌거나 숨겨졌거나 오답 보기면 안 가리킴). 다음 판 대상이 달라지면 win 전에 `ctx.hint(null)` 또는 win 뒤 새로 설정. KP.drag 요소를 가리키면 2번째 손가락부터 놓을 곳(accept 가 맞는 곳)까지 움직여 보여 줌 |
+| `ctx.hint(fn, text, {answer: true})` | 가리키는 것이 이번 판 정답인데 보기 버튼(`.choice`/`data-right`)이 아닐 때(이빨·집·도구 등). 손가락이 실제로 가리킨 판은 열쇠 별 없음(`_hinted`) |
 | `ctx.fewChoice(on=true)` / `ctx.noStar()` | 열쇠 별: 이번 판은 찍어도 맞히는 판(보기 2개 이하)이거나 정답 없는 자유 놀이 → 별 없음(축하·단계는 그대로). 판을 차린 뒤(이전 win 다음) 부르고, win 마다 저절로 풀림. `ctx.choices` 는 보기 2개 이하면 자동. KP.drag 는 accept 가 있고 이번 판 끌 것 ≤2개·놓을 곳 1곳이면 자동. `ctx.fewChoice(false)` 는 자동 판정을 끔(예전 `ctx._fewChoice = 값` 도 같은 뜻) |
 | `ctx.choices(box, list, {render, right, wrongMsg, onRight, cls})` | 보기 버튼 묶음(퀴즈형). onRight 에서 `await ctx.win()` 후 다음 판 |
 | `ctx.score.add(n)/set/get` | 상단 점수 (def.score 있을 때) |
@@ -76,6 +78,7 @@ KP.loadE(["🐶"]).then()    // 캔버스용 미리 불러오기
 KP.drawE(ctx2d, "🐶", x, y, size, rot)   // 캔버스에 일러스트 그리기 (가운데 기준)
 KP.css("prefix", `...`)    // 게임 전용 CSS (클래스명은 게임 고유 접두사로!)
 KP.drag(el, {targets, accept, onDrop, onReject, snap, pad})  // 끌어다 놓기 (js/core/drag.js 주석 참고)
+KP.paint.studio({ctx, jars, capacity, hold, onPour, onStir})   // 물감 작업대. hold:false(또는 ()=>false) → 꾹 눌러도 한 방울만
 KP.voice.say(text) / KP.voice.en("Apple")
 KP.audio.sfx(name)   // tap tap2 select pop bubble good bad whoosh sparkle boom snap drop pick boing slide levelup sticker open back water rub tick
 KP.audio.note("C5", {inst:"bell"|"marimba"|"pluck"|"pad"|"bass"|"soft", dur, vol, when})

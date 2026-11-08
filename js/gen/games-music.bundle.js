@@ -2304,7 +2304,9 @@ KP.game({
       if (cur.length) out.push(cur);
       return out;
     }
+    let playGen = 0; // 노래 완성 마무리(다시 들려주기 → 축하) 세대 — 새 노래를 고르면 옛 마무리 취소
     function startFollow(key) {
+      playGen++;
       const song = A.SONGS[key];
       const ph = phrasesOf(song.notes);
       const lv = ctx.level;
@@ -2373,9 +2375,11 @@ KP.game({
         back.push(nb);
         sum += nb[1] * 0.3;
       }
+      const gen = ++playGen;
       const len = A.melody(back, { beat: 0.3, inst: "bell", octave: 1, vol: 0.2, when: 0.9 });
-      back.forEach(([, b], k) => ctx.after(900 + k * 300, () => U.replay(singers[k % singers.length], "sing")));
+      back.forEach(([, b], k) => ctx.after(900 + k * 300, () => gen === playGen && U.replay(singers[k % singers.length], "sing")));
       await ctx.wait(900 + len * 1000);
+      if (gen !== playGen) return; // 그사이 새 노래를 골랐으면 옛 축하는 건너뜀
       prog.classList.remove("on");
       const ok = await ctx.win({ big: true, msg: song.name + " 완성!" });
       if (!ok) return;
@@ -2453,6 +2457,8 @@ KP.game({
    폰 세로: 칠 음이 도~솔 안에만 있으면 건반 5개만 크게 (손 자리 1~5번 손가락) */
 "use strict";
 (function () {
+  /** 단계를 따로 세는 놀이 4가지 (rp:lvl:<놀이>) */
+  const RP_MODES = ["free", "follow", "game", "echo"];
   /** McLeod pitch method — 한 덩어리 소리에서 기본 주파수 찾기 (없으면 null) */
   function mpm(buf, sr, fmin, fmax) {
     const N = buf.length;
@@ -3088,6 +3094,11 @@ KP.game({
       if (prev === mode) return;
       const lv = KP.level.get("realpiano");
       if (prev) KP.store.set("rp:lvl:" + prev, { lvl: lv.lvl, streak: lv.streak, miss: lv.miss });
+      else if (!RP_MODES.some((k) => KP.store.get("rp:lvl:" + k, null))) {
+        // 놀이별 단계 이전(처음 한 번): 예전 공용 단계(lv:realpiano)를 네 놀이 모두의 시작 단계로 옮겨 담음 → 기존 사용자가 1단계로 돌아가지 않게
+        const old = Math.max(1, Math.min(3, Math.round(+lv.lvl) || 1));
+        RP_MODES.forEach((k) => KP.store.set("rp:lvl:" + k, { lvl: old, streak: 0, miss: 0 }));
+      }
       const m = Object.assign({ lvl: 1, streak: 0, miss: 0 }, KP.store.get("rp:lvl:" + mode, {}));
       lv.lvl = Math.max(1, Math.min(3, Math.round(+m.lvl) || 1));
       lv.streak = +m.streak || 0;
@@ -3924,6 +3935,7 @@ KP.game({
       if (playing) stopPlay();
       if (follow) stopFollow();
       if (rec) return stopRec();
+      playGen++; // 앞 노래 완성 마무리(채가 다시 쳐 주기·축하)가 남아 있으면 취소
       rec = { t0: performance.now(), list: [], quietT: 0 };
       bRec.classList.add("on");
       bRec.innerHTML = KP.E("⏹️") + " 그만";
@@ -3977,7 +3989,8 @@ KP.game({
           return;
         }
         ctx.noStar ? ctx.noStar() : (ctx._fewChoice = true); // 자유 연주 → 열쇠 별 제외
-        const ok = await ctx.win({ msg: "멋진 연주예요!" });
+        // 녹음 자유 연주 축하는 '따라 치기' 단계(lvl/streak)에 넣지 않음
+        const ok = await ctx.win({ msg: "멋진 연주예요!", noLevel: true });
         if (ok) ctx.say("또 녹음해 볼까요? 빨간 단추를 눌러요!");
       });
     }
@@ -4001,6 +4014,7 @@ KP.game({
     /** 동요(도4~도5)를 실로폰(도5~도6)으로 한 옥타브 올려 막대 번호로 */
     const barOf = (n) => BARS.findIndex((b) => A.midiOf(b[0]) === A.midiOf(n) + 12);
     function startFollow(key) {
+      playGen++; // 앞 노래 완성 마무리가 남아 있으면 취소 (새 노래 도중에 옛 축하가 끼어들지 않게)
       const song = A.SONGS[key];
       const ph = phrasesOf(song.notes);
       const lv = ctx.level;

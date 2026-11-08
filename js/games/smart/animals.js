@@ -89,7 +89,7 @@ KP.game({
     const U = KP.u,
       Z = KP.smartAnimals;
     KP.css("animals", `
-      .anTabs{display:flex;gap:clamp(6px,1.2vw,12px);justify-content:center;padding:2px 10px 8px;flex:0 0 auto;flex-wrap:nowrap}
+      .anTabs{display:flex;gap:clamp(6px,1.2vw,12px);justify-content:center;padding:10px 10px 8px;flex:0 0 auto;flex-wrap:nowrap}
       .anTab{flex:1 1 0;max-width:130px;min-width:0;min-height:72px;justify-content:center;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:clamp(15px,2.2vw,22px);
         background:rgba(255,255,255,.7);border-radius:20px;padding:6px clamp(8px,1.6vw,18px);border-bottom:5px solid transparent;transition:transform .15s}
       .anTab .e{font-size:clamp(30px,4.4vw,44px)}

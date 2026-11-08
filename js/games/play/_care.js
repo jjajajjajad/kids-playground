@@ -903,10 +903,10 @@
         } else if (o.mode === 2) {
           if (first && o.ask) ctx.say(o.ask);
           else ctx.say("다음엔 뭘 할까요?", "무엇을 할까요?"); // 말은 자연 음성 있는 문장으로
-          ctx.hint(() => btns[st.tool], st.say);
+          ctx.hint(() => btns[st.tool], st.say, { answer: true }); // 다음 도구(정답)를 가리킴 → 가리킨 판은 열쇠 별 없음
         } else {
           if (first && o.ask) ctx.say(o.ask);
-          ctx.hint(() => btns[st.tool], st.say);
+          ctx.hint(() => btns[st.tool], st.say, { answer: true });
         }
         first = false;
         busy = false;

@@ -906,10 +906,10 @@
         } else if (o.mode === 2) {
           if (first && o.ask) ctx.say(o.ask);
           else ctx.say("다음엔 뭘 할까요?", "무엇을 할까요?"); // 말은 자연 음성 있는 문장으로
-          ctx.hint(() => btns[st.tool], st.say);
+          ctx.hint(() => btns[st.tool], st.say, { answer: true }); // 다음 도구(정답)를 가리킴 → 가리킨 판은 열쇠 별 없음
         } else {
           if (first && o.ask) ctx.say(o.ask);
-          ctx.hint(() => btns[st.tool], st.say);
+          ctx.hint(() => btns[st.tool], st.say, { answer: true });
         }
         first = false;
         busy = false;
@@ -3009,7 +3009,7 @@ KP.game({
    - 누를 때마다 악어가 움찔·눈 깜빡 + 숫자 세기, 입이 조금씩 내려와 두근두근
    - 몇몇 이빨에는 보물(별·사탕·보석)이 숨어 있음
    - 안 아픈 이빨을 누르면 악어가 아픈 이빨 쪽을 힐끔 봄(1단계는 그 이빨이 덜덜) → 피해서 다 누르면 '이빨 청소 성공' 축하
-   - 앙! 당한 판은 짧게 웃고 바로 다음 판, 2판마다 한 번 축하(찍기라 열쇠 별 없음)
+   - 앙! 당한 판은 짧게 웃고 바로 다음 판, 2판마다 한 번 축하(운이라 단계·열쇠 별 없음)
    1단계: 이빨 5개 / 2단계: 7개 / 3단계: 9개 (작은 화면은 이빨이 64px 이상 되도록 개수를 줄임) */
 "use strict";
 KP.game({
@@ -3042,8 +3042,10 @@ KP.game({
       .cr-mouth{position:absolute;left:5%;right:5%;top:0;bottom:12%;border-radius:0 0 50% 50%/0 0 70% 70%;background:radial-gradient(ellipse at 50% 20%,#ff9db3,#e9567a 70%,#c93a62);box-shadow:inset 0 10px 18px rgba(120,0,40,.35)}
       .cr-tongue{position:absolute;left:30%;right:30%;top:30%;bottom:16%;border-radius:50% 50% 45% 45%;background:radial-gradient(circle at 50% 30%,#ffc1cf,#ff7d9b);box-shadow:inset 0 -6px 0 rgba(0,0,0,.08)}
       .cr-tongue::after{content:"";position:absolute;left:49%;top:12%;bottom:30%;width:3px;background:rgba(160,30,70,.35);border-radius:2px}
-      .cr-upper{position:absolute;left:2%;right:2%;top:0;height:calc(var(--cw)*.55);z-index:2;transition:transform .5s cubic-bezier(.3,1.3,.5,1);
-        transform:translateY(calc(var(--close,0)*var(--cw)*.09))}
+      /* --close(0~1, 누를수록 커짐)만큼 위턱이 내려옴 — 최대 0.4배로 제한(끝자리 이빨이 위턱에 가려지지 않게). 앙!(bite)은 따로 끝까지
+         위턱은 그림일 뿐이라 터치를 통과시킴(pointer-events:none) → 끝자리 이빨 윗부분이 살짝 겹쳐도 그대로 눌림 */
+      .cr-upper{position:absolute;left:2%;right:2%;top:0;height:calc(var(--cw)*.55);z-index:2;pointer-events:none;transition:transform .5s cubic-bezier(.3,1.3,.5,1);
+        transform:translateY(calc(var(--close,0)*var(--cw)*.036))}
       .cr-croc.bite .cr-upper{transform:translateY(calc(var(--ch,calc(var(--cw)*1.02)) - var(--cw)*.58));transition:transform .14s cubic-bezier(.7,0,1,.6)}
       .cr-head{position:absolute;left:0;right:0;top:14%;bottom:30%;border-radius:46% 46% 18% 18%/60% 60% 20% 20%;background:linear-gradient(#5bd277,#36a854);box-shadow:inset 0 -8px 0 rgba(0,0,0,.1)}
       .cr-head::before{content:"";position:absolute;left:12%;right:12%;top:18%;height:40%;background:radial-gradient(circle,rgba(0,0,0,.12) 0 6%,transparent 7%) 0 0/34px 28px;border-radius:50%}
@@ -3162,9 +3164,23 @@ KP.game({
       }
       return { tw: Math.floor(Math.min(tw, r.d)), pts: r.pts };
     };
+    /* 이빨 n개가 64px 이상 되도록 악어 가로 넓힘(ctx.wx)을 정함 — next 와 화면 회전(resize) 공용 */
+    ctx.fitWide = (n) => {
+      ctx.wx = 1;
+      ctx.size();
+      for (let wx = 1.15; wx <= 1.81 && ctx.teethLayout(n).tw < 64; wx += 0.15) {
+        ctx.wx = wx;
+        ctx.size();
+      }
+    };
     addEventListener("resize", () => {
       if (ctx._active) {
-        ctx.size();
+        // 판 도중 화면을 돌려도 이빨 칸이 64px 아래로 줄지 않게 넓힘을 다시 계산
+        if (ctx.teethN) {
+          ctx.fitWide(ctx.teethN);
+          // 넓혀도 64px 가 안 되면(예: 폰 세로 8개 → 가로) 이번 판을 새 화면에 맞는 개수로 다시 차림
+          if (ctx.teethLayout(ctx.teethN).tw < 64 && ctx.reround && ctx.reround()) return;
+        } else ctx.size();
         ctx.placeTeeth && ctx.placeTeeth();
       }
     });
@@ -3182,15 +3198,15 @@ KP.game({
     const croc = ctx.croc;
     croc.classList.remove("bite", "laugh", "blink");
     croc.style.setProperty("--close", 0);
-    ctx.wx = 1;
-    ctx.size();
+    // 앙! 당한 판은 win 없이 다음 판으로 넘어가므로, 열쇠 별 표시(힌트 봄·별 없음)를 판마다 새로
+    ctx._hinted = false;
+    ctx._resetFew();
     // 이빨 수: 단계별 5·7·9 — 터치 칸이 64px 이상 안 되면 ① 악어를 옆으로 넓히고 ② 그래도 모자라면 개수를 줄임
     let n = [5, 7, 9][lv - 1];
-    for (let wx = 1.15; wx <= 1.81 && ctx.teethLayout(n).tw < 64; wx += 0.15) {
-      ctx.wx = wx;
-      ctx.size();
-    }
+    ctx.teethN = 0;
+    ctx.fitWide(n);
     while (n > 4 && ctx.teethLayout(n).tw < 64) n--;
+    ctx.teethN = n;
     ctx.teethEl.innerHTML = "";
     const sore = U.rand(n);
     // 보물 이빨 (아픈 이빨 말고): 1·2단계 2개, 3단계 1개
@@ -3235,6 +3251,13 @@ KP.game({
       });
     };
     ctx.placeTeeth();
+    // 화면 회전으로 이빨이 너무 작아질 때 이번 판 다시 차리기 (앙! 연출 중이면 안 함 — 다음 판에서 맞춰짐)
+    ctx.reround = () => {
+      if (busy || !ctx._active) return false;
+      ctx.cancel(glanceT);
+      this.next(ctx);
+      return true;
+    };
     // 눈동자가 이빨 쪽을 봄
     const look = (t) => {
       const cr = croc.getBoundingClientRect(),
@@ -3251,6 +3274,8 @@ KP.game({
         if (busy) return;
         look(teeth[sore]);
         // 1·2단계: 아픈 이빨이 덜덜 (2단계는 짧게)
+        // 1단계는 누를 때마다 덜덜이 보여 정답을 알려 주는 셈 → 덜덜을 본 판은 열쇠 별 없음(축하·단계는 그대로)
+        if (lv === 1) ctx.noStar();
         if (lv < 3) {
           teeth[sore].classList.toggle("lite", lv === 2);
           U.replay(teeth[sore], "sore");
@@ -3349,17 +3374,17 @@ KP.game({
       }
       ctx.luck++;
       if (ctx.luck >= 2) {
-        // 앙! 당한 판도 2판마다 한 번 축하 — 운으로 끝난 판이라 열쇠 별은 없음
+        // 앙! 당한 판도 2판마다 한 번 축하 — 운으로 끝난 판이라 단계·열쇠 별에는 넣지 않음(noLevel)
         ctx.luck = 0;
-        ctx._fewChoice = true;
-        const ok = await ctx.win({ msg: "깜짝 놀랐지?", say: "깜짝 놀랐지?" });
+        const ok = await ctx.win({ noLevel: true, msg: "깜짝 놀랐지?", say: "깜짝 놀랐지?" });
         if (ok) this.next(ctx);
         return;
       }
       // 그 사이 판은 축하 없이 바로 다음 판 (매 판 긴 연출 반복 줄이기)
       this.next(ctx);
     };
-    const hint = () => ctx.hint(() => teeth.find((t, k) => k !== sore && !t.classList.contains("down")) || teeth[sore], "이빨을 하나씩 콕 눌러 봐요!");
+    // 힌트는 늘 '안 아픈 이빨'을 가리킴(= 정답) → 손가락이 가리킨 판은 열쇠 별 없음(answer)
+    const hint = () => ctx.hint(() => teeth.find((t, k) => k !== sore && !t.classList.contains("down")) || teeth[sore], "이빨을 하나씩 콕 눌러 봐요!", { answer: true });
     hint();
   },
 });
@@ -3498,7 +3523,14 @@ KP.game({
     ctx.row.innerHTML = "";
     let left = n,
       busy = false;
-    ctx.say("달걀을 톡톡톡! 세 번 두드려 봐요. 누가 나올까? 🥚");
+    if (hardAt < 0) ctx.say("달걀을 톡톡톡! 세 번 두드려 봐요. 누가 나올까? 🥚");
+    else {
+      // 단단한 알(다섯 번)이 있는 판: 횟수 안내를 맞춤. "단단한 알은 다섯 번!" 자연 음성은 new-voice/egg.txt —
+      // 녹음 전에는 그 문장만 말하지 않음(화면 글자로만), 톡톡할 때 "조금 더!"·"딱 한 번만 더!"로 이어서 안내
+      const HARD_TXT = "단단한 알은 다섯 번!";
+      const nat = KP.voice._natUrls && KP.voice._natUrls(HARD_TXT);
+      ctx.say("달걀을 톡톡톡! 세 번 두드려 봐요. " + HARD_TXT + " 🥚", "달걀을 톡톡톡! 세 번 두드려 봐요. " + (nat ? HARD_TXT : "누가 나올까?"));
+    }
     const eggs = babies.map((bb, i) => {
       const gold = i === goldAt,
         hard = i === hardAt,
@@ -3538,8 +3570,12 @@ KP.game({
           egg.dataset.k = Math.floor((k * 2) / (need - 1));
           A.note(hard ? ["C5", "D5", "E5", "G5"][k - 1] : k === 1 ? "E5" : "G5", { inst: "marimba", dur: 0.2, vol: 0.3 });
           A.noise({ dur: 0.05, vol: 0.12, hp: 2500 });
-          if (hard && k === 2) KP.voice.say("한 번 더!");
-          else if (k === need - 1) KP.voice.say(U.pick(["금이 갔어요!", "한 번 더!", "어? 움직여요!"]));
+          // 단단한 알: 세 번째에 안 깨지는 까닭을 말로 ("조금 더!") → 네 번째 "딱 한 번만 더!"
+          if (hard && k === 3) KP.voice.say("조금 더!");
+          else if (hard && k === need - 1) KP.voice.say("딱 한 번만 더!");
+          else if (hard) {
+            /* 1·2번째는 소리만 */
+          } else if (k === need - 1) KP.voice.say(U.pick(["금이 갔어요!", "한 번 더!", "어? 움직여요!"]));
           hint();
           return;
         }
@@ -5976,6 +6012,7 @@ KP.game({
     ctx.yellow = lv === 3;
     ctx.pos = 0;
     ctx.lamps[1].style.display = ctx.yellow ? "" : "none";
+    ctx.lamps[2].style.display = ""; // 1·2단계 노란불 예고(초록불 자리) 도중 나갔을 때 되돌리기
     ctx.carrot.classList.remove("eat");
     ctx.rab.className = "lt-rab idle";
     ctx.size();
@@ -5985,6 +6022,7 @@ KP.game({
       started = false, // 첫 초록불 전(준비 시간)에는 눌러도 틀림 아님
       sawRed = false, // 이번 판에 초록불 → 빨간불을 겪었나
       redMiss = 0, // 이번 판 빨간불에 누른 횟수 (첫 번째는 가볍게)
+      forcedSoft = false, // 당근 앞 '강제 신호 바꿈' 뒤 첫 실수는 가볍게 (연타하던 아이가 미처 못 멈춤)
       lastHop = 0;
     const DUR = { g: [3.4, 3.2, 2.8][lv - 1], y: 1.3, r: [2.6, 2.6, 2.5][lv - 1] };
     const setSig = (s, speak = true) => {
@@ -6047,9 +6085,25 @@ KP.game({
           ctx.cancel(ctx.sigT);
           ctx.sigT = ctx.after(350, () => {
             if (done || sig !== "g") return;
-            const nx = ctx.yellow ? "y" : "r";
-            setSig(nx);
-            ctx.sigT = ctx.after(DUR[nx] * 1000 * U.randf(0.9, 1.1), cycle);
+            forcedSoft = true;
+            if (ctx.yellow) {
+              // 3단계: 원래 노란불이 있음 → 노란불(1.3초)이 예고
+              setSig("y");
+              ctx.sigT = ctx.after(DUR.y * 1000 * U.randf(0.9, 1.1), cycle);
+              return;
+            }
+            // 1·2단계: 노란불 칸이 없으므로 초록불 자리에 노란불을 0.6초 켜서 예고 (신호등 크기는 그대로)
+            ctx.lamps[2].style.display = "none";
+            ctx.lamps[1].style.display = "";
+            setSig("y", false);
+            A.note("E5", { inst: "bell", dur: 0.3, vol: 0.16 });
+            ctx.sigT = ctx.after(600, () => {
+              ctx.lamps[1].style.display = "none";
+              ctx.lamps[2].style.display = "";
+              if (done) return;
+              setSig("r");
+              ctx.sigT = ctx.after(DUR.r * 1000 * U.randf(0.9, 1.1), cycle);
+            });
           });
         }
       } else if (!started) {
@@ -6079,7 +6133,9 @@ KP.game({
           lastTalk = now;
           // 판마다 첫 번째는 가벼운 실수(배우는 중), 그다음부터 틀림
           redMiss++;
-          ctx.miss(null, sig === "r" ? "빨간불엔 멈춰요!" : "노란불엔 기다려요!", { soft: redMiss === 1 });
+          const soft = redMiss === 1 || forcedSoft;
+          forcedSoft = false;
+          ctx.miss(null, sig === "r" ? "빨간불엔 멈춰요!" : "노란불엔 기다려요!", { soft });
         }
       }
     };
@@ -6597,7 +6653,8 @@ KP.game({
       U.replay(ctx.ask, "pop");
       ctx.say(U.josa(t[1], "은/는") + " 어디 있을까? 문을 콕! 🚪");
       busy = false;
-      ctx.hint(() => houses.find((h) => h.a === t), U.josa(t[1], "은/는") + " 어느 집에 있었지?");
+      // 정답 집을 가리키는 힌트 → 가리킨 판은 열쇠 별 없음(answer)
+      ctx.hint(() => houses.find((h) => h.a === t), U.josa(t[1], "은/는") + " 어느 집에 있었지?", { answer: true });
     };
     // 처음에 모두 보여 주기
     ctx.after(500, () => {

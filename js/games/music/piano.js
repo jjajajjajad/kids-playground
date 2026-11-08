@@ -230,7 +230,9 @@ KP.game({
       if (cur.length) out.push(cur);
       return out;
     }
+    let playGen = 0; // 노래 완성 마무리(다시 들려주기 → 축하) 세대 — 새 노래를 고르면 옛 마무리 취소
     function startFollow(key) {
+      playGen++;
       const song = A.SONGS[key];
       const ph = phrasesOf(song.notes);
       const lv = ctx.level;
@@ -299,9 +301,11 @@ KP.game({
         back.push(nb);
         sum += nb[1] * 0.3;
       }
+      const gen = ++playGen;
       const len = A.melody(back, { beat: 0.3, inst: "bell", octave: 1, vol: 0.2, when: 0.9 });
-      back.forEach(([, b], k) => ctx.after(900 + k * 300, () => U.replay(singers[k % singers.length], "sing")));
+      back.forEach(([, b], k) => ctx.after(900 + k * 300, () => gen === playGen && U.replay(singers[k % singers.length], "sing")));
       await ctx.wait(900 + len * 1000);
+      if (gen !== playGen) return; // 그사이 새 노래를 골랐으면 옛 축하는 건너뜀
       prog.classList.remove("on");
       const ok = await ctx.win({ big: true, msg: song.name + " 완성!" });
       if (!ok) return;

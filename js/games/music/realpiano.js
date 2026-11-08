@@ -12,6 +12,8 @@
    폰 세로: 칠 음이 도~솔 안에만 있으면 건반 5개만 크게 (손 자리 1~5번 손가락) */
 "use strict";
 (function () {
+  /** 단계를 따로 세는 놀이 4가지 (rp:lvl:<놀이>) */
+  const RP_MODES = ["free", "follow", "game", "echo"];
   /** McLeod pitch method — 한 덩어리 소리에서 기본 주파수 찾기 (없으면 null) */
   function mpm(buf, sr, fmin, fmax) {
     const N = buf.length;
@@ -647,6 +649,11 @@
       if (prev === mode) return;
       const lv = KP.level.get("realpiano");
       if (prev) KP.store.set("rp:lvl:" + prev, { lvl: lv.lvl, streak: lv.streak, miss: lv.miss });
+      else if (!RP_MODES.some((k) => KP.store.get("rp:lvl:" + k, null))) {
+        // 놀이별 단계 이전(처음 한 번): 예전 공용 단계(lv:realpiano)를 네 놀이 모두의 시작 단계로 옮겨 담음 → 기존 사용자가 1단계로 돌아가지 않게
+        const old = Math.max(1, Math.min(3, Math.round(+lv.lvl) || 1));
+        RP_MODES.forEach((k) => KP.store.set("rp:lvl:" + k, { lvl: old, streak: 0, miss: 0 }));
+      }
       const m = Object.assign({ lvl: 1, streak: 0, miss: 0 }, KP.store.get("rp:lvl:" + mode, {}));
       lv.lvl = Math.max(1, Math.min(3, Math.round(+m.lvl) || 1));
       lv.streak = +m.streak || 0;

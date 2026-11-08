@@ -17,11 +17,11 @@ KP.game({
     const U = KP.u;
     KP.css("numbers", `
       .nbModes{display:flex;gap:10px;justify-content:center;padding:8px 10px 6px;flex:0 0 auto;flex-wrap:wrap}
-      @media (max-width:560px){.nbModes{gap:5px;padding:8px 4px 4px;flex-wrap:nowrap}.nbMode{font-size:14px !important;padding:3px 9px !important;min-height:52px !important;white-space:nowrap}.nbMode .e{display:none}}
-      .nbMode{font-size:clamp(18px,2.4vw,24px);background:rgba(255,255,255,.7);border-radius:999px;padding:8px 22px;min-height:52px;display:flex;align-items:center;gap:8px;border-bottom:5px solid transparent}
+      @media (max-width:560px){.nbModes{gap:5px;padding:8px 4px 4px;flex-wrap:nowrap}.nbMode{font-size:14px !important;padding:3px 9px !important;min-height:64px !important;white-space:nowrap}.nbMode .e{display:none}}
+      .nbMode{font-size:clamp(18px,2.4vw,24px);background:rgba(255,255,255,.7);border-radius:999px;padding:8px 22px;min-height:64px;display:flex;align-items:center;gap:8px;border-bottom:5px solid transparent}
       .nbMode .e{font-size:1.4em}
       .nbMode.sel{background:#fff;border-bottom-color:var(--cat);color:var(--cat);box-shadow:var(--shadow)}
-      @media (orientation:portrait) and (max-width:480px){.nbModes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}.nbMode{font-size:16px !important;padding:4px 12px !important;min-height:52px !important;flex:1 1 auto;justify-content:center}}
+      @media (orientation:portrait) and (max-width:480px){.nbModes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}.nbMode{font-size:16px !important;padding:4px 12px !important;min-height:64px !important;flex:1 1 auto;justify-content:center}}
       .nbMode.glow{animation:glow 1s ease-in-out 3}
       .nbMode.go{opacity:.78}
       .nbMode.go .e{opacity:.8}
@@ -178,6 +178,7 @@ KP.game({
     this.mode(ctx, ctx.level === 1 ? "learn" : "quiz", true);
   },
   mode(ctx, m, first) {
+    ctx._resetFew(); // 모드를 바꾸면 새 판 — 앞 모드의 '보기 적은 판' 표시를 지움
     if (ctx.disarm) ctx.disarm();
     ctx.m = m;
     ctx.token = (ctx.token || 0) + 1; // 세던 중이면 멈추기

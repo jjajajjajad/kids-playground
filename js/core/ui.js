@@ -318,7 +318,9 @@
       /* --- 결과 --- */
       /**
        * 성공 처리: 축하 연출 + 난이도/스티커 진행
-       * @param {{big?:boolean, msg?:string, say?:string, quiet?:boolean}} o  (say: 화면 글자와 다르게 말할 문장)
+       * @param {{big?:boolean, msg?:string, say?:string, quiet?:boolean, noLevel?:boolean}} o  (say: 화면 글자와 다르게 말할 문장)
+       *   noLevel: 축하 화면·마지막 판 처리는 그대로, 단계(lvl/streak)·열쇠 별에는 넣지 않음
+       *            (녹음 축하·'10씩 세기' 완성·악어 운 판처럼 '문제를 맞힌 것'이 아닌 축하)
        * @returns Promise (연출이 끝나면 resolve)
        */
       win(o = {}) {
@@ -331,23 +333,28 @@
         ctx._softMiss = 0;
         ctx._hinted = false;
         ctx._resetFew();
-        KP.earn && KP.earn.onWin(ctx, clean);
-        const lv = KP.level.get(def.id);
-        lv.wins = (lv.wins || 0) + 1;
-        lv.streak = (lv.streak || 0) + 1;
-        lv.miss = 0;
         let up = false;
-        if (def.levels > 1 && lv.streak >= 3 && lv.lvl < def.levels) {
-          lv.lvl++;
-          lv.streak = 0;
-          up = true;
+        if (!o.noLevel) {
+          KP.earn && KP.earn.onWin(ctx, clean);
+          const lv = KP.level.get(def.id);
+          lv.wins = (lv.wins || 0) + 1;
+          lv.streak = (lv.streak || 0) + 1;
+          lv.miss = 0;
+          if (def.levels > 1 && lv.streak >= 3 && lv.lvl < def.levels) {
+            lv.lvl++;
+            lv.streak = 0;
+            up = true;
+          }
+          KP.level.save(def.id, lv);
+          ctx._updateLevel();
         }
-        KP.level.save(def.id, lv);
-        ctx._updateLevel();
         // 축하 동안엔 힌트를 끄되, 이번 판 마지막 힌트는 기억해 둠 (아래 '힌트 되살리기')
-        const keep = ctx._hint;
+        // win 이 겹치면(앞 축하가 끝나기 전에 새 win) 앞 win 이 이미 힌트를 꺼 둠 → 그때 기억한 힌트를 이어받음
+        // (그 사이 놀이가 힌트를 새로 걸거나 지웠으면 seq 가 달라 이어받지 않음)
+        const keep = ctx._hint || (ctx._winKeep && ctx._winKeep.seq === ctx._hintSeq ? ctx._winKeep.h : null);
         ctx.hint(null);
         const hseq = ctx._hintSeq;
+        ctx._winKeep = keep ? { h: keep, seq: hseq } : null;
         const sess = ctx._session;
         return KP.celebrate(Object.assign({ levelUp: up, ctx }, o)).then(() => {
           // 시간이 끝나 '마지막 판'을 기다리는 중이면 지금 마무리
@@ -362,7 +369,7 @@
           // win 전에 ctx.hint(null) 로 지운 놀이는 되살릴 것이 없음. 대상이 사라졌거나 숨겨졌거나
           // 오답 보기면 showHint 가 가리키지 않음(restored 검사).
           if (ok && keep && !ctx._hint && ctx._hintSeq === hseq) {
-            ctx._hint = { getTarget: keep.getTarget, text: keep.text, shown: 0, restored: true };
+            ctx._hint = { getTarget: keep.getTarget, text: keep.text, shown: 0, restored: true, answer: keep.answer };
             ctx._idleAt = Date.now();
           }
           return ok;
@@ -470,10 +477,12 @@
        * 아이가 한동안 멈춰 있으면 손가락으로 가리키며 다시 안내
        * @param {Function|null} getTarget  () => 가리킬 요소
        * @param {string} text  다시 읽어줄 말 (없으면 현재 안내)
+       * @param {{answer?:boolean}} o  answer: 가리키는 것이 이번 판 정답(보기 버튼이 아닌 이빨·집·도구 등)
+       *        → 손가락이 실제로 가리키는 순간 이번 판은 열쇠 별 없음(_hinted)
        */
-      hint(getTarget, text) {
+      hint(getTarget, text, o) {
         ctx._hintSeq++;
-        ctx._hint = getTarget ? { getTarget, text, shown: 0 } : null;
+        ctx._hint = getTarget ? { getTarget, text, shown: 0, answer: !!(o && o.answer) } : null;
         ctx._idleAt = Date.now();
         KP.hideHint();
       },
@@ -558,6 +567,7 @@
       if (!Number.isFinite(t.x) || !Number.isFinite(t.y)) return;
       x = t.x;
       y = t.y;
+      if (h.answer) ctx._hinted = true;
     } else {
       if (!t.isConnected) return;
       const r = t.getBoundingClientRect();
@@ -568,7 +578,7 @@
         if (t.classList.contains("choice") && t.dataset.right !== "1") return;
       }
       // 정답 보기를 가리켰으면 이번 판은 열쇠 별 없음 (기다렸다 누르기 방지)
-      if (t.dataset.right === "1" || t.classList.contains("choice")) ctx._hinted = true;
+      if (h.answer || t.dataset.right === "1" || t.classList.contains("choice")) ctx._hinted = true;
       x = r.left + r.width / 2;
       y = r.top + r.height * 0.6;
       t.classList.add("hintGlow");

@@ -248,6 +248,7 @@ KP.game({
       if (playing) stopPlay();
       if (follow) stopFollow();
       if (rec) return stopRec();
+      playGen++; // 앞 노래 완성 마무리(채가 다시 쳐 주기·축하)가 남아 있으면 취소
       rec = { t0: performance.now(), list: [], quietT: 0 };
       bRec.classList.add("on");
       bRec.innerHTML = KP.E("⏹️") + " 그만";
@@ -301,7 +302,8 @@ KP.game({
           return;
         }
         ctx.noStar ? ctx.noStar() : (ctx._fewChoice = true); // 자유 연주 → 열쇠 별 제외
-        const ok = await ctx.win({ msg: "멋진 연주예요!" });
+        // 녹음 자유 연주 축하는 '따라 치기' 단계(lvl/streak)에 넣지 않음
+        const ok = await ctx.win({ msg: "멋진 연주예요!", noLevel: true });
         if (ok) ctx.say("또 녹음해 볼까요? 빨간 단추를 눌러요!");
       });
     }
@@ -325,6 +327,7 @@ KP.game({
     /** 동요(도4~도5)를 실로폰(도5~도6)으로 한 옥타브 올려 막대 번호로 */
     const barOf = (n) => BARS.findIndex((b) => A.midiOf(b[0]) === A.midiOf(n) + 12);
     function startFollow(key) {
+      playGen++; // 앞 노래 완성 마무리가 남아 있으면 취소 (새 노래 도중에 옛 축하가 끼어들지 않게)
       const song = A.SONGS[key];
       const ph = phrasesOf(song.notes);
       const lv = ctx.level;

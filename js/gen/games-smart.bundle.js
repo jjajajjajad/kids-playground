@@ -143,6 +143,7 @@ KP.game({
     this.mode(ctx, ctx.level === 1 ? "learn" : "quiz", true);
   },
   mode(ctx, m, first) {
+    ctx._resetFew(); // 모드를 바꾸면 새 판 — 앞 모드의 '보기 적은 판' 표시를 지움
     ctx.m = m;
     ctx.spTok = (ctx.spTok || 0) + 1;
     ctx.bLearn.classList.toggle("sel", m === "learn");
@@ -496,7 +497,7 @@ KP.game({
     const U = KP.u,
       Z = KP.smartAnimals;
     KP.css("animals", `
-      .anTabs{display:flex;gap:clamp(6px,1.2vw,12px);justify-content:center;padding:2px 10px 8px;flex:0 0 auto;flex-wrap:nowrap}
+      .anTabs{display:flex;gap:clamp(6px,1.2vw,12px);justify-content:center;padding:10px 10px 8px;flex:0 0 auto;flex-wrap:nowrap}
       .anTab{flex:1 1 0;max-width:130px;min-width:0;min-height:72px;justify-content:center;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:clamp(15px,2.2vw,22px);
         background:rgba(255,255,255,.7);border-radius:20px;padding:6px clamp(8px,1.6vw,18px);border-bottom:5px solid transparent;transition:transform .15s}
       .anTab .e{font-size:clamp(30px,4.4vw,44px)}
@@ -2363,7 +2364,7 @@ KP.game({
    - 글자 합체: 따로 떨어진 놀이 '글자 합체'(hmerge.js)로 옮김 — 버튼은 그 놀이를 엶(숨긴 놀이면 버튼도 숨김).
    - 퀴즈(단계별): 1단계 첫소리 그림 찾기·자음 찾기(보기 2개)
                    2단계 + 모음 찾기·글자 듣고 찾기(보기 3개)
-                   3단계 + 그림 보고 첫 글자·낱말 읽기(첫 글자 강조)(보기 4개) — '글자 만들기'는 글자 합체 2단계로 옮김
+                   3단계 + 그림 보고 첫 글자(보기 4개)·낱말 읽기(첫 글자 강조, 읽을 거리가 많아 보기 3개) — '글자 만들기'는 글자 합체 2단계로 옮김
    말: 오답·정답 설명은 이미 녹음된 조각("이건 기차!", "기역을 찾아 봐요!")을 이어 자연 음성으로 (natPick)
    KP.hangul: 자음·모음 표와 글자 합치기 도우미(이 파일이 내보내고 hmerge.js 가 setup 때 읽음) */
 "use strict";
@@ -2582,6 +2583,7 @@ KP.game({
   },
 
   mode(ctx, m, first) {
+    ctx._resetFew(); // 모드를 바꾸면 새 판 — 앞 모드의 '보기 적은 판' 표시를 지움
     ctx.m = m;
     ctx.qToken = (ctx.qToken || 0) + 1;
     [["cons", ctx.bCons, ctx.vCons], ["vow", ctx.bVow, ctx.vVow], ["quiz", ctx.bQuiz, ctx.vQuiz]].forEach(([k, b, v]) => {
@@ -5741,6 +5743,7 @@ KP.game({
     this.mode(ctx, ctx.level === 1 ? "chart" : "quiz", true);
   },
   mode(ctx, m, first) {
+    ctx._resetFew(); // 모드를 바꾸면 새 판 — 앞 모드의 '보기 적은 판' 표시를 지움
     ctx.m = m;
     ctx.tok = (ctx.tok || 0) + 1;
     [["chart", ctx.bChart, ctx.vChart], ["tens", ctx.bTens, ctx.vTens], ["quiz", ctx.bQuiz, ctx.vQuiz]].forEach(([k, b, v]) => {
@@ -5856,11 +5859,12 @@ KP.game({
         if (tk !== ctx.tok) return;
         const talk = KP.voice.say("십이 열 개면 백! 백까지 다 셌어요!");
         ctx.score.add();
-        // 반짝이는 다음 단추만 차례로 눌러도 끝나는 놀이 → ctx.win(열쇠 별·단계·스티커) 대신 축하 연출만
+        // 반짝이는 다음 단추만 차례로 눌러도 끝나는 놀이 → 열쇠 별·단계·스티커 없이 축하만 (noLevel)
+        // ctx.win 을 거쳐야 시간이 끝난 '마지막 판'도 여기서 바로 마무리됨
         await Promise.race([talk, ctx.wait(3500)]);
         if (tk !== ctx.tok || !ctx._active) return;
-        await KP.celebrate({ big: true, msg: "백까지 성공!", ctx, sticker: false });
-        if (ctx._active && ctx.m === "tens" && tk === ctx.tok) this.mode(ctx, "tens", true);
+        const ok = await ctx.win({ noLevel: true, big: true, msg: "백까지 성공!", sticker: false });
+        if (ok && ctx._active && ctx.m === "tens" && tk === ctx.tok) this.mode(ctx, "tens", true);
       });
     }
   },
@@ -5963,11 +5967,11 @@ KP.game({
     const U = KP.u;
     KP.css("numbers", `
       .nbModes{display:flex;gap:10px;justify-content:center;padding:8px 10px 6px;flex:0 0 auto;flex-wrap:wrap}
-      @media (max-width:560px){.nbModes{gap:5px;padding:8px 4px 4px;flex-wrap:nowrap}.nbMode{font-size:14px !important;padding:3px 9px !important;min-height:52px !important;white-space:nowrap}.nbMode .e{display:none}}
-      .nbMode{font-size:clamp(18px,2.4vw,24px);background:rgba(255,255,255,.7);border-radius:999px;padding:8px 22px;min-height:52px;display:flex;align-items:center;gap:8px;border-bottom:5px solid transparent}
+      @media (max-width:560px){.nbModes{gap:5px;padding:8px 4px 4px;flex-wrap:nowrap}.nbMode{font-size:14px !important;padding:3px 9px !important;min-height:64px !important;white-space:nowrap}.nbMode .e{display:none}}
+      .nbMode{font-size:clamp(18px,2.4vw,24px);background:rgba(255,255,255,.7);border-radius:999px;padding:8px 22px;min-height:64px;display:flex;align-items:center;gap:8px;border-bottom:5px solid transparent}
       .nbMode .e{font-size:1.4em}
       .nbMode.sel{background:#fff;border-bottom-color:var(--cat);color:var(--cat);box-shadow:var(--shadow)}
-      @media (orientation:portrait) and (max-width:480px){.nbModes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}.nbMode{font-size:16px !important;padding:4px 12px !important;min-height:52px !important;flex:1 1 auto;justify-content:center}}
+      @media (orientation:portrait) and (max-width:480px){.nbModes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}.nbMode{font-size:16px !important;padding:4px 12px !important;min-height:64px !important;flex:1 1 auto;justify-content:center}}
       .nbMode.glow{animation:glow 1s ease-in-out 3}
       .nbMode.go{opacity:.78}
       .nbMode.go .e{opacity:.8}
@@ -6124,6 +6128,7 @@ KP.game({
     this.mode(ctx, ctx.level === 1 ? "learn" : "quiz", true);
   },
   mode(ctx, m, first) {
+    ctx._resetFew(); // 모드를 바꾸면 새 판 — 앞 모드의 '보기 적은 판' 표시를 지움
     if (ctx.disarm) ctx.disarm();
     ctx.m = m;
     ctx.token = (ctx.token || 0) + 1; // 세던 중이면 멈추기
@@ -8054,7 +8059,9 @@ KP.game({
         const imgs = await Promise.all(pick.map((it) => clayEmoji(it[0], 110).catch(() => null)));
         if (!alive(r)) return;
         const src = (it) => imgs[pick.indexOf(it)] || KP.esrc(it[0]);
-        ctx._fewChoice = false; // 나무 4그루 중에서 고름
+        // 나무 4그루(놓을 곳 4곳) 중에서 고르는 판 = 보기 충분 → 열쇠 별 받을 수 있음.
+        // fewChoice(false): 놀이가 직접 정함(KP.drag 자동 판정 끔). 자동 판정도 놓을 곳이 4곳이라 같은 결과지만 뜻을 분명히 함
+        ctx.fewChoice(false);
         let left = pick.length;
         const els = U.shuffle(pick.slice()).map((it, i) => {
           const el = U.el("div", "ssItem item", '<img alt="" draggable="false" src="' + src(it) + '">');

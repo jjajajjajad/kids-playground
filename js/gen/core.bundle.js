@@ -2192,7 +2192,9 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
       /* --- 결과 --- */
       /**
        * 성공 처리: 축하 연출 + 난이도/스티커 진행
-       * @param {{big?:boolean, msg?:string, say?:string, quiet?:boolean}} o  (say: 화면 글자와 다르게 말할 문장)
+       * @param {{big?:boolean, msg?:string, say?:string, quiet?:boolean, noLevel?:boolean}} o  (say: 화면 글자와 다르게 말할 문장)
+       *   noLevel: 축하 화면·마지막 판 처리는 그대로, 단계(lvl/streak)·열쇠 별에는 넣지 않음
+       *            (녹음 축하·'10씩 세기' 완성·악어 운 판처럼 '문제를 맞힌 것'이 아닌 축하)
        * @returns Promise (연출이 끝나면 resolve)
        */
       win(o = {}) {
@@ -2205,23 +2207,28 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
         ctx._softMiss = 0;
         ctx._hinted = false;
         ctx._resetFew();
-        KP.earn && KP.earn.onWin(ctx, clean);
-        const lv = KP.level.get(def.id);
-        lv.wins = (lv.wins || 0) + 1;
-        lv.streak = (lv.streak || 0) + 1;
-        lv.miss = 0;
         let up = false;
-        if (def.levels > 1 && lv.streak >= 3 && lv.lvl < def.levels) {
-          lv.lvl++;
-          lv.streak = 0;
-          up = true;
+        if (!o.noLevel) {
+          KP.earn && KP.earn.onWin(ctx, clean);
+          const lv = KP.level.get(def.id);
+          lv.wins = (lv.wins || 0) + 1;
+          lv.streak = (lv.streak || 0) + 1;
+          lv.miss = 0;
+          if (def.levels > 1 && lv.streak >= 3 && lv.lvl < def.levels) {
+            lv.lvl++;
+            lv.streak = 0;
+            up = true;
+          }
+          KP.level.save(def.id, lv);
+          ctx._updateLevel();
         }
-        KP.level.save(def.id, lv);
-        ctx._updateLevel();
         // 축하 동안엔 힌트를 끄되, 이번 판 마지막 힌트는 기억해 둠 (아래 '힌트 되살리기')
-        const keep = ctx._hint;
+        // win 이 겹치면(앞 축하가 끝나기 전에 새 win) 앞 win 이 이미 힌트를 꺼 둠 → 그때 기억한 힌트를 이어받음
+        // (그 사이 놀이가 힌트를 새로 걸거나 지웠으면 seq 가 달라 이어받지 않음)
+        const keep = ctx._hint || (ctx._winKeep && ctx._winKeep.seq === ctx._hintSeq ? ctx._winKeep.h : null);
         ctx.hint(null);
         const hseq = ctx._hintSeq;
+        ctx._winKeep = keep ? { h: keep, seq: hseq } : null;
         const sess = ctx._session;
         return KP.celebrate(Object.assign({ levelUp: up, ctx }, o)).then(() => {
           // 시간이 끝나 '마지막 판'을 기다리는 중이면 지금 마무리
@@ -2236,7 +2243,7 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
           // win 전에 ctx.hint(null) 로 지운 놀이는 되살릴 것이 없음. 대상이 사라졌거나 숨겨졌거나
           // 오답 보기면 showHint 가 가리키지 않음(restored 검사).
           if (ok && keep && !ctx._hint && ctx._hintSeq === hseq) {
-            ctx._hint = { getTarget: keep.getTarget, text: keep.text, shown: 0, restored: true };
+            ctx._hint = { getTarget: keep.getTarget, text: keep.text, shown: 0, restored: true, answer: keep.answer };
             ctx._idleAt = Date.now();
           }
           return ok;
@@ -2344,10 +2351,12 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
        * 아이가 한동안 멈춰 있으면 손가락으로 가리키며 다시 안내
        * @param {Function|null} getTarget  () => 가리킬 요소
        * @param {string} text  다시 읽어줄 말 (없으면 현재 안내)
+       * @param {{answer?:boolean}} o  answer: 가리키는 것이 이번 판 정답(보기 버튼이 아닌 이빨·집·도구 등)
+       *        → 손가락이 실제로 가리키는 순간 이번 판은 열쇠 별 없음(_hinted)
        */
-      hint(getTarget, text) {
+      hint(getTarget, text, o) {
         ctx._hintSeq++;
-        ctx._hint = getTarget ? { getTarget, text, shown: 0 } : null;
+        ctx._hint = getTarget ? { getTarget, text, shown: 0, answer: !!(o && o.answer) } : null;
         ctx._idleAt = Date.now();
         KP.hideHint();
       },
@@ -2432,6 +2441,7 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
       if (!Number.isFinite(t.x) || !Number.isFinite(t.y)) return;
       x = t.x;
       y = t.y;
+      if (h.answer) ctx._hinted = true;
     } else {
       if (!t.isConnected) return;
       const r = t.getBoundingClientRect();
@@ -2442,7 +2452,7 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
         if (t.classList.contains("choice") && t.dataset.right !== "1") return;
       }
       // 정답 보기를 가리켰으면 이번 판은 열쇠 별 없음 (기다렸다 누르기 방지)
-      if (t.dataset.right === "1" || t.classList.contains("choice")) ctx._hinted = true;
+      if (h.answer || t.dataset.right === "1" || t.classList.contains("choice")) ctx._hinted = true;
       x = r.left + r.width / 2;
       y = r.top + r.height * 0.6;
       t.classList.add("hintGlow");
@@ -3777,7 +3787,8 @@ void main(){
 
   /* =================================================================
      물감 작업대 (실험실·색깔 섞기·색 주문 맞추기 공용 화면 부품)
-     KP.paint.studio({ctx, jars:[0,1,2,3,4], capacity, tilt, onPour(id), onStir()})
+     KP.paint.studio({ctx, jars:[0,1,2,3,4], capacity, tilt, hold, onPour(id), onStir()})
+       hold: false 또는 () => boolean (누를 때마다 물음) — false 면 꾹 눌러도 계속 붓지 않고 한 방울만
      → { jarsEl, bowlEl, meterEl, bowl, fit(px), tick(dt), drain(), state, jar(id) }
      - 물감 튜브(점토): 톡 누르면 한 방울 쭉, 꾹 누르고 있으면 계속 (튜브가 눌렸다 펴짐, 방울이 날아가 그릇에 퐁)
      - 그릇: 손가락으로 빙글빙글 저으면 마블링처럼 섞임 (나무 주걱이 손가락을 따라감, 지나간 자리에 홈)
@@ -3914,6 +3925,9 @@ void main(){
         j.classList.add("pour");
         drop();
         clearInterval(t);
+        // hold:false (또는 false 를 돌려주는 함수) → 꾹 눌러도 한 방울만 (톡 = 한 방울을 익히는 단계용)
+        const hold = typeof o.hold === "function" ? o.hold() : o.hold !== false;
+        if (!hold) return;
         t = setInterval(() => (held && (!ctx || ctx._active) ? drop() : clearInterval(t)), 200);
       });
       const end = () => {
@@ -4865,6 +4879,7 @@ void main(){
               this.hit(ctx, q);
             }
             if (d > 1.2 && Math.random() < 0.12) KP.audio.sfx("rub");
+            if (T.pend) T.moveAt = Date.now(); // 다 찬 뒤에도 쓰는 중 → 자동 마무리 미룸
             T.last = p;
             if (T.done) break;
           }
@@ -5006,14 +5021,21 @@ void main(){
         if (c.mode !== "alone") this.drawGuide(ctx);
         if (T.sdone.every(Boolean)) {
           if (T.pid === null) return this.finishCell(ctx, false);
-          // 아직 쓰는 중: 손을 뗄 때 마무리 (그동안 선은 계속 그려짐). 손을 오래 안 떼면 1.1초 뒤 마무리
+          // 아직 쓰는 중: 손을 뗄 때 마무리 (그동안 선은 계속 그려짐).
+          // 손을 안 떼면 '손가락이 1.1초 동안 안 움직였을 때' 마무리 (움직이면 다시 기다림, 최대 4초)
+          // — 천천히 쓰는 아이도 획 끝까지 그린 뒤 마무리됨 (예전엔 다 찬 순간부터 1.1초라 끝이 끊김)
           T.pend = true;
+          T.pendAt = T.moveAt = Date.now();
           ctx.spot.classList.remove("on");
           const dt0 = ctx.dtok,
             cell = ctx.cell;
-          ctx.after(1100, () => {
-            if (T.pend && !T.done && dt0 === ctx.dtok && ctx.cell === cell) this.finishCell(ctx, false);
-          });
+          const wait = () => {
+            if (!T.pend || T.done || dt0 !== ctx.dtok || ctx.cell !== cell) return;
+            const now = Date.now();
+            if (now - T.moveAt >= 1100 || now - T.pendAt >= 4000) this.finishCell(ctx, false);
+            else ctx.after(Math.max(50, Math.min(1100 - (now - T.moveAt), 4000 - (now - T.pendAt))), wait);
+          };
+          ctx.after(1100, wait);
         }
       },
       /** 칸 채점: 따라간 정도(coverage) + 선 안에 쓴 정도(accuracy) → 별 1~3 */
@@ -7389,7 +7411,7 @@ void main(){
       setTimeout(() => location.reload(), r.fail ? 2500 : 900);
     });
     KP.hold(bReset, 2000, () => {
-      KP.store.keys().filter((k) => k.startsWith("lv:") || k === "stickers" || k === "winCount").forEach((k) => KP.store.del(k));
+      KP.store.keys().filter((k) => k.startsWith("lv:") || k.startsWith("rp:lvl:") || k === "rp:lvMode" || k === "stickers" || k === "winCount").forEach((k) => KP.store.del(k));
       KP.toast("초기화했어요");
     });
     const bZoo = U.btn(KP.E("🦁") + " 동물원 정리", "chip");

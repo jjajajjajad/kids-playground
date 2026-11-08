@@ -116,6 +116,7 @@ KP.game({
     ctx.yellow = lv === 3;
     ctx.pos = 0;
     ctx.lamps[1].style.display = ctx.yellow ? "" : "none";
+    ctx.lamps[2].style.display = ""; // 1·2단계 노란불 예고(초록불 자리) 도중 나갔을 때 되돌리기
     ctx.carrot.classList.remove("eat");
     ctx.rab.className = "lt-rab idle";
     ctx.size();
@@ -125,6 +126,7 @@ KP.game({
       started = false, // 첫 초록불 전(준비 시간)에는 눌러도 틀림 아님
       sawRed = false, // 이번 판에 초록불 → 빨간불을 겪었나
       redMiss = 0, // 이번 판 빨간불에 누른 횟수 (첫 번째는 가볍게)
+      forcedSoft = false, // 당근 앞 '강제 신호 바꿈' 뒤 첫 실수는 가볍게 (연타하던 아이가 미처 못 멈춤)
       lastHop = 0;
     const DUR = { g: [3.4, 3.2, 2.8][lv - 1], y: 1.3, r: [2.6, 2.6, 2.5][lv - 1] };
     const setSig = (s, speak = true) => {
@@ -187,9 +189,25 @@ KP.game({
           ctx.cancel(ctx.sigT);
           ctx.sigT = ctx.after(350, () => {
             if (done || sig !== "g") return;
-            const nx = ctx.yellow ? "y" : "r";
-            setSig(nx);
-            ctx.sigT = ctx.after(DUR[nx] * 1000 * U.randf(0.9, 1.1), cycle);
+            forcedSoft = true;
+            if (ctx.yellow) {
+              // 3단계: 원래 노란불이 있음 → 노란불(1.3초)이 예고
+              setSig("y");
+              ctx.sigT = ctx.after(DUR.y * 1000 * U.randf(0.9, 1.1), cycle);
+              return;
+            }
+            // 1·2단계: 노란불 칸이 없으므로 초록불 자리에 노란불을 0.6초 켜서 예고 (신호등 크기는 그대로)
+            ctx.lamps[2].style.display = "none";
+            ctx.lamps[1].style.display = "";
+            setSig("y", false);
+            A.note("E5", { inst: "bell", dur: 0.3, vol: 0.16 });
+            ctx.sigT = ctx.after(600, () => {
+              ctx.lamps[1].style.display = "none";
+              ctx.lamps[2].style.display = "";
+              if (done) return;
+              setSig("r");
+              ctx.sigT = ctx.after(DUR.r * 1000 * U.randf(0.9, 1.1), cycle);
+            });
           });
         }
       } else if (!started) {
@@ -219,7 +237,9 @@ KP.game({
           lastTalk = now;
           // 판마다 첫 번째는 가벼운 실수(배우는 중), 그다음부터 틀림
           redMiss++;
-          ctx.miss(null, sig === "r" ? "빨간불엔 멈춰요!" : "노란불엔 기다려요!", { soft: redMiss === 1 });
+          const soft = redMiss === 1 || forcedSoft;
+          forcedSoft = false;
+          ctx.miss(null, sig === "r" ? "빨간불엔 멈춰요!" : "노란불엔 기다려요!", { soft });
         }
       }
     };
