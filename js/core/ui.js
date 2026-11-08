@@ -85,7 +85,7 @@
     ctx._missed = false;
     ctx._softMiss = 0;
     ctx._hinted = false;
-    ctx._fewChoice = false;
+    ctx._resetFew();
     if (setupErr) return failed(ctx, setupErr); // 준비가 깨졌으면 놀이 횟수·단계 처리 전에 멈춤
     KP.earn && setTimeout(() => KP.earn.render(), 0);
     const lv = KP.level.get(id);
@@ -201,6 +201,8 @@
       intervals = new Set(),
       rafs = new Set();
     let score = 0;
+    // 열쇠 별 '보기가 적은 판' 표시. v: 값, set: 놀이가 직접 정했나, drag: 이번 판 끌기 관찰(자동 판정용)
+    const few = { v: false, set: false, drag: null };
 
     const ctx = {
       id: def.id,
@@ -324,11 +326,11 @@
         // 열쇠 별: 이번 문제를 한 번에 맞혔나 (틀린 적 있으면 별 없음)
         // 가벼운 실수(soft)는 1번까지 봐줌 — 글자 타일을 아무거나 눌러 채우는 것 방지
         // 손가락 힌트가 정답을 가리킨 판, 보기가 2개뿐인 판(찍어도 반)도 별 없음
-        const clean = !ctx._missed && (ctx._softMiss || 0) <= 1 && !ctx._hinted && !ctx._fewChoice;
+        const clean = !ctx._missed && (ctx._softMiss || 0) <= 1 && !ctx._hinted && !ctx._isFew();
         ctx._missed = false;
         ctx._softMiss = 0;
         ctx._hinted = false;
-        ctx._fewChoice = false;
+        ctx._resetFew();
         KP.earn && KP.earn.onWin(ctx, clean);
         const lv = KP.level.get(def.id);
         lv.wins = (lv.wins || 0) + 1;
@@ -342,7 +344,10 @@
         }
         KP.level.save(def.id, lv);
         ctx._updateLevel();
+        // 축하 동안엔 힌트를 끄되, 이번 판 마지막 힌트는 기억해 둠 (아래 '힌트 되살리기')
+        const keep = ctx._hint;
         ctx.hint(null);
+        const hseq = ctx._hintSeq;
         const sess = ctx._session;
         return KP.celebrate(Object.assign({ levelUp: up, ctx }, o)).then(() => {
           // 시간이 끝나 '마지막 판'을 기다리는 중이면 지금 마무리
@@ -350,7 +355,17 @@
             setTimeout(() => KP.lastRoundNow(), 300);
             return false;
           }
-          return ctx._active && ctx._session === sess;
+          const ok = ctx._active && ctx._session === sess;
+          // 힌트 되살리기: 판이 끊기지 않는 놀이(두더지·물고기·과일 등)는 start 에서만 힌트를 걸어
+          // win 뒤에 힌트가 사라졌음. win 부터 축하가 끝날 때까지 놀이가 힌트를 새로 걸거나 지우지 않았으면
+          // 마지막 힌트를 다시 건다. 놀이가 win 뒤에 ctx.hint(...) 를 부르면 그쪽이 이김(이 then 이 먼저 돎).
+          // win 전에 ctx.hint(null) 로 지운 놀이는 되살릴 것이 없음. 대상이 사라졌거나 숨겨졌거나
+          // 오답 보기면 showHint 가 가리키지 않음(restored 검사).
+          if (ok && keep && !ctx._hint && ctx._hintSeq === hseq) {
+            ctx._hint = { getTarget: keep.getTarget, text: keep.text, shown: 0, restored: true };
+            ctx._idleAt = Date.now();
+          }
+          return ok;
         });
       },
       /** 틀렸을 때: 흔들기 + 부드러운 소리 + (선택) 안내 */
@@ -383,7 +398,7 @@
        */
       choices(box, list, o) {
         box.innerHTML = "";
-        if (list.length < 3) ctx._fewChoice = true;
+        if (list.length < 3) ctx.fewChoice(true);
         let busy = false;
         return list.map((v, i) => {
           const b = U.el("button", "choice " + (o.cls || ""), o.render ? o.render(v) : KP.E(String(v)));
@@ -407,14 +422,57 @@
         if (n > 0 && n % every === 0) return ctx.win({ msg: n + "개!" });
         return Promise.resolve(true);
       },
+      /* --- 열쇠 별: 보기가 적은 판 --- */
+      /**
+       * 이번 판은 찍어도 맞힐 수 있으니(보기 2개 이하 등) 열쇠 별 없음 — 축하·단계·스티커는 그대로.
+       * 판을 차린 뒤(이전 win 다음) 부를 것. win 할 때마다 저절로 풀림.
+       * ctx.fewChoice(false) = '이번 판은 보기가 충분함'을 놀이가 직접 정함 → KP.drag 자동 판정을 끔.
+       */
+      fewChoice(on = true) {
+        few.v = !!on;
+        few.set = true;
+      },
+      /** 자유 놀이·만들기처럼 '정답 없는' win 에서 열쇠 별을 뺄 때 (fewChoice(true) 와 같음) */
+      noStar() {
+        ctx.fewChoice(true);
+      },
+      // 예전 방식(ctx._fewChoice = true/false)도 그대로 동작 (= fewChoice(값))
+      get _fewChoice() {
+        return few.v;
+      },
+      set _fewChoice(v) {
+        ctx.fewChoice(v);
+      },
+      _resetFew() {
+        few.v = false;
+        few.set = false;
+        few.drag = null;
+      },
+      /** KP.drag 가 집을 때 알려 줌 → 이번 판 '끌 수 있는 것 수·놓을 곳 수'의 최댓값 기록 */
+      _dragSeen(pool, spots, judged) {
+        const d = few.drag || (few.drag = { pool: 0, spots: 0, free: false });
+        if (!judged) d.free = true; // 맞고 틀림이 없는 끌기(자유 배치·위치 판정 등)가 섞인 판은 자동 판정 안 함
+        else {
+          d.pool = Math.max(d.pool, pool);
+          d.spots = Math.max(d.spots, spots);
+        }
+      },
+      _isFew() {
+        if (few.set) return few.v;
+        // 자동: 이번 판 내내 끌 수 있는 것이 2개 이하이고 놓을 곳이 1곳뿐인 '맞고 틀림(accept)' 끌기 → 찍어도 반
+        const d = few.drag;
+        return !!(d && !d.free && d.pool > 0 && d.pool <= 2 && d.spots === 1);
+      },
       /* --- 힌트 --- */
       _hint: null,
+      _hintSeq: 0,
       /**
        * 아이가 한동안 멈춰 있으면 손가락으로 가리키며 다시 안내
        * @param {Function|null} getTarget  () => 가리킬 요소
        * @param {string} text  다시 읽어줄 말 (없으면 현재 안내)
        */
       hint(getTarget, text) {
+        ctx._hintSeq++;
         ctx._hint = getTarget ? { getTarget, text, shown: 0 } : null;
         ctx._idleAt = Date.now();
         KP.hideHint();
@@ -460,10 +518,30 @@
   }
 
   /* ---------------- 힌트 손가락 ---------------- */
-  let hand = null;
+  let hand = null,
+    handMove = null;
   KP.hideHint = function () {
     if (hand) hand.classList.remove("show");
+    if (handMove) {
+      handMove.cancel();
+      handMove = null;
+    }
     U.$$(".hintGlow").forEach((e) => e.classList.remove("hintGlow"));
+  };
+  /** 화면에 실제로 보이는 요소인가 (붙어 있고, 크기가 있고, 숨김이 아님) */
+  function visible(el) {
+    if (!el || !el.isConnected) return false;
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return false;
+    if (el.checkVisibility && !el.checkVisibility({ visibilityProperty: true })) return false;
+    return true;
+  }
+  /** KP.drag 가 집을 때 부름(drag.js) — 열쇠 별 자동 판정용. spots: 놓을 곳들, judged: accept 가 있는 끌기 */
+  KP._dragSeen = function (el, spots, judged) {
+    const ctx = current;
+    if (!ctx || !ctx._active || !ctx.root.contains(el)) return;
+    const pool = U.$$(".draggable:not(.locked)", ctx.root).filter((d) => d === el || visible(d)).length;
+    ctx._dragSeen(pool, spots.filter(visible).length, judged);
   };
   function showHint(ctx) {
     const h = ctx._hint;
@@ -472,20 +550,37 @@
       t = h.getTarget();
     } catch (e) {}
     if (!t) return;
-    let x, y;
+    let x,
+      y,
+      dest = null;
     if (typeof t.x === "number" && !(t instanceof Element)) {
       // 캔버스 게임: 화면 좌표 {x, y}
+      if (!Number.isFinite(t.x) || !Number.isFinite(t.y)) return;
       x = t.x;
       y = t.y;
     } else {
       if (!t.isConnected) return;
       const r = t.getBoundingClientRect();
       if (!r.width) return;
+      // win 뒤 되살린 힌트는 더 엄격히: 숨겨졌거나 잠겼거나 오답 보기면 가리키지 않음
+      if (h.restored) {
+        if (!visible(t) || t.disabled || t.classList.contains("locked")) return;
+        if (t.classList.contains("choice") && t.dataset.right !== "1") return;
+      }
       // 정답 보기를 가리켰으면 이번 판은 열쇠 별 없음 (기다렸다 누르기 방지)
       if (t.dataset.right === "1" || t.classList.contains("choice")) ctx._hinted = true;
       x = r.left + r.width / 2;
       y = r.top + r.height * 0.6;
       t.classList.add("hintGlow");
+      // 끌기 힌트: 두 번째부터는 손가락이 '놓을 곳'까지 움직여 보여 줌 (accept 로 맞는 자리가 정해진 KP.drag 만)
+      if (h.shown >= 1 && t._kpDragDest) {
+        try {
+          dest = t._kpDragDest();
+        } catch (e) {
+          dest = null;
+        }
+        if (dest && !visible(dest)) dest = null;
+      }
     }
     if (!hand) {
       hand = U.el("div", "hintHand", KP.E("👆"));
@@ -494,6 +589,27 @@
     hand.style.left = x + "px";
     hand.style.top = y + "px";
     hand.classList.add("show");
+    if (handMove) {
+      handMove.cancel();
+      handMove = null;
+    }
+    if (dest && hand.animate) {
+      const dr = dest.getBoundingClientRect();
+      const tx = dr.left + dr.width / 2,
+        ty = dr.top + dr.height * 0.6;
+      dest.classList.add("hintGlow");
+      ctx._hinted = true; // 놓을 곳까지 알려 줬으니 이번 판은 열쇠 별 없음
+      // 집을 것에서 잠깐 멈춤 → 놓을 곳으로 미끄러짐 → 잠깐 멈춤 (2번 되풀이, 손가락 3.2초 안에 끝)
+      handMove = hand.animate(
+        [
+          { left: x + "px", top: y + "px", offset: 0 },
+          { left: x + "px", top: y + "px", offset: 0.2 },
+          { left: tx + "px", top: ty + "px", offset: 0.75 },
+          { left: tx + "px", top: ty + "px", offset: 1 },
+        ],
+        { duration: 1500, iterations: 2, easing: "ease-in-out" }
+      );
+    }
     const txt = h.text || ctx.instr;
     if (txt) KP.voice.say(txt.replace(/\p{Extended_Pictographic}|️/gu, ""));
     h.shown++;

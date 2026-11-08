@@ -40,6 +40,11 @@
           .hwSecH{display:flex;align-items:center;gap:10px;font-size:clamp(20px,2.6vw,26px);color:var(--night);margin:4px 2px 8px}
           .hwSecH .n{background:var(--night);color:#fff;border-radius:12px;padding:1px 10px;font-size:.8em}
           .hwSecH small{font-size:.65em;color:var(--ink2)}
+          /* 접어 둔 묶음(숫자 21~99 등): [펼쳐 보기]를 누르면 칸이 보임 */
+          .hwSec.fold .hwTiles{display:none}
+          .hwSec.fold.open .hwTiles{display:grid}
+          .hwFold{margin-left:auto;font-size:clamp(16px,2vw,20px);min-height:64px;padding:6px 16px}
+          .hwSec.fold.open .hwFold{display:none}
           .hwTiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(74px,9.5vw,100px),1fr));gap:10px}
           .hwTile{position:relative;aspect-ratio:1;background:#fff;border-radius:18px;border:3px solid #e8ebf4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;box-shadow:0 4px 0 #e3e7f2;color:var(--c)}
           .hwTile .ch{font-size:clamp(34px,4.6vw,48px);line-height:1}
@@ -71,7 +76,7 @@
           .hwBoard canvas{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);touch-action:none}
           .hwBoard canvas.guide{background:#fff;border-radius:6px;box-shadow:0 0 0 3px #f2b8a8,0 8px 0 rgba(47,58,102,.08)}
           .hwSide{grid-row:1/3;grid-column:3;display:flex;flex-direction:column;justify-content:center;gap:12px}
-          .hwSide .btn{justify-content:center}
+          .hwSide .btn{justify-content:center;min-height:64px}
           .hwLine{grid-column:2;display:flex;gap:8px;justify-content:center;align-items:center}
           .hwCell{width:clamp(54px,min(7vw,10vh),76px);aspect-ratio:1;border-radius:6px;background:#fff;box-shadow:0 0 0 2px #f2b8a8;position:relative;display:flex;align-items:center;justify-content:center;font-size:13px;color:#c9cede;overflow:hidden}
           .hwCell canvas{width:100%;height:100%}
@@ -87,7 +92,9 @@
             .hwModel .pic{flex-direction:row;gap:6px}.hwModel .pic .e{font-size:44px}
             .hwSide{grid-row:auto;grid-column:auto;flex-direction:row;justify-content:center;flex-wrap:wrap;gap:8px}
             .hwLine{grid-column:auto}
-            .hwStepName{font-size:16px}
+            /* 폰: 단계 이름이 두 줄로 접히지 않게 */
+            .hwStepName{font-size:15px;white-space:nowrap;padding:3px 10px}
+            .hwSide .btn{min-height:64px}
           }
           @media (max-aspect-ratio:1/1) and (max-height:760px){
             .hwModel .big{font-size:46px}
@@ -102,6 +109,8 @@
             .hwBoard{grid-row:1/3;grid-column:2}
             .hwLine{grid-column:1;grid-row:2;gap:5px;flex-wrap:wrap}
             .hwCell{width:40px}
+            .hwStepName{font-size:14px;white-space:nowrap;padding:3px 8px}
+            .hwSide .btn{font-size:16px;padding:6px 10px;min-height:56px}
           }
           /* 도장 */
           .hwStamp{position:absolute;inset:0;z-index:8;display:none;align-items:center;justify-content:center;background:rgba(255,253,246,.88);flex-direction:column;gap:14px}
@@ -129,8 +138,18 @@
         ctx.tap(ctx.bGo, () => self.openItem(ctx, self.nextIdx(ctx)));
         ctx.tiles = [];
         ctx.book.forEach((s, si) => {
-          const box = U.el("section", "hwSec");
-          box.appendChild(U.el("div", "hwSecH", '<span class="n">' + (si + 1) + "</span>" + s.name + " <small>" + s.items.length + "개</small>"));
+          const box = U.el("section", "hwSec" + (s.fold ? " fold" : ""));
+          const head = U.el("div", "hwSecH", '<span class="n">' + (si + 1) + "</span>" + s.name + " <small>" + s.items.length + "개</small>");
+          box.appendChild(head);
+          if (s.fold) {
+            // 양이 많은 묶음은 접어 둠 — [펼쳐 보기]를 누르거나 차례가 오면 펼침
+            const bOpen = U.btn(KP.E("👀") + " 펼쳐 보기", "btn hwFold");
+            head.appendChild(bOpen);
+            ctx.tap(bOpen, () => {
+              KP.audio.sfx("open");
+              box.classList.add("open");
+            });
+          }
           const grid = U.el("div", "hwTiles");
           s.items.forEach((it) => {
             const t = U.btn('<span class="ch">' + (it.kind === "line" ? KP.E(it.label) : it.label) + '</span><span class="st"></span>', "hwTile" + (it.kind === "word" || String(it.label).length > 2 ? " word" : ""));
@@ -213,6 +232,9 @@
           t.querySelector(".st").innerHTML = n ? "<b>" + "★".repeat(n) + "</b>" + "★".repeat(3 - n) : "☆☆☆";
           t.classList.toggle("next", i === nx);
         });
+        // 다음 칸이 접힌 묶음 안에 있으면 펼침
+        const nsec = ctx.tiles[nx] && ctx.tiles[nx].closest(".hwSec.fold");
+        if (nsec) nsec.classList.add("open");
         const done = Object.keys(ctx.stars).length;
         // 화면에는 쓴 개수, 말로는 숫자를 빼고(숫자가 붙으면 자연 음성이 없어 기기 목소리가 됨)
         if (done) ctx.say("✍️ 쓰기 공책이에요! " + done + "개 썼어요. 반짝이는 칸부터 써 봐요!", "쓰기 공책이에요! 반짝이는 칸부터 써 봐요!");
@@ -229,6 +251,7 @@
         if (it.kind === "word") {
           const sm = !!cfg.partSmall;
           const a = it.parts.map((s) => ({ strokes: cfg.partStrokes(s), mode: "dot", demo: true, syl: sm, ch: s }));
+          if (cfg.wordOnce) return a; // 낱말을 한 줄만 (긴 낱말이 두 배로 늘어나지 않게 — ABC 쓰기 공책)
           const b = it.parts.map((s) => ({ strokes: cfg.partStrokes(s), mode: "faint", syl: sm, ch: s }));
           return a.concat(b);
         }
@@ -258,13 +281,26 @@
           return e;
         });
         if (!quiet) KP.audio.sfx("open");
-        const intro =
-          it.kind === "line" ? it.guide : it.kind === "word" ? U.josa(it.say, "을/를") + " 써 봐요! 한 글자씩!" : U.josa(it.say, "을/를") + " 써 봐요!";
-        if (it.en) {
-          KP.voice.en(it.en);
-          KP.voice.say(intro, { queue: true });
-        } else KP.voice.say(intro);
+        this.sayIntro(it);
         this.startCell(ctx);
+      },
+      /** 시작 안내: 자연 음성이 있는 말을 고름 — "가를 써 봐요!" 가 없으면 "가! 써 봐요!" 처럼 조각으로.
+          영어 글자·낱말은 한국어 안내에 자연 음성이 있으면 한국어로만 (영어 이름 + 한국어는 너무 김) */
+      sayIntro(it) {
+        const U = KP.u;
+        const nat = (t) => !!(KP.voice._natUrls && KP.voice._natUrls(t));
+        if (it.kind === "line") return KP.voice.say(it.guide);
+        const tail = it.kind === "word" ? " 한 글자씩!" : "";
+        const full = U.josa(it.say, "을/를") + " 써 봐요!" + tail;
+        const part = it.say + "! 써 봐요!" + tail;
+        if (nat(full)) return KP.voice.say(full);
+        if (nat(part)) return KP.voice.say(part);
+        if (it.en) {
+          // 영어 이름(자연 음성) + "써 봐요!"
+          KP.voice.en(it.en + "!");
+          return KP.voice.say("써 봐요!" + tail, { queue: true });
+        }
+        return KP.voice.say(full);
       },
       startCell(ctx) {
         const U = KP.u;
@@ -341,6 +377,7 @@
         T.byS = [];
         T.pts.forEach((q) => (T.byS[q.s] = T.byS[q.s] || []).push(q));
         T.done = false;
+        T.pend = false;
         T.ink = [];
         T.segs = [];
         T.pid = null;
@@ -454,22 +491,20 @@
         }
         // 시작점 번호 (따라 쓰기: 모든 획 / 흐린 글씨: 다음 획만)
         if (!T.done && c.mode !== "alone") {
+          // 번호 동그라미가 서로 겹치지 않게 놓은 자리를 기억 (ㄷ·ㄹ·ㅁ·ㅌ, '피'처럼 획이 많은 글자)
+          const ru = c.syl ? 4.2 : 5.6;
+          const placed = [];
           strokes.forEach((s, si) => {
+            const mine = T.pts.filter((z) => z.s === si);
+            let p = mine[0];
+            if (!p) return;
+            // 앞 획의 번호와 겹치면 이 획을 따라 조금씩 옮겨 겹치지 않는 첫 자리에
+            const free = (z) => placed.every((q) => Math.hypot(q.x - z.x, q.y - z.y) >= ru * 2.1);
+            if (!free(p)) p = mine.find((z) => free(z) && Math.hypot(z.x - mine[0].x, z.y - mine[0].y) < 40) || mine.find((z) => Math.hypot(z.x - mine[0].x, z.y - mine[0].y) >= (c.syl ? 8 : 11)) || p;
+            placed.push(p);
             if (T.sdone[si]) return;
             if (c.mode === "faint" && si !== nextS) return;
-            let p = T.pts.find((q) => q.s === si);
-            if (!p) return;
-            // 앞 획과 시작점이 겹치면(ㄷ·ㄹ·ㅁ·ㅌ) 번호를 이 획 쪽으로 조금 옮겨 둘 다 보이게
-            const clash = strokes.some((_, sj) => {
-              if (sj >= si) return false;
-              const q = T.pts.find((z) => z.s === sj);
-              return q && Math.hypot(q.x - p.x, q.y - p.y) < 6;
-            });
-            if (clash) {
-              const mine = T.pts.filter((z) => z.s === si);
-              p = mine.find((z) => Math.hypot(z.x - p.x, z.y - p.y) >= (c.syl ? 8 : 11)) || p;
-            }
-            const r = (c.syl ? 4.2 : 5.6) * k;
+            const r = ru * k;
             const isNext = si === nextS;
             g.fillStyle = isNext ? "#ffd23f" : "#fff";
             g.strokeStyle = isNext ? "#fff" : "#c3c9dd";
@@ -697,7 +732,7 @@
           KP.audio.unlock();
           if (e.pointerType === "pen") T.penAt = Date.now();
           else if (e.pointerType === "touch" && Date.now() - (T.penAt || 0) < 3000) return; // 펜으로 쓰는 중 닿은 손바닥 (펜을 내려놓으면 손가락으로 쓸 수 있음)
-          if (T.done || T.demoing || T.pid !== null || !ctx.cell) return;
+          if (T.done || T.demoing || T.pid !== null || !ctx.cell) return; // 쓰는 중(pointerup 유실 포함)의 다른 손가락은 무시 — 마무리는 1.1초 타이머가 맡음
           T.pid = e.pointerId;
           try {
             ink.setPointerCapture(e.pointerId);
@@ -746,7 +781,7 @@
             T.last = p;
             if (T.done) break;
           }
-          if (T.last && !T.done) this.offCheck(ctx, T.last);
+          if (T.last && !T.done && !T.pend) this.offCheck(ctx, T.last);
         });
         const end = (e) => {
           if (e.pointerType === "pen") T.penAt = Date.now();
@@ -755,6 +790,8 @@
           T.last = null;
           T.offAt = 0;
           T.offFired = false;
+          // 획을 다 따라온 뒤에도 손을 뗄 때까지 선을 그림 → 손을 떼면 마무리 (끝부분이 끊긴 채 완성되지 않게)
+          if (T.pend) return this.finishCell(ctx, false);
           // 혼자 쓰기·흐린 글씨: [다 썼어요]를 눌러도 될 만큼 썼으면 반짝 (누르면 거절되는 때는 반짝이지 않게)
           if (!T.done && ctx.cell && this.enough(ctx)) ctx.bDone.classList.add("glowNext");
         };
@@ -780,7 +817,11 @@
       /** 판정 범위: 안내 글씨 굵기 정도 (넓으면 옆으로 지나가도 된 걸로 쳐짐). 손가락은 펜보다 조금 넓게 */
       radius(ctx) {
         const c = ctx.cell;
-        return (c.syl ? 5.5 : c.mode === "alone" ? 8.5 : 7.5) + (ctx.T.isPen ? 0 : c.syl ? 1 : 1.5);
+        const base = (c.syl ? 5.5 : c.mode === "alone" ? 8.5 : 7.5) + (ctx.T.isPen ? 0 : c.syl ? 1 : 1.5);
+        if (ctx.T.isPen) return base;
+        // 손가락: 화면이 작은 폰에서 작은 글씨 칸(가~호, 10~100)도 최소 28px 은 되게 (태블릿은 원래 값이 더 커서 그대로)
+        const w = ctx.icv.clientWidth || 0;
+        return w > 0 ? Math.max(base, Math.min(12, 2800 / w)) : base;
       },
       /** 쓰는 중 부드러운 도움: 아직 안 쓴 획에서 판정 범위의 1.5배 넘게 벗어난 채 0.6초 넘게 쓰면 이어 쓸 곳을 반짝.
           (흐린 글씨 칸은 획 순서를 따지지 않으므로 '안 쓴 획 아무 데나' 가까우면 벗어난 걸로 치지 않음)
@@ -855,7 +896,7 @@
       hit(ctx, p) {
         const T = ctx.T,
           c = ctx.cell;
-        if (T.done) return;
+        if (T.done || T.pend) return;
         const R = this.radius(ctx);
         for (const q of T.pts) if (!q.hit && (q.x - p.x) ** 2 + (q.y - p.y) ** 2 < R * R) q.hit = true;
         let changed = false;
@@ -876,14 +917,25 @@
         }
         if (!changed) return;
         if (c.mode !== "alone") this.drawGuide(ctx);
-        if (T.sdone.every(Boolean)) this.finishCell(ctx, false);
+        if (T.sdone.every(Boolean)) {
+          if (T.pid === null) return this.finishCell(ctx, false);
+          // 아직 쓰는 중: 손을 뗄 때 마무리 (그동안 선은 계속 그려짐). 손을 오래 안 떼면 1.1초 뒤 마무리
+          T.pend = true;
+          ctx.spot.classList.remove("on");
+          const dt0 = ctx.dtok,
+            cell = ctx.cell;
+          ctx.after(1100, () => {
+            if (T.pend && !T.done && dt0 === ctx.dtok && ctx.cell === cell) this.finishCell(ctx, false);
+          });
+        }
       },
       /** 칸 채점: 따라간 정도(coverage) + 선 안에 쓴 정도(accuracy) → 별 1~3 */
       grade(ctx) {
         const T = ctx.T,
           c = ctx.cell;
         const cov = T.pts.length ? T.pts.filter((q) => q.hit).length / T.pts.length : 0;
-        const R = c.syl ? 8 : 11;
+        // 선 안 판정도 폰의 작은 칸에서는 판정 반지름만큼은 넓게
+        const R = Math.max(c.syl ? 8 : 11, this.radius(ctx) * 1.2);
         let inside = 0;
         for (const p of T.ink) {
           for (const q of T.pts) {
@@ -920,6 +972,7 @@
           }
         }
         T.done = true;
+        T.pend = false;
         T.pid = null;
         const st = this.grade(ctx);
         ctx.cellStars[ctx.ci] = st;

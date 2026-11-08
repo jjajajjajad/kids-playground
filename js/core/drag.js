@@ -14,6 +14,9 @@
    반환: { lock(), unlock(), home() }
    - 틀리거나 빈 곳에 놓으면 제자리로 부드럽게 돌아간다.
    - snap 후 onDrop 에서 target.appendChild(el) 등 재배치를 하면 된다.
+   - 열쇠 별: accept 가 있는 끌기에서 이번 판 끌 수 있는 것(.draggable, 잠기지 않은 것)이 2개 이하이고
+     놓을 곳이 1곳뿐이면 '찍어도 반'으로 보고 별 없음(ui.js _isFew). 놀이가 ctx.fewChoice(값)로 직접 정하면 그쪽이 우선.
+   - 힌트: ctx.hint(() => 이 요소) 로 가리키면 두 번째 손가락부터 accept 가 맞는 놓을 곳까지 움직여 보여 줌.
 ===================================================================== */
 "use strict";
 (function (KP) {
@@ -33,6 +36,11 @@
       const t = typeof o.targets === "function" ? o.targets() : o.targets || [];
       return t.filter(Boolean);
     }
+    // 힌트 손가락이 '놓을 곳'을 알 수 있게 (맞는 자리가 정해진 끌기만)
+    el._kpDragDest = () => {
+      if (locked || !o.accept) return null;
+      return targets().find((t) => o.accept(t, el)) || null;
+    };
     function hit(x, y) {
       let best = null,
         bd = 1e9;
@@ -78,6 +86,9 @@
       el.style.transition = "";
       el.classList.add("dragging");
       KP.audio && KP.audio.sfx("pick");
+      try {
+        KP._dragSeen && KP._dragSeen(el, targets(), !!o.accept);
+      } catch (_) {}
       o.onPick && o.onPick(el);
     });
     el.addEventListener("pointermove", (e) => {
