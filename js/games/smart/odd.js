@@ -89,17 +89,18 @@ KP.game({
     ctx.grid.style.setProperty("--szl", { 4: "clamp(80px,min(14vw,30vh),170px)", 6: "clamp(70px,min(13vw,22vh),150px)", 9: "clamp(60px,min(11vw,15vh),110px)" }[n]);
     ctx.grid.style.setProperty("--szp", { 4: "clamp(80px,34vw,160px)", 6: "clamp(70px,min(32vw,16vh),140px)", 9: "clamp(60px,min(22vw,14vh),110px)" }[n]);
     const ask = "하나만 달라요! 다른 걸 찾아요!";
+    const nat = (...l) => (KP.voice._natUrls && l.find((t) => KP.voice._natUrls(t))) || l[0]; // 같은 뜻 중 자연 음성(이미 있는 조각)이 있는 문장
     ctx.say("🔍 " + ask);
     const btns = ctx.choices(ctx.grid, list, {
       cls: "oddBtn",
       render: (v) => KP.E(v.odd ? odd : same),
       right: (v) => v.odd,
-      wrongMsg: () => "이건 똑같은 " + U.josa(sameName, "이에요/예요") + ". 다른 걸 찾아봐요!",
+      wrongMsg: () => nat("이건 똑같은 " + U.josa(sameName, "이에요/예요") + ". 다른 걸 찾아봐요!", "이건 똑같은 " + sameName + "! 다른 걸 찾아봐요!", "이건 똑같아요. 다른 걸 찾아봐요!"),
       onRight: async (v, b) => {
         b.appendChild(U.el("span", "oddMag", KP.E("🔍")));
         btns.forEach((x, i) => x !== b && ctx.after(i * 50, () => U.replay(x, "oddLook")));
         KP.audio.sfx("sparkle");
-        KP.voice.say("찾았다! " + why);
+        KP.voice.say(nat("찾았다! " + why, "찾았다! " + oddName + "!", "찾았다!"));
         ctx.score.add();
         ctx.round++;
         await ctx.wait(1300);

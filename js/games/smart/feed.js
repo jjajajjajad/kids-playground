@@ -1,5 +1,7 @@
 /* 동물 먹이 주기 — 배고픈 동물에게 맞는 먹이를 끌어다 입에 쏙! 먹으면 냠냠·하트.
-   1단계: 동물 1마리, 먹이 2개 / 2단계: 동물 1마리, 먹이 3개 / 3단계: 동물 2마리, 먹이 4개(둘 다 먹여야 끝) */
+   1단계: 동물 1마리, 먹이 3개 / 2단계: 동물 1마리, 먹이 4개 / 3단계: 동물 2마리, 먹이 5개(둘 다 먹여야 끝)
+   (예전 1단계 먹이 2개는 틀려도 남은 하나가 정답이라 찍어도 열쇠 별이 나왔음 → 보기 3개 이상으로)
+   음성: 동물×먹이 조합 문장은 녹음이 없어서 이미 있는 조각("냠냠!" "당근!" "토끼가" "좋아해요!")으로 이어 말함 */
 "use strict";
 KP.game({
   id: "feed",
@@ -56,7 +58,7 @@ KP.game({
     const lv = ctx.level;
     const self = this;
     const nAni = lv === 3 ? 2 : 1;
-    const nFood = [2, 3, 4][lv - 1];
+    const nFood = [3, 4, 5][lv - 1];
     let pool = ctx.FEED.filter((f) => f !== ctx.last);
     const ani = U.sample(pool, nAni);
     ctx.last = ani[0];
@@ -66,9 +68,9 @@ KP.game({
     const foods = U.shuffle([...ani, ...distract]);
 
     ctx.wrap.style.setProperty("--asz", nAni === 1 ? "clamp(120px,min(28vw,28vh),230px)" : "clamp(96px,min(22vw,22vh),190px)");
-    ctx.wrap.style.setProperty("--fsz", nFood <= 2 ? "clamp(70px,min(14vw,12vh),110px)" : "clamp(58px,min(12vw,10vh),96px)");
+    ctx.wrap.style.setProperty("--fsz", nFood <= 3 ? "clamp(70px,min(14vw,12vh),110px)" : "clamp(58px,min(12vw,10vh),96px)");
     ctx.wrap.style.setProperty("--aszp", nAni === 1 ? "clamp(120px,56vw,240px)" : "clamp(96px,36vw,190px)");
-    ctx.wrap.style.setProperty("--fszp", ["", "", "clamp(70px,26vw,110px)", "clamp(64px,19vw,96px)", "clamp(56px,14vw,90px)"][nFood]);
+    ctx.wrap.style.setProperty("--fszp", ["", "", "clamp(70px,26vw,110px)", "clamp(64px,19vw,96px)", "clamp(56px,16vw,90px)", "clamp(56px,16vw,86px)"][nFood]);
     ctx.ani.innerHTML = "";
     ctx.tray.innerHTML = "";
     const aniEls = ani.map((a, i) => {
@@ -80,7 +82,10 @@ KP.game({
     });
     const who = ani.map((a, i) => (i < ani.length - 1 ? U.josa(a[1], "이랑/랑") : a[1])).join(" "); // 곰이랑 토끼
     const ask = nAni === 1 ? U.josa(ani[0][1], "이/가") + " 배고파요! 맛있는 걸 끌어서 입에 쏙 넣어 줘요!" : U.josa(who, "이/가") + " 배고파요! 좋아하는 걸 하나씩 먹여 줘요!";
-    ctx.say("🍽️ " + ask);
+    // 음성: "곰이랑" 녹음이 없어 "곰 하고 토끼가"(이미 있는 조각)로
+    const tail = nAni === 1 ? " 배고파요! 맛있는 걸 끌어서 입에 쏙 넣어 줘요!" : " 배고파요! 좋아하는 걸 하나씩 먹여 줘요!";
+    const askV = nAni === 1 ? [ask, ani[0][1] + "!" + tail] : [ask, ani[0][1] + " 하고 " + U.josa(ani[1][1], "이/가") + tail, ani[0][1] + " 하고 " + ani[1][1] + "!" + tail];
+    ctx.say("🍽️ " + ask, self.nat(...askV));
     KP.audio.tone(160, { to: 90, dur: 0.35, type: "triangle", vol: 0.18, when: 0.2 });
 
     let left = nAni;
@@ -96,7 +101,8 @@ KP.game({
         onReject: (t) => {
           const a = ani.find((x) => x[1] === t.dataset.drop);
           U.replay(t.querySelector(".fdEm"), "wig");
-          ctx.miss(null, U.josa(a[1], "은/는") + " " + U.josa(f[3], "을/를") + " 안 먹어요. 다른 걸 찾아봐요!");
+          const m = U.josa(a[1], "은/는") + " " + U.josa(f[3], "을/를") + " 안 먹어요. 다른 걸 찾아봐요!";
+          ctx.miss(null, self.nat(m, f[3] + "! " + U.josa(a[1], "은/는") + " 이건 안 먹어요. 다른 걸 찾아봐요!", f[3] + "! 이건 안 먹어요. 다른 걸 찾아봐요!"));
         },
         onDrop: (t) => {
           if (!t) return;
@@ -113,6 +119,7 @@ KP.game({
       return el;
     });
     const hint = () => ctx.hint(() => foodEls.find((e) => e.dataset.go && !e.dataset.done), "먹이를 끌어서 동물 입에 쏙 넣어 줘요!");
+    ctx.foodEls = foodEls; // 점검용
     hint();
     const done = async () => {
       ctx.score.add();
@@ -122,6 +129,11 @@ KP.game({
       const okk = await ctx.win({ big, msg: big ? "{부름} 먹이 주기 대장!" : "배불러요! 고마워요!" });
       if (okk) self.next(ctx);
     };
+  },
+  /** 같은 뜻 문장들 중 자연 음성(이미 녹음된 조각)으로 말할 수 있는 첫 문장, 없으면 첫 문장(기기 목소리) */
+  nat(...list) {
+    const N = KP.voice._natUrls;
+    return (N && list.find((t) => N(t))) || list[0];
   },
   eat(ctx, t, f) {
     const U = KP.u,
@@ -139,6 +151,7 @@ KP.game({
       t.appendChild(h);
       ctx.after(1800, () => h.remove());
     }
-    KP.voice.say("냠냠! " + U.josa(f[1], "은/는") + " " + U.josa(f[3], "을/를") + " 좋아해요!");
+    const m = "냠냠! " + U.josa(f[1], "은/는") + " " + U.josa(f[3], "을/를") + " 좋아해요!";
+    KP.voice.say(this.nat(m, "냠냠! " + f[3] + "! " + U.josa(f[1], "이/가") + " 좋아해요!", "냠냠! " + f[3] + "! " + f[1] + "! 좋아해요!"));
   },
 });

@@ -321,7 +321,9 @@ KP.game({
       const nm = st.shape.name;
       const last = nm.charCodeAt(nm.length - 1);
       const batchim = last >= 0xac00 && last <= 0xd7a3 && (last - 0xac00) % 28 !== 0;
-      KP.voice.say("우와! " + nm + (batchim ? "이에요!" : "예요!"));
+      // "우와! 집이에요!" 통째 자연 음성이 없으면 "우와! 집!" (조각마다 자연 음성)
+      const full = "우와! " + nm + (batchim ? "이에요!" : "예요!");
+      KP.voice.say(KP.voice._natUrls && !KP.voice._natUrls(full) ? "우와! " + nm + "!" : full);
       ctx.score.add();
       ctx.round++;
       await ctx.wait(1500);
@@ -362,6 +364,8 @@ KP.game({
     if (!ctx.bag[lv] || !ctx.bag[lv].length) ctx.bag[lv] = U.shuffle([...ctx.SHAPES[lv - 1]]);
     const shape = ctx.bag[lv].shift();
     ctx.ddBuild(shape, lv);
-    ctx.say("1번부터 " + shape.pts.length + "번까지 차례로 이어요. 무슨 그림이 나올까?", "하나부터 " + KP.u.numNative(shape.pts.length) + "까지 차례로 이어요. 무슨 그림이 나올까?");
+    // 화면: "1번부터 8번까지 차례로 이어요…" / 소리: 자연 음성이 있는 "1번 점부터 차례로 이어 봐요! 무슨 그림이 나올까?"
+    const full = "하나부터 " + KP.u.numNative(shape.pts.length) + "까지 차례로 이어요. 무슨 그림이 나올까?";
+    ctx.say("1번부터 " + shape.pts.length + "번까지 차례로 이어요. 무슨 그림이 나올까?", KP.voice._natUrls && !KP.voice._natUrls(full) ? "1번 점부터 차례로 이어 봐요! 무슨 그림이 나올까?" : full);
   },
 });

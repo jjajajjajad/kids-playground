@@ -115,6 +115,7 @@
     book,
     partStrokes: (ch) => ST[ch],
     partSmall: false,
+    wordOnce: true, // 단어는 한 줄만(글자 수만큼) — 4글자 단어가 8칸이 되면 이 나이엔 너무 김
     firstHint: "대문자 A부터 써 볼까요?",
   });
 })();

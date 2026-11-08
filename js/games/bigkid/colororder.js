@@ -6,6 +6,10 @@
    - 🤲 드리기: 허용 거리 안이면 성공. 아니면 한 방울씩 더 넣어 보는 계산으로
      가장 가까워지는 물감을 찾아 그 통을 가리키며 알려 줌. 되돌릴 수 없으면 "비우고 다시"
    - 단계: 1) 두 물감 1:1  2) 두 물감 2:1·1:2  3) 하양·검정이 들어간 색
+   - 1단계는 쉽게: 통을 한 번 누르면 한 방울만(꾹 눌러 계속 붓기 없음 → 1:1 이 쉽게 안 틀어짐),
+     조금만 저어도(고른 정도 0.5) 드릴 수 있음
+   - 손님 말풍선 안에 '넣기 → 젓기 → 드리기' 그림 진행표(✔) — 글 없이 다음 할 일이 보이게.
+     말풍선을 누르면 주문을 다시 들려줌
 ===================================================================== */
 "use strict";
 KP.game({
@@ -41,6 +45,14 @@ KP.game({
       .coRec{display:flex;align-items:center;gap:4px;font-size:22px;color:var(--ink2)}
       .coDrop{width:24px;height:30px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;background:var(--c);box-shadow:inset -3px -4px 0 rgba(0,0,0,.12),0 0 0 2px #fff,0 2px 0 2px rgba(47,58,102,.12)}
       .coRec .q{font-size:30px;color:#b5bdd3;padding:0 4px}
+      .coSay{cursor:pointer;flex-wrap:wrap}
+      .coSteps{display:flex;align-items:center;gap:4px;flex-basis:100%;justify-content:center}
+      .coStep{position:relative;width:34px;height:34px;border-radius:50%;background:#fff;box-shadow:0 2px 0 rgba(47,58,102,.12);display:flex;align-items:center;justify-content:center;font-size:21px;line-height:1;opacity:.45;transition:opacity .25s,transform .25s}
+      .coStep.now{opacity:1;transform:scale(1.15);box-shadow:0 0 0 3px var(--sun),0 2px 0 rgba(47,58,102,.12)}
+      .coStep.ok{opacity:1}
+      .coStep.ok:after{content:"✔";position:absolute;right:-5px;bottom:-5px;width:17px;height:17px;border-radius:50%;background:#2fb466;color:#fff;font-size:11px;line-height:17px;text-align:center}
+      .coStepA{color:#b5bdd3;font-size:13px}
+      @media (orientation:portrait),(max-height:499px){.coSteps{flex-basis:auto}.coStep{width:30px;height:30px;font-size:18px}}
       .coMeter{grid-area:meter;display:flex;align-items:center;gap:8px;width:100%}
       .coDot{flex:0 0 auto;width:34px;height:34px;border-radius:50%;border:4px solid #fff;box-shadow:0 3px 0 rgba(47,58,102,.14);background:#eef1f7;position:relative}
       .coDot.goal .e{position:absolute;right:-10px;top:-12px;font-size:20px}
@@ -64,7 +76,7 @@ KP.game({
       @keyframes coHeart{from{transform:translate(-50%,0) scale(.4);opacity:1}to{transform:translate(-50%,-90px) scale(1.2);opacity:0}}
       @media (max-width:420px){
         .psJars{gap:6px}
-        .coJarsCell .psJar{width:62px;height:80px}
+        .coJarsCell .psJar{width:64px;height:82px}
       }
       @media (orientation:landscape) and (min-height:500px){
         .coW{grid-template-areas:"jars bowl side";grid-template-columns:auto minmax(0,1fr) minmax(280px,30vw);grid-template-rows:minmax(0,1fr);padding:4px 16px 12px;gap:16px}
@@ -75,7 +87,7 @@ KP.game({
         .coSay::before{left:50%;top:-12px;margin:0 0 0 -10px;border:10px solid transparent;border-bottom:12px solid #f4f7ff;border-top:0}
         .coCard{width:clamp(110px,15vh,150px)}
         .coJarsCell .psJars{flex-direction:column;flex-wrap:nowrap}
-        .coJarsCell .psJar{width:clamp(60px,7vh,82px);height:clamp(80px,11vh,118px)}
+        .coJarsCell .psJar{width:clamp(64px,7.4vh,82px);height:clamp(80px,11vh,118px)}
         .coB{min-height:84px;font-size:16px}
         .coB .e{font-size:36px}
       }
@@ -89,7 +101,15 @@ KP.game({
     const say = U.el("div", "coSay");
     const card = U.el("div", "coCard");
     const rec = U.el("div", "coRec");
-    say.append(card, rec);
+    // 할 일 진행표: 💧 넣기 → 🥄 젓기 → 🤲 드리기
+    const steps = U.el("div", "coSteps");
+    const stepEls = ["💧", "🥄", "🤲"].map((em, i) => {
+      if (i) steps.appendChild(U.el("span", "coStepA", "▶"));
+      const e = U.el("span", "coStep", KP.E(em));
+      steps.appendChild(e);
+      return e;
+    });
+    say.append(card, rec, steps);
     const meter = U.el("div", "coMeter");
     const nowDot = U.el("span", "coDot");
     const bar = U.el("span", "coBar", "<i></i>");
@@ -120,7 +140,14 @@ KP.game({
     });
     jarsCell.appendChild(studio.jarsEl);
     bowlCell.appendChild(studio.bowlEl);
-    Object.assign(ctx, { studio, ani, card, rec, bar, nowDot, goalDot, bGive, bDrain, cust });
+    Object.assign(ctx, { studio, ani, card, rec, bar, nowDot, goalDot, bGive, bDrain, cust, stepEls });
+    // 1단계: 통을 한 번 누르면 한 방울만 — 공용 작업대(paint.js)는 꾹 누르면 0.2초마다 계속 부음.
+    // 작업대의 '손 뗌' 처리(pointerleave)를 바로 불러 계속 붓기만 끔 (첫 방울은 그대로). 공용 옵션이 생기면 그걸로 바꿀 것
+    studio.jarsEl.querySelectorAll(".psJar").forEach((j) =>
+      j.addEventListener("pointerdown", () => {
+        if (ctx.level === 1) j.dispatchEvent(new Event("pointerleave"));
+      })
+    );
 
     ctx.fitBowl = () => {
       const r = bowlCell.getBoundingClientRect();
@@ -146,9 +173,10 @@ KP.game({
       KP.audio.sfx("boing");
       if (ctx.order) KP.voice.say("이런 색 주세요! " + ctx.order.name + "!");
     });
-    card.addEventListener("click", () => {
+    // 말풍선(견본 카드 포함)을 누르면 주문을 다시 들려줌 (화면 위 말풍선을 끈 놀이라 여기가 말풍선 역할)
+    say.addEventListener("click", () => {
       U.replay(card, "pop");
-      if (ctx.order) KP.voice.say(ctx.order.name + "!");
+      if (ctx.order) KP.voice.say(ctx.order.ask);
     });
   },
 
@@ -161,6 +189,11 @@ KP.game({
   /* 허용 거리: 각 물감 양을 단계별 비율(1단계 ±30%, 2단계 ±25%, 3단계 ±20%)만큼 바꿨을 때의
      평균 색 차이를 쓰고, 단계별 범위로 자름 → 예민한 색(청록 등)과 둔한 색(귤색 등)의 공정성 맞춤 */
   TOL: { 1: [0.3, 12, 18], 2: [0.25, 8, 14], 3: [0.2, 6, 10] },
+  // 이만큼 고르게 저어야 드릴 수 있음 (1단계는 조금만 저어도 됨)
+  EVEN: { 1: 0.5, 2: 0.72, 3: 0.72 },
+  evenNeed(ctx) {
+    return this.EVEN[ctx.level] || 0.72;
+  },
   tolFor(v, lv) {
     const P = KP.paint;
     const [s, lo, hi] = this.TOL[lv];
@@ -200,7 +233,7 @@ KP.game({
         const st = ctx.studio.state,
           vol = ctx.studio.bowl.volume();
         // 넣고 가만히 있으면 젓기 안내
-        if (!ctx.busy && ctx.poured && vol > 0.6 && st.even < 0.72 && now - st.lastPourAt > 3000 && now - st.lastStirAt > 3000 && now - stirTold > 10000) {
+        if (!ctx.busy && ctx.poured && vol > 0.6 && st.even < this.evenNeed(ctx) && now - st.lastPourAt > 3000 && now - st.lastStirAt > 3000 && now - stirTold > 10000) {
           stirTold = now;
           KP.voice.say("숟가락으로 빙글빙글 저어요!");
         }
@@ -251,7 +284,11 @@ KP.game({
       });
     } else R.appendChild(U.el("span", "q", "?"));
     const hello = first ? "안녕! 나는 " + U.josa(an[1], "이에요/예요") + ". " : "";
-    ctx.say(an[0] + " " + hello + "이런 색 물감 주세요! " + U.josa(name, "이에요/예요") + ".");
+    // 소리: "진초록이에요." 처럼 자연 음성이 없는 색 이름은 "진초록!" 으로 (조각마다 자연 음성)
+    const nat = (t) => !KP.voice._natUrls || !!KP.voice._natUrls(t);
+    const nameSay = nat(U.josa(name, "이에요/예요") + ".") ? U.josa(name, "이에요/예요") + "." : name + "!";
+    ctx.order.ask = "이런 색 물감 주세요! " + nameSay;
+    ctx.say(an[0] + " " + hello + "이런 색 물감 주세요! " + U.josa(name, "이에요/예요") + ".", hello + ctx.order.ask);
     this.hintFirst(ctx);
   },
   hintFirst(ctx) {
@@ -282,7 +319,15 @@ KP.game({
     ctx.bar.firstChild.style.width = Math.round(pct) + "%";
     const near = pct >= 85;
     ctx.bar.classList.toggle("near", near);
-    if (near && !ctx.nearTold && !ctx.busy && ctx.studio.state.even >= 0.72 && performance.now() - ctx.studio.state.lastPourAt > 700) {
+    // 진행표: 넣기(물감이 들어감) → 젓기(고르게) → 드리기
+    const poured = vol > 0.5,
+      stirred = poured && ctx.studio.state.even >= this.evenNeed(ctx);
+    const stage = ctx.busy && ctx.order && ctx.order.served ? 3 : stirred ? 2 : poured ? 1 : 0;
+    ctx.stepEls.forEach((e, i) => {
+      e.classList.toggle("ok", i < stage);
+      e.classList.toggle("now", i === stage);
+    });
+    if (near && !ctx.nearTold && !ctx.busy && ctx.studio.state.even >= this.evenNeed(ctx) && performance.now() - ctx.studio.state.lastPourAt > 700) {
       ctx.nearTold = true;
       KP.audio.sfx("sparkle");
       KP.voice.say("거의 똑같아요! 드리기를 눌러요!");
@@ -320,7 +365,7 @@ KP.game({
       if (!ctx.giveWait) ctx.giveWait = ctx.after(450, () => ((ctx.giveWait = 0), this.give(ctx)));
       return;
     }
-    if (studio.state.even < 0.72) {
+    if (studio.state.even < this.evenNeed(ctx)) {
       ctx.miss(ctx.bGive, "먼저 숟가락으로 빙글빙글 저어요!", { soft: true });
       ctx.hint(() => bowl.cv, "그릇을 빙글빙글 저어요!");
       return;
@@ -352,6 +397,8 @@ KP.game({
       P = KP.paint;
     const o = ctx.order;
     ctx.busy = true;
+    o.served = true;
+    this.updateMeter(ctx);
     ctx.hint(null);
     ctx.studio.setEnabled(false);
     const sess = ctx._session;
@@ -384,7 +431,12 @@ KP.game({
       setTimeout(() => h.remove(), 1500);
     }
     const isNew = P.discover(o.name);
-    KP.voice.say(U.pick(["와, 똑같아요! 고마워요!", "딱 이 색이에요! 고마워요!", "우와, 정말 예뻐요! 고마워요!"]) + (isNew ? " 도감에 " + U.josa(o.name, "이/가") + " 생겼어요!" : ""));
+    // "도감에 보라가 생겼어요!" 통째 음성이 없으면 "보라! 도감에 생겼어요!" (조각마다 자연 음성)
+    const newTxt = () => {
+      const full = " 도감에 " + U.josa(o.name, "이/가") + " 생겼어요!";
+      return KP.voice._natUrls && !KP.voice._natUrls(full) ? " " + o.name + "! 도감에 생겼어요!" : full;
+    };
+    KP.voice.say(U.pick(["와, 똑같아요! 고마워요!", "딱 이 색이에요! 고마워요!", "우와, 정말 예뻐요! 고마워요!"]) + (isNew ? newTxt() : ""));
     ctx.score.add(1);
     ctx.round++;
     await ctx.wait(1400);

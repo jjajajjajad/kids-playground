@@ -1,7 +1,8 @@
 /* 모양 찾기 — 말한 모양을 찾아 눌러요. 모양 친구들은 맞히면 웃으며 폴짝!
    1단계: 동그라미·네모·세모 3개 (색이 모두 다름)
    2단계: 6가지 모양 중 4개 (모두 같은 색 → 모양만 보고 찾기)
-   3단계: 생활 물건에서 모양 찾기 (🍕 세모, ⚽ 동그라미, 📺 네모 …) */
+   3단계: 생활 물건에서 모양 찾기 (🍕 세모, ⚽ 동그라미, 📺 네모, 🪁 마름모, ⭐ 별, 💝 하트 — 6가지 모양 모두 정답이 될 수 있음)
+   음성: "도넛은 동그라미 모양이에요."처럼 녹음 없는 조합은 "이건 도넛! 동그라미 모양이에요."(이미 있는 조각)로 */
 "use strict";
 KP.game({
   id: "shape",
@@ -57,7 +58,8 @@ KP.game({
       ["⚽", "축구공", "circle"], ["🍩", "도넛", "circle"], ["🍪", "쿠키", "circle"], ["🏀", "농구공", "circle"],
       ["🍕", "피자", "triangle"], ["🧀", "치즈", "triangle"], ["🍙", "주먹밥", "triangle"], ["⛺", "텐트", "triangle"],
       ["📺", "텔레비전", "square"], ["🎁", "선물 상자", "square"], ["🖼️", "액자", "square"], ["🚪", "문", "square"],
-      ["🪁", "연", "diamond"], ["⭐", "별", "star"], ["❤️", "하트", "heart"],
+      ["🍊", "귤", "circle"], ["🌕", "달", "circle"],
+      ["🪁", "연", "diamond"], ["⭐", "별", "star"], ["🌟", "반짝별", "star"], ["❤️", "하트", "heart"], ["💝", "하트 상자", "heart"],
     ];
     ctx.round = 0;
   },
@@ -104,7 +106,7 @@ KP.game({
       ctx.grid.style.setProperty("--szl", lv === 1 ? "clamp(90px,min(18vw,30vh),200px)" : "clamp(90px,min(15vw,24vh),170px)");
       ctx.grid.style.setProperty("--szp", lv === 1 ? "clamp(90px,min(40vw,19vh),170px)" : "clamp(90px,min(34vw,19vh),160px)");
     } else {
-      const groups = ["circle", "triangle", "square", "diamond"];
+      const groups = ["circle", "triangle", "square", "diamond", "star", "heart"];
       let tk = U.pick(groups);
       if (tk === ctx.lastK) tk = U.pick(groups.filter((g) => g !== tk));
       ctx.lastK = tk;
@@ -121,6 +123,8 @@ KP.game({
       ctx.grid.style.setProperty("--szp", "clamp(64px,min(28vw,14vh),130px)");
     }
     ctx.say("🔷 " + ask);
+    // 같은 뜻 문장 중 자연 음성이 있는 것
+    const nat = (...l) => (KP.voice._natUrls && l.find((t) => KP.voice._natUrls(t))) || l[0];
     const btns = ctx.choices(ctx.grid, list, {
       cls: lv < 3 ? "shpBtn" : "shpObj",
       render,
@@ -128,11 +132,11 @@ KP.game({
       wrongMsg: (v) =>
         lv < 3
           ? "이건 " + U.josa(nameOf(v), "이에요/예요") + ". " + ask
-          : U.josa(nameOf(v), "은/는") + " " + S[v[2]][0] + " 모양이에요. " + ask,
+          : nat(U.josa(nameOf(v), "은/는") + " " + S[v[2]][0] + " 모양이에요. " + ask, "이건 " + nameOf(v) + "! " + S[v[2]][0] + " 모양이에요. " + ask),
       onRight: async (v, b) => {
         b.classList.add("shpHappy", "shpRing");
         KP.audio.sfx("boing");
-        KP.voice.say(lv < 3 ? nameOf(v) + "! 딩동댕!" : U.josa(nameOf(v), "은/는") + " " + S[v[2]][0] + " 모양! 딩동댕!");
+        KP.voice.say(lv < 3 ? nameOf(v) + "! 딩동댕!" : nat(U.josa(nameOf(v), "은/는") + " " + S[v[2]][0] + " 모양! 딩동댕!", nameOf(v) + "! " + S[v[2]][0] + " 모양! 딩동댕!"));
         if (lv === 3) U.replay(ctx.ref, "jump");
         ctx.score.add();
         ctx.round++;

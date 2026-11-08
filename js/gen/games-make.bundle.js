@@ -318,7 +318,7 @@ KP.game({
         A.sfx("tap");
         if (!st.rightTold || Date.now() - st.rightTold > 6000) {
           st.rightTold = Date.now();
-          KP.voice.say(st.folds ? "왼쪽에 물감을 더 올리고 다시 접어 봐요!" : "물감은 왼쪽에 올려요! 오른쪽은 접으면 찍혀요.");
+          ctx.say(st.folds ? "왼쪽에 물감을 더 올리고 다시 접어 봐요!" : "물감은 왼쪽에 올려요! 오른쪽은 접으면 찍혀요.");
         }
         return;
       }
@@ -424,7 +424,7 @@ KP.game({
       layers.classList.add("half");
       paper.classList.add("folding");
       A.sfx("whoosh");
-      KP.voice.say("반으로 접어요!");
+      ctx.say("반으로 접어요!");
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       flap.classList.add("shut");
       shade.classList.add("on");
@@ -479,7 +479,7 @@ KP.game({
       const sess = ctx._session;
       ctx.hint(null);
       A.sfx("slide");
-      KP.voice.say("살살 펼쳐 볼까요?");
+      ctx.say("살살 펼쳐 볼까요?");
       flap.classList.remove("shut");
       shade.classList.remove("on");
       await ctx.wait(500);
@@ -496,9 +496,12 @@ KP.game({
       const msg = U.pick(["우와, 나비가 됐어요!", "와, 양쪽이 똑같아요!", "우와, 멋진 무늬가 찍혔어요!"]);
       ctx.say(msg);
       ctx.round = (ctx.round || 0) + 1;
+      // 열쇠 별: 지난 접기 뒤로 물감을 3번 이상 올렸을 때만 (방울 하나 + 접기 반복으로 별 모으기 방지)
+      if (st.blobs - (st.winBlobs || 0) < 3) ctx._fewChoice = true;
+      st.winBlobs = st.blobs;
       const ok = await ctx.win({ msg, big: ctx.round % 4 === 0 });
       if (!ok) return;
-      KP.voice.say(st.fly ? "저장 단추를 눌러 내 작품에 넣어요!" : "나비 만들기를 누르면 몸통이 생겨요! 저장도 할 수 있어요.");
+      ctx.say(st.fly ? "저장 단추를 눌러 내 작품에 넣어요!" : "나비 만들기를 누르면 몸통이 생겨요! 저장도 할 수 있어요.");
       ctx.hint(() => (st.fly ? bSave : bFly), st.fly ? "저장을 눌러 봐요!" : "나비 만들기를 눌러 봐요!");
     }
     function cleanupFlap(flap) {
@@ -647,7 +650,7 @@ KP.game({
       U.replay(paper, "flutter");
       A.sfx("sparkle");
       A.melody([["C5", 1], ["E5", 1], ["G5", 1], ["C6", 2]], { beat: 0.12, inst: "bell", vol: 0.18 });
-      KP.voice.say("나비 완성! 팔랑팔랑 날아요!");
+      ctx.say("나비 완성! 팔랑팔랑 날아요!");
       ctx.hint(() => bSave, "저장을 눌러 내 작품에 넣어요!");
     }
 
@@ -681,7 +684,7 @@ KP.game({
       flyAway(img);
       KP.toast("🖼️ 내 작품에 저장했어요!");
       A.sfx("sticker");
-      KP.voice.say("내 작품에 저장했어요! 새 종이에 또 해 볼까요?");
+      ctx.say("내 작품에 저장했어요! 새 종이에 또 해 볼까요?");
       ctx.hint(() => bNew, "새 종이를 꾹 눌러요!");
     }
     function flyAway(img) {
@@ -712,13 +715,13 @@ KP.game({
         g.setTransform(1, 0, 0, 1, 0, 0);
         g.clearRect(0, 0, g.canvas.width, g.canvas.height);
       });
-      Object.assign(st, { blobs: 0, folds: 0, unsaved: false, fly: false });
+      Object.assign(st, { blobs: 0, winBlobs: 0, folds: 0, unsaved: false, fly: false });
       here.classList.remove("off");
       bFly.classList.add("hide");
       if (!quiet) {
         A.sfx("whoosh");
         U.replay(paper, "jump");
-        KP.voice.say("새 종이예요! 왼쪽에 물감을 콕콕 올려요.");
+        ctx.say("새 종이예요! 왼쪽에 물감을 콕콕 올려요.");
         ctx.hint(() => leftPoint(), "왼쪽에 물감을 콕콕 올려요!");
       }
     }
@@ -2119,10 +2122,18 @@ KP.game({
         .dw-pal,.dw-pal.mine3{grid-template-columns:repeat(7,var(--sw));gap:8px}
         .dw-acts{grid-template-columns:repeat(4,var(--ab));gap:8px;justify-content:end}
       }
+      /* 폰 세로(2026-11-08): 도구 6 + 굵기 3 + 단추 4 를 한 줄 5칸씩 3줄로(가운데 맞춤) → 모두 폰에서 64px 안팎.
+         (도구·굵기·단추 묶음은 display:contents 로 풀어서 .dw 의 10칸 격자에 2칸씩 차지) */
       @media (orientation:portrait) and (max-width:480px){
-        .dw{--ab:42px}
-        .dw-sizes{gap:4px}
-        .dw-acts{gap:4px}
+        .dw{--ab:clamp(46px,min(calc((100vw - 64px) / 5),7.7vh),72px);--tb:var(--ab);--sw:clamp(46px,min(calc((100vw - 64px) / 5),7.7vh),72px);
+          gap:6px;padding:2px 8px 8px;grid-template-columns:repeat(10,minmax(0,1fr));grid-template-rows:repeat(3,auto) minmax(0,1fr) auto;grid-template-areas:none}
+        .dw-tools,.dw-sizes,.dw-acts{display:contents}
+        .dw-tools > *,.dw-sizes > *,.dw-acts > *{grid-column:span 2;justify-self:center}
+        .dw-acts > :nth-child(2){grid-column:3 / span 2}
+        .dw-tool{border-radius:18px}
+        .dw-tool.sel{transform:none}
+        .dw .board{grid-column:1 / -1;grid-row:4}
+        .dw-pal,.dw-pal.mine3{grid-column:1 / -1;grid-row:5;grid-template-columns:repeat(5,var(--sw));gap:6px 8px}
       }
       @media (orientation:landscape) and (max-height:500px){
         .dw{gap:6px 8px;padding:2px 10px 8px;--tb:46px;--sw:44px;--ab:44px}
@@ -2272,6 +2283,11 @@ KP.game({
       refresh();
       U.replay(toolBtns[id], "jump");
       A.sfx("select");
+      if (speak && !pref.toolTried) {
+        pref.toolTried = true;
+        savePref();
+        if (ctx.toolHinted) ctx.hint(null);
+      }
       if (speak) KP.voice.say(TOOLS.find((t) => t.id === id).name + (id === "stamp" && was !== "stamp" ? "! 콩콩 찍어 봐요" : ""));
     }
 
@@ -2557,7 +2573,14 @@ KP.game({
       ops.forEach((op) => replay(op, ig));
       updateUndo();
     }
+    let strokesSince = 0; // 지난 저장 뒤로 그린 획 수 (열쇠 별 기준)
     function commit(op) {
+      strokesSince++;
+      // 처음 그림을 그린 뒤에도 도구를 한 번도 안 바꿨으면 → 도구 줄(무지개 펜)을 손가락으로 한 번 알려 줌
+      if (strokesSince === 3 && !pref.toolTried && !ctx.toolHinted) {
+        ctx.toolHinted = true;
+        ctx.hint(() => toolBtns.rainbow, "눌러 봐요!");
+      }
       ops.push(op);
       if (ops.length > 20) {
         bg.setTransform(D, 0, 0, D, 0, 0);
@@ -2795,7 +2818,11 @@ KP.game({
         KP.toast("🖼️ 내 작품에 저장했어요!");
         A.sfx("sticker");
         delete bSave.dataset.busy; // 기다리는 중에 나가도 버튼이 잠기지 않게
+        // 열쇠 별: 지난 저장 뒤로 6획 이상 그렸을 때만 (점 하나 + 💾 반복 방지)
+        const few = strokesSince < 6;
+        strokesSince = 0;
         ctx.after(900, async () => {
+          if (few) ctx._fewChoice = true;
           await ctx.win({ msg: "내 작품에 저장했어요!" });
         });
       } else {
@@ -2947,6 +2974,7 @@ KP.game({
       .fc-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;flex:0 0 auto}
       .fc-tab{height:clamp(54px,8vh,68px);border-radius:18px;background:rgba(255,255,255,.75);font-size:clamp(28px,4.4vh,38px);display:flex;align-items:center;justify-content:center;border-bottom:5px solid transparent;transition:transform .12s}
       .fc-tab.sel{background:#fff;border-bottom-color:var(--cat);box-shadow:var(--shadow);transform:translateY(-2px)}
+      .fc-tab.hc{display:none}
       .fc-opts{flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:8px;background:rgba(255,236,228,.6);border-radius:22px;padding:8px}
       .fc-opt{background:radial-gradient(circle at 45% 35%,#fffdf9,#f7e9e1);border-radius:16px;box-shadow:0 4px 0 rgba(140,80,70,.14);display:flex;align-items:center;justify-content:center;padding:2px;min-height:0;overflow:hidden;animation:itemIn .3s backwards;animation-delay:calc(var(--i) * 25ms)}
       .fc-opt svg{width:100%;height:100%;max-height:100%}
@@ -3011,20 +3039,24 @@ KP.game({
         .fc-pick{flex-direction:column}
         .fc-snap{width:min(56vw,300px)}
       }
+      /* 폰 세로(2026-11-08): 탭 9개(머리 색 탭 추가) 5칸씩 2줄 64px, 작은 머리색 점 줄은 숨김(머리 색 탭이 대신) */
       @media (orientation:portrait) and (max-width:480px){
-        .fc-tabs{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
-        .fc-tab{height:48px;font-size:28px}
-        .fc-act{font-size:20px;padding:6px 12px}
+        .fc-tabs{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+        .fc-tab{height:64px;font-size:30px}
+        .fc-tab.hc{display:flex}
+        .fc-colors{display:none}
+        .fc-opts{grid-auto-rows:clamp(64px,8.8vh,80px)}
+        .fc-act{font-size:20px;padding:6px 12px;min-height:64px;min-width:68px}
         .fc-act .t{display:none}
         .fc-act.primary .t{display:inline}
         .fc-obar .btn{font-size:19px;padding:6px 12px;min-height:56px}
       }
       @media (orientation:portrait) and (max-height:720px){
         .fc{grid-template-rows:minmax(136px,1fr) auto}
-        .fc-tab{height:44px;font-size:26px}
-        .fc-opts{grid-auto-rows:56px}
-        .fc-col{width:34px;height:34px}
-        .fc-act{min-height:52px}
+        .fc-tab{height:56px;font-size:26px}
+        .fc-opts{grid-auto-rows:58px}
+        .fc-col{width:40px;height:40px}
+        .fc-act{min-height:56px}
       }
       @media (orientation:landscape) and (max-height:500px){
         .fc-opts{grid-auto-rows:minmax(46px,1fr);overflow-y:auto}
@@ -3192,6 +3224,8 @@ KP.game({
     const PARTS = {
       skin: { em: "🙂", name: "얼굴색", list: SKINS.map((c, i) => [i, "", null]) },
       hair: { em: "💇", name: "머리", list: HAIRS },
+      // 폰 세로 전용 '머리 색' 칸: 좁은 화면에선 작은 색 점 줄 대신 큰 칸(머리 색이 다른 얼굴 그림)으로 고름
+      hairC: { em: "🎨", name: "머리", list: HAIRC.map((c, i) => [i, "", null]) },
       eyes: { em: "👀", name: "눈", list: EYES },
       brows: { em: "🤨", name: "눈썹", list: BROWS },
       nose: { em: "👃", name: "코", list: NOSES },
@@ -3199,7 +3233,7 @@ KP.game({
       hat: { em: "🎩", name: "모자", list: HATS },
       glasses: { em: "👓", name: "안경", list: GLASSES },
     };
-    const TAB_ORDER = ["skin", "hair", "eyes", "brows", "nose", "mouth", "hat", "glasses"];
+    const TAB_ORDER = ["skin", "hair", "hairC", "eyes", "brows", "nose", "mouth", "hat", "glasses"];
     const DEF = { skin: 0, hair: "short", hairC: 0, eyes: "big", brows: "normal", nose: "dot", mouth: "smile", hat: "none", glasses: "none", shirt: 0 };
     // 가족·친구 칸 (글자 대신 그림) — 앞 6개가 가족 칸
     const WHO = [["dad", "👨", "아빠"], ["mom", "👩", "엄마"], ["me", "🙋", "나"], ["baby", "👶", "아기"], ["grandma", "👵", "할머니"], ["grandpa", "👴", "할아버지"], ["friend", "🧒", "친구"]];
@@ -3366,10 +3400,14 @@ KP.game({
         badge.classList.add("on");
       } else badge.classList.remove("on");
     }
+    // 열쇠 별: 지난 사진 뒤로 3번 이상 꾸몄을 때만 (부위 하나 바꾸고 📸 반복 방지)
+    let editsSince = 0,
+      fewEdits = false;
     function saveCfg() {
       KP.store.set("face:cfg", cfg);
       unsaved = true;
       ver++;
+      editsSince++;
     }
     function setCur(id, who) {
       cur = id || null;
@@ -3379,7 +3417,7 @@ KP.game({
       renderBadge();
     }
     TAB_ORDER.forEach((k) => {
-      const b = U.btn(KP.E(PARTS[k].em), "fc-tab");
+      const b = U.btn(KP.E(PARTS[k].em), "fc-tab" + (k === "hairC" ? " hc" : ""));
       b.dataset.k = k;
       ctx.tap(b, () => {
         tab = k;
@@ -3394,7 +3432,7 @@ KP.game({
     function renderTabs() {
       U.$$(".fc-tab", tabs).forEach((b) => b.classList.toggle("sel", b.dataset.k === tab));
     }
-    const VB = { skin: "0 -14 300 384", hair: "20 -20 260 260", eyes: "60 130 180 110", brows: "70 110 160 80", nose: "100 180 100 80", mouth: "90 230 120 90", hat: "20 -20 260 200", glasses: "40 130 220 110" };
+    const VB = { skin: "0 -14 300 384", hair: "20 -20 260 260", hairC: "20 -20 260 260", eyes: "60 130 180 110", brows: "70 110 160 80", nose: "100 180 100 80", mouth: "90 230 120 90", hat: "20 -20 260 200", glasses: "40 130 220 110" };
     function renderOpts() {
       opts.innerHTML = "";
       colors.innerHTML = "";
@@ -3915,6 +3953,8 @@ KP.game({
       const old = cur && friendOf(cur);
       const shot = { cfg: Object.assign({}, cfg), fid: old ? old.id : KP.newId(), who: old ? old.who : whoOf(pendWho)[0], ver };
       const wasNew = !old && !pendWho;
+      fewEdits = editsSince < 3;
+      editsSince = 0;
       const unlock = () => {
         shooting = false;
         delete bPhoto.dataset.busy;
@@ -3955,6 +3995,7 @@ KP.game({
       delete bPhoto.dataset.busy;
       KP.toast("🖼️ 내 작품에 저장했어요!");
       await ctx.wait(500);
+      if (fewEdits) ctx._fewChoice = true;
       await ctx.win({ msg: "찰칵! 내 작품에 저장했어요!" });
     }
     /** 새 얼굴: 누구예요? (가족 칸 그림 고르기 — 아무거나 골라도 됨) */
@@ -4114,8 +4155,10 @@ KP.game({
 
 /* ==== js/games/make/grow.js ==== */
 /* 꽃 키우기 — 물뿌리개로 물 주고, 해님을 누르면 쑥쑥!
-   - 화분 3개: 씨앗 → 싹 → 잎 → 봉오리 → 꽃 (꽃 종류는 랜덤)
-   - 물뿌리개를 끌어다 화분 위에 대면 물방울이 떨어짐 → 흙이 촉촉해지면 해님 누르기 → 한 단계 자람
+   - 화분 3개: 씨앗 → 싹 → 봉오리 → 꽃 (꽃 종류는 랜덤) — 물 주기·해님 3번이면 꽃 (예전 4번은 지루해서 줄임, 2026-11-08)
+   - 물뿌리개를 끌어다 화분에 겹치게 대면(몸통이든 주둥이든) 물방울이 떨어짐 → 흙이 촉촉해지면 해님 누르기 → 한 단계 자람
+   - 꽃이 피면 잠시 그대로 두고 감상(꽃을 콕 → 이름) → 축하 뒤 정원으로
+   - 가만히 있으면 반투명 물뿌리개가 목마른 화분까지 날아가 '끌기'를 보여 줌
    - 핀 꽃은 "내 정원"(KP.store "grow:garden")에 영구 저장 → 정원이 날마다 커짐, 🌼 단추로 정원 보기
    - 화분 상태도 저장(KP.store "grow:pots") → 껐다 켜도 이어서 키우기
    - 나비·벌이 날아다님 (꽃이 많을수록 더 많이) */
@@ -4162,13 +4205,23 @@ KP.game({
       .gr-view.show{display:flex;animation:enter .3s}
       .gr-vtop{display:flex;align-items:center;gap:10px;padding:12px 14px;font-size:clamp(20px,3vw,30px)}
       .gr-vtop .btn{font-size:clamp(18px,2.4vw,22px)}
-      .gr-vgrid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--fs,74px),1fr));gap:4px 6px;padding:20px 14px 24px;align-content:start}
+      .gr-vscroll{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;position:relative;z-index:1}
+      .gr-vgrid{margin-top:auto;display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:2px clamp(6px,2vw,22px);padding:20px 14px 18px}
+      .gr-vgrid .gr-vf{min-width:var(--fs,74px)}
+      .gr-vsun{position:absolute;right:4%;top:9%;font-size:clamp(56px,10vh,96px);animation:grSun 8s linear infinite;pointer-events:none}
+      .gr-vbug{position:absolute;left:0;top:0;font-size:clamp(32px,5vh,46px);pointer-events:none;z-index:2;animation:grFly var(--d,11s) ease-in-out infinite alternate;animation-delay:var(--dl,0s)}
+      @keyframes grFly{0%{transform:translate(8vw,42vh) rotate(-8deg)}25%{transform:translate(34vw,30vh) rotate(8deg)}50%{transform:translate(58vw,46vh) rotate(-6deg)}75%{transform:translate(76vw,32vh) rotate(6deg)}100%{transform:translate(86vw,48vh) rotate(-8deg)}}
+      .gr-vgrass{position:absolute;left:0;right:0;bottom:0;height:14%;background:repeating-linear-gradient(100deg,#7fcc63 0 10px,#8fd56d 10px 20px);pointer-events:none}
+      .gr-ghost{position:absolute;z-index:6;pointer-events:none;opacity:0;width:clamp(110px,15vw,170px);filter:drop-shadow(0 6px 4px rgba(0,0,0,.15))}
+      .gr-ghost svg{width:100%;display:block}
+      .gr-pot.bloom{animation:grBloom 1.2s ease-in-out infinite}
+      @keyframes grBloom{50%{transform:translateY(-4%) rotate(2deg)}}
       .gr-vf{display:flex;flex-direction:column;align-items:center;font-size:var(--fs,74px);line-height:1;animation:itemIn .4s backwards;animation-delay:calc(var(--i) * 18ms)}
       .gr-vf .e{animation:grSway 3s ease-in-out infinite;animation-delay:calc(var(--i) * -0.37s);transform-origin:bottom center}
       .gr-vf small{font-size:12px;color:#2e6b2a;margin-top:2px}
       @keyframes grSway{50%{transform:rotate(6deg)}}
-      .gr-vempty{grid-column:1/-1;text-align:center;font-size:22px;color:#2e6b2a;padding-top:40px}
-      @media (max-aspect-ratio:1/1){ .gr{margin:0 10px 10px} .gr-pot{width:30vw} .gr-can{top:36%;width:28vw} }
+      .gr-vempty{grid-column:1/-1;width:100%;text-align:center;font-size:22px;color:#2e6b2a;padding-top:40px}
+      @media (max-aspect-ratio:1/1){ .gr{margin:0 10px 10px} .gr-pot{width:30vw} .gr-can,.gr-ghost{width:28vw} .gr-can{top:36%} }
     `);
 
     const FLOWERS = [
@@ -4177,6 +4230,8 @@ KP.game({
     ];
     KP.loadE(FLOWERS.map((f) => f[0]).concat(["🦋", "🐝"]));
     const STAGE_NAMES = ["씨앗", "싹", "잎", "봉오리", "꽃"];
+    // 자라는 순서: 씨앗(0) → 싹(1) → 봉오리(3) → 꽃(4). '잎(2)' 단계는 건너뜀 (예전에 저장된 2 는 3 으로)
+    const NEXT = { 0: 1, 1: 3, 2: 3, 3: 4 };
 
     /* ---------- 저장된 상태 ---------- */
     const newPot = () => ({ stage: 0, water: 0, kind: U.rand(FLOWERS.length) });
@@ -4244,8 +4299,16 @@ KP.game({
       ctx.fast(el, () => {
         const p = pots[i];
         U.replay(el, "jump");
+        if (p.stage >= 4) {
+          // 핀 꽃: 이름을 말하고 꽃가루가 퐁
+          A.note(A.SCALE[(i * 2 + 3) % 8], { inst: "bell", dur: 0.5, vol: 0.2 });
+          A.sfx("sparkle");
+          KP.voice.say(FLOWERS[p.kind][1] + "!");
+          puff(i, 14);
+          return;
+        }
         A.sfx("tap2");
-        const nm = p.stage === 4 ? FLOWERS[p.kind][1] : STAGE_NAMES[p.stage];
+        const nm = STAGE_NAMES[p.stage];
         KP.voice.say(p.water >= 1 ? nm + "! 물을 먹었어요. 해님을 눌러요!" : nm + "! 목말라요. 물을 주세요!");
       });
       return el;
@@ -4304,17 +4367,54 @@ KP.game({
       // 기울였을 때 주둥이 끝 (대략 오른쪽 위)
       return { x: r.left - s.left + r.width * 0.96, y: r.top - s.top + r.height * (can.classList.contains("pour") ? 0.45 : 0.2) };
     }
+    /** 물 줄 화분: 주둥이 끝이 화분 위에 있거나, 물뿌리개 몸통이 화분(위쪽 공간 포함)과 겹치면 — 가장 많이 겹친 화분.
+        (예전엔 주둥이 끝만 봐서 아이가 몸통을 화분 위에 올리면 물이 안 나왔음) */
     function potUnder() {
       if (!drag) return -1;
       const sp = spout(),
-        s = scene.getBoundingClientRect();
+        s = scene.getBoundingClientRect(),
+        c = can.getBoundingClientRect();
+      const cx0 = c.left - s.left + c.width * 0.12,
+        cx1 = c.left - s.left + c.width * 0.9,
+        cy0 = c.top - s.top,
+        cy1 = c.top - s.top + c.height * 0.9;
+      let best = -1,
+        bestA = 0;
       for (let i = 0; i < 3; i++) {
         const r = potEls[i].getBoundingClientRect();
         const x = r.left - s.left,
           y = r.top - s.top;
         if (sp.x > x - 30 && sp.x < x + r.width + 30 && sp.y < y + r.height * 0.75 && sp.y > y - r.height * 0.9) return i;
+        // 화분 + 그 위 공간(화분 높이의 0.9배)과 물뿌리개 몸통이 겹친 넓이
+        const ox = Math.min(cx1, x + r.width) - Math.max(cx0, x),
+          oy = Math.min(cy1, y + r.height * 0.7) - Math.max(cy0, y - r.height * 0.9);
+        const a = ox > 0 && oy > 0 ? ox * oy : 0;
+        if (a > bestA) {
+          bestA = a;
+          best = i;
+        }
       }
-      return -1;
+      return bestA > c.width * c.height * 0.12 ? best : -1;
+    }
+    /** 물방울이 나올 자리: 주둥이가 화분 위면 주둥이, 아니면 물뿌리개 아래쪽에서 화분 가운데로 */
+    function pourFrom(i) {
+      const sp = spout(),
+        s = scene.getBoundingClientRect(),
+        r = potEls[i].getBoundingClientRect();
+      const px = r.left - s.left + r.width / 2;
+      if (Math.abs(sp.x - px) < r.width * 0.75) return { x: sp.x, y: sp.y, vx: 30 };
+      const c = can.getBoundingClientRect();
+      return { x: Math.max(c.left, Math.min(c.right, r.left + r.width / 2)) - s.left, y: c.top - s.top + c.height * 0.8, vx: (px - (c.left - s.left + c.width / 2)) * 0.3 };
+    }
+    /** 꽃가루 퐁 */
+    function puff(i, n) {
+      const s2 = scene.getBoundingClientRect(),
+        pr = potEls[i].getBoundingClientRect();
+      for (let k = 0; k < n; k++) {
+        const a = Math.random() * 6.28,
+          sp = 80 + Math.random() * 200;
+        drops.push({ x: pr.left - s2.left + pr.width / 2, y: pr.top - s2.top + pr.height * 0.15, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 150, life: 1.4, c: U.pick(["#ffd23f", "#ff8fb8", "#ffffff", FLOWERS[pots[i].kind][2]]), s: 3 + Math.random() * 4 });
+      }
     }
     let dropsDrawn = false;
     function step(dt) {
@@ -4323,8 +4423,9 @@ KP.game({
       potEls.forEach((p, k) => p.classList.toggle("over", k === i));
       can.classList.toggle("pour", i >= 0);
       if (i >= 0) {
-        const sp = spout();
-        for (let k = 0; k < 3; k++) drops.push({ x: sp.x + (Math.random() - 0.3) * 18, y: sp.y + 10, vx: 30 + Math.random() * 40, vy: 40 + Math.random() * 60, life: 1 });
+        idle = 0;
+        const sp = pourFrom(i);
+        for (let k = 0; k < 3; k++) drops.push({ x: sp.x + (Math.random() - 0.3) * 18, y: sp.y + 10, vx: sp.vx + Math.random() * 40, vy: 40 + Math.random() * 60, life: 1 });
         sndAcc += dt;
         if (sndAcc > 0.32) {
           sndAcc = 0;
@@ -4338,7 +4439,9 @@ KP.game({
             renderPot(i);
             A.note("C6", { inst: "bell", dur: 0.4, vol: 0.15 });
             A.note("G6", { inst: "bell", dur: 0.5, vol: 0.12, when: 0.1 });
-            KP.voice.say(saidSun ? "꿀꺽꿀꺽! 촉촉해졌어요!" : "꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
+            // 말풍선도 바꿈 (소리를 못 들어도 다음 할 일이 보이게)
+            if (pots.some((q) => q.stage < 4 && q.water < 1)) ctx.say(saidSun ? "꿀꺽꿀꺽! 촉촉해졌어요!" : "꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
+            else ctx.say("꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
             saidSun = true;
             setHint();
           }
@@ -4371,6 +4474,15 @@ KP.game({
       }
       fg.globalAlpha = 1;
       if (drops.length > 400) drops.splice(0, drops.length - 400);
+      // 끌기 보여 주기: 9초 넘게 가만히 있고 목마른 화분이 있으면 반투명 물뿌리개가 그 화분까지 날아감
+      if (!drag && !busy && !view.classList.contains("show")) {
+        idle += dt;
+        if (idle > 9) {
+          idle = 0;
+          const k = pots.findIndex((p) => p.stage < 4 && p.water < 1);
+          if (k >= 0 && !pots.some((p) => p.stage < 4 && p.water >= 1)) ghostTo(k);
+        }
+      } else if (drag) idle = 0;
       // 나비·벌
       bugs.forEach((b) => {
         b.t += dt * b.sp;
@@ -4378,6 +4490,30 @@ KP.game({
           y = (b.cy + Math.sin(b.t * 1.9 + b.ph) * b.ay) * H;
         b.el.style.transform = "translate(" + x + "px," + y + "px) scaleX(" + (Math.cos(b.t * 0.7 + b.ph) > 0 ? -1 : 1) + ") rotate(" + Math.sin(b.t * 9) * 8 + "deg)";
       });
+    }
+    let idle = 0;
+    const ghost = U.el("div", "gr-ghost", can.innerHTML);
+    function ghostTo(k) {
+      if (!ghost.animate) return;
+      const s = scene.getBoundingClientRect(),
+        c = can.getBoundingClientRect(),
+        r = potEls[k].getBoundingClientRect();
+      const x0 = c.left - s.left,
+        y0 = c.top - s.top;
+      const x1 = r.left - s.left + r.width * 0.5 - c.width * 0.9,
+        y1 = r.top - s.top - c.height * 0.6;
+      Object.assign(ghost.style, { left: x0 + "px", top: y0 + "px" });
+      ghost.animate(
+        [
+          { transform: "translate(0,0)", opacity: 0 },
+          { transform: "translate(0,0)", opacity: 0.6, offset: 0.15 },
+          { transform: "translate(" + (x1 - x0) + "px," + (y1 - y0) + "px)", opacity: 0.6, offset: 0.65 },
+          { transform: "translate(" + (x1 - x0) + "px," + (y1 - y0) + "px) rotate(-30deg)", opacity: 0.6, offset: 0.85 },
+          { transform: "translate(" + (x1 - x0) + "px," + (y1 - y0) + "px) rotate(-30deg)", opacity: 0 },
+        ],
+        { duration: 2200, easing: "ease-in-out" }
+      );
+      U.replay(can, "wig");
     }
     let D = 1;
     function fit() {
@@ -4393,7 +4529,7 @@ KP.game({
     let bugs = [];
     function makeBugs() {
       bugs.forEach((b) => b.el.remove());
-      const n = Math.min(5, 1 + Math.floor(garden().length / 3) + pots.filter((p) => p.stage >= 3).length);
+      const n = Math.min(5, 2 + Math.floor(garden().length / 3) + pots.filter((p) => p.stage >= 3).length);
       bugs = Array.from({ length: n }, (_, i) => {
         const el = U.el("div", "gr-bug", KP.E(i % 2 ? "🐝" : "🦋"));
         scene.insertBefore(el, fx);
@@ -4408,7 +4544,8 @@ KP.game({
       ["C5", "E5", "G5", "C6"].forEach((n, i) => A.note(n, { inst: "bell", dur: 0.6, vol: 0.14, when: i * 0.07 }));
       const ready = pots.map((p, i) => (p.stage < 4 && p.water >= 1 ? i : -1)).filter((i) => i >= 0);
       if (!ready.length) {
-        KP.voice.say(pots.some((p) => p.stage < 4) ? "해님이 반짝! 그런데 먼저 물을 주세요!" : "해님이 반짝반짝!");
+        if (pots.some((p) => p.stage < 4)) ctx.say("해님이 반짝! 그런데 먼저 물을 주세요!");
+        else KP.voice.say("해님이 반짝반짝!");
         U.replay(can, "jump");
         return;
       }
@@ -4433,7 +4570,7 @@ KP.game({
       let bloomed = [];
       ready.forEach((i) => {
         const p = pots[i];
-        p.stage++;
+        p.stage = NEXT[p.stage] || 4;
         p.water = 0;
         renderPot(i, true);
         if (p.stage === 4) bloomed.push(i);
@@ -4443,7 +4580,7 @@ KP.game({
       makeBugs();
       if (!bloomed.length) {
         const st = pots[ready[0]].stage;
-        KP.voice.say(["", "싹이 났어요!", "잎이 쑥쑥 자랐어요!", "봉오리가 생겼어요! 곧 꽃이 필 거예요!"][st] + " 또 물을 주세요!");
+        ctx.say(["", "싹이 났어요!", "잎이 쑥쑥 자랐어요!", "봉오리가 생겼어요! 곧 꽃이 필 거예요!"][st] + " 또 물을 주세요!");
         busy = false;
         setHint();
         return;
@@ -4454,20 +4591,16 @@ KP.game({
         const g = garden();
         g.push({ e: em, n: name, d: KP.gate.monthDay(), t: Date.now() });
         KP.store.set("grow:garden", g);
-        // 꽃가루 터짐
-        const s2 = scene.getBoundingClientRect(),
-          pr = potEls[i].getBoundingClientRect();
-        for (let k = 0; k < 40; k++) {
-          const a = Math.random() * 6.28,
-            sp = 80 + Math.random() * 200;
-          drops.push({ x: pr.left - s2.left + pr.width / 2, y: pr.top - s2.top + pr.height * 0.15, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 150, life: 1.4, c: U.pick(["#ffd23f", "#ff8fb8", "#ffffff", FLOWERS[p.kind][2]]), s: 3 + Math.random() * 4 });
-        }
+        // 꽃가루 터짐 + 꽃이 살랑살랑
+        puff(i, 40);
+        potEls[i].classList.add("bloom");
         A.sfx("sparkle");
         updateGardenBtn();
         U.replay(bGarden, "bump");
         ctx.say(U.josa(name, "이/가") + " 피었어요! 내 정원에 심었어요.");
       }
-      await ctx.wait(1500);
+      // 내가 키운 꽃을 볼 시간 (꽃을 콕 누르면 이름을 말함)
+      await ctx.wait(3200);
       ctx.round = (ctx.round || 0) + 1;
       const ok = await ctx.win({ big: ctx.round % 3 === 0, msg: U.josa(FLOWERS[pots[bloomed[0]].kind][1], "이/가") + " 피었어요!" });
       if (!ok) return;
@@ -4480,12 +4613,13 @@ KP.game({
         document.body.appendChild(f);
         requestAnimationFrame(() => requestAnimationFrame(() => (f.style.transform = "translate(" + (b.left - a.left - a.width * 0.2) + "px," + (b.top - a.top + a.height * 0.1) + "px) scale(.25)")));
         setTimeout(() => f.remove(), 950);
+        potEls[i].classList.remove("bloom");
         pots[i] = newPot();
         renderPot(i, true);
       }
       savePots();
       A.sfx("whoosh");
-      KP.voice.say("새 씨앗을 심었어요! 물을 주세요!");
+      ctx.say("새 씨앗을 심었어요! 물을 주세요!");
       busy = false;
       setHint();
     });
@@ -4499,10 +4633,22 @@ KP.game({
       const top = U.el("div", "gr-vtop");
       const back = U.btn(KP.E("↩️") + " 돌아가기", "btn");
       top.append(back, U.el("div", "", KP.E("🌼") + " 내 정원 · 꽃 " + g.length + "송이"));
+      // 하늘·해님·나비가 있는 정원: 꽃은 아래 풀밭부터 크게 심음 (꽃이 많아지면 조금씩 작게, 넘치면 위로 스크롤)
+      view.append(U.el("div", "gr-vsun", KP.E("☀️")), U.el("div", "gr-vgrass"));
+      const nb = Math.min(4, 1 + Math.floor(g.length / 4));
+      for (let k = 0; k < nb; k++) {
+        const b = U.el("div", "gr-vbug", KP.E(k % 2 ? "🐝" : "🦋"));
+        b.style.setProperty("--d", 9 + k * 2.5 + "s");
+        b.style.setProperty("--dl", -k * 3.1 + "s");
+        view.appendChild(b);
+      }
+      const scroll = U.el("div", "gr-vscroll");
       const grid = U.el("div", "gr-vgrid");
-      const fs = g.length > 80 ? 44 : g.length > 40 ? 56 : 74;
+      scroll.appendChild(grid);
+      const fs = g.length > 80 ? 48 : g.length > 40 ? 62 : g.length > 16 ? 84 : 112;
       grid.style.setProperty("--fs", fs + "px");
       if (!g.length) grid.appendChild(U.el("div", "gr-vempty", "아직 핀 꽃이 없어요. 물을 주고 해님을 눌러 꽃을 피워요!"));
+      requestAnimationFrame(() => (scroll.scrollTop = scroll.scrollHeight));
       g.forEach((f, i) => {
         const c = U.el("div", "gr-vf", KP.E(f.e) + "<small>" + (f.d || "") + "</small>");
         c.style.setProperty("--i", Math.min(i, 60));
@@ -4513,7 +4659,7 @@ KP.game({
         });
         grid.appendChild(c);
       });
-      view.append(top, grid);
+      view.append(top, scroll);
       view.classList.add("show");
       KP.voice.say(g.length ? "내 정원에 꽃이 피었어요!" : "아직 핀 꽃이 없어요. 꽃을 피워 봐요!"); // 송이 수는 화면 위에
       back.addEventListener("click", () => {
@@ -4534,6 +4680,9 @@ KP.game({
         savePots();
       }
       view.classList.remove("show");
+      potEls.forEach((el) => el.classList.remove("bloom"));
+      idle = 0;
+      if (!ghost.parentNode) scene.insertBefore(ghost, fx);
       renderAll();
       updateGardenBtn();
       requestAnimationFrame(() => {
@@ -4555,7 +4704,9 @@ KP.game({
 
 /* ==== js/games/make/icecream.js ==== */
 /* 아이스크림 가게 — 손님 동물의 주문대로 아이스크림 만들기
-   1단계: 자유롭게 만들어 드리기 / 2단계: "딸기 두 개 주세요!"(맛 하나·개수) / 3단계: 맛 두 가지 + 콘·컵, 토핑 주문
+   1단계: "딸기 주세요!"(맛 하나, 개수는 마음대로) — 가끔 자유 주문(아무거나 → 축하는 하되 열쇠 별 없음)
+   2단계: "딸기 두 개 주세요!"(맛 하나·개수) / 3단계: 맛 두 가지(각 1~2개)
+   4단계: 맛 두 가지 + 콘·컵, 토핑 주문 (예전 3단계 — 3~4세에 한 번에 오르면 벅차서 나눔, 2026-11-08)
    - 콘/컵 고르기, 스쿱 최대 5개 쌓기(뚝 떨어지는 연출), 토핑: 스프링클·체리·초코칩
    - 드리기 → 손님이 냠냠 먹고 하트 / 틀리면 무엇이 다른지 말해 줌
    - 📸 → 내 작품(kind "icecream") */
@@ -4565,7 +4716,7 @@ KP.game({
   icon: "🍦",
   name: "아이스크림 가게",
   cat: "make",
-  levels: 3,
+  levels: 4,
   score: "🍦",
   setup(ctx) {
     const U = KP.u,
@@ -4617,6 +4768,17 @@ KP.game({
         .ic-bub svg{height:64px}
         .ic-cust{width:44%;bottom:24%}
         .ic-animal{font-size:clamp(80px,11vh,120px)}
+      }
+      /* 폰 세로(2026-11-08): 맛 단추 6칸 한 줄(51px) → 3칸씩 2줄, 모든 단추 64px 이상 (가게 그림은 조금 줄어듦) */
+      @media (orientation:portrait) and (max-width:480px){
+        .ic{padding:0 6px 8px;gap:6px}
+        .ic-ctl{gap:6px}
+        .ic-row{gap:6px}
+        .ic-fl{grid-template-columns:repeat(3,1fr)}
+        .ic-mix{gap:6px}
+        .ic-b{min-height:clamp(58px,7.8vh,68px);min-width:0;flex-direction:row;gap:4px;font-size:14px}
+        .ic-mix .ic-b,.ic-ac .ic-b{flex-direction:column;gap:1px;font-size:12.5px}
+        .ic-animal{font-size:clamp(76px,10vh,110px)}
       }
       @media (orientation:landscape) and (max-height:500px){
         .ic{gap:8px;padding:0 10px 8px}
@@ -4798,19 +4960,27 @@ KP.game({
     /* ---------- 손님 · 주문 ---------- */
     function makeOrder() {
       const lv = ctx.level;
-      if (lv === 1) return { free: true };
+      if (lv === 1) {
+        // 맛 하나만 (몇 개든 좋음). 세 번에 한 번쯤은 자유 주문
+        ctx.freeN = (ctx.freeN || 0) + 1;
+        if (ctx.freeN % 3 === 0) return { free: true };
+        return { only: U.rand(FLAVORS.length) };
+      }
       if (lv === 2) {
         const f = U.rand(FLAVORS.length);
         return { counts: { [f]: 1 + U.rand(3) } };
       }
       const [f1, f2] = U.sample([0, 1, 2, 3, 4, 5], 2);
       const o = { counts: { [f1]: 1 + U.rand(2), [f2]: 1 + U.rand(2) } };
-      if (Math.random() < 0.5) o.cont = U.pick(["cone", "cup"]);
-      if (Math.random() < 0.45) o.top = U.pick(["cherry", "sprinkle", "chip"]);
+      if (lv >= 4) {
+        if (Math.random() < 0.5) o.cont = U.pick(["cone", "cup"]);
+        if (Math.random() < 0.45) o.top = U.pick(["cherry", "sprinkle", "chip"]);
+      }
       return o;
     }
     function orderText(o) {
       if (o.free) return U.pick(["아이스크림 주세요! 맛있게 만들어 주세요!", "제일 맛있는 아이스크림 주세요!", "아이스크림 하나 주세요!"]);
+      if (o.only != null) return FLAVORS[o.only][0] + " 주세요!";
       const parts = Object.entries(o.counts).map(([f, n]) => FLAVORS[f][0] + " " + ["", "하나", "두 개", "세 개"][n]);
       let t = parts.join(", ");
       if (o.cont) t = (o.cont === "cup" ? "컵에 " : "콘에 ") + t;
@@ -4820,6 +4990,7 @@ KP.game({
     }
     function orderPic(o) {
       if (o.free) return iceSVG({ cont: "cone", scoops: [0, 2, 1] }).replace("<svg ", '<svg style="opacity:.9" ');
+      if (o.only != null) return iceSVG({ cont: "cone", scoops: [o.only] });
       const scoops = [];
       Object.entries(o.counts).forEach(([f, n]) => {
         for (let i = 0; i < n; i++) scoops.push(+f);
@@ -4837,6 +5008,7 @@ KP.game({
       const pool = CUSTOMERS.filter((c) => !who || c[0] !== who[0]);
       who = U.pick(pool);
       order = makeOrder();
+      freeHint = null;
       animal.innerHTML = KP.E(who[0]);
       cust.classList.add("away");
       bub.style.display = "none";
@@ -4853,9 +5025,18 @@ KP.game({
         hint();
       });
     }
+    let freeHint = null; // 자유 주문 힌트: 손님마다 한 단추만 가리킴 (부를 때마다 바뀌면 손가락이 왔다 갔다 함)
     function need() {
       // 다음에 눌러야 할 맛 단추 (힌트용)
-      if (!order || order.free) return st.scoops.length ? bServe : flBtns[U.rand(6)];
+      if (!order || order.free) {
+        if (st.scoops.length) return bServe;
+        if (!freeHint) freeHint = flBtns[U.rand(6)];
+        return freeHint;
+      }
+      if (order.only != null) {
+        if (st.scoops.some((f) => f !== order.only)) return bUndo;
+        return st.scoops.length ? bServe : flBtns[order.only];
+      }
       const have = {};
       st.scoops.forEach((f) => (have[f] = (have[f] || 0) + 1));
       for (const [f, n] of Object.entries(order.counts)) if ((have[f] || 0) < n) return flBtns[f];
@@ -4871,6 +5052,10 @@ KP.game({
     }
     function check() {
       if (order.free) return null;
+      if (order.only != null) {
+        const bad = st.scoops.find((f) => f !== order.only);
+        return bad == null ? null : U.josa(FLAVORS[bad][0], "은/는") + " 안 시켰어요!";
+      }
       const have = {};
       st.scoops.forEach((f) => (have[f] = (have[f] || 0) + 1));
       const CNT = ["", "한", "두", "세", "네", "다섯"];
@@ -4924,6 +5109,7 @@ KP.game({
       animal.classList.remove("nom");
       ctx.score.add();
       ctx.round = (ctx.round || 0) + 1;
+      if (order.free) ctx._fewChoice = true; // 아무거나 드려도 되는 판 → 축하만, 열쇠 별 없음
       const big = ctx.round % 5 === 0;
       const ok = await ctx.win({ big, msg: big ? "최고의 아이스크림 가게!" : U.pick(["손님이 좋아해요!", "맛있대요!", "잘 만들었어요!"]) });
       if (!ok) return;
@@ -5022,11 +5208,13 @@ KP.game({
 ;
 
 /* ==== js/games/make/paintbook.js ==== */
-/* 색칠 놀이 — 그림 칸을 톡 눌러 색 채우기
-   - 장면 8개(집·꽃·물고기·자동차·성·로켓·공룡·나비), 장면 고르기는 썸네일 창
+/* 색칠 놀이 — 그림 칸을 톡 눌러 색 채우기 + 🖍️ 크레파스로 칸 안에 쓱쓱 칠하기
+   - 장면 8개(쉬운 것 → 칸이 많은 것: 집·자동차·물고기·로켓·꽃·성·나비·공룡), 장면 고르기는 썸네일 창
+   - 도구: 🪣 붓기(칸 한 번에) / 🖍️ 크레파스(누른 칸 안에서만 칠해짐 — 칸 모양 clipPath)
+   - 작은 칸(꽃잎·공룡 점)은 살짝 빗나가도 가까운 작은 칸이 칠해짐
    - 색 12가지 + 무지개·반짝이 특수색, 되돌리기, 처음처럼(꾹)
    - 칠한 상태는 장면마다 자동 저장(KP.store "paintbook:fills") → 껐다 켜도 그대로
-   - ✅ 완성 → 내 작품(kind "paint") 저장 + 축하 → 도안은 다시 하얗게
+   - ✅ 완성 → 내 작품(kind "paint") 저장 → 그림을 액자로 크게 보여 주고 → 축하 → 그다음 새 종이
    - 🖨️ 장면 고르기 화면에서 빈 도안 출력(종이에 크레파스로 칠하기) */
 "use strict";
 KP.game({
@@ -5049,6 +5237,19 @@ KP.game({
       .pb-act.done{background:var(--grass);box-shadow:0 5px 0 #1d7f45}
       .pb-act.off{opacity:.4}
       .pb-act.scn svg{width:80%;height:80%}
+      .pb-tools{grid-column:1/-1;display:flex;gap:8px;justify-content:center}
+      .pb-tool{min-width:var(--sw);height:var(--sw);padding:0 6px;border-radius:16px;background:#fff;box-shadow:0 4px 0 rgba(47,58,102,.14);display:flex;align-items:center;justify-content:center;gap:4px;font-size:calc(var(--sw) * .5);line-height:1}
+      .pb-tool span{display:none;font-size:14px;color:var(--ink)}
+      .pb-tool.sel{background:#ffe79a;box-shadow:0 0 0 3px var(--ink),0 4px 0 rgba(47,58,102,.14)}
+      .pb-card .lv{font-size:.8em;opacity:.85;margin-left:2px}
+      .pb-polar{position:fixed;left:50%;top:46%;z-index:90;width:min(74vw,520px);background:#fff;border-radius:18px;padding:12px 12px 8px;box-shadow:0 16px 40px rgba(0,0,0,.3);
+        transform:translate(-50%,-50%) rotate(-3deg);animation:pbPolar .45s cubic-bezier(.3,1.5,.6,1) backwards;pointer-events:none;text-align:center;font-size:clamp(18px,2.6vw,26px);color:var(--ink)}
+      .pb-polar img{display:block;width:100%;aspect-ratio:4/3;object-fit:contain;border-radius:10px;background:#fff;box-shadow:inset 0 0 0 2px #eef1f7}
+      .pb-polar b{display:block;font-weight:400;padding-top:6px}
+      .pb-polar.go{transition:transform .9s cubic-bezier(.5,-0.35,.6,1),opacity .9s}
+      @keyframes pbPolar{from{transform:translate(-50%,-50%) scale(.3) rotate(-14deg);opacity:0}}
+      .pb-board.wipe svg{animation:pbWipe .7s ease-in-out}
+      @keyframes pbWipe{0%{transform:none}45%{transform:translateX(-8%) rotate(-3deg);opacity:.2}55%{transform:translateX(8%) rotate(3deg);opacity:.2}100%{transform:none;opacity:1}}
       .pb-sw{width:var(--sw);height:var(--sw);border-radius:50%;border:4px solid #fff;box-shadow:0 4px 0 rgba(0,0,0,.14);transition:transform .12s}
       .pb-sw.light{border-color:#e4e8f2}
       .pb-sw.sel{transform:scale(1.18);box-shadow:0 0 0 4px var(--ink),0 4px 0 rgba(0,0,0,.14)}
@@ -5069,17 +5270,20 @@ KP.game({
       .pb-card svg{width:100%;aspect-ratio:4/3;display:block;border-radius:12px;background:#fff}
       .pb-card.now{box-shadow:0 0 0 5px var(--sun),var(--shadow)}
       .pb-card:active{transform:scale(.96)}
+      /* 세로 화면(폰·세로 태블릿): 위 단추 줄 / 그림 / 아래 도구+색. 폰에서도 단추·색 64px 안팎 (2026-11-08) */
       @media (max-aspect-ratio:1/1){
-        .pb{gap:8px;padding:2px 10px 10px;--sw:min(calc((100vw - 74px) / 7),50px);--ab:min(calc((100vw - 60px) / 5),62px);
-          grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"acts" "board" "pal"}
-        .pb-acts{flex-direction:row}
-        .pb-pal,.pb-pal.mine3{grid-template-columns:repeat(7,var(--sw));gap:8px}
+        .pb{gap:8px;padding:2px 6px 8px;--sw:clamp(52px,min(calc((100vw - 50px) / 5 - 4px),8vh),72px);--ab:clamp(56px,min(calc((100vw - 56px) / 5),9vh),86px);
+          grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) auto;grid-template-areas:"acts" "board" "pal"}
+        .pb-acts{flex-direction:row;gap:6px}
+        .pb-pal,.pb-pal.mine3{grid-template-columns:repeat(auto-fit,var(--sw));gap:6px 5px}
+        .pb-tool span{display:inline}
+        .pb-tool{padding:0 14px}
         .pb-grid{grid-template-columns:repeat(2,1fr);gap:10px}
       }
       @media (orientation:landscape) and (max-height:500px){
-        .pb{gap:8px;padding:2px 10px 8px;--sw:42px;--ab:52px}
-        .pb-acts{gap:8px}
-        .pb-pal,.pb-pal.mine3{grid-template-columns:repeat(4,var(--sw));gap:9px;align-content:center}
+        .pb{gap:8px;padding:2px 10px 8px;--sw:min(15vh,60px);--ab:min(16vh,62px)}
+        .pb-acts{gap:6px}
+        .pb-pal,.pb-pal.mine3{grid-template-columns:repeat(4,var(--sw));gap:7px;align-content:start;overflow-y:auto;padding:4px}
       }
     `);
 
@@ -5109,7 +5313,7 @@ KP.game({
 
     const SCENES = [
       {
-        id: "house", em: "🏠", name: "집",
+        id: "house", em: "🏠", name: "집", hard: 0,
         svg: () =>
           bgR() + r("path", { d: "M0 228 Q200 205 400 228 L400 300 L0 300Z" }) +
           r("circle", { cx: 58, cy: 56, r: 28 }) + l("M58 16 V6 M58 96 V106 M18 56 H8 M98 56 H108 M30 28 L23 21 M86 84 L93 91 M86 28 L93 21 M30 84 L23 91", 4) +
@@ -5125,7 +5329,7 @@ KP.game({
           smallFlower(40, 262) + smallFlower(80, 280) + smallFlower(300, 270),
       },
       {
-        id: "flower", em: "🌻", name: "꽃",
+        id: "flower", em: "🌻", name: "꽃", hard: 1,
         svg: () =>
           bgR() + r("path", { d: "M0 238 Q110 214 210 236 T400 230 L400 300 L0 300Z" }) +
           r("circle", { cx: 352, cy: 50, r: 24 }) + cloud(40, 60, 0.9) +
@@ -5138,7 +5342,7 @@ KP.game({
           smallFlower(60, 262) + smallFlower(340, 266),
       },
       {
-        id: "fish", em: "🐠", name: "물고기",
+        id: "fish", em: "🐠", name: "물고기", hard: 0,
         svg: () =>
           bgR() + r("path", { d: "M0 262 Q100 248 200 262 T400 258 L400 300 L0 300Z" }) +
           r("path", { d: "M40 262 Q20 222 42 190 Q60 160 44 130 Q74 160 60 190 Q46 224 58 262Z" }) +
@@ -5153,7 +5357,7 @@ KP.game({
           star(300, 272, 18, 0.5),
       },
       {
-        id: "car", em: "🚗", name: "자동차",
+        id: "car", em: "🚗", name: "자동차", hard: 0,
         svg: () =>
           bgR() + r("rect", { x: 0, y: 236, width: 400, height: 64 }) + '<path d="M10 272 H390" stroke="' + LINE + '" stroke-width="4" stroke-dasharray="26 18" pointer-events="none"/>' +
           r("circle", { cx: 340, cy: 52, r: 26 }) + cloud(50, 62, 1) +
@@ -5166,7 +5370,7 @@ KP.game({
           r("circle", { cx: 284, cy: 206, r: 30 }) + r("circle", { cx: 284, cy: 206, r: 12 }),
       },
       {
-        id: "castle", em: "🏰", name: "성",
+        id: "castle", em: "🏰", name: "성", hard: 1,
         svg: () =>
           bgR() + r("path", { d: "M0 250 Q200 232 400 250 L400 300 L0 300Z" }) + cloud(300, 60, 0.9) + r("circle", { cx: 50, cy: 44, r: 22 }) +
           r("path", { d: "M118 150 V132 H136 V146 H152 V132 H170 V146 H186 V132 H214 V146 H230 V132 H248 V146 H264 V132 H282 V252 H118Z" }) +
@@ -5179,7 +5383,7 @@ KP.game({
           smallFlower(30, 276) + smallFlower(370, 276),
       },
       {
-        id: "rocket", em: "🚀", name: "로켓",
+        id: "rocket", em: "🚀", name: "로켓", hard: 0,
         svg: () =>
           bgR() + r("circle", { cx: 332, cy: 60, r: 32 }) + r("circle", { cx: 322, cy: 50, r: 7 }) + r("circle", { cx: 344, cy: 74, r: 5 }) +
           r("circle", { cx: 72, cy: 228, r: 36 }) + r("path", { d: "M14 246 Q72 214 132 214 Q140 220 128 226 Q72 240 18 256 Q8 254 14 246Z" }) +
@@ -5192,7 +5396,7 @@ KP.game({
           r("circle", { cx: 200, cy: 134, r: 22 }) + r("circle", { cx: 200, cy: 134, r: 13 }),
       },
       {
-        id: "dino", em: "🦕", name: "공룡",
+        id: "dino", em: "🦕", name: "공룡", hard: 1,
         svg: () =>
           bgR() + r("path", { d: "M0 246 Q200 230 400 246 L400 300 L0 300Z" }) + r("circle", { cx: 60, cy: 50, r: 24 }) +
           r("path", { d: "M276 248 L330 132 H356 L400 210 V248Z" }) + r("path", { d: "M330 132 Q343 112 356 132 L350 146 Q343 136 336 146Z" }) + cloud(330, 70, 0.7) +
@@ -5206,7 +5410,7 @@ KP.game({
           r("circle", { cx: 140, cy: 168, r: 11 }) + r("circle", { cx: 172, cy: 154, r: 8 }) + r("circle", { cx: 192, cy: 186, r: 10 }) + r("circle", { cx: 124, cy: 194, r: 7 }),
       },
       {
-        id: "butterfly", em: "🦋", name: "나비",
+        id: "butterfly", em: "🦋", name: "나비", hard: 1,
         svg: () =>
           bgR() + r("path", { d: "M0 262 Q200 246 400 262 L400 300 L0 300Z" }) +
           r("path", { d: "M196 140 Q120 36 68 68 Q38 110 90 150 Q140 170 196 152Z" }) + r("path", { d: "M204 140 Q280 36 332 68 Q362 110 310 150 Q260 170 204 152Z" }) +
@@ -5218,6 +5422,9 @@ KP.game({
           smallFlower(40, 274) + smallFlower(120, 282) + smallFlower(290, 280) + smallFlower(364, 272),
       },
     ];
+    // 고르기 화면 순서: 칸이 큰 쉬운 그림 먼저 → 칸이 많은 그림(성·나비·공룡)은 뒤에 ⭐ 표시 (저장된 칠은 id 로 찾으니 순서와 무관)
+    const EASY_ORDER = ["house", "car", "fish", "rocket", "flower", "castle", "butterfly", "dino"];
+    SCENES.sort((a, b) => EASY_ORDER.indexOf(a.id) - EASY_ORDER.indexOf(b.id));
     const DEFS =
       '<defs><linearGradient id="pbRainbow" x1="0" y1="0" x2="1" y2="1">' +
       ["#ff3b30", "#ff9500", "#ffd60a", "#34c759", "#5ac8fa", "#1e6cff", "#8e5cf7"].map((c, i) => '<stop offset="' + (i / 6).toFixed(2) + '" stop-color="' + c + '"/>').join("") +
@@ -5238,13 +5445,62 @@ KP.game({
     let sceneId = KP.store.get("paintbook:scene", "house");
     if (!SCENES.find((s) => s.id === sceneId)) sceneId = "house";
     let color = KP.store.get("paintbook:color", "#ff3b30");
-    let undo = [];
+    let tool = KP.store.get("paintbook:tool", "fill"); // "fill" 붓기 | "crayon" 크레파스
+    // 크레파스 획: 장면마다 [[칸 번호, 색, 굵기, 경로], ...] (오래된 것부터, 장면당 최근 MAX_STROKES 개만 저장)
+    const strokes = KP.store.get("paintbook:strokes", {});
+    const MAX_STROKES = 160;
+    let undo = []; // {f:[[칸, 이전 색]...], p:[[획, 층]...] (지운 획 되살리기), add:획(새 획 지우기)}
     let regions = [];
     let doneSaid = false,
-      unsaved = false;
+      unsaved = false,
+      saving = false;
+    const NS = "http://www.w3.org/2000/svg";
+    /** 칸 바로 뒤의 크레파스 층(<g class="pb-lay">) — 칸 모양으로 잘려서 밖으로 안 나감, 뒤에 그려지는 칸에는 가려짐 */
+    const layOf = (e) => (e && e.nextSibling && e.nextSibling.classList && e.nextSibling.classList.contains("pb-lay") ? e.nextSibling : null);
+    const colored = (e) => e.getAttribute("fill") !== "#ffffff" || !!(layOf(e) && layOf(e).firstChild);
+    function strokeEl(svg, sid, regs, ri, c, w, d) {
+      const reg = regs[ri];
+      if (!reg) return null;
+      let lay = layOf(reg);
+      if (!lay) {
+        const cid = "pbc-" + sid + "-" + ri;
+        if (!svg.querySelector("[id='" + cid + "']")) {
+          const cp = document.createElementNS(NS, "clipPath");
+          cp.setAttribute("id", cid);
+          const sh = reg.cloneNode(false);
+          sh.removeAttribute("class");
+          cp.appendChild(sh);
+          svg.querySelector("defs").appendChild(cp);
+        }
+        lay = document.createElementNS(NS, "g");
+        lay.setAttribute("class", "pb-lay");
+        lay.setAttribute("clip-path", "url(#" + cid + ")");
+        lay.setAttribute("pointer-events", "none");
+        reg.after(lay);
+      }
+      const p = document.createElementNS(NS, "path");
+      p.setAttribute("d", d);
+      p.setAttribute("fill", "none");
+      p.setAttribute("stroke", c);
+      p.setAttribute("stroke-width", w);
+      p.setAttribute("stroke-linecap", "round");
+      p.setAttribute("stroke-linejoin", "round");
+      p.setAttribute("stroke-opacity", ".92");
+      lay.appendChild(p);
+      return p;
+    }
+    const drawSaved = (svg, sid, regs) => (strokes[sid] || []).forEach(([ri, c, w, d]) => strokeEl(svg, sid, regs, ri, c, w, d));
     const saveFills = () => {
       fills[sceneId] = regions.map((e) => e.getAttribute("fill"));
       KP.store.set("paintbook:fills", fills);
+      const list = [];
+      regions.forEach((e, i) => {
+        const lay = layOf(e);
+        if (lay) [...lay.children].forEach((p) => list.push([i, p.getAttribute("stroke"), +p.getAttribute("stroke-width"), p.getAttribute("d")]));
+      });
+      if (list.length) strokes[sceneId] = list.slice(-MAX_STROKES);
+      else delete strokes[sceneId];
+      KP.store.set("paintbook:strokes", strokes);
     };
 
     /* ---------- 화면 ---------- */
@@ -5268,6 +5524,23 @@ KP.game({
         ? KP.paint.mine().map((m) => ({ hex: m.hex.toLowerCase(), n: m.n })).filter((m) => !COLORS.some((c) => c[0] === m.hex)).slice(0, 6)
         : [];
       pal.classList.toggle("mine3", mine.length > 2);
+      // 도구: 🪣 붓기(칸 한 번에) / 🖍️ 크레파스(칸 안에서만 쓱쓱)
+      const tools = U.el("div", "pb-tools");
+      [["fill", "🪣", "붓기"], ["crayon", "🖍️", "크레파스"]].forEach(([k, em, nm]) => {
+        const b = U.btn(KP.E(em) + "<span>" + nm + "</span>", "pb-tool" + (tool === k ? " sel" : ""));
+        b.dataset.tool = k;
+        ctx.tap(b, () => {
+          tool = k;
+          KP.store.set("paintbook:tool", k);
+          U.$$(".pb-tool", pal).forEach((x) => x.classList.toggle("sel", x === b));
+          U.replay(b, "jump");
+          A.sfx("tap");
+          KP.voice.say(nm + "!");
+          ctx.hint(() => regions[Math.min(regions.length - 1, 2)], k === "crayon" ? "색을 고르고 쓱쓱 칠해요." : "그림을 톡 눌러 칠해 봐요!");
+        });
+        tools.appendChild(b);
+      });
+      pal.appendChild(tools);
       mine.map((m) => [m.hex, m.n, true]).concat(COLORS).forEach(([c, name, my], i) => {
         if (mine.length && i === mine.length) pal.appendChild(U.el("span", "pb-sep"));
         const b = U.btn(my ? '<span class="tag">' + KP.E("🎨") + "</span>" : "", "pb-sw" + (my ? " myPaint" : "") + (c === "#ffffff" ? " light" : "") + (c === "url(#pbRainbow)" ? " rainbow swatch" : "") + (c === "url(#pbGlitter)" ? " glitter swatch" : ""));
@@ -5301,15 +5574,66 @@ KP.game({
       regions.forEach((e, i) => {
         if (saved[i]) e.setAttribute("fill", saved[i]);
       });
+      drawSaved(svg, id, regions);
       bScene.innerHTML = svgFor(sc);
       undo = [];
+      saving = false;
+      st = null;
+      board.classList.remove("wipe");
       doneSaid = isComplete();
-      unsaved = regions.some((e) => e.getAttribute("fill") !== "#ffffff");
+      unsaved = regions.some(colored);
       updateUndo();
       svg.addEventListener("pointerdown", onPaint);
+      svg.addEventListener("pointermove", onMove);
+      ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) => svg.addEventListener(ev, endStroke));
     }
     function isComplete() {
-      return regions.length && regions.every((e) => e.getAttribute("fill") !== "#ffffff");
+      return regions.length && regions.every(colored);
+    }
+    /** 누른 칸 찾기: 작은 칸(화면에서 28px 미만 — 폰의 꽃잎·공룡 점)은 12px 안쪽으로 빗나가도 그 칸으로 */
+    function pickRegion(e) {
+      const t = e.target && e.target.closest ? e.target.closest(".pb-r") : null;
+      const small = (r) => Math.max(r.width, r.height) < 28;
+      if (t && small(t.getBoundingClientRect())) return t;
+      const ti = t ? regions.indexOf(t) : -1;
+      let best = null,
+        bd = 12;
+      regions.forEach((g, i) => {
+        if (i <= ti) return; // 누른 칸보다 위에 그려진(가리는) 칸만
+        const r = g.getBoundingClientRect();
+        if (!small(r)) return;
+        const d = Math.hypot(Math.max(r.left - e.clientX, 0, e.clientX - r.right), Math.max(r.top - e.clientY, 0, e.clientY - r.bottom));
+        if (d < bd) {
+          bd = d;
+          best = g;
+        }
+      });
+      return best || t;
+    }
+    /* 🖍️ 크레파스 획 */
+    let st = null; // {p:획, d, x, y, n, id:pointerId, svg, t}
+    const svgPt = (svg, e) => {
+      const m = svg.getScreenCTM();
+      if (!m) return null;
+      const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(m.inverse());
+      return { x: Math.round(q.x), y: Math.round(q.y) };
+    };
+    function onMove(e) {
+      if (!st || e.pointerId !== st.id) return;
+      const q = svgPt(st.svg, e);
+      if (!q || Math.hypot(q.x - st.x, q.y - st.y) < 3 || st.n > 400) return;
+      st.d += "L" + q.x + " " + q.y;
+      st.x = q.x;
+      st.y = q.y;
+      st.n++;
+      st.p.setAttribute("d", st.d);
+      if (st.n % 6 === 0) A.noise({ dur: 0.07, vol: 0.035, bp: 2600, bpTo: 1400, q: 1 });
+    }
+    function endStroke(e) {
+      if (!st || (e && e.pointerId !== st.id)) return;
+      st = null;
+      saveFills();
+      afterPaint();
     }
     function updateUndo() {
       bUndo.classList.toggle("off", !undo.length);
@@ -5317,15 +5641,37 @@ KP.game({
     function onPaint(e) {
       e.preventDefault();
       A.unlock();
-      const t = e.target.closest(".pb-r");
+      if (saving || st) return;
+      const t = pickRegion(e);
       if (!t) return;
+      if (tool === "crayon") {
+        const svg = board.firstChild;
+        const q = svgPt(svg, e);
+        if (!q) return;
+        const d = "M" + q.x + " " + q.y + "L" + (q.x + 0.5) + " " + q.y;
+        const p = strokeEl(svg, sceneId, regions, regions.indexOf(t), color, 14, d);
+        if (!p) return;
+        st = { p, d, x: q.x, y: q.y, n: 0, id: e.pointerId, svg };
+        try {
+          svg.setPointerCapture(e.pointerId);
+        } catch (_) {}
+        undo.push({ add: p });
+        if (undo.length > 60) undo.shift();
+        updateUndo();
+        unsaved = true;
+        const i = Math.max(0, COLORS.findIndex((c) => c[0] === color));
+        A.note(["C5", "D5", "E5", "G5", "A5", "C6"][i % 6], { inst: "marimba", dur: 0.25, vol: 0.2 });
+        if (color.startsWith("url")) A.sfx("sparkle");
+        ctx.hint(null);
+        return;
+      }
       const prev = t.getAttribute("fill");
       if (prev === color) {
         U.replay(t, "pop");
         A.sfx("tap");
         return;
       }
-      undo.push([[t, prev]]);
+      undo.push({ f: [[t, prev]] });
       if (undo.length > 60) undo.shift();
       t.setAttribute("fill", color);
       U.replay(t, "pop");
@@ -5342,10 +5688,13 @@ KP.game({
       document.body.appendChild(sp);
       setTimeout(() => sp.remove(), 800);
       ctx.hint(null);
+      afterPaint();
+    }
+    function afterPaint() {
       if (!doneSaid && isComplete()) {
         doneSaid = true;
         ctx.after(500, () => {
-          KP.voice.say("우와, 다 칠했어요! 초록 단추를 누르면 내 작품에 저장돼요.");
+          ctx.say("우와, 다 칠했어요! ✅ 초록 단추를 누르면 내 작품에 저장돼요.", "우와, 다 칠했어요! 초록 단추를 누르면 내 작품에 저장돼요.");
           U.replay(bDone, "jump");
           ctx.hint(() => bDone, "초록 단추를 눌러 저장해요!");
         });
@@ -5360,10 +5709,12 @@ KP.game({
         KP.voice.say("더 되돌릴 수 없어요");
         return;
       }
-      op.forEach(([t, prev]) => {
+      if (op.add) op.add.remove();
+      (op.f || []).forEach(([t, prev]) => {
         t.setAttribute("fill", prev);
         U.replay(t, "pop");
       });
+      (op.p || []).forEach(([p, lay]) => lay.appendChild(p));
       saveFills();
       updateUndo();
       U.replay(bUndo, "wig");
@@ -5374,10 +5725,17 @@ KP.game({
       bReset,
       900,
       () => {
-        const op = regions.filter((t) => t.getAttribute("fill") !== "#ffffff").map((t) => [t, t.getAttribute("fill")]);
-        if (!op.length) return;
-        undo.push(op);
+        if (saving) return;
+        const f = regions.filter((t) => t.getAttribute("fill") !== "#ffffff").map((t) => [t, t.getAttribute("fill")]);
+        const p = [];
+        regions.forEach((t) => {
+          const lay = layOf(t);
+          if (lay) [...lay.children].forEach((x) => p.push([x, lay]));
+        });
+        if (!f.length && !p.length) return;
+        undo.push({ f, p });
         regions.forEach((t) => t.setAttribute("fill", "#ffffff"));
+        p.forEach(([x]) => x.remove());
         saveFills();
         updateUndo();
         doneSaid = false;
@@ -5402,10 +5760,12 @@ KP.game({
       picker.appendChild(bPrint);
       const grid = U.el("div", "pb-grid");
       SCENES.forEach((sc, i) => {
-        const c = U.btn(svgFor(sc) + "<span>" + KP.E(sc.em) + " " + sc.name + "</span>", "pb-card" + (sc.id === sceneId ? " now" : ""));
+        const c = U.btn(svgFor(sc) + "<span>" + KP.E(sc.em) + " " + sc.name + (sc.hard ? '<i class="lv">' + KP.E("⭐") + "</i>" : "") + "</span>", "pb-card" + (sc.id === sceneId ? " now" : ""));
         c.style.setProperty("--i", i);
         const saved = fills[sc.id] || [];
-        U.$$(".pb-r", c).forEach((e, k) => saved[k] && e.setAttribute("fill", saved[k]));
+        const cr = U.$$(".pb-r", c);
+        cr.forEach((e, k) => saved[k] && e.setAttribute("fill", saved[k]));
+        drawSaved(c.querySelector("svg"), sc.id, cr);
         ctx.tap(c, () => {
           A.sfx("open");
           picker.classList.remove("show");
@@ -5426,9 +5786,9 @@ KP.game({
 
     /* ---------- 완성 → 저장 ---------- */
     ctx.tap(bDone, async () => {
-      if (bDone.dataset.busy) return;
-      const colored = regions.filter((e) => e.getAttribute("fill") !== "#ffffff").length;
-      if (!colored) {
+      if (bDone.dataset.busy || saving) return;
+      const nColored = regions.filter(colored).length;
+      if (!nColored) {
         ctx.miss(bDone, "먼저 색을 칠해 봐요!");
         return;
       }
@@ -5445,28 +5805,69 @@ KP.game({
         return;
       }
       const ok = await KP.db.put("art", { id: KP.newId(), kind: "paint", img, t: Date.now(), date: KP.gate.monthDay() });
-      flyAway(img, board);
       if (ok) {
         unsaved = false;
+        saving = true; // 축하가 끝날 때까지 그림은 그대로 보여 주고 칠하기는 잠시 멈춤
         const full = isComplete();
-        // 작품으로 보냈으니 도안은 새 종이처럼 하얗게 (칠한 기록도 비움)
-        regions.forEach((t) => t.setAttribute("fill", "#ffffff"));
+        // 칠한 기록은 바로 비워 둠 (축하 중에 나가도 다음엔 새 종이) — 화면의 그림은 축하 뒤에 지움
         delete fills[sceneId];
+        delete strokes[sceneId];
         KP.store.set("paintbook:fills", fills);
+        KP.store.set("paintbook:strokes", strokes);
         undo = [];
         updateUndo();
         doneSaid = false;
-        KP.toast("🖼️ 내 작품에 저장했어요!");
-        A.sfx("sticker");
         delete bDone.dataset.busy; // 기다리는 중에 나가도 버튼이 잠기지 않게
-        await ctx.wait(900);
+        // 내 그림을 액자로 크게 보여 준 뒤 → 홈(내 작품) 쪽으로 날아감
+        showSaved(img);
+        A.sfx("sticker");
+        ctx.say("🖼️ 내 작품에 저장했어요!", "내 작품에 저장했어요!");
+        await ctx.wait(2300);
         ctx.round = (ctx.round || 0) + 1;
-        await ctx.win({ big: full, msg: "내 작품에 저장했어요! 새 종이가 준비됐어요." });
+        // 열쇠 별: 칸을 충분히(4칸 이상·전체의 30% 이상) 칠했을 때만 (한 칸만 칠하고 저장 반복 방지)
+        if (nColored < Math.max(4, Math.ceil(regions.length * 0.3))) ctx._fewChoice = true;
+        const res = await ctx.win({ big: full, msg: "내 작품에 저장했어요!" });
+        if (res === false) return;
+        // 새 종이: 종이를 휙 바꾸는 연출과 함께 하얗게
+        board.classList.remove("wipe");
+        void board.offsetWidth;
+        board.classList.add("wipe");
+        A.sfx("whoosh");
+        await ctx.wait(330);
+        regions.forEach((t) => {
+          t.setAttribute("fill", "#ffffff");
+          const lay = layOf(t);
+          if (lay) lay.remove();
+        });
+        saving = false;
+        ctx.say("새 종이가 준비됐어요. 새 종이에 또 해 볼까요?");
+        ctx.hint(() => regions[Math.min(regions.length - 1, 2)], "그림을 톡 눌러 칠해 봐요!");
+        await ctx.wait(500);
+        board.classList.remove("wipe");
       } else {
         delete bDone.dataset.busy;
         KP.toast("저장하지 못했어요. 저장공간을 확인해 주세요");
       }
     });
+    /** 저장한 그림을 액자처럼 가운데 크게 1.6초 → 홈 단추(내 작품) 쪽으로 날아감 (화면을 나가도 저절로 사라짐) */
+    function showSaved(img) {
+      const f = U.el("div", "pb-polar", '<img alt="" draggable="false"><b>' + KP.E("🖼️") + " 내 작품</b>");
+      f.querySelector("img").src = img;
+      document.body.appendChild(f);
+      setTimeout(() => {
+        const a = f.getBoundingClientRect();
+        const home = ctx.root.querySelector(".bar .home");
+        const b = home ? home.getBoundingClientRect() : { left: 0, top: 0, width: 40, height: 40 };
+        f.classList.add("go");
+        f.style.transform =
+          "translate(calc(-50% + " + (b.left + b.width / 2 - a.left - a.width / 2) + "px), calc(-50% + " + (b.top + b.height / 2 - a.top - a.height / 2) + "px)) scale(.06) rotate(25deg)";
+        f.style.opacity = "0.4";
+        setTimeout(() => {
+          f.remove();
+          if (home) U.replay(home, "bump");
+        }, 950);
+      }, 1600);
+    }
     function toJpeg(svgEl) {
       return new Promise((res) => {
         const clone = svgEl.cloneNode(true);
@@ -5492,30 +5893,6 @@ KP.game({
         im.src = src;
       });
     }
-    function flyAway(img, fromEl) {
-      const a = fromEl.getBoundingClientRect();
-      const home = ctx.root.querySelector(".bar .home");
-      const b = home ? home.getBoundingClientRect() : { left: 0, top: 0, width: 40, height: 40 };
-      const f = U.el("img");
-      f.src = img;
-      Object.assign(f.style, {
-        position: "fixed", left: a.left + "px", top: a.top + "px", width: a.width + "px", height: a.height + "px", objectFit: "contain",
-        zIndex: 90, borderRadius: "18px", background: "#fff", boxShadow: "0 10px 30px rgba(0,0,0,.25)", pointerEvents: "none",
-        transition: "transform .9s cubic-bezier(.5,-0.35,.6,1), opacity .9s",
-      });
-      document.body.appendChild(f);
-      requestAnimationFrame(() =>
-        requestAnimationFrame(() => {
-          f.style.transform = "translate(" + (b.left + b.width / 2 - a.left - a.width / 2) + "px," + (b.top + b.height / 2 - a.top - a.height / 2) + "px) scale(.06) rotate(25deg)";
-          f.style.opacity = "0.5";
-        })
-      );
-      setTimeout(() => {
-        f.remove();
-        if (home) U.replay(home, "bump");
-      }, 950);
-    }
-
     ctx.load = () => load(sceneId);
     ctx.markColor = markColor;
     ctx.picker = picker;
@@ -5594,9 +5971,9 @@ KP.game({
         .plJarsCell .psJars{flex-wrap:nowrap;gap:4px}
         .plJarsCell .psJar{width:clamp(52px,16vw,64px);height:86px;flex:0 0 auto}
         .plJarsCell .psJar .jn{left:-3px;right:-3px;font-size:13px}
-        .plActs{flex-wrap:nowrap;gap:5px;max-width:100%;width:100%}
-        .plB.main{flex:1.5 1 0}
-        .plB{min-width:0;flex:1 1 0;min-height:66px;padding:6px 2px;font-size:12px;word-break:keep-all;white-space:nowrap}
+        /* (2026-11-08) 한 줄 5개(59px) → 3칸씩 2줄, 모두 64px 이상 */
+        .plActs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;max-width:100%;width:100%}
+        .plB{min-width:0;min-height:66px;padding:6px 2px;font-size:12.5px;word-break:keep-all;white-space:nowrap}
         .plB .pi{width:32px;height:28px}
       }
       @media (orientation:landscape) and (max-height:500px){
@@ -5664,7 +6041,8 @@ KP.game({
     acts.append(bKeep, bGo, bDrain, bDex, bDecal);
     Object.assign(ctx, { bKeep, bGo });
 
-    bDrain.addEventListener("click", async () => {
+    // 비우기: 실수로 톡 쳐서 애써 섞은 물감이 사라지지 않게 '꾹(0.6초)' 눌러야 비워짐 (데칼코마니 새 종이와 같은 방식)
+    const drain = async () => {
       if (studio.bowl.volume() < 0.05) return KP.voice.say("그릇이 벌써 비어 있어요!");
       nameTag.classList.remove("on");
       KP.voice.say("쏴아! 그릇을 비웠어요.");
@@ -5672,6 +6050,13 @@ KP.game({
       ctx.lastName = null;
       ctx.changed = false;
       this.saveBowl(ctx);
+    };
+    KP.hold(bDrain, 600, drain, () => KP.audio.sfx("tick"));
+    let drainDownAt = 0;
+    bDrain.addEventListener("pointerdown", () => (drainDownAt = performance.now()));
+    bDrain.addEventListener("click", () => {
+      // 짧게 톡 누른 경우만 안내 (꾹 눌러 비운 뒤의 click 은 무시)
+      if (performance.now() - drainDownAt < 550 && studio.bowl.volume() >= 0.05) KP.voice.say("꾹 누르고 있어요");
     });
     bKeep.addEventListener("click", () => this.keep(ctx));
     bGo.addEventListener("click", () => this.goPaint(ctx));
@@ -5961,7 +6346,8 @@ KP.game({
       .wp-spot{position:absolute;pointer-events:none;border-radius:50%}
       .wp-sponge{position:absolute;font-size:clamp(54px,8vw,80px);line-height:1;pointer-events:none;opacity:0;transition:opacity .2s;z-index:3;transform:translate(-30%,-75%) rotate(-12deg)}
       .wp-sponge.on{opacity:1}
-      @media (max-width:600px){ .wp-add span{display:none} .wp-add{padding:8px 12px} .wp-new{width:58px;height:58px;font-size:30px} }
+      /* 폰: 글자는 숨기고 그림 단추만 — 그래도 64px 이상 (2026-11-08) */
+      @media (max-width:600px){ .wp-add span{display:none} .wp-add{padding:8px 12px;min-width:64px;min-height:64px;justify-content:center} .wp-new{width:64px;height:64px;font-size:32px} }
     `);
 
     /* ---------- 기본 친구들 ---------- */
@@ -8402,22 +8788,26 @@ KP.game({
           .zpSep{grid-column:1/-1;height:3px}
           .zpSp{width:clamp(44px,5.2vh,58px);height:clamp(44px,5.2vh,58px);font-size:26px}
           .zpTools{display:grid;grid-template-columns:repeat(3,auto);justify-content:center}
-          .zpTool{min-width:0;padding:4px 6px}
+          .zpTool{min-width:54px;min-height:58px;justify-content:center;padding:4px 6px}
+          .zpSize{width:50px;height:50px}
           .zpAct{flex-direction:column;flex-wrap:nowrap;justify-content:center}
           .zpB{min-width:96px;padding:8px 10px;font-size:15px}
           .zpB .e{font-size:34px}
           .zpB.send{min-width:96px;padding:12px 10px}
         }
         /* 폰처럼 좁은 세로 화면 */
+        /* (2026-11-08) 손가락이 닿기 쉽게: 색 36→최대 52px(키 작은 폰은 조금 작게), 도구·굵기 52px 이상, '보내기' 글자는 낱말 단위로 줄바꿈 */
         @media (max-width:500px){
-          .zpSp{width:36px;height:36px;font-size:18px;border-width:3px}
-          .zpTool{min-width:44px;padding:3px 5px;font-size:11px}
-          .zpTool .e{font-size:22px}
-          .zpSize{width:34px;height:34px}
-          .zpPal{gap:6px}
-          .zpB{min-width:0;flex:1;padding:5px 4px;font-size:12.5px}
+          .zpSp{width:clamp(42px,min(6.2vh,calc((100vw - 80px) / 6)),52px);height:clamp(42px,min(6.2vh,calc((100vw - 80px) / 6)),52px);font-size:22px;border-width:3px}
+          .zpTools{gap:5px}
+          .zpTool{min-width:52px;min-height:clamp(48px,6.4vh,56px);justify-content:center;padding:3px 4px;font-size:11px}
+          .zpTool .e{font-size:24px}
+          .zpSize{width:clamp(44px,min(6.2vh,calc((100vw - 80px) / 6)),52px);height:clamp(44px,min(6.2vh,calc((100vw - 80px) / 6)),52px)}
+          .zpPal{gap:6px 5px}
+          .zpB{min-width:0;flex:1;min-height:clamp(56px,7.6vh,66px);padding:5px 3px;font-size:12.5px}
+          .zpB span{word-break:keep-all}
           .zpB .e{font-size:26px}
-          .zpB.send{min-width:0;flex:1.4}
+          .zpB.send{min-width:0;flex:1.3}
         }
       `);
       const choose = U.el("div", "zpChoose");
@@ -9041,6 +9431,7 @@ KP.game({
         ctx.miss(ctx.bSend, "먼저 예쁘게 색칠해 봐요!", { soft: true });
         return;
       }
+      const nPainted = fbs.filter((e, i) => !isWhite(e) || ctx.pp[i]).length; // 칠한 부위 수 (열쇠 별 기준)
       const svg = ctx.paper.querySelector("svg");
       // 동물원에서는 원래 도안 크기 기준으로 그림
       const vb = svg.getAttribute("viewBox");
@@ -9064,6 +9455,8 @@ KP.game({
       KP.zooNew = item.id;
       ctx.paper.classList.add("fly");
       KP.audio.sfx("whoosh");
+      // 열쇠 별: 부위를 3곳 이상(또는 절반 이상) 칠했을 때만 (한 부위만 칠하고 보내기 반복 방지)
+      if (nPainted < Math.min(3, Math.ceil(fbs.length / 2))) ctx._fewChoice = true;
       const ok = await ctx.win({ msg: T[tid].name + " 출발!", big: true });
       ctx.paper.innerHTML = "";
       ctx.paper.classList.remove("fly");
@@ -9375,6 +9768,8 @@ KP.game({
         @keyframes zHeart{to{transform:translateY(-70px) scale(1.3);opacity:0}}
         .zTreat{position:absolute;font-size:clamp(30px,4.4vw,44px);line-height:1;pointer-events:none;transition:top .7s cubic-bezier(.4,1.6,.6,1);filter:drop-shadow(0 4px 2px rgba(20,50,10,.3))}
         .zBar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:0 10px 12px;flex:0 0 auto}
+        .zBar .btn{min-height:64px}
+        @media (max-width:500px){.zBar{gap:8px}.zBar .btn{min-height:64px;padding-top:6px;padding-bottom:6px}}
         .zEmpty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;z-index:9700;font-size:clamp(20px,3vw,30px);color:#2f3a66;text-shadow:0 2px 0 #fff}
         .zDel{position:absolute;z-index:9999;background:#fff;border-radius:999px;padding:8px 14px;font-size:18px;box-shadow:0 4px 0 rgba(0,0,0,.15);color:#c62828}
         .z3Canvas{position:absolute;inset:0;width:100%;height:100%;display:none;touch-action:none;z-index:1}
@@ -9942,16 +10337,39 @@ KP.game({
         a.ty = a.y;
       }
       // 누르기 / 길게 누르기(보내기)
-      let lp = 0;
+      // 주의: 누르면 poke() 가 몸통을 튀게(jump) 해서 손가락 아래가 잠깐 비므로 pointerleave 로 취소하면
+      //       꾹 누르기가 절대 안 됨(2026-11-08 확인). → 12px 넘게 움직였을 때만 취소 (3D 와 같은 방식)
+      let lp = 0,
+        lx = 0,
+        ly = 0;
       el.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         e.stopPropagation();
         KP.audio.unlock();
         this.poke(ctx, a);
         clearTimeout(lp);
-        lp = setTimeout(() => this.askDelete(ctx, a), 1200); // 꾹 → 집에서 쉬기 버튼
+        lx = e.clientX;
+        ly = e.clientY;
+        try {
+          el.setPointerCapture(e.pointerId);
+        } catch (_) {}
+        lp = setTimeout(() => {
+          lp = 0;
+          if (el.isConnected) this.askDelete(ctx, a);
+        }, 1200); // 꾹 → 집에서 쉬기 버튼
       });
-      ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => el.addEventListener(ev, () => clearTimeout(lp)));
+      el.addEventListener("pointermove", (e) => {
+        if (lp && Math.hypot(e.clientX - lx, e.clientY - ly) > 12) {
+          clearTimeout(lp);
+          lp = 0;
+        }
+      });
+      ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) =>
+        el.addEventListener(ev, () => {
+          clearTimeout(lp);
+          lp = 0;
+        })
+      );
       this.place(ctx, a);
       return a;
     },

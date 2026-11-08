@@ -1,4 +1,4 @@
-/* 숫자 쓰기 공책 — 0~9 획순 따라 쓰기, 그다음 10~100 (100판처럼 열 칸씩)
+/* 숫자 쓰기 공책 — 0~9 획순 따라 쓰기, 그다음 몇십(10~100) · 11~19 · 21~99(접어 둠)
    획순(초등 수학 쓰기 일반): 위에서 시작, 0은 위에서 시계 반대 방향, 4는 2획(ㄴ자 → 세로),
    5는 2획(세로·배 → 윗줄), 그 밖에는 한 번에. 두 자리 수는 한 칸에 두 숫자를 나란히. */
 "use strict";
@@ -58,12 +58,17 @@
     const one = [];
     for (let n = 0; n <= 9; n++)
       one.push({ id: "D" + n, kind: "jamo", label: String(n), ch: String(n), say: n ? U.numNative(n) : "영", color: COLORS[n], strokes: D[n], word: n ? [U.numNative(n) + " · " + U.numSino(n), THINGS[n]] : ["영 · 하나도 없어요", "🧺"] });
-    const big = [];
-    for (let n = 10; n <= 100; n++)
-      big.push({ id: "N" + n, kind: "jamo", label: String(n), ch: String(n), say: U.numSino(n), color: COLORS[Math.floor(n / 10) % 10], strokes: numStrokes(n), syl: true, word: [U.numSino(n) + (n < 100 ? " · " + U.numNative(n) : ""), "🔢"] });
+    const two = (n) => ({ id: "N" + n, kind: "jamo", label: String(n), ch: String(n), say: U.numSino(n), color: COLORS[Math.floor(n / 10) % 10], strokes: numStrokes(n), syl: true, word: [U.numSino(n) + (n < 100 ? " · " + U.numNative(n) : ""), "🔢"] });
+    // 두 자리 수는 양이 많아(91개) 나눔: 몇십(10·20…100) → 11~19 → 나머지(접어 둠). 저장 키(N+수)는 예전과 같음
+    const tens = [],
+      teen = [],
+      rest = [];
+    for (let n = 10; n <= 100; n++) (n % 10 === 0 ? tens : n < 20 ? teen : rest).push(two(n));
     return [
       { id: "digit", name: "숫자 0~9", items: one },
-      { id: "big", name: "10~100", items: big },
+      { id: "tens", name: "몇십 10~100", items: tens },
+      { id: "teen", name: "11~19", items: teen },
+      { id: "big", name: "21~99", items: rest, fold: true },
     ];
   }
   KP.notebook({

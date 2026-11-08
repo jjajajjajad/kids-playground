@@ -2,6 +2,8 @@
    1단계: 1~3 차례로 잇기 (숫자 + 점 개수 함께 보임)
    2단계: 1~5 차례로 잇기 (숫자 + 점)
    3단계: 1~10 기차에서 빈 칸 4개 채우기 (숫자만, 앞뒤 숫자 보고 추리)
+          — 3단계에 처음 들어오면 첫 2판은 디딤판: 1~6 기차에 빈 칸 2개 (점도 보임)
+   칸 크기(--cw)는 무대 폭에 맞춰 계산 → 한 줄에 다 들어가게. 너무 좁으면(폰 세로) 반씩 2줄(5+5)로 나눔
    다 이으면 동물 승객이 창문에서 손을 흔들고 기차가 칙칙폭폭 달려 나간다. */
 "use strict";
 KP.game({
@@ -16,6 +18,7 @@ KP.game({
     KP.css("train", `
       .trWrap{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;padding:4px 10px 14px;gap:8px;overflow:hidden;--cw:clamp(62px,8.2vw,104px)}
       .trWrap.big{--cw:clamp(76px,13vw,128px)}
+      .trTrain.split{justify-content:flex-start}
       .trTrack{width:100%;display:flex;justify-content:center;position:relative}
       .trTrain{position:relative;z-index:0;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;row-gap:16px;max-width:100%;transition:transform 2.6s cubic-bezier(.55,0,.75,.4)}
       .trTrain.enter{animation:trEnter 1.1s cubic-bezier(.2,.9,.3,1)}
@@ -23,7 +26,7 @@ KP.game({
       .trTrain.go{transform:translateX(-140vw)}
       .trUnit{position:relative;padding-bottom:calc(var(--cw)*.2)}
       .trUnit:after{content:"";position:absolute;left:-3px;right:-3px;bottom:2px;height:6px;border-radius:3px;background:#9a7b5b;box-shadow:0 5px 0 #d8c3a4}
-      .trLoco{font-size:calc(var(--cw)*1.25);line-height:.9;display:flex;align-items:flex-end;margin-right:2px}
+      .trLoco{font-size:calc(var(--cw)*1.25);line-height:.9;display:flex;align-items:flex-end;justify-content:center;width:calc(var(--cw)*1.25);margin-right:2px}
       .trLoco .e{transform:scaleX(var(--flip,1))}
       .trTrain.go .trLoco,.trTrain.chug .trLoco{animation:trBob .3s infinite}
       .trTrain.go .trCar,.trTrain.chug .trCar{animation:trBob .3s infinite;animation-delay:calc(var(--k,0)*40ms)}
@@ -59,9 +62,40 @@ KP.game({
     ctx.body.appendChild(ctx.wrap);
     ctx.round = 0;
     ctx.token = 0;
+    // 화면을 돌리면 칸 크기·줄 나눔만 다시 맞춤 (판은 그대로)
+    let rt = null;
+    addEventListener("resize", () => {
+      if (!ctx._active) return;
+      if (rt) ctx.cancel(rt);
+      rt = ctx.after(250, () => this.fit(ctx));
+    });
+  },
+  /** 칸 크기 맞추기: 기관차 + 칸 total 개가 한 줄에 들어가는 가장 큰 크기. 50px 보다 작아지면 반씩 2줄 */
+  fit(ctx) {
+    const total = ctx.total || 0;
+    const W = ctx.track.clientWidth;
+    if (!total || !W) return;
+    const lv = ctx.level;
+    const max = lv === 1 ? 128 : 104;
+    const room = (per) => (W - 8 - per * 6) / (per + 1.25); // 칸 여백 6px, 기관차 1.25칸 + 2px
+    let per = total,
+      cw = Math.min(max, room(total));
+    if (cw < 50) {
+      per = Math.ceil(total / 2);
+      cw = Math.min(max, room(per));
+    }
+    cw = Math.floor(Math.max(44, cw));
+    const split = per < total;
+    ctx.wrap.style.setProperty("--cw", cw + "px");
+    ctx.train.classList.toggle("split", split);
+    const lw = cw * 1.25 + 2;
+    ctx.train.style.width = split ? Math.ceil(lw + per * (cw + 6)) + 1 + "px" : "";
+    // 둘째 줄 첫 칸은 기관차 폭만큼 들여서 윗줄 칸 아래에 맞춤
+    (ctx.units || []).forEach((u) => (u.style.marginLeft = split && +u.dataset.n === per + 1 ? lw + "px" : ""));
   },
   start(ctx) {
     ctx.round = 0;
+    ctx.l3n = 0; // 3단계 디딤판 판 수 (열 때마다 처음 2판)
     this.next(ctx);
   },
   car(ctx, n, dots) {
@@ -76,8 +110,12 @@ KP.game({
       A = KP.audio;
     const lv = ctx.level;
     const tok = ++ctx.token;
-    const total = [3, 5, 10][lv - 1];
-    const dots = lv < 3;
+    // 3단계 첫 2판(이번에 연 뒤)은 디딤판: 1~6 에 빈 칸 2개 + 점
+    if (lv < 3) ctx.l3n = 0;
+    const step = lv === 3 && (ctx.l3n || 0) < 2;
+    if (lv === 3) ctx.l3n = (ctx.l3n || 0) + 1;
+    const total = step ? 6 : [3, 5, 10][lv - 1];
+    const dots = lv < 3 || step;
     const seq = lv < 3; // 차례로 잇기
     ctx.wrap.classList.toggle("big", lv === 1);
     ctx.train.style.transition = "none"; // 떠난 자리에서 미끄러져 돌아오지 않게
@@ -96,7 +134,7 @@ KP.game({
     let blanks;
     if (seq) blanks = new Set(Array.from({ length: total }, (_, i) => i + 1));
     else {
-      blanks = new Set(U.sample([2, 3, 4, 5, 6, 7, 8, 9, 10], 4));
+      blanks = new Set(U.sample(Array.from({ length: total - 1 }, (_, i) => i + 2), step ? 2 : 4));
     }
     for (let n = 1; n <= total; n++) {
       const u = U.el("div", "trUnit");
@@ -108,6 +146,9 @@ KP.game({
       units.push(u);
       if (!seq || !blanks.has(n)) ctx.train.appendChild(u);
     }
+    ctx.total = total;
+    ctx.units = units;
+    this.fit(ctx);
     // 차례로 잇기: 다음 칸만 보여 줌
     let nextN = 1;
     const showNext = () => {
@@ -135,11 +176,12 @@ KP.game({
         onReject: (u) => {
           const want = +u.dataset.n;
           if (seq) {
-            const cnt = Array.from({ length: want - 1 }, (_, i) => U.NAT[i + 1]).join(", ");
-            ctx.miss(u, want === 1 ? "맨 처음은 1이에요. 1을 찾아볼까?" : cnt + ", 그다음은 뭘까? 다시 찾아봐요!");
+            // "하나! 둘! 다음은 뭐가 올 차례일까?" — 모두 자연 음성 조각
+            const cnt = Array.from({ length: want - 1 }, (_, i) => U.NAT[i + 1] + "!").join(" ");
+            ctx.miss(u, want === 1 ? "맨 처음은 1이에요. 1을 찾아볼까?" : cnt + " 다음은 뭐가 올 차례일까?");
           } else {
-            // 말로만 나감 → 숫자는 글자로 끊어 말하기(자연 음성 조각): "하나! 셋! 그 사이에는 어떤 숫자가 올까?"
-            ctx.miss(u, U.NAT[want - 1] + "! " + (want + 1 <= total ? U.NAT[want + 1] + "! 그 사이" : "그다음") + "에는 어떤 숫자가 올까?");
+            // 말로만 나감 → 숫자는 글자로 끊어 말하기(자연 음성 조각): "일곱! 아홉! 빈 칸에 들어갈 숫자를 찾아요!"
+            ctx.miss(u, U.NAT[want - 1] + "! " + (want + 1 <= total ? U.NAT[want + 1] + "! 빈 칸에 들어갈 숫자를 찾아요!" : "다음은 뭐가 올 차례일까?"));
           }
         },
         onDrop: (u) => {

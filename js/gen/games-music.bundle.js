@@ -172,7 +172,7 @@ KP.game({
        play(분위기, 칸, 마디, 시각, 칸 길이, 동작 hit(손, 세기, 음)) */
     const PLAYERS = [
       {
-        id: "drum", say: "드럼", img: "drum", at: "belly", dx: 0.02, dy: 0.08, k: 0.62, kit: ["drums"],
+        id: "drum", say: "북", img: "drum", at: "belly", dx: 0.02, dy: 0.08, k: 0.62, kit: ["drums"],
         play(mood, s, bar, w, sd, hit) {
           if (mood === "fun") {
             const fill = bar % 4 === 3;
@@ -275,7 +275,8 @@ KP.game({
     // 공연장 그림(1600×900): 지평선·화각·잘릴 때 남길 곳(무대 가운데)·조명(위)
     ctx.BG = { file: IMG + "bg.jpg", img: [1600, 900], vh: 0.5, near: 0.2, fov: 30, focus: [0.5, 0.56], focusP: [0.5, 0.6], sun: [0.1, 1, 0.9], sunCol: "#fff0d6" };
 
-    const MOODS = [["fun", "🎉", "신나게"], ["calm", "🌙", "잔잔하게"]];
+    // 셋째 칸: 말할 문장 ('신나게'는 녹음이 없어 녹음된 "신나게 놀아요!"로, '잔잔하게'는 녹음 대기 — tools/out/new-voice/band.txt)
+    const MOODS = [["fun", "🎉", "신나게 놀아요!"], ["calm", "🌙", "잔잔하게"]];
     const TEMPOS = [["🐢", 84, "느리게"], ["🚶", 104, "보통"], ["🐇", 126, "빠르게"]];
     let mood = KP.store.get("band:mood", "fun");
     if (!MOODS.some((m) => m[0] === mood)) mood = "fun";
@@ -330,9 +331,14 @@ KP.game({
       A.sfx("select");
       ctx.hint(null);
       setLevel(ctx.level, curLevel >= 3 || mode === "copy");
-      if (jam || ctx.level < 3) ctx.say(jam ? "마음대로 연주해요!" : "동물 친구를 무대에 올려 봐요!"); // 3단계로 돌아가면 문제 문구는 nextCopy 가 말함
+      if (jam || ctx.level < 3) sayStart(); // 3단계로 돌아가면 문제 문구는 nextCopy 가 말함
     });
     ctl.append(gMood, gTempo, gJam);
+    /** 첫 안내 — 말풍선 글자는 그대로, 말은 자연 음성이 있는 문장으로 (카드를 콕 누르면 무대에 올라감) */
+    function sayStart() {
+      if (jam) ctx.say("마음대로 연주해요!", "동물 친구들을 콕 눌러 보세요!");
+      else ctx.say("동물 친구를 무대에 올려 봐요!", "동물 친구를 눌러 봐요!");
+    }
     const bEar = U.btn(KP.E("👂"), "bnEar");
     paintSel();
 
@@ -434,6 +440,7 @@ KP.game({
       else {
         cards[id].classList.add("on");
         enterDoll(id, i);
+        if (T.on && !muted && !preview) tasteOf(id); // 다음 마디에 합류하기 전, 누르자마자 그 악기 소리 한 번
         startPlaying(id);
         A.sfx("snap");
         KP.voice.say(byId[id].say);
@@ -934,6 +941,12 @@ KP.game({
       bulbs.forEach((l) => l.classList.remove("on"));
       cones.forEach((l) => l.classList.remove("on"));
     }
+    /** 맛보기 소리: 그 연주자의 첫 박 하나만 바로 (움직임 없이) */
+    function tasteOf(id) {
+      try {
+        byId[id].play(mood, 0, 0, 0.02, sd(), () => {});
+      } catch (e) {}
+    }
     function startPlaying(id) {
       // 처음 연주자는 바로, 그다음부터는 다음 마디 첫 박에 들어옴
       if (!T.on) {
@@ -983,8 +996,8 @@ KP.game({
         soloBars++;
         if (soloBars === 4 && !nudged) {
           nudged = true;
-          ctx.tell("친구를 한 명 더 올려 볼까요?");
-          ctx.hint(() => benchFirst(), "친구를 한 명 더 올려 볼까요?");
+          ctx.tell("다른 친구도 눌러 봐요!");
+          ctx.hint(() => benchFirst(), "다른 친구도 눌러 봐요!");
         }
       }
       // 칭찬: 2명 이상이 함께 4마디(두 번째부터 8마디) + 45초 이상 지남 + 지난 칭찬 뒤 무언가 바꿈
@@ -998,7 +1011,7 @@ KP.game({
       muted = true;
       const sess = ctx._session;
       PLAYERS.forEach((p) => dolls[p.id] && dolls[p.id].act && dolls[p.id].act.happy());
-      const ok = await ctx.win({ msg: U.pick(["멋진 합주예요!", "{부름} 최고!"]) });
+      const ok = await ctx.win(U.pick([{ msg: "멋진 합주예요!", say: "멋진 연주예요!" }, { msg: "{부름} 최고!" }]));
       if (sess !== ctx._session) return;
       winning = false;
       muted = false;
@@ -1102,7 +1115,7 @@ KP.game({
       } else stopT();
       lockAll(false);
       bEar.classList.add("go");
-      ctx.say("똑같이 꾸며 봐요!");
+      ctx.say("똑같이 꾸며 봐요!", "이제 똑같이 눌러 봐요!");
       ctx.hint(() => bEar, "다시 들어 볼까요?");
       checkCopy();
     }
@@ -1163,8 +1176,7 @@ KP.game({
         if (!s || tok !== ctx.bandTok || !ctx._active) return;
         startLoop(s);
         setLevel(ctx.level, true);
-        if (jam) ctx.say("마음대로 연주해요!");
-        else if (ctx.level < 3) ctx.say("동물 친구를 무대에 올려 봐요!");
+        if (jam || ctx.level < 3) sayStart();
       },
       end() {
         ctx.bandTok++;
@@ -1221,7 +1233,9 @@ KP.game({
    - 그림(SVG)이 맞을 때마다 출렁, 물결 + 음표, 여러 손가락 동시에 OK
    - 🎵 반주 켜기: 동요 멜로디 + 화음 + 부드러운 박자 (빠르기 3단계), 박자 불빛과 춤추는 곰
      → 반주에 맞춰 치면 칭찬. 화면을 나가면 반주 자동 정지
-   - 50번 칠 때마다 축하 */
+   - 50번 칠 때마다 축하 (자유 연주라 열쇠 별은 없음)
+   - 반주에 맞춰 박자를 24번 맞히면 '박자 박사' 축하 (대부분 박자에 맞게 쳤을 때만 열쇠 별)
+   - 축하하는 동안엔 패드를 쳐도 소리·횟수 없음 (축하 소리 위에 북소리가 겹치지 않게) */
 "use strict";
 KP.game({
   id: "drum",
@@ -1385,13 +1399,15 @@ KP.game({
     ctx.body.appendChild(wrap);
 
     let hits = 0,
-      onBeat = 0;
+      onBeat = 0,
+      accHits = 0; // 반주 켜고 친 횟수 (박자 맞힌 비율 계산)
     const padEls = PADS.map((p) => {
       const el = U.el("div", "dr-pad", p.svg + "<span>" + p.name + "</span>");
       el.style.setProperty("--bg", p.bg);
       el.addEventListener("pointerdown", async (e) => {
         e.preventDefault();
         A.unlock();
+        if (KP.celebrating) return; // 축하 중엔 쉬기
         p.snd();
         el.classList.add("pr");
         setTimeout(() => el.classList.remove("pr"), 110);
@@ -1409,8 +1425,11 @@ KP.game({
         U.replay(dancer, "hop");
         ctx.hint(null);
         hits++;
-        checkBeat();
-        if (hits % 50 === 0) await ctx.win({ msg: "멋진 드러머!" });
+        if (checkBeat()) return;
+        if (hits % 50 === 0) {
+          ctx.noStar ? ctx.noStar() : (ctx._fewChoice = true); // 아무렇게나 50번 두드려도 되는 자유 연주 → 열쇠 별 제외
+          await ctx.win({ msg: "멋진 드러머!" });
+        }
       });
       grid.appendChild(el);
       return el;
@@ -1431,6 +1450,8 @@ KP.game({
       if (!c) return;
       const t = c.currentTime + 0.12;
       acc = { bpm: tempo, beatT: t, beat: 0, melT: t, songI: 0, noteI: 0, mel: [], times: [] };
+      onBeat = 0;
+      accHits = 0;
       bAcc.classList.add("on");
       bAcc.innerHTML = KP.E("⏹️") + " 반주 끄기";
       accT = ctx.every(40, tick);
@@ -1489,12 +1510,23 @@ KP.game({
       if (acc.mel.length > 64) acc.mel.splice(0, acc.mel.length - 64);
       if (acc.times.length > 16) acc.times.splice(0, acc.times.length - 16);
     }
+    /** 반주 박자에 맞았는지 — 24번 맞히면 축하(축하했으면 true) */
     function checkBeat() {
-      if (!acc) return;
+      if (!acc) return false;
+      accHits++;
       const now = A.ctx().currentTime;
       const near = acc.times.some((t) => Math.abs(t - now) < 0.11);
-      if (!near) return;
+      if (!near) return false;
       onBeat++;
+      if (onBeat % 24 === 0) {
+        // 마구 두드려도 몇 번은 박자에 걸림 → 친 것의 절반 이상이 박자에 맞았을 때만 열쇠 별
+        if (onBeat / Math.max(1, accHits) < 0.5) ctx.noStar ? ctx.noStar() : (ctx._fewChoice = true);
+        onBeat = 0;
+        accHits = 0;
+        hits = 0; // 바로 뒤 '50번' 축하와 겹치지 않게
+        ctx.win({ msg: "박자 박사!", say: "박자에 딱딱 맞아요!" });
+        return true;
+      }
       if (onBeat % 12 === 0) {
         KP.voice.say(U.pick(["박자에 딱딱 맞아요!", "쿵짝쿵짝 잘한다!", "우와, 진짜 드러머 같아요!"]));
         A.sfx("sparkle");
@@ -1531,7 +1563,9 @@ KP.game({
 /* 악기 소리 맞추기 — 소리를 듣고 어떤 악기인지 그림 고르기
    - 악기 11가지: 북·피아노·나팔·기타·종·바이올린·피리·마라카스·실로폰·트라이앵글·탬버린
      (모두 Web Audio 합성으로 악기 특징을 살림 — 나팔은 부드러운 금관 느낌)
-   - 🔊 다시 듣기, 단계: 보기 2 / 3 / 4개 */
+   - 진짜 악기 녹음(KP.sampler: 북·피아노·실로폰·기타·탬버린·마라카스)을 불러오면 그 소리로, 못 불러오면 합성음
+   - 🔊 다시 듣기, 단계: 보기 3 / 3 / 4개
+     (1·2단계는 소리가 비슷한 악기끼리 — 종·트라이앵글·실로폰 / 마라카스·탬버린 / 나팔·피리·바이올린 — 같이 나오지 않게) */
 "use strict";
 KP.game({
   id: "inst",
@@ -1542,7 +1576,8 @@ KP.game({
   score: "⭐",
   setup(ctx) {
     const U = KP.u,
-      A = KP.audio;
+      A = KP.audio,
+      SM = KP.sampler;
     KP.css("inst", `
       .in-stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
       .in-listen{display:flex;flex-direction:column;align-items:center;gap:6px;background:#fff;border-radius:50%;width:clamp(150px,26vh,230px);height:clamp(150px,26vh,230px);justify-content:center;position:relative;
@@ -1596,18 +1631,23 @@ KP.game({
       A.tone(f * 2, { type: "triangle", attack: 0.04, dur: dur + 0.1, vol: 0.07, when });
       A.tone(f * 3, { attack: 0.06, dur: dur * 0.8, vol: 0.035, when });
     };
+    // 진짜 악기 녹음이 있으면 그걸로 (sampler.js 의 폴백 방식: 성공하면 true, 아니면 합성음)
+    const ok = (k) => SM && SM.ok(k);
     const INSTS = [
-      { id: "drum", name: "북", pic: KP.E("🥁"), snd: () => [0, 0.42, 0.84, 1.05].forEach((w, i) => { A.kick({ vol: 0.75, when: w }); if (i > 1) A.noise({ dur: 0.15, vol: 0.12, bp: 1600, when: w }); }), len: 1.6 },
-      { id: "piano", name: "피아노", pic: KP.E("🎹"), snd: () => ["C4", "E4", "G4", "C5", "G4", "C5"].forEach((n, i) => piano(n, i * 0.22)), len: 2 },
-      { id: "trumpet", name: "나팔", pic: KP.E("🎺"), snd: () => [["G4", 0.16], ["G4", 0.16], ["G4", 0.16], ["C5", 0.8]].reduce((t, [n, d]) => (brass(n, d, t), t + d + 0.06), 0), len: 1.8 },
-      { id: "guitar", name: "기타", pic: KP.E("🎸"), snd: () => [0, 0.6].forEach((w) => ["C3", "E3", "G3", "C4", "E4"].forEach((n, i) => A.note(n, { inst: "pluck", dur: 1.4, vol: 0.2, when: w + i * 0.035 }))), len: 2 },
-      { id: "bell", name: "종", pic: KP.E("🔔"), snd: () => { A.note("G4", { inst: "bell", dur: 1.6, vol: 0.32 }); A.note("E4", { inst: "bell", dur: 1.8, vol: 0.32, when: 0.7 }); }, len: 2.2 },
-      { id: "violin", name: "바이올린", pic: KP.E("🎻"), snd: () => [["E4", 0.6], ["G4", 0.6], ["C5", 1.1]].reduce((t, [n, d]) => { const f = A.hz(n); A.note(f, { inst: "pad", dur: d, vol: 0.2, when: t }); A.tone(f * 2, { type: "triangle", attack: 0.15, dur: d + 0.2, vol: 0.05, when: t }); A.tone(f * 3, { attack: 0.2, dur: d, vol: 0.02, when: t }); return t + d; }, 0), len: 2.4 },
-      { id: "flute", name: "피리", pic: KP.E("🪈"), snd: () => [["G5", 0.3], ["E5", 0.3], ["C5", 0.6], ["D5", 0.3], ["E5", 0.6]].reduce((t, [n, d]) => { A.note(n, { inst: "soft", dur: d + 0.15, vol: 0.24, when: t }); A.noise({ dur: d, vol: 0.02, bp: A.hz(n), q: 4, when: t }); return t + d; }, 0), len: 2.1 },
-      { id: "maraca", name: "마라카스", pic: KP.E("🪇"), snd: () => [0, 0.2, 0.4, 0.5, 0.8, 1.0, 1.2, 1.3].forEach((w) => A.noise({ dur: 0.1, vol: 0.13, hp: 4500, attack: 0.02, when: w })), len: 1.6 },
-      { id: "xylo", name: "실로폰", pic: SVG.xylo, snd: () => ["C5", "D5", "E5", "F5", "G5", "A5", "B5", "C6"].forEach((n, i) => { const f = A.hz(n); A.note(f, { inst: "marimba", dur: 0.5, vol: 0.28, when: i * 0.11 }); A.tone(f * 4.1, { dur: 0.06, vol: 0.03, when: i * 0.11 }); }), len: 1.4 },
-      { id: "tri", name: "트라이앵글", pic: SVG.tri, snd: () => [0, 0.8].forEach((w) => { const f = A.hz("E6"); A.note(f, { inst: "bell", dur: 1.6, vol: 0.14, when: w }); A.tone(f * 2.76, { dur: 1.2, vol: 0.035, when: w }); }), len: 2.2 },
-      { id: "tamb", name: "탬버린", pic: SVG.tamb, snd: () => [0, 0.3, 0.6, 0.75, 0.9].forEach((w) => { for (let k = 0; k < 4; k++) A.noise({ dur: 0.1, vol: 0.09, hp: 6500, when: w + k * 0.025 }); A.noise({ dur: 0.05, vol: 0.06, bp: 900, when: w }); }), len: 1.5 },
+      { id: "drum", g: "hit", name: "북", pic: KP.E("🥁"), snd: () => [0, 0.42, 0.84, 1.05].forEach((w, i) => {
+        if (ok("drums")) { SM.hit("drums", "kick", { when: w, vol: 0.85 }); if (i > 1) SM.hit("drums", "snare", { when: w, vol: 0.4 }); return; }
+        A.kick({ vol: 0.75, when: w }); if (i > 1) A.noise({ dur: 0.15, vol: 0.12, bp: 1600, when: w });
+      }), len: 1.6 },
+      { id: "piano", g: "keys", name: "피아노", pic: KP.E("🎹"), snd: () => ["C4", "E4", "G4", "C5", "G4", "C5"].forEach((n, i) => (ok("piano") ? SM.note("piano", n, { when: i * 0.22, vol: 0.3, dur: 0.9 }) : piano(n, i * 0.22))), len: 2 },
+      { id: "trumpet", g: "long", name: "나팔", pic: KP.E("🎺"), snd: () => [["G4", 0.16], ["G4", 0.16], ["G4", 0.16], ["C5", 0.8]].reduce((t, [n, d]) => (brass(n, d, t), t + d + 0.06), 0), len: 1.8 },
+      { id: "guitar", g: "pluck", name: "기타", pic: KP.E("🎸"), snd: () => [0, 0.6].forEach((w) => ["C3", "E3", "G3", "C4", "E4"].forEach((n, i) => (ok("guitar") ? SM.note("guitar", n, { when: w + i * 0.035, vol: 0.3, dur: 1.3 }) : A.note(n, { inst: "pluck", dur: 1.4, vol: 0.2, when: w + i * 0.035 })))), len: 2 },
+      { id: "bell", g: "metal", name: "종", pic: KP.E("🔔"), snd: () => { A.note("G4", { inst: "bell", dur: 1.6, vol: 0.32 }); A.note("E4", { inst: "bell", dur: 1.8, vol: 0.32, when: 0.7 }); }, len: 2.2 },
+      { id: "violin", g: "long", name: "바이올린", pic: KP.E("🎻"), snd: () => [["E4", 0.6], ["G4", 0.6], ["C5", 1.1]].reduce((t, [n, d]) => { const f = A.hz(n); A.note(f, { inst: "pad", dur: d, vol: 0.2, when: t }); A.tone(f * 2, { type: "triangle", attack: 0.15, dur: d + 0.2, vol: 0.05, when: t }); A.tone(f * 3, { attack: 0.2, dur: d, vol: 0.02, when: t }); return t + d; }, 0), len: 2.4 },
+      { id: "flute", g: "long", name: "피리", pic: KP.E("🪈"), snd: () => [["G5", 0.3], ["E5", 0.3], ["C5", 0.6], ["D5", 0.3], ["E5", 0.6]].reduce((t, [n, d]) => { A.note(n, { inst: "soft", dur: d + 0.15, vol: 0.24, when: t }); A.noise({ dur: d, vol: 0.02, bp: A.hz(n), q: 4, when: t }); return t + d; }, 0), len: 2.1 },
+      { id: "maraca", g: "shake", name: "마라카스", pic: KP.E("🪇"), snd: () => [0, 0.2, 0.4, 0.5, 0.8, 1.0, 1.2, 1.3].forEach((w, i) => (ok("shaker") ? SM.hit("shaker", i % 2 ? "up" : "down", { when: w, vol: 0.5 }) : A.noise({ dur: 0.1, vol: 0.13, hp: 4500, attack: 0.02, when: w }))), len: 1.6 },
+      { id: "xylo", g: "metal", name: "실로폰", pic: SVG.xylo, snd: () => ["C5", "D5", "E5", "F5", "G5", "A5", "B5", "C6"].forEach((n, i) => { if (ok("xylo")) return void SM.note("xylo", n, { when: i * 0.11, vol: 0.45 }); const f = A.hz(n); A.note(f, { inst: "marimba", dur: 0.5, vol: 0.28, when: i * 0.11 }); A.tone(f * 4.1, { dur: 0.06, vol: 0.03, when: i * 0.11 }); }), len: 1.4 },
+      { id: "tri", g: "metal", name: "트라이앵글", pic: SVG.tri, snd: () => [0, 0.8].forEach((w) => { const f = A.hz("E6"); A.note(f, { inst: "bell", dur: 1.6, vol: 0.14, when: w }); A.tone(f * 2.76, { dur: 1.2, vol: 0.035, when: w }); }), len: 2.2 },
+      { id: "tamb", g: "shake", name: "탬버린", pic: SVG.tamb, snd: () => [0, 0.3, 0.6, 0.75, 0.9].forEach((w) => { if (ok("tamb")) return void SM.hit("tamb", "hit", { when: w, vol: 0.5 }); for (let k = 0; k < 4; k++) A.noise({ dur: 0.1, vol: 0.09, hp: 6500, when: w + k * 0.025 }); A.noise({ dur: 0.05, vol: 0.06, bp: 900, when: w }); }), len: 1.5 },
     ];
 
     const stage = U.el("div", "in-stage");
@@ -1618,6 +1658,7 @@ KP.game({
     let answer = null,
       last = null,
       playT = 0,
+      replayT = 0,
       btns = [];
     function playIt(inst) {
       inst = inst || answer;
@@ -1631,11 +1672,25 @@ KP.game({
       U.replay(bListen, "pop");
       playIt();
     });
+    /** 보기 고르기: 1·2단계는 소리 묶음(g)이 서로 다른 악기만 (비슷한 소리끼리 헷갈리지 않게), 3단계는 아무거나 */
+    function pickOpts(n) {
+      if (ctx.level >= 3) return U.sample(INSTS.filter((x) => x !== answer), n - 1);
+      const used = new Set([answer.g]),
+        out = [];
+      for (const x of U.shuffle(INSTS.filter((x) => x !== answer))) {
+        if (out.length >= n - 1) break;
+        if (used.has(x.g)) continue;
+        used.add(x.g);
+        out.push(x);
+      }
+      return out;
+    }
     function next() {
-      const n = [2, 3, 4][ctx.level - 1];
+      const n = [3, 3, 4][ctx.level - 1];
+      ctx.cancel(replayT);
       answer = U.pick(INSTS.filter((x) => x !== last));
       last = answer;
-      const opts = U.shuffle([answer, ...U.sample(INSTS.filter((x) => x !== answer), n - 1)]);
+      const opts = U.shuffle([answer, ...pickOpts(n)]);
       ans.innerHTML = "";
       btns = ctx.choices(ans, opts, {
         cls: "in-ch",
@@ -1644,6 +1699,7 @@ KP.game({
         wrongMsg: (v) => U.josa(v.name, "이/가") + " 아니에요. 다시 들어 볼까요?",
         onRight: async (v, b) => {
           ctx.hint(null);
+          ctx.cancel(replayT); // 오답 뒤 예약해 둔 '다시 들려주기'가 정답 소리와 겹치지 않게
           b.classList.add("play");
           playIt(v);
           ctx.score.add();
@@ -1654,9 +1710,14 @@ KP.game({
           if (ok) next();
         },
       });
-      // 틀리면 정답 소리를 다시 들려주기
+      // 틀리면 정답 소리를 다시 들려주기 — 연달아 틀려도 예약은 하나만 (소리가 겹치지 않게)
       btns.forEach((b) => {
-        if (!b.dataset.right) b.addEventListener("click", () => !KP.celebrating && ctx.after(1700, () => !KP.celebrating && playIt()));
+        if (!b.dataset.right)
+          b.addEventListener("click", () => {
+            if (KP.celebrating) return;
+            ctx.cancel(replayT);
+            replayT = ctx.after(1700, () => !KP.celebrating && playIt());
+          });
       });
       ctx.say("무슨 악기 소리일까요? 잘 들어 보세요!");
       ctx.after(2300, () => playIt());
@@ -1665,6 +1726,8 @@ KP.game({
     ctx.next = next;
   },
   start(ctx) {
+    // 진짜 악기 녹음 미리 불러오기 (기다리지 않음 — 그사이엔 합성음)
+    if (KP.sampler) KP.sampler.load(["drums", "piano", "xylo", "guitar", "tamb", "shaker"]);
     ctx.bgmWas = KP.audio.bgm.on;
     if (ctx.bgmWas) KP.audio.bgm.stop();
     ctx.round = 0;
@@ -1681,6 +1744,8 @@ KP.game({
 /* 동요 오르골 — 노래 카드 6곡(반짝반짝 작은 별·비행기·나비야·학교종·곰 세 마리·생일 축하합니다)
    - 🎧 듣기: 오르골 손잡이가 돌고 음표가 톡톡 튀어나오며 동물 밴드가 춤춤
    - 👆 내가 연주: 화면 아무 데나 누를 때마다 다음 음이 나옴 → 리듬대로 눌러 한 곡 완성하면 축하
+     단계: 1단계 앞 두 소절 → 2단계 절반 → 3단계 끝까지. 한 소절 칠 때마다 밴드가 다 같이 춤추며 칭찬
+     (아무 데나 누르면 되는 놀이라 열쇠 별은 없음)
    - 가사는 넣지 않음(저작권) — 멜로디만 */
 "use strict";
 KP.game({
@@ -1688,6 +1753,7 @@ KP.game({
   icon: "🎶",
   name: "동요 오르골",
   cat: "music",
+  levels: 3,
   setup(ctx) {
     const U = KP.u,
       A = KP.audio;
@@ -1722,6 +1788,9 @@ KP.game({
       .mb-dot{height:12px;border-radius:6px;background:rgba(255,255,255,.85);box-shadow:inset 0 0 0 2px #d9cdf2}
       .mb-dot.done{background:var(--cat);box-shadow:none}
       .mb-dot.now{background:var(--sun);box-shadow:0 0 8px 2px rgba(255,197,49,.8)}
+      .mb-dot.ph{margin-left:10px}
+      .mb-cheer{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);font-size:clamp(26px,4.4vh,40px);background:#fff;border-radius:999px;padding:6px 18px;box-shadow:var(--shadow);pointer-events:none;z-index:4;white-space:nowrap;animation:mbCheer 1.1s ease-out forwards}
+      @keyframes mbCheer{0%{transform:translate(-50%,-50%) scale(.5);opacity:0}25%{transform:translate(-50%,-50%) scale(1.1);opacity:1}100%{transform:translate(-50%,-110%) scale(1);opacity:0}}
       .mb-tap{position:absolute;left:0;right:0;text-align:center;bottom:24%;font-size:clamp(50px,9vh,80px);pointer-events:none;animation:bob 1.2s ease-in-out infinite;display:none}
       .mb-stage.mine .mb-tap{display:block}
       @media (max-aspect-ratio:1/1){
@@ -1732,9 +1801,9 @@ KP.game({
         .mb-box{height:auto;width:72%}
       }
       @media (orientation: portrait) and (max-width: 480px){
-        .mb-songs{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-        .mb-card{min-height:48px;font-size:15px;padding:4px 8px}
-        .mb-card .e{font-size:28px}
+        .mb-songs{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+        .mb-card{min-height:66px;flex-direction:column;gap:0;font-size:13px;padding:4px 4px}
+        .mb-card .e{font-size:30px}
         .mb-band span{font-size:54px}
       }
     `);
@@ -1778,7 +1847,9 @@ KP.game({
       mode = "listen",
       gen = 0,
       idx = 0,
-      notes = [];
+      notes = [], // 듣기: 곡 전체
+      mine = [], // 내가 연주: 이번 단계만큼 (쉼표 뺌)
+      phEnd = new Set(); // 소절이 끝나는 자리(mine 기준)
     if (!A.SONGS[song]) song = "twinkle";
     const cards = SONGS.map(([key, em]) => {
       const c = U.btn(KP.E(em) + "<span>" + A.SONGS[key].name + "</span>", "mb-card");
@@ -1808,15 +1879,51 @@ KP.game({
         ctx.say(A.SONGS[key].name + "! 화면을 톡톡 눌러서 연주해 봐요.");
       }
     }
+    /** 소절 나누기(피아노 따라 치기와 같은 방식: 2박 이상 긴 음이나 쉼표에서 끊음) */
+    function phrasesOf(list) {
+      const out = [];
+      let cur = [];
+      list.forEach(([n, b]) => {
+        if (n !== "R") cur.push([n, b]);
+        if (b >= 2 || n === "R") {
+          if (cur.length) out.push(cur);
+          cur = [];
+        }
+      });
+      if (cur.length) out.push(cur);
+      return out;
+    }
+    function buildMine() {
+      const ph = phrasesOf(notes),
+        lv = ctx.level;
+      const take = lv === 1 ? Math.min(2, ph.length) : lv === 2 ? Math.max(2, Math.ceil(ph.length / 2)) : ph.length;
+      mine = [];
+      phEnd = new Set();
+      ph.slice(0, take).forEach((p) => {
+        mine.push(...p);
+        phEnd.add(mine.length);
+      });
+      mine.full = take >= ph.length;
+    }
     function renderDots() {
       dots.innerHTML = "";
+      if (mode === "mine") {
+        buildMine();
+        mine.forEach(([n, b], i) => {
+          const d = U.el("i", "mb-dot" + (i > 0 && phEnd.has(i) ? " ph" : ""));
+          d.style.width = 8 + b * 9 + "px";
+          dots.appendChild(d);
+        });
+        markDots(idx);
+        return;
+      }
       notes.forEach(([n, b]) => {
         const d = U.el("i", "mb-dot");
         d.style.width = 8 + b * 9 + "px";
         if (n === "R") d.style.opacity = ".35";
         dots.appendChild(d);
       });
-      markDots(mode === "mine" ? idx : -1);
+      markDots(-1);
     }
     function markDots(cur) {
       U.$$(".mb-dot", dots).forEach((d, i) => {
@@ -1879,31 +1986,44 @@ KP.game({
         U.replay(bandEls[U.rand(4)], "dance");
         return;
       }
-      if (KP.celebrating) return;
-      while (idx < notes.length && notes[idx][0] === "R") idx++;
-      if (idx >= notes.length) return;
-      const [n, b] = notes[idx];
+      if (KP.celebrating || idx >= mine.length) return;
+      const [n, b] = mine[idx];
       sound(n, b);
       burst(idx);
       stage.classList.add("play");
       ctx.cancel(lastTap);
       lastTap = ctx.after(Math.max(500, b * BEAT * 1000 + 200), () => stage.classList.remove("play"));
       idx++;
-      while (idx < notes.length && notes[idx][0] === "R") idx++;
       markDots(idx);
       ctx.hint(null);
-      if (idx >= notes.length) {
+      if (idx >= mine.length) {
         stage.classList.remove("play");
         await ctx.wait(700);
         const name = A.SONGS[song].name;
-        const ok = await ctx.win({ big: true, msg: name + " 완성!" });
+        ctx.noStar ? ctx.noStar() : (ctx._fewChoice = true); // 아무 데나 눌러도 되는 놀이 → 열쇠 별 제외
+        const ok = await ctx.win(mine.full ? { big: true, msg: name + " 완성!" } : { msg: "멋진 연주예요!" });
         if (!ok) return;
         idx = 0;
-        markDots(0);
+        renderDots(); // 단계가 올랐으면 더 길어짐
         ctx.say("한 번 더 연주해 볼까요? 다른 노래 카드도 골라 봐요!");
-      } else ctx.hint(() => box, "톡톡 눌러서 다음 음을 연주해요!");
+      } else {
+        if (phEnd.has(idx)) phraseCheer();
+        ctx.hint(() => box, "톡톡 눌러서 다음 음을 연주해요!");
+      }
     });
 
+    /** 한 소절 끝: 밴드가 다 같이 춤 + 짧은 칭찬 */
+    function phraseCheer() {
+      ctx.after(Math.max(250, BEAT * 1000), () => {
+        if (mode !== "mine" || KP.celebrating) return;
+        A.sfx("sparkle");
+        bandEls.forEach((e, k) => ctx.after(k * 90, () => U.replay(e, "dance")));
+        const c = U.el("div", "mb-cheer", KP.E(U.pick(["⭐", "🌟", "💖"])) + " " + KP.E("👏"));
+        stage.appendChild(c);
+        ctx.after(1150, () => c.remove());
+        KP.voice.say(U.pick(["좋아요!", "멋져요!", "잘했어요!"]));
+      });
+    }
     function setMode(m, speak) {
       mode = m;
       bListen.classList.toggle("sel", m === "listen");
@@ -1911,7 +2031,7 @@ KP.game({
       stage.classList.toggle("mine", m === "mine");
       stopPlay();
       idx = 0;
-      markDots(m === "mine" ? 0 : -1);
+      renderDots();
       if (!speak) return;
       if (m === "listen") {
         listen();
@@ -1957,7 +2077,9 @@ KP.game({
    - 누르면 건반 위로 음표가 날아오르고 동물 합창단이 들썩
    - 손가락을 건반 위로 쓸면 주르륵(글리산도), 여러 손가락 동시에 OK
    - 🌟 따라 치기: 동요를 고르면 다음에 칠 건반이 반짝 → 누르면 다음 음 → 한 곡 완성 시 축하
-     (1단계: 앞 두 소절, 2단계: 절반, 3단계: 끝까지) */
+     (1단계: 앞 두 소절, 2단계: 절반, 3단계: 끝까지)
+     틀린 건반: 부드러운 '톡' + 칠 건반이 들썩 (벌 없음). 쓸기(글리산도)로 지나간 건반은 소리만 나고 진행엔 안 셈
+     (쓸어서 정답을 지나가는 것 방지) — 따라 치기는 콕 눌러야 다음으로. 틀린 횟수가 많으면 열쇠 별 없음 */
 "use strict";
 KP.game({
   id: "piano",
@@ -2112,7 +2234,7 @@ KP.game({
 
     /* ---------- 누르기 (여러 손가락 + 쓸기) ---------- */
     const held = new Map(); // pointerId → key element
-    function press(k) {
+    function press(k, slid) {
       const n = k.dataset.n;
       play(n);
       k.classList.add("down");
@@ -2130,7 +2252,7 @@ KP.game({
       const s = singers[i >= 0 ? i % singers.length : U.rand(singers.length)];
       U.replay(s, "sing");
       ctx.hint(null);
-      if (follow) followPress(i, n);
+      if (follow) followPress(i, n, slid);
     }
     function release(k) {
       if (k) k.classList.remove("down");
@@ -2157,7 +2279,7 @@ KP.game({
       if (k && k !== was) {
         release(was);
         held.set(e.pointerId, k);
-        press(k);
+        press(k, true);
       }
     });
     const up = (e) => {
@@ -2219,13 +2341,16 @@ KP.game({
         ctx.hint(() => k, "반짝이는 건반을 눌러요!");
       }
     }
-    async function followPress(i, n) {
+    async function followPress(i, n, slid) {
       const want = follow.notes[follow.idx];
       if (!want || KP.celebrating) return;
+      if (slid) return; // 쓸면서 지나간 건반은 소리만
       if (n !== want[0]) {
         follow.wrong++;
+        ctx._softMiss = (ctx._softMiss || 0) + 1; // 마구 눌러 끝내면 열쇠 별 없음 (1번은 봐줌)
         const k = keyEls.find((x) => x.dataset.n === want[0]);
-        if (k) U.replay(k, "jump");
+        A.sfx("tap2"); // "아니야, 이쪽" — 부드러운 신호만
+        if (k) U.replay(k, "bump");
         if (follow.wrong % 3 === 0) KP.voice.say("반짝이는 건반을 눌러요!");
         return;
       }
@@ -2240,8 +2365,16 @@ KP.game({
       ctx.hint(null);
       const song = A.SONGS[f.key];
       KP.voice.say("우와! " + song.name + " 완성!");
-      const len = A.melody(f.notes, { beat: 0.3, inst: "bell", octave: 1, vol: 0.2, when: 0.9 });
-      f.notes.forEach(([, b], k) => ctx.after(900 + k * 300, () => U.replay(singers[k % singers.length], "sing")));
+      // 친 노래를 들려주되 앞부분만(최대 약 2.5초) — 곡 전체를 다 들려주면 축하까지 너무 오래 기다림
+      const back = [];
+      let sum = 0;
+      for (const nb of f.notes) {
+        if (sum + nb[1] * 0.3 > 2.5 && back.length >= 5) break;
+        back.push(nb);
+        sum += nb[1] * 0.3;
+      }
+      const len = A.melody(back, { beat: 0.3, inst: "bell", octave: 1, vol: 0.2, when: 0.9 });
+      back.forEach(([, b], k) => ctx.after(900 + k * 300, () => U.replay(singers[k % singers.length], "sing")));
       await ctx.wait(900 + len * 1000);
       prog.classList.remove("on");
       const ok = await ctx.win({ big: true, msg: song.name + " 완성!" });
@@ -2314,7 +2447,10 @@ KP.game({
      · 같은 음 3번 연속(약 50ms)일 때만 인정 · 옥타브는 따지지 않고 음이름(도·레·미)만 맞으면 정답
      · 피아노 음정이 조금 어긋나 있어도 맞추도록 평균 어긋남을 천천히 학습
      · 앱이 말하거나 소리 내는 동안은 듣지 않음(앱 소리를 아이 소리로 착각하지 않게)
-   마이크를 못 쓰면 화면 건반을 눌러서 똑같이 놀 수 있음 */
+   마이크를 못 쓰면 화면 건반을 눌러서 똑같이 놀 수 있음
+   단계는 놀이마다 따로 셈(KP.store "rp:lvl:<놀이>") — 쉬운 놀이에서 오른 단계로 메아리가 갑자기 어려워지지 않게
+   틀린 건반: 부드러운 '톡' + 칠 건반이 들썩(따라 치기·노래 게임), 메아리는 살짝 흔들림. 오래 멈추면 손가락이 칠 건반을 가리킴
+   폰 세로: 칠 음이 도~솔 안에만 있으면 건반 5개만 크게 (손 자리 1~5번 손가락) */
 "use strict";
 (function () {
   /** McLeod pitch method — 한 덩어리 소리에서 기본 주파수 찾기 (없으면 null) */
@@ -2655,6 +2791,8 @@ KP.game({
         @keyframes rpCheer{0%{transform:translate(-50%,-50%) scale(.5);opacity:0}25%{transform:translate(-50%,-50%) scale(1.1);opacity:1}100%{transform:translate(-50%,-90%) scale(1);opacity:0}}
         .rp-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
         .rp-mini{position:absolute;left:12px;top:0;z-index:5;font-size:clamp(14px,1.8vw,17px);padding:6px 12px;min-height:44px}
+        .rp.k5 .rp-kb,.rp.k5 .rp-field{grid-template-columns:repeat(5,1fr)}
+        .rp.k5 .rp-x{display:none}
         @media (max-aspect-ratio:1/1){
           .rp-cards,.rp-cards.songs,.rp-cards.four{grid-template-columns:repeat(2,minmax(0,1fr))}
           .rp-field{column-gap:4px}
@@ -2684,7 +2822,7 @@ KP.game({
       const score = U.el("div", "rp-score", KP.E("⭐") + " 0");
       gbar.append(bListen, track, U.el("span", "rp-goal", KP.E("🥕")), score);
       const field = U.el("div", "rp-field");
-      const laneEls = KEYS.map(() => field.appendChild(U.el("div", "rp-lane")));
+      const laneEls = KEYS.map((_, i) => field.appendChild(U.el("div", "rp-lane" + (i >= 5 ? " rp-x" : ""))));
       lanes.append(gbar, field);
       const kb = U.el("div", "rp-kb");
       kb.appendChild(U.el("div", "rp-palm"));
@@ -2697,7 +2835,7 @@ KP.game({
         return f;
       });
       const keyEls = KEYS.map(([n, sol, col], i) => {
-        const k = U.btn("<span>" + sol + "</span>", "rp-key");
+        const k = U.btn("<span>" + sol + "</span>", "rp-key" + (i >= 5 ? " rp-x" : ""));
         k.style.gridColumn = String(i + 1);
         k.style.setProperty("--c", col);
         kb.appendChild(k);
@@ -2712,6 +2850,7 @@ KP.game({
       });
       wrap.append(top, mid, lanes, kb);
       ctx.tap(bListen, () => self.gameListen(ctx));
+      addEventListener("resize", () => ctx._active && ctx.mode && self.fitKeys(ctx)); // 폰을 돌리면 5건반/8건반 다시
       const ovStart = U.el("div", "rp-ov");
       const ovMenu = U.el("div", "rp-ov");
       const ovSong = U.el("div", "rp-ov");
@@ -2790,7 +2929,9 @@ KP.game({
           const step = M.acc * 1000;
           M.acc = 0;
           M.an.getFloatTimeDomainData(M.buf);
-          const deaf = performance.now() < M.deafUntil || KP.voice.busy();
+          const vb = KP.voice.busy();
+          if (vb) M.deafUntil = Math.max(M.deafUntil, performance.now() + 450); // 힌트 말 등 앱 목소리 뒤 울림까지
+          const deaf = performance.now() < M.deafUntil || vb;
           const want = ctx.wantIdx >= 0 ? KEYS[ctx.wantIdx][3] : null;
           const r = E.feed(M.buf, M.an.context.sampleRate, step, deaf, want);
           meter.style.width = U.clamp(((20 * Math.log10(r.rms + 1e-9) + 60) / 50) * 100, 0, 100) + "%";
@@ -2811,6 +2952,7 @@ KP.game({
       }
       /** 음 하나를 알아챔(마이크 또는 화면 건반) */
       function heard(i, byTap) {
+        ctx._idleAt = Date.now();
         const k = keyEls[i];
         k.classList.add("lit");
         ctx.after(260, () => k.classList.remove("lit"));
@@ -2913,8 +3055,9 @@ KP.game({
       ctx.mode = null;
       ctx.tok = (ctx.tok || 0) + 1;
       ctx.busy = false;
-      ctx.wrap.classList.remove("game");
+      ctx.wrap.classList.remove("game", "k5");
       ctx.wantIdx = -1;
+      ctx.hint(null);
       this.clearMarks(ctx);
       ctx.ovSong.classList.remove("show");
       ctx.ovMenu.classList.add("show");
@@ -2939,8 +3082,41 @@ KP.game({
     },
 
     /* ---------- 놀이 시작 ---------- */
+    /** 놀이(mode)마다 단계를 따로: 지금 놀이의 단계를 KP.level 에 넣어 두면 ctx.level·win·miss·위 단계 표시가 그대로 씀 */
+    syncLv(ctx, mode) {
+      const prev = KP.store.get("rp:lvMode", null);
+      if (prev === mode) return;
+      const lv = KP.level.get("realpiano");
+      if (prev) KP.store.set("rp:lvl:" + prev, { lvl: lv.lvl, streak: lv.streak, miss: lv.miss });
+      const m = Object.assign({ lvl: 1, streak: 0, miss: 0 }, KP.store.get("rp:lvl:" + mode, {}));
+      lv.lvl = Math.max(1, Math.min(3, Math.round(+m.lvl) || 1));
+      lv.streak = +m.streak || 0;
+      lv.miss = +m.miss || 0;
+      KP.level.save("realpiano", lv);
+      KP.store.set("rp:lvMode", mode);
+      ctx._updateLevel();
+    },
+    /** 폰 세로에서 칠 음이 모두 도~솔(0~4)이면 건반 5개만 (넓게) */
+    fitKeys(ctx) {
+      const narrow = matchMedia("(max-aspect-ratio:1/1) and (max-width:560px)").matches;
+      let max = 7;
+      if (ctx.mode === "echo") max = 4;
+      else if (ctx.mode === "follow" && ctx.seq) max = Math.max(...ctx.seq);
+      else if (ctx.mode === "game" && ctx.g) max = Math.max(...ctx.g.list.map((n) => n.k));
+      ctx.wrap.classList.toggle("k5", narrow && max <= 4);
+    },
+    /** 틀린 건반: "아니야, 이쪽" — 부드러운 톡 + 칠 건반 들썩 (byTap: 화면 건반 → 열쇠 별 계산에 넣음) */
+    nudge(ctx, i, want, byTap) {
+      ctx.keyEls[i].classList.add("heard");
+      ctx.after(400, () => ctx.keyEls[i].classList.remove("heard"));
+      ctx.deafFor(350); // 앱이 낸 '톡'을 아이 소리로 듣지 않게
+      KP.audio.sfx("tap2");
+      if (want >= 0) KP.u.replay(ctx.keyEls[want], "bump");
+      if (byTap) ctx._softMiss = (ctx._softMiss || 0) + 1; // 마구 눌러 끝내면 열쇠 별 없음 (1번은 봐줌)
+    },
     begin(ctx, mode) {
       ctx.mode = mode;
+      this.syncLv(ctx, mode);
       ctx.tok = (ctx.tok || 0) + 1;
       ctx.big.textContent = "";
       ctx.dots.innerHTML = "";
@@ -2949,8 +3125,10 @@ KP.game({
       ctx.diag.textContent = "";
       ctx.busy = false;
       const how = ctx.mic.on ? "진짜 피아노로" : "화면 건반을 눌러서";
+      ctx.hint(null);
       if (mode === "free") {
         ctx.count = 0;
+        this.fitKeys(ctx);
         this.mark(ctx, -1);
         ctx.sub.textContent = ctx.mic.on ? "피아노를 쳐 보세요. 친 음이 여기 나와요!" : "화면 건반을 눌러 보세요!";
         ctx.talk(how + " 마음대로 쳐 봐요! 친 음이 화면에 반짝여요.");
@@ -2964,10 +3142,13 @@ KP.game({
       if (ctx.mode === "free") {
         ctx.count++;
         ctx.sub.textContent = KEYS[i][1] + "! " + (ctx.count % 10 === 0 ? "우와, " + ctx.count + "개 쳤어요!" : "");
-        if (ctx.count % 20 === 0) this.celebrate(ctx, false);
-      } else if (ctx.mode === "follow") this.songHit(ctx, i);
-      else if (ctx.mode === "game") this.gameHit(ctx, i);
-      else if (ctx.mode === "echo") this.echoHit(ctx, i);
+        if (ctx.count % 20 === 0) {
+          ctx.noStar ? ctx.noStar() : (ctx._fewChoice = true); // 아무 건반이나 20번 → 자유 연주라 열쇠 별 제외
+          this.celebrate(ctx, false);
+        }
+      } else if (ctx.mode === "follow") this.songHit(ctx, i, byTap);
+      else if (ctx.mode === "game") this.gameHit(ctx, i, byTap);
+      else if (ctx.mode === "echo") this.echoHit(ctx, i, byTap);
     },
     /** 축하(축하 소리를 아이 소리로 듣지 않게 그동안 귀 닫기) */
     async celebrate(ctx, big, msg, say) {
@@ -2984,6 +3165,7 @@ KP.game({
       const len = ctx.level === 1 ? Math.min(all.length, s.notes ? all.length : 7) : ctx.level === 2 ? Math.ceil(all.length / 2) : all.length;
       ctx.seq = all.slice(0, len).map((n) => KEYS.findIndex((k) => k[0] === n));
       ctx.pos = 0;
+      this.fitKeys(ctx);
       ctx.dots.innerHTML = "";
       ctx.seq.forEach((k) => {
         const d = document.createElement("i");
@@ -3004,34 +3186,31 @@ KP.game({
       ctx.big.textContent = KEYS[i][1];
       ctx.big.style.color = KEYS[i][2];
       ctx.sub.innerHTML = (i < 5 ? KP.E(["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣"][i]) + " " + KP.u.josa(FINGER[i], "으로/로") + " " : "") + "<b style='color:" + KEYS[i][2] + "'>" + KEYS[i][1] + "</b>";
-      this.idle(ctx);
+      // 한참 못 치면 손가락이 칠 건반을 가리키며 "반짝이는 건반을 쳐요!" (마이크로 들은 음도 조작으로 셈 — heard)
+      ctx.hint(() => ctx.keyEls[ctx.seq[ctx.pos]], "반짝이는 건반을 쳐요!");
     },
-    /** 한참 못 치면 손가락을 다시 알려 줌 (아이 소리를 듣는 동안 앱이 계속 떠들지 않게 12초 간격) */
+    /** 메아리: 한참 못 치면 다시 들려줌 (아이 소리를 듣는 동안 앱이 계속 떠들지 않게 12초 간격) */
     idle(ctx) {
       const tok = ctx.tok,
         pos = ctx.pos,
         mode = ctx.mode;
       ctx.after(12000, () => {
         if (tok !== ctx.tok || ctx.pos !== pos || ctx.mode !== mode || ctx.busy) return;
-        if (mode === "echo") return this.echoPlay(ctx); // 다시 들려준 뒤 echoPlay 가 다음 기다림을 잡음
-        const i = ctx.seq[ctx.pos];
-        ctx.talk((i < 5 ? KP.u.josa(FINGER[i], "으로/로") + " " : "") + KP.u.josa(KEYS[i][1], "을/를") + " 쳐요!", false);
-        this.idle(ctx);
+        if (mode === "echo") this.echoPlay(ctx); // 다시 들려준 뒤 echoPlay 가 다음 기다림을 잡음
       });
     },
-    async songHit(ctx, i) {
+    async songHit(ctx, i, byTap) {
       if (ctx.busy) return;
       const want = ctx.seq[ctx.pos];
       if (i !== want) {
-        ctx.keyEls[i].classList.add("heard");
+        this.nudge(ctx, i, want, byTap);
         ctx.after(400, () => {
-          ctx.keyEls[i].classList.remove("heard");
           if (ctx.mode === "follow" && !ctx.busy) {
             ctx.big.textContent = KEYS[want][1];
             ctx.big.style.color = KEYS[want][2];
           }
         });
-        return; // 틀려도 아무 벌 없음 — 반짝이는 건반을 기다림
+        return; // 벌은 없음 — 반짝이는 건반을 기다림
       }
       ctx.pos++;
       KP.audio.sfx("tap");
@@ -3039,6 +3218,7 @@ KP.game({
       if (ctx.pos < ctx.seq.length) return this.songShow(ctx);
       // 한 곡 끝
       ctx.busy = true;
+      ctx.hint(null);
       this.mark(ctx, -1);
       [...ctx.dots.children].forEach((d) => d.classList.add("ok"));
       const tok = ctx.tok;
@@ -3084,6 +3264,7 @@ KP.game({
         n.el = el;
       });
       ctx.scoreEl.innerHTML = KP.E("⭐") + " 0";
+      this.fitKeys(ctx);
       this.gameProg(ctx);
       this.mark(ctx, list[0].k);
       ctx.fingEls.forEach((f) => f.classList.remove("go"));
@@ -3110,7 +3291,7 @@ KP.game({
           if (g.waitT > 11 && !ctx.busy) {
             g.waitT = -4;
             const k = next.k;
-            ctx.talk((k < 5 ? KP.u.josa(FINGER[k], "으로/로") + " " : "") + KP.u.josa(KEYS[k][1], "을/를") + " 쳐요!", false);
+            ctx.talk("반짝이는 건반을 쳐요!", false); // 손가락 번호는 블록 안 숫자로 (숫자 문장은 기기 목소리라)
             KP.u.replay(ctx.keyEls[k], "bump");
           }
         }
@@ -3132,15 +3313,14 @@ KP.game({
       ctx.track.querySelector("i").style.width = f * 100 + "%";
       ctx.track.querySelector(".rp-runner").style.left = f * 100 + "%";
     },
-    gameHit(ctx, i) {
+    gameHit(ctx, i, byTap) {
       const U = KP.u,
         g = ctx.g;
       if (!g || g.ended || ctx.busy) return;
       const next = g.list[g.pos];
       if (!next) return;
       if (i !== next.k) {
-        ctx.keyEls[i].classList.add("heard");
-        ctx.after(400, () => ctx.keyEls[i].classList.remove("heard"));
+        this.nudge(ctx, i, next.k, byTap);
         g.combo = 0;
         return;
       }
@@ -3243,6 +3423,7 @@ KP.game({
       }
       ctx.pos = 0;
       ctx.wrong = 0;
+      this.fitKeys(ctx);
       ctx.dots.innerHTML = "";
       ctx.seq.forEach(() => ctx.dots.appendChild(document.createElement("i")));
       ctx.big.textContent = "";
@@ -3272,15 +3453,21 @@ KP.game({
       ctx.mic.deafUntil = performance.now() + 900; // 남은 울림이 사라질 때까지
       ctx.busy = false;
       ctx.sub.textContent = ctx.mic.on ? "이제 피아노로 따라 쳐요!" : "이제 건반을 눌러요!";
-      if (ctx.level === 1) this.mark(ctx, ctx.seq[0]); // 1단계는 칠 건반을 알려 줌
-      this.idle(ctx);
+      if (ctx.level === 1) {
+        this.mark(ctx, ctx.seq[0]); // 1단계는 칠 건반을 알려 줌
+        ctx.hint(() => ctx.keyEls[ctx.seq[ctx.pos]], "반짝이는 건반을 쳐요!");
+      } else this.idle(ctx); // 2·3단계는 답을 가리키지 않고 12초 뒤 다시 들려줌
     },
-    async echoHit(ctx, i) {
+    async echoHit(ctx, i, byTap) {
       if (ctx.busy) return;
       const want = ctx.seq[ctx.pos];
       if (i !== want) {
+        // 기억해서 고르는 놀이 → 틀리면 ctx.miss (마이크로 잘못 들었을 수도 있으니 마이크는 가벼운 실수로)
         ctx.keyEls[i].classList.add("heard");
         ctx.after(400, () => ctx.keyEls[i].classList.remove("heard"));
+        ctx.deafFor(400);
+        ctx.miss(ctx.keyEls[i], null, byTap ? {} : { soft: true });
+        if (ctx.level === 1) KP.u.replay(ctx.keyEls[want], "bump");
         ctx.wrong++;
         if (ctx.wrong >= 3) {
           ctx.wrong = 0;
@@ -3298,10 +3485,14 @@ KP.game({
       KP.audio.sfx("tap");
       ctx.deafFor(120);
       if (ctx.pos < ctx.seq.length) {
-        if (ctx.level === 1) this.mark(ctx, ctx.seq[ctx.pos]);
+        if (ctx.level === 1) {
+          this.mark(ctx, ctx.seq[ctx.pos]);
+          ctx.hint(() => ctx.keyEls[ctx.seq[ctx.pos]], "반짝이는 건반을 쳐요!");
+        }
         return;
       }
       ctx.busy = true;
+      ctx.hint(null);
       this.mark(ctx, -1);
       const tok = ctx.tok;
       ctx.round = (ctx.round || 0) + 1;
@@ -3400,7 +3591,8 @@ KP.game({
         ctx.say("다시 잘 보세요! 👀");
         await ctx.wait(1500);
       } else {
-        ctx.say(seq.length === 1 ? "잘 보세요! 누가 노래할까요? 👀" : "잘 보세요! " + seq.length + "번 노래해요 👀", seq.length === 1 ? true : "잘 보세요! " + KP.u.cntWord(seq.length) + " 번 노래해요!");
+        // 말은 자연 음성이 있는 고정 문장으로 (숫자 섞인 문장은 기기 목소리라) — 몇 번인지는 말풍선 글자와 위 점으로
+        ctx.say(seq.length === 1 ? "잘 보세요! 누가 노래할까요? 👀" : "잘 보세요! " + seq.length + "번 노래해요 👀", seq.length === 1 ? true : "잘 보세요!");
         await ctx.wait(seq.length === 1 ? 1600 : 1200);
       }
       if (g !== gen) return;
@@ -3442,19 +3634,26 @@ KP.game({
         ctx.round = (ctx.round || 0) + 1;
         await ctx.wait(400);
         const big = ctx.round % 4 === 0;
-        const ok = await ctx.win({ big, msg: big ? "기억력 대장!" : seq.length + "개 다 기억했어요!", say: big ? "" : KP.u.cntWord(seq.length) + " 개 다 기억했어요!" });
+        const ok = await ctx.win({ big, msg: big ? "기억력 대장!" : seq.length + "개 다 기억했어요!", say: big ? "" : "순서대로 척척!" });
         if (ok) newRound();
         return;
       }
       A.sfx("good");
       KP.voice.say(U.pick(["잘했어요! 하나 더!", "딩동댕! 이번엔 하나 더!", "좋아요! 더 길어져요!"]));
       await ctx.wait(1300);
-      seq.push(U.rand(4));
+      seq.push(nextPad());
       show(false);
+    }
+    /** 다음 패드: 1단계는 바로 앞과 다른 친구만 (같은 친구가 연달아 노래하면 3~4세는 한 번으로 봄) */
+    function nextPad() {
+      if (ctx.level > 1 || !seq.length) return U.rand(4);
+      const prev = seq[seq.length - 1];
+      return U.pick([0, 1, 2, 3].filter((i) => i !== prev));
     }
     function newRound() {
       target = [3, 5, 7][ctx.level - 1];
-      seq = [U.rand(4)];
+      seq = [];
+      seq.push(nextPad());
       show(false);
     }
     ctx.newRound = newRound;
@@ -3477,7 +3676,10 @@ KP.game({
 /* ==== js/games/music/xylo.js ==== */
 /* 실로폰 — 무지개 실로폰 8음 (도~도)
    - 누른 곳으로 채(말렛)가 날아가 '똑' 치는 애니메이션, 손가락으로 쓸면 주르륵
-   - ⏺ 녹음 → 아이가 친 순서·간격 그대로 기록, ▶ 듣기로 다시 들려줌 (채가 혼자 연주)
+   - 🌟 따라 치기: 동요를 고르면 칠 막대가 반짝 → 차례로 치면 한 곡 완성 (피아노 따라 치기와 같은 방식, 한 옥타브 위)
+     1단계: 앞 두 소절, 2단계: 절반, 3단계: 끝까지. 틀리면 부드러운 '톡' + 칠 막대가 들썩. 쓸기로 지나간 막대는 진행에 안 셈
+   - 🔴 녹음: 누르고 치다가 잠깐(2.5초) 멈추면 저절로 끝나고 바로 들려줌 (채가 혼자 연주) — 그만 단추를 눌러도 됨
+     ▶ 듣기(녹음이 있을 때만 보임)로 다시 듣기. 3음 이상일 때만 축하(자유 연주라 열쇠 별은 없음)
    - 녹음은 KP.store "xylo:rec" 에 저장 → 다음에 열어도 들을 수 있음 */
 "use strict";
 KP.game({
@@ -3485,6 +3687,7 @@ KP.game({
   icon: "🎐",
   name: "실로폰",
   cat: "music",
+  levels: 3,
   setup(ctx) {
     const U = KP.u,
       A = KP.audio;
@@ -3498,6 +3701,24 @@ KP.game({
       @keyframes xyPulse{50%{transform:scale(1.06)}}
       .xy-play.on{background:var(--grass);color:#fff;box-shadow:0 7px 0 #1d7f45}
       .xy-st{font-size:clamp(17px,2.2vw,22px);color:var(--ink2);min-width:4em}
+      .xy-song{background:var(--cat);color:#fff;box-shadow:0 7px 0 color-mix(in srgb,var(--cat) 60%,#000)}
+      .xy-prog{flex:0 0 auto;display:none;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+      .xy-prog.on{display:flex}
+      .xy-dots{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;max-width:min(760px,80vw)}
+      .xy-dot{width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 2px #e8cfa6}
+      .xy-dot.done{background:var(--grass);box-shadow:none}
+      .xy-dot.now{background:var(--sun);transform:scale(1.4);box-shadow:none}
+      .xy-bar.next{animation:xyNext 1s ease-in-out infinite;z-index:2;box-shadow:0 7px 0 color-mix(in srgb,var(--k) 55%,#000),0 0 0 6px #fff36b,0 0 26px 10px rgba(255,225,77,.85)}
+      @keyframes xyNext{50%{transform:scale(1.04)}}
+      .xy-star{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);font-size:clamp(30px,4.6vw,48px);pointer-events:none;animation:bob 1s ease-in-out infinite}
+      .xy-pick{position:absolute;inset:0;z-index:20;background:rgba(255,246,232,.97);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:14px}
+      .xy-pick.show{display:flex;animation:enter .3s}
+      .xy-pick h3{font-weight:400;font-size:clamp(22px,3.4vw,32px)}
+      .xy-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;width:min(860px,100%)}
+      .xy-card{background:#fff;border-radius:24px;padding:14px 8px;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;gap:6px;font-size:clamp(17px,2.4vw,24px);min-height:90px;justify-content:center;animation:cardIn .4s backwards;animation-delay:calc(var(--i) * 50ms)}
+      .xy-card .e{font-size:clamp(48px,8vw,80px)}
+      .xy-card:active{transform:scale(.96)}
+      .xy-b[hidden]{display:none}
       .xy-board{flex:1;min-height:0;position:relative;border-radius:30px;background:linear-gradient(135deg,#ffe9c7,#ffd7a8);box-shadow:var(--shadow);overflow:hidden}
       .xy-frame{position:absolute;inset:6% 4%;display:flex;align-items:center;justify-content:space-between;gap:1.6%}
       .xy-rail{position:absolute;left:2%;right:2%;height:5%;border-radius:10px;background:linear-gradient(#a8662e,#7c4519);box-shadow:0 4px 0 rgba(0,0,0,.2)}
@@ -3521,7 +3742,20 @@ KP.game({
         .xy-rail{top:2%;bottom:2%;width:6%;height:auto;left:auto;right:auto}
         .xy-bar{align-items:center;justify-content:center;padding:0;background:linear-gradient(180deg,color-mix(in srgb,var(--k) 75%,#fff),var(--k) 40%,color-mix(in srgb,var(--k) 80%,#000))}
         .xy-bar::before,.xy-bar::after{display:none}
-        .xy-b{min-height:56px;padding:8px 14px;font-size:17px}
+        .xy-b{min-height:64px;padding:8px 14px;font-size:17px}
+        .xy-top{gap:8px}
+        .xy-star{top:50%}
+        .xy-prog{gap:8px;flex-wrap:nowrap}
+        .xy-dots{gap:3px;max-width:62vw}
+        .xy-dot{width:11px;height:11px}
+        .xy-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+        .xy-card .e{font-size:44px}
+      }
+      @media (orientation:landscape) and (max-height:500px){
+        .xy-b{min-height:56px;padding:6px 14px;font-size:16px}
+        .xy-cards{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+        .xy-card{padding:8px 4px;font-size:15px}
+        .xy-card .e{font-size:40px}
       }
     `);
     const BARS = [
@@ -3532,10 +3766,16 @@ KP.game({
     /* ---------- 화면 ---------- */
     const wrap = U.el("div", "xy");
     const top = U.el("div", "xy-top");
+    const bSong = U.btn(KP.E("🌟") + " 따라 치기", "btn xy-b xy-song");
     const bRec = U.btn(KP.E("🔴") + " 녹음", "btn xy-b xy-rec");
     const bPlay = U.btn(KP.E("▶️") + " 듣기", "btn xy-b xy-play");
     const st = U.el("div", "xy-st");
-    top.append(bRec, bPlay, st);
+    top.append(bSong, bRec, bPlay, st);
+    const prog = U.el("div", "xy-prog");
+    const dots = U.el("div", "xy-dots");
+    const bStop = U.btn(KP.E("✖️") + " 그만", "btn xy-b");
+    prog.append(dots, bStop);
+    const picker = U.el("div", "xy-pick");
     const board = U.el("div", "xy-board");
     const frame = U.el("div", "xy-frame");
     const rail1 = U.el("div", "xy-rail"),
@@ -3545,8 +3785,8 @@ KP.game({
       '<svg viewBox="0 0 100 100"><path d="M24 24 L90 90" stroke="#b07a45" stroke-width="9" stroke-linecap="round"/><path d="M24 24 L90 90" stroke="#d9a46b" stroke-width="4" stroke-linecap="round"/>' +
       '<circle cx="20" cy="20" r="17" fill="#ff5d73" stroke="#9c2a3c" stroke-width="4"/><circle cx="14" cy="14" r="5" fill="#fff" opacity=".7"/></svg>';
     board.append(rail1, rail2, frame, mallet);
-    wrap.append(top, board);
-    ctx.body.appendChild(wrap);
+    wrap.append(top, prog, board);
+    ctx.body.append(wrap, picker);
     const bars = BARS.map(([n, sol, col], i) => {
       const b = U.el("div", "xy-bar", sol);
       b.style.setProperty("--k", col);
@@ -3614,15 +3854,19 @@ KP.game({
     }
     let restT = 0;
     const held = new Map();
-    function userHit(i, x, y) {
+    function userHit(i, x, y, slid) {
       if (playing) return;
       hit(i, x, y);
       ctx.hint(null);
+      if (follow) return followHit(i, slid);
       if (rec) {
         const t = performance.now() - rec.t0;
         rec.list.push([i, Math.round(t)]);
         st.innerHTML = KP.E("🎵") + " " + rec.list.length;
-        if (rec.list.length >= 150 || t > 45000) stopRec();
+        if (rec.list.length >= 150 || t > 45000) return stopRec();
+        // 잠깐 멈추면 저절로 녹음 끝 → 바로 들려주기 ('그만'을 몰라도 됨)
+        ctx.cancel(rec.quietT);
+        rec.quietT = ctx.after(2500, () => rec && stopRec());
       }
     }
     frame.addEventListener("pointerdown", (e) => {
@@ -3642,7 +3886,7 @@ KP.game({
       const b = el && el.closest && el.closest(".xy-bar");
       if (b && b !== held.get(e.pointerId)) {
         held.set(e.pointerId, b);
-        userHit(+b.dataset.i, e.clientX, e.clientY);
+        userHit(+b.dataset.i, e.clientX, e.clientY, true);
       }
     });
     ["pointerup", "pointercancel", "pointerleave"].forEach((ev) => frame.addEventListener(ev, (e) => held.delete(e.pointerId)));
@@ -3651,9 +3895,14 @@ KP.game({
     let rec = null,
       playing = false,
       saved = KP.store.get("xylo:rec", []);
+    function showPlayBtn() {
+      bPlay.hidden = !saved.length;
+    }
+    /** 녹음 끝 → 저장하고 바로 들려줌 (quiet: 화면을 나갈 때 — 저장만) */
     function stopRec(quiet) {
       if (!rec) return;
       const list = rec.list;
+      ctx.cancel(rec.quietT);
       rec = null;
       bRec.classList.remove("on");
       bRec.innerHTML = KP.E("🔴") + " 녹음";
@@ -3661,9 +3910,11 @@ KP.game({
         saved = list;
         KP.store.set("xylo:rec", saved);
         st.innerHTML = KP.E("💾") + " " + list.length;
+        showPlayBtn();
         if (quiet) return;
-        KP.voice.say("녹음했어요! 듣기 단추를 누르면 내 연주를 들을 수 있어요.");
-        ctx.hint(() => bPlay, "듣기 단추를 눌러요!");
+        A.sfx("pop");
+        KP.voice.say("내가 친 노래를 들어 봐요!");
+        ctx.after(1600, () => !rec && !playing && !follow && playBack());
       } else {
         st.textContent = "";
         if (!quiet) KP.voice.say("녹음을 그만했어요.");
@@ -3671,13 +3922,17 @@ KP.game({
     }
     ctx.tap(bRec, () => {
       if (playing) stopPlay();
+      if (follow) stopFollow();
       if (rec) return stopRec();
-      rec = { t0: performance.now(), list: [] };
+      rec = { t0: performance.now(), list: [], quietT: 0 };
       bRec.classList.add("on");
       bRec.innerHTML = KP.E("⏹️") + " 그만";
       st.innerHTML = KP.E("🎵") + " 0";
       A.note("A5", { inst: "bell", dur: 0.3, vol: 0.15 });
-      KP.voice.say("녹음 시작! 실로폰을 쳐 봐요. 다 치면 그만 단추를 눌러요.");
+      KP.voice.say("녹음 시작! 실로폰을 쳐 봐요.");
+      // 아무것도 안 치면 20초 뒤 조용히 끝 (녹음 단추가 계속 깜빡이지 않게)
+      const me = rec;
+      ctx.after(20000, () => rec === me && !rec.list.length && stopRec());
       ctx.hint(() => bars[0], "실로폰을 쳐 봐요!");
     });
     let playGen = 0;
@@ -3688,11 +3943,15 @@ KP.game({
       bPlay.innerHTML = KP.E("▶️") + " 듣기";
     }
     ctx.tap(bPlay, () => {
-      if (rec) stopRec();
+      if (rec) return stopRec(); // 녹음 중이면 끝내고 바로 들려줌
       if (playing) {
         stopPlay();
         return;
       }
+      if (follow) stopFollow();
+      playBack();
+    });
+    function playBack() {
       if (!saved.length) {
         U.replay(bPlay, "wrong");
         KP.voice.say("먼저 빨간 녹음 단추를 누르고 연주해 봐요!");
@@ -3707,20 +3966,156 @@ KP.game({
       const t0 = saved[0][1];
       saved.forEach(([i, t]) => ctx.after(t - t0 + 250, () => gen === playGen && hit(i)));
       const end = saved[saved.length - 1][1] - t0 + 1300;
+      const n = saved.length;
       ctx.after(end, async () => {
         if (gen !== playGen) return;
         stopPlay();
+        if (n < 3) {
+          // 한두 음은 축하 없이 칭찬만 (1음 녹음으로 축하·별 받는 것 방지)
+          KP.voice.say("멋진 연주예요!");
+          ctx.say("또 녹음해 볼까요? 빨간 단추를 눌러요!", false);
+          return;
+        }
+        ctx.noStar ? ctx.noStar() : (ctx._fewChoice = true); // 자유 연주 → 열쇠 별 제외
         const ok = await ctx.win({ msg: "멋진 연주예요!" });
         if (ok) ctx.say("또 녹음해 볼까요? 빨간 단추를 눌러요!");
       });
+    }
+
+    /* ---------- 따라 치기 (piano.js 의 따라 치기와 같은 방식) ---------- */
+    const SONGS = [["twinkle", "⭐"], ["airplane", "✈️"], ["butterfly", "🦋"], ["schoolbell", "🔔"], ["bears", "🐻"]];
+    let follow = null; // {key, seq:[막대 번호], len:[박], idx, wrong}
+    function phrasesOf(notes) {
+      const out = [];
+      let cur = [];
+      notes.forEach(([n, b]) => {
+        if (n !== "R") cur.push([n, b]);
+        if (b >= 2 || n === "R") {
+          if (cur.length) out.push(cur);
+          cur = [];
+        }
+      });
+      if (cur.length) out.push(cur);
+      return out;
+    }
+    /** 동요(도4~도5)를 실로폰(도5~도6)으로 한 옥타브 올려 막대 번호로 */
+    const barOf = (n) => BARS.findIndex((b) => A.midiOf(b[0]) === A.midiOf(n) + 12);
+    function startFollow(key) {
+      const song = A.SONGS[key];
+      const ph = phrasesOf(song.notes);
+      const lv = ctx.level;
+      const take = lv === 1 ? 2 : lv === 2 ? Math.max(2, Math.ceil(ph.length / 2)) : ph.length;
+      const notes = [].concat(...ph.slice(0, take)).filter(([n]) => barOf(n) >= 0);
+      follow = { key, seq: notes.map(([n]) => barOf(n)), len: notes.map(([, b]) => b), idx: 0, wrong: 0 };
+      dots.innerHTML = "";
+      follow.seq.forEach(() => dots.appendChild(U.el("span", "xy-dot")));
+      prog.classList.add("on");
+      picker.classList.remove("show");
+      requestAnimationFrame(layout);
+      ctx.say(song.name + "! 반짝이는 건반을 차례로 눌러요.");
+      // 첫 소절을 살짝 들려주고 바로 시작
+      A.melody(ph[0], { beat: 0.34, inst: "marimba", octave: 1, vol: 0.16, when: 0.6 });
+      markNext();
+    }
+    function markNext(quiet) {
+      bars.forEach((b) => b.classList.remove("next"));
+      U.$$(".xy-star", frame).forEach((x) => x.remove());
+      if (!follow) return;
+      U.$$(".xy-dot", dots).forEach((d, i) => {
+        d.classList.toggle("done", i < follow.idx);
+        d.classList.toggle("now", i === follow.idx);
+      });
+      if (quiet) return;
+      const b = bars[follow.seq[follow.idx]];
+      if (!b) return;
+      b.classList.add("next");
+      b.appendChild(U.el("span", "xy-star", KP.E("⭐")));
+      ctx.hint(() => b, "반짝이는 건반을 눌러요!");
+    }
+    async function followHit(i, slid) {
+      if (!follow || KP.celebrating || slid) return; // 쓸면서 지나간 막대는 소리만
+      const want = follow.seq[follow.idx];
+      if (want == null) return;
+      if (i !== want) {
+        follow.wrong++;
+        ctx._softMiss = (ctx._softMiss || 0) + 1; // 마구 쳐서 끝내면 열쇠 별 없음 (1번은 봐줌)
+        A.sfx("tap2");
+        U.replay(bars[want], "bump");
+        if (follow.wrong % 3 === 0) KP.voice.say("반짝이는 건반을 눌러요!");
+        return;
+      }
+      follow.wrong = 0;
+      follow.idx++;
+      if (follow.idx < follow.seq.length) return markNext();
+      // 완성!
+      markNext(true);
+      const f = follow;
+      follow = null;
+      bars.forEach((b) => b.classList.remove("next"));
+      ctx.hint(null);
+      const song = A.SONGS[f.key];
+      KP.voice.say("우와! " + song.name + " 완성!");
+      // 친 노래 앞부분(최대 약 2.5초)을 채가 혼자 다시 쳐 줌
+      let t = 900;
+      const gen = ++playGen;
+      for (let k = 0; k < f.seq.length && t < 3400; k++) {
+        const bi = f.seq[k];
+        ctx.after(t, () => gen === playGen && hit(bi));
+        t += f.len[k] * 300;
+      }
+      await ctx.wait(t + 500);
+      if (gen !== playGen) return;
+      prog.classList.remove("on");
+      requestAnimationFrame(layout);
+      const ok = await ctx.win({ big: true, msg: song.name + " 완성!" });
+      if (!ok) return;
+      ctx.say("또 다른 노래를 쳐 볼까요? 별 단추를 눌러요!");
+      ctx.hint(() => bSong, "별 단추를 누르면 노래를 고를 수 있어요!");
+    }
+    function stopFollow() {
+      follow = null;
+      prog.classList.remove("on");
+      markNext(true);
+      ctx.hint(null);
+      requestAnimationFrame(layout);
+    }
+    ctx.tap(bStop, () => {
+      A.sfx("back");
+      stopFollow();
+      ctx.say("마음대로 쳐 봐요!");
+    });
+    ctx.tap(bSong, () => {
+      if (rec) stopRec(true);
+      if (playing) stopPlay();
+      A.sfx("open");
+      picker.innerHTML = "<h3>" + KP.E("🌟") + " 어떤 노래를 칠까요?</h3>";
+      const cards = U.el("div", "xy-cards");
+      SONGS.forEach(([key, em], i) => {
+        const c = U.btn(KP.E(em) + "<span>" + A.SONGS[key].name + "</span>", "xy-card");
+        c.style.setProperty("--i", i);
+        ctx.tap(c, () => {
+          A.sfx("select");
+          startFollow(key);
+        });
+        cards.appendChild(c);
+      });
+      const close = U.btn(KP.E("↩️") + " 돌아가기", "btn");
+      ctx.tap(close, () => picker.classList.remove("show"));
+      picker.append(cards, close);
+      picker.classList.add("show");
+      KP.voice.say("어떤 노래를 칠까요?");
     });
 
     ctx.stopRec = stopRec;
+    ctx.stopFollow = stopFollow;
     ctx.init = () => {
       if (rec) stopRec(true);
       stopPlay();
+      stopFollow();
+      picker.classList.remove("show");
       saved = KP.store.get("xylo:rec", []);
       st.innerHTML = saved.length ? KP.E("💾") + " " + saved.length : "";
+      showPlayBtn();
       requestAnimationFrame(layout);
     };
   },
@@ -3728,11 +4123,12 @@ KP.game({
     ctx.bgmWas = KP.audio.bgm.on;
     if (ctx.bgmWas) KP.audio.bgm.stop();
     ctx.init();
-    ctx.say("실로폰을 똑똑 쳐 봐요! 빨간 단추를 누르면 녹음할 수 있어요.");
+    ctx.say("실로폰을 똑똑 쳐 봐요! 별 단추를 누르면 노래를 따라 칠 수 있어요.");
     ctx.hint(() => ctx.body.querySelector(".xy-bar"), "실로폰을 쳐 봐요!");
   },
   stop(ctx) {
     ctx.stopRec(true);
+    ctx.stopFollow();
     if (ctx.bgmWas && KP.settings.get().bgm) KP.audio.bgm.start();
   },
 });

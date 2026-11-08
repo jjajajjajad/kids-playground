@@ -29,7 +29,10 @@ KP.game({
       .mxRoom .psJars{position:absolute;z-index:5;background:rgba(255,251,242,.6);border-radius:22px;padding:6px 8px 8px}
       .mxRoom .psJars.col{display:grid;grid-template-columns:repeat(2,auto);gap:4px 6px}
       .mxRoom .psJars.row{flex-wrap:nowrap;gap:4px}
-      .mxRoom .psJar{width:clamp(54px,8.6vmin,92px);height:clamp(78px,12.6vmin,128px)}
+      .mxRoom .psJar{width:clamp(64px,10vmin,92px);height:clamp(90px,14vmin,128px)}
+      .mxRoom .psJars.row.tight{gap:1px;padding:6px 3px 8px}
+      .mxRoom .psJars.row.wrap{display:grid;grid-template-columns:repeat(3,auto);justify-content:center;gap:4px 8px}
+      .mxRoom .psJars.row.wrap .psJar{height:76px}
       .mxBub{position:absolute;left:0;top:0;z-index:6;display:flex;align-items:center;gap:.35em;background:#fffaf2;border-radius:26px;padding:.3em .5em .3em .35em;box-shadow:0 5px 0 rgba(120,80,40,.16);font-size:max(18px,min(30px,calc(var(--dh,300px)*.1)));color:var(--ink);cursor:pointer;will-change:transform}
       .mxBub:after{content:"";position:absolute;left:var(--tx,18%);bottom:-.4em;width:.8em;height:.8em;background:#fffaf2;transform:rotate(45deg);border-radius:0 0 .18em 0}
       .mxBub.in{animation:popIn .4s .5s backwards}
@@ -72,7 +75,7 @@ KP.game({
     ctx.tap(ctx.bDrain, () => this.drain(ctx));
     ctx.bub.addEventListener("click", () => {
       U.replay(ctx.bub, "pop");
-      if (ctx.order) KP.voice.say("이런 색 물감 주세요! " + U.josa(ctx.order.name, "이에요/예요") + ".");
+      if (ctx.order) KP.voice.say(this.nat("이런 색 물감 주세요! " + U.josa(ctx.order.name, "이에요/예요") + ".", "이런 색 물감 주세요! " + ctx.order.name + "!"));
       if (ctx.actor) ctx.actor.react("headTop");
     });
     ctx.round = 0;
@@ -180,6 +183,12 @@ KP.game({
       jars = ctx.studio.jarsEl;
     jars.classList.toggle("col", land);
     jars.classList.toggle("row", !land);
+    // 세로 폰에서 물감 5개(3단계): 한 줄에 64px 로 들어가면 간격만 좁히고(390px), 그래도 안 되면 두 줄(3+2, 360px) — 터치 64px 지키기
+    const nJar = [...jars.children].filter((j) => j.style.display !== "none").length;
+    const jarW = Math.min(92, Math.max(64, Math.min(innerWidth, innerHeight) * 0.1)); // CSS clamp(64px,10vmin,92px) 와 같게
+    const fitRow = (gap, pad) => nJar * jarW + (nJar - 1) * gap + pad * 2 <= w - 6;
+    jars.classList.toggle("tight", !land && !fitRow(4, 8) && fitRow(1, 3));
+    jars.classList.toggle("wrap", !land && !fitRow(1, 3));
     const jw = jars.offsetWidth || 160,
       jh = jars.offsetHeight || 100;
     let D, cx, cy;
@@ -195,10 +204,10 @@ KP.game({
       ctx.bDrain.style.top = "";
       ctx.bDrain.style.bottom = "12px";
     } else {
-      D = Math.min(w * 0.86, ((h - jh - 24) / T) * 0.6, 560);
+      D = Math.min(w * 0.86, ((h - jh - 24) / T) * (jars.classList.contains("wrap") ? 0.5 : 0.6), 560); // 물감 두 줄이면 그릇을 조금 작게(손님 인형이 가려지지 않게)
       cx = w / 2;
       cy = h - jh - 18 - (D * T) / 2;
-      jars.style.left = Math.max(6, (w - jw) / 2) + "px";
+      jars.style.left = Math.max(3, (w - jw) / 2) + "px";
       jars.style.top = h - jh - 8 + "px";
       ctx.bDrain.style.right = "";
       ctx.bDrain.style.left = "10px";
@@ -222,7 +231,7 @@ KP.game({
     // 실제 팔레트 자리(자르기 한계로 조금 어긋날 수 있음)에 그릇을 놓음
     const p = st.uvToPx(S.pal[0], S.pal[1]);
     const bx = U_clamp(p.x, D / 2 + 4, w - D / 2 - 4),
-      by = U_clamp(p.y, (D * T) / 2 + 4, h - (D * T) / 2 - 4);
+      by = U_clamp(p.y, (D * T) / 2 + 4, h - (D * T) / 2 - 4 - (land ? 0 : jh + 6)); // 세로: 물감 통 줄 위에(가리지 않게)
     ctx.studio.fit(D);
     const be = ctx.studio.bowlEl;
     be.style.transform = "translate(" + Math.round(bx - D / 2) + "px," + Math.round(by - (D * T) / 2) + "px)";
@@ -307,6 +316,11 @@ KP.game({
     this.dropStage(ctx);
   },
 
+  /** 같은 뜻 문장 중 자연 음성(이미 녹음된 조각)으로 말할 수 있는 첫 문장, 없으면 첫 문장 */
+  nat(...l) {
+    const N = KP.voice._natUrls;
+    return (N && l.find((t) => N(t))) || l[0];
+  },
   async next(ctx, first) {
     const U = KP.u,
       P = KP.paint,
@@ -403,7 +417,13 @@ KP.game({
     ctx.poured = false;
     ctx.dirty = false;
     const hello = first ? "안녕! 나는 " + U.josa(act.name, "이에요/예요") + ". " : "";
-    ctx.say("🎨 " + hello + "이런 색 물감 주세요! " + U.josa(name, "이에요/예요") + ".");
+    // 음성: "다홍이에요." 처럼 녹음 없는 조합은 "다홍!"(이미 있는 조각)으로
+    const req = "이런 색 물감 주세요! " + U.josa(name, "이에요/예요") + ".";
+    const reqV = this.nat(req, "이런 색 물감 주세요! " + name + "!");
+    const helloV = first ? this.nat(hello.trim(), "안녕! 나는 " + act.name + "!") + " " : "";
+    const asked = ctx.say("🎨 " + hello + req, this.nat(helloV + reqV, helloV + req));
+    // 첫 판: 두 동작(짜기→젓기)을 처음부터 알려 주기 — 이미 넣기 시작했으면 생략
+    if (first && asked) asked.then(() => live() && ctx.order && !ctx.poured && KP.voice.say("물감 통을 눌러 그릇에 넣어요! 숟가락으로 빙글빙글 저어요!"));
     await Promise.race([enter, ctx.wait(1200)]);
     if (!live()) return;
     act.wave(1.4);
@@ -523,7 +543,8 @@ KP.game({
     ctx.bub.innerHTML = '<span class="mxSw" style="--t:' + hex + '"></span><span class="mxRec"><b>' + KP.E("💖") + "</b></span>";
     const isNew = P.discover(o.name);
     P.saveMine(hex, o.name, tot); // 만든 물감은 내 물감 통에도 (색칠 공방·그림 그리기 팔레트)
-    KP.voice.say(U.pick(["와, 똑같아요! 고마워요!", "딱 이 색이에요! 고마워요!", "우와, 정말 예뻐요! 고마워요!"]) + (isNew ? " 도감에 " + U.josa(o.name, "이/가") + " 생겼어요!" : ""));
+    const thx = U.pick(["와, 똑같아요! 고마워요!", "딱 이 색이에요! 고마워요!", "우와, 정말 예뻐요! 고마워요!"]);
+    KP.voice.say(isNew ? this.nat(thx + " 도감에 " + U.josa(o.name, "이/가") + " 생겼어요!", thx + " " + o.name + "! 도감에 생겼어요!") : thx);
     ctx.after(900, () => live() && act.happy());
     ctx.score.add(1);
     ctx.round++;

@@ -1,8 +1,9 @@
 /* 무엇이 없어졌을까? — 잘 보고, 커튼이 닫혔다 열리면 사라진 것 찾기
    1단계: 3개 (빈자리가 점선으로 보임) · 보기 3개
-   2단계: 4개 (빈자리는 그대로, 점선 없음) · 보기 4개(남아 있는 것 1개 섞임)
+   2단계: 4개 (두 종류 2개씩, 빈자리는 그대로, 점선 없음) · 보기 4개(남아 있는 것 1개 섞임)
    3단계: 6개 (남은 것들 자리도 섞임) · 보기 4개(같은 종류끼리)
-   - 처음에 하나씩 통통 튀며 이름을 불러 줌 → 커튼 닫힘 "눈 감아요! 하나, 둘, 셋!" → 열림 */
+   - 처음 안내가 끝나면 하나씩 통통 튀며 이름을 불러 줌 → 커튼 닫힘 "눈 감아요! 하나, 둘, 셋!" → 열림
+   - 보는 동안 그림을 누르면 통통 튀며 이름을 말해 주고, 커튼이 닫혔을 때 누르면 🙈 가 "하나, 둘, 셋!" */
 "use strict";
 KP.game({
   id: "missing",
@@ -26,6 +27,7 @@ KP.game({
       .msCur.r{right:0;transform:translateX(102%);border-left:3px solid #8e1529}
       .msStage.closed .msCur{transform:none}
       .msEyes{position:absolute;inset:0;z-index:4;display:flex;align-items:center;justify-content:center;font-size:calc(var(--ms,120px)*.9);opacity:0;transition:opacity .3s;pointer-events:none}
+      .msEyes .eb.jump{animation:jumpA .5s}
       .msStage.closed .msEyes{opacity:1}
       .msEyes .eb{animation:bob 1.2s ease-in-out infinite}
       .msAns{display:flex;gap:clamp(12px,2.4vw,26px);justify-content:center;flex-wrap:wrap;min-height:clamp(90px,13vw,140px);transition:opacity .3s}
@@ -66,6 +68,26 @@ KP.game({
       ctx.row.style.width = per * (s + gap) - gap + "px";
     };
     addEventListener("resize", () => ctx._active && ctx.msSize());
+    // 기다리는 동안에도 반응: 보는 중엔 누른 그림이 튀며 이름, 커튼이 닫혀 있으면 🙈 가 "하나, 둘, 셋!"
+    ctx.fast(ctx.stage, (e) => {
+      const g = ctx.ms;
+      if (!g || g.phase === "ask") return;
+      if (ctx.stage.classList.contains("closed")) {
+        const eb = ctx.eyes.firstChild;
+        U.replay(eb, "jump");
+        KP.audio.sfx("boing");
+        if (g.phase === "closed" && g.shutDone && !g.eyesSaid) {
+          g.eyesSaid = true;
+          KP.voice.say("하나, 둘, 셋!");
+        }
+        return;
+      }
+      const sp = e.target.closest && e.target.closest(".msSpot");
+      if (!sp || !sp.dataset.em || !sp.firstChild) return;
+      U.replay(sp, "jump");
+      KP.audio.note(KP.audio.SCALE[g.spots.indexOf(sp)] || "C6", { inst: "marimba", dur: 0.3, vol: 0.22 });
+      if (g.phase === "look") KP.voice.say(sp.dataset.name); // 이름 부르는 중엔 소리만 (호명이 끊기지 않게)
+    });
   },
   start(ctx) {
     ctx.round = 0;
@@ -82,6 +104,11 @@ KP.game({
       const pool = U.shuffle([...U.pick(ctx.POOLS)]);
       shown = pool.slice(0, n);
       spare = pool.slice(n);
+    } else if (lv === 2) {
+      // 2단계: 두 종류에서 2개씩 (1단계보다 헷갈리고 3단계보다 쉬움)
+      const pools = U.sample(ctx.POOLS, 2);
+      shown = U.shuffle(pools.flatMap((p) => U.sample(p, 2)));
+      spare = U.shuffle(ctx.POOLS.flat().filter((x) => !shown.includes(x)));
     } else {
       const pools = U.sample(ctx.POOLS, n);
       shown = pools.map((p) => U.pick(p));
@@ -100,30 +127,56 @@ KP.game({
       e.style.setProperty("--i", k);
       sp.appendChild(e);
       sp.dataset.em = em;
+      sp.dataset.name = name;
       ctx.row.appendChild(sp);
       return sp;
     });
     ctx.msSize();
     ctx.hint(null);
-    ctx.say("잘 봐요! 무엇 무엇이 있나요?");
-    // 하나씩 이름 불러 주기
-    const T0 = 1700,
-      STEP = 1000;
-    shown.forEach(([em, name], k) =>
-      ctx.after(T0 + k * STEP, () => {
+    const tok = (ctx.msTok = (ctx.msTok || 0) + 1);
+    const g = (ctx.ms = { phase: "names", spots, eyesSaid: false });
+    const alive = () => ctx._active && ctx.msTok === tok;
+    const intro = ctx.say("잘 봐요! 무엇 무엇이 있나요?");
+    // 하나씩 이름 불러 주기 — 첫 안내가 끝난 뒤에 시작 (예전엔 1.7초 뒤 첫 이름이 안내를 끊었음)
+    const STEP = 800;
+    const look = [1000, 900, 1200][lv - 1];
+    const run = async () => {
+      const t0 = Date.now();
+      await Promise.race([intro, ctx.wait(3600)]);
+      if (!alive()) return;
+      const waited = Date.now() - t0;
+      if (waited < 900) await ctx.wait(900 - waited);
+      for (let k = 0; k < n; k++) {
+        if (!alive()) return;
         U.replay(spots[k], "jump");
         A.note(A.SCALE[k] || "C6", { inst: "marimba", dur: 0.3, vol: 0.22 });
-        KP.voice.say(name);
-      })
-    );
-    const look = [1200, 1000, 1400][lv - 1];
-    const tClose = T0 + n * STEP + look;
-    ctx.after(tClose, () => {
+        KP.voice.say(shown[k][1]);
+        await ctx.wait(STEP);
+      }
+      if (!alive()) return;
+      g.phase = "look";
+      await ctx.wait(look);
+      if (!alive()) return;
+      g.phase = "closed";
       ctx.stage.classList.add("closed");
       A.sfx("whoosh");
-      KP.voice.say("눈 감아요! 하나, 둘, 셋!");
-    });
-    ctx.after(tClose + 900, () => {
+      const shut = KP.voice.say("눈 감아요! 하나, 둘, 셋!");
+      shut.then(() => (g.shutDone = true));
+      await ctx.wait(700);
+      if (!alive()) return;
+      hide();
+      // 커튼은 1.8초 또는 "하나, 둘, 셋!"이 끝날 때까지 (말이 잘리지 않게, 최대 3초)
+      await Promise.all([ctx.wait(1100), Promise.race([shut, ctx.wait(2300)])]);
+      if (!alive()) return;
+      g.phase = "ask";
+      ctx.stage.classList.remove("closed");
+      A.sfx("open");
+      await ctx.wait(450);
+      if (!alive()) return;
+      ctx.say("무엇이 없어졌을까요?");
+      showChoices();
+    };
+    const hide = () => {
       // 하나 숨기기
       const sp = spots[gone];
       sp.innerHTML = "";
@@ -135,15 +188,7 @@ KP.game({
         rest.forEach((s) => ctx.row.appendChild(s));
         ctx.row.appendChild(sp);
       }
-    });
-    ctx.after(tClose + 2700, () => {
-      ctx.stage.classList.remove("closed");
-      A.sfx("open");
-      ctx.after(500, () => {
-        ctx.say("무엇이 없어졌을까요?");
-        showChoices();
-      });
-    });
+    };
 
     const showChoices = () => {
       let opts;
@@ -160,7 +205,9 @@ KP.game({
           if (present.some((p) => p[0] === em)) {
             const s = spots.find((x) => x.dataset.em === em && x.isConnected);
             if (s) U.replay(s, "jump");
-            return U.josa(name, "은/는") + " 여기 있어요! 다시 찾아봐요.";
+            // 말은 "컵케이크! 여기 있어요! 다시 찾아봐요." — 이름(조사 없이)·공용 조각 모두 자연 음성
+            KP.voice.say(name + "! 여기 있어요! 다시 찾아봐요.");
+            return "";
           }
           return U.pick(["음, 다시 생각해 볼까요?", "아깝다! 무엇이 있었더라?"]);
         },
@@ -172,17 +219,19 @@ KP.game({
           sp.appendChild(e);
           U.replay(sp, "jump");
           A.sfx("sparkle");
-          KP.voice.say(name + "! 찾았다!");
+          KP.voice.say("찾았다!");
           ctx.score.add();
           ctx.round++;
           await ctx.wait(1100);
           if (!ctx._active) return;
           const big = ctx.round % 4 === 0;
-          const ok = await ctx.win({ big, msg: big ? "{부름} 기억력 대장!" : U.josa(name, "이/가") + " 없어졌었어요!" });
+          // 화면은 "물감이 없어졌었어요!", 말은 "물감! 없어졌었어요!" (이름+조사 조각이 없어 쪼개어 자연 음성)
+          const ok = await ctx.win({ big, msg: big ? "{부름} 기억력 대장!" : U.josa(name, "이/가") + " 없어졌었어요!", say: big ? undefined : name + "! 없어졌었어요!" });
           if (ok) this.next(ctx);
         },
       });
       ctx.hint(() => btns.find((b) => b.dataset.right), "무엇이 없어졌을까? 생각나는 걸 눌러요!");
     };
+    run();
   },
 });

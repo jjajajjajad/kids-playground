@@ -2,7 +2,8 @@
    1단계: 바구니 2개, 물건 4개
    2단계: 바구니 2개, 물건 6개
    3단계: 바구니 3개, 물건 9개
-   판마다 주제가 바뀜(동물/과일, 바다/하늘, 빨강/파랑, 큰 것/작은 것, 탈것/먹을 것, 낮/밤 …)
+   판마다 주제가 바뀜(동물/과일, 바다/하늘, 빨강/파랑, 큰 것/작은 것, 탈것/먹을 것, 낮/밤 …, 3단계는 6가지)
+   안내 말: 통째 문장에 자연 음성이 없으면 "물건을 끌어서 알맞은 바구니에 넣어요! 동물! 과일! 탈것!"(바구니가 차례로 통통)
    바구니 위 그림 라벨 + 바구니를 누르면 이름을 말해 줌 */
 "use strict";
 KP.game({
@@ -52,13 +53,14 @@ KP.game({
       yellow: ["🟡", "노랑", "#fdd835", [["🍌", "바나나"], ["🐥", "병아리"], ["🌻", "해바라기"], ["⭐", "별"], ["🍋", "레몬"], ["🌽", "옥수수"], ["🧀", "치즈"]]],
       day: ["☀️", "낮", "#ffb74d", [["🌻", "해바라기"], ["🌈", "무지개"], ["🕶️", "선글라스"], ["🦋", "나비"], ["⛱️", "파라솔"], ["🐓", "닭"]]],
       night: ["🌙", "밤", "#5c6bc0", [["⭐", "별"], ["🦉", "부엉이"], ["🌃", "밤하늘"], ["🛏️", "침대"], ["🔦", "손전등"], ["🦇", "박쥐"]]],
+      green: ["🟢", "초록", "#66bb6a", [["🥦", "브로콜리"], ["🐸", "개구리"], ["🥒", "오이"], ["🍏", "초록 사과"], ["🦖", "공룡"], ["🍃", "나뭇잎"]]],
       food: ["🍽️", "먹을 것", "#ffa726", [["🍞", "빵"], ["🍙", "주먹밥"], ["🍕", "피자"], ["🍦", "아이스크림"], ["🥕", "당근"], ["🍪", "쿠키"], ["🧁", "컵케이크"]]],
     };
     ctx.B = B;
     // 2개짜리 주제, 3개짜리 주제
     ctx.THEMES2 = [["animal", "fruit"], ["sea", "sky"], ["red", "blue"], ["ride", "food"], ["day", "night"], ["SIZE"]];
-    ctx.THEMES3 = [["animal", "fruit", "ride"], ["sea", "sky", "land"], ["red", "blue", "yellow"], ["animal", "fruit", "ride"], ["sea", "sky", "land"]];
-    ctx.PHRASE = { red: "빨간 건", blue: "파란 건", yellow: "노란 건", day: "낮에 보는 건", night: "밤에 보는 건", sea: "바다에 사는 건", sky: "하늘에 뜨는 건", land: "땅에 있는 건", food: "먹는 건" };
+    ctx.THEMES3 = [["animal", "fruit", "ride"], ["sea", "sky", "land"], ["red", "blue", "yellow"], ["red", "yellow", "green"], ["animal", "food", "ride"], ["fruit", "ride", "sea"]];
+    ctx.PHRASE = { red: "빨간 건", blue: "파란 건", yellow: "노란 건", green: "초록색인 건", day: "낮에 보는 건", night: "밤에 보는 건", sea: "바다에 사는 건", sky: "하늘에 뜨는 건", land: "땅에 있는 건", food: "먹는 건" };
     ctx.SIZE_THINGS = [["🍎", "사과"], ["⚽", "공"], ["🐶", "강아지"], ["🎈", "풍선"], ["🍓", "딸기"], ["🐟", "물고기"], ["🌼", "꽃"], ["🚗", "자동차"]];
 
     ctx.soSize = () => {
@@ -90,6 +92,7 @@ KP.game({
   next(ctx) {
     const U = KP.u,
       A = KP.audio;
+    const nat = (t) => !!(KP.voice._natUrls && KP.voice._natUrls(t));
     const lv = ctx.level;
     const nb = lv === 3 ? 3 : 2;
     const perB = [2, 3, 3][lv - 1];
@@ -153,7 +156,9 @@ KP.game({
         onPick: () => KP.voice.say(t.name),
         onReject: (b) => {
           const bn = bins.find((x) => x.key === b.dataset.key).name;
-          ctx.miss(b, U.pick([U.josa(t.name, "은/는") + " " + U.josa(bn, "이/가") + " 아니에요. 다른 바구니일까?", "음, 다른 바구니에 넣어 볼까요?"]));
+          // "강아지는 과일이 아니에요…" 에 자연 음성이 없으면 "강아지! 다른 바구니일까?"
+          const full = U.josa(t.name, "은/는") + " " + U.josa(bn, "이/가") + " 아니에요. 다른 바구니일까?";
+          ctx.miss(b, U.pick([nat(full) ? full : t.name + "! 다른 바구니일까?", "음, 다른 바구니에 넣어 볼까요?"]));
         },
         onDrop: (b) => {
           if (!b) return;
@@ -172,12 +177,19 @@ KP.game({
       return el;
     });
     ctx.soSize();
+    // 두 번째 힌트부터는 손가락이 알맞은 바구니까지 움직여 보여 줌(KP.drag 공용 기능)
     const setHint = () => {
       const first = els.find((e) => e.isConnected);
       ctx.hint(() => first, "물건을 끌어서 알맞은 바구니에 넣어요!");
     };
     setHint();
-    ctx.say(theme[0] === "SIZE" ? "큰 것은 큰 바구니, 작은 것은 작은 바구니에 넣어요!" : bins.map((b) => (ctx.PHRASE[b.key] || U.josa(b.name, "은/는")) + " " + b.name + " 바구니").join(", ") + "에 넣어요!");
+    const line = theme[0] === "SIZE" ? "큰 것은 큰 바구니, 작은 것은 작은 바구니에 넣어요!" : bins.map((b) => (ctx.PHRASE[b.key] || U.josa(b.name, "은/는")) + " " + b.name + " 바구니").join(", ") + "에 넣어요!";
+    if (nat(line)) ctx.say(line);
+    else {
+      // 통째 문장 음성이 없으면(3바구니 등): 공용 문장 + 바구니 이름을 하나씩, 이름 부를 때 그 바구니가 통통
+      ctx.say(line, "물건을 끌어서 알맞은 바구니에 넣어요! " + bins.map((b) => b.name + "!").join(" "));
+      binEls.forEach((el, k) => ctx.after(2900 + k * 750, () => U.replay(el, "jump")));
+    }
     const done = async () => {
       ctx.score.add();
       ctx.round++;

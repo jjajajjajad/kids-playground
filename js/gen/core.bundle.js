@@ -125,7 +125,7 @@ window.KP = window.KP || {};
 
 /* ==== js/gen/emoji-map.js ==== */
 /* 자동 생성 — tools/build.js */
-KP.EMAP={"1️⃣":"keycap-1","1⃣":"keycap-1","2️⃣":"keycap-2","2⃣":"keycap-2","3️⃣":"keycap-3","3⃣":"keycap-3","4️⃣":"keycap-4","4⃣":"keycap-4","5️⃣":"keycap-5","5⃣":"keycap-5","↔":"left-right-arrow","↩️":"right-arrow-curving-left","↩":"right-arrow-curving-left","⌚":"watch","⏰":"alarm-clock","⏳":"hourglass-not-done","⏹️":"stop-button","⏹":"stop-button","⏺":"record-button","▶":"play-button","▶️":"play-button","☀️":"sun","☀":"sun","☁️":"cloud","☁":"cloud","☂️":"umbrella","☂":"umbrella","☕":"hot-beverage","☝️":"index-pointing-up","☝":"index-pointing-up","⚖️":"balance-scale","⚖":"balance-scale","⚙️":"gear","⚙":"gear","⚡":"high-voltage","⚪":"white-circle","⚽":"soccer-ball","⚾":"baseball","⛄":"snowman-without-snow","⛈️":"cloud-with-lightning-and-rain","⛈":"cloud-with-lightning-and-rain","⛰️":"mountain","⛰":"mountain","⛱️":"umbrella-on-ground","⛱":"umbrella-on-ground","⛵":"sailboat","⛺":"tent","⛽":"fuel-pump","✂️":"scissors","✂":"scissors","✅":"check-mark-button","✈️":"airplane","✈":"airplane","✊":"raised-fist","✋":"raised-hand","✌️":"victory-hand","✌":"victory-hand","✍️":"writing-hand","✍":"writing-hand","✏️":"pencil","✏":"pencil","✔":"check-mark","✔️":"check-mark","✖":"multiply","✖️":"multiply","✨":"sparkles","❄️":"snowflake","❄":"snowflake","❓":"red-question-mark","❗":"red-exclamation-mark","❤️":"red-heart","❤":"red-heart","➕":"plus","➖":"minus","➡️":"right-arrow","➡":"right-arrow","⬆️":"up-arrow","⬆":"up-arrow","⬇️":"down-arrow","⬇":"down-arrow","⬛":"black-large-square","⭐":"star","⭕":"hollow-red-circle","〰️":"wavy-dash","〰":"wavy-dash","🃏":"joker","🌀":"cyclone","🌃":"night-with-stars","🌈":"rainbow","🌊":"water-wave","🌋":"volcano","🌍":"globe-showing-europe-africa","🌐":"globe-with-meridians","🌓":"first-quarter-moon","🌙":"crescent-moon","🌟":"glowing-star","🌧️":"cloud-with-rain","🌧":"cloud-with-rain","🌰":"chestnut","🌱":"seedling","🌲":"evergreen-tree","🌳":"deciduous-tree","🌴":"palm-tree","🌶️":"hot-pepper","🌶":"hot-pepper","🌷":"tulip","🌸":"cherry-blossom","🌹":"rose","🌺":"hibiscus","🌻":"sunflower","🌼":"blossom","🌽":"ear-of-corn","🌾":"sheaf-of-rice","🌿":"herb","🍁":"maple-leaf","🍂":"fallen-leaf","🍃":"leaf-fluttering-in-wind","🍄":"mushroom","🍅":"tomato","🍆":"eggplant","🍇":"grapes","🍉":"watermelon","🍊":"tangerine","🍋":"lemon","🍌":"banana","🍍":"pineapple","🍎":"red-apple","🍏":"green-apple","🍐":"pear","🍑":"peach","🍒":"cherries","🍓":"strawberry","🍔":"hamburger","🍕":"pizza","🍖":"meat-on-bone","🍙":"rice-ball","🍚":"cooked-rice","🍛":"curry-rice","🍜":"steaming-bowl","🍞":"bread","🍠":"roasted-sweet-potato","🍢":"oden","🍦":"soft-ice-cream","🍩":"doughnut","🍪":"cookie","🍫":"chocolate-bar","🍬":"candy","🍭":"lollipop","🍯":"honey-pot","🍰":"shortcake","🍲":"pot-of-food","🍳":"cooking","🍴":"fork-and-knife","🍽️":"fork-and-knife-with-plate","🍽":"fork-and-knife-with-plate","🎀":"ribbon","🎁":"wrapped-gift","🎂":"birthday-cake","🎃":"jack-o-lantern","🎆":"fireworks","🎈":"balloon","🎉":"party-popper","🎋":"tanabata-tree","🎐":"wind-chime","🎒":"backpack","🎞️":"film-frames","🎞":"film-frames","🎤":"microphone","🎧":"headphone","🎨":"artist-palette","🎩":"top-hat","🎪":"circus-tent","🎮":"video-game","🎯":"bullseye","🎲":"game-die","🎵":"musical-note","🎶":"musical-notes","🎸":"guitar","🎹":"musical-keyboard","🎺":"trumpet","🎻":"violin","🎼":"musical-score","🏀":"basketball","🏁":"chequered-flag","🏃":"person-running","🏅":"sports-medal","🏆":"trophy","🏎️":"racing-car","🏎":"racing-car","🏖️":"beach-with-umbrella","🏖":"beach-with-umbrella","🏜️":"desert","🏜":"desert","🏝️":"desert-island","🏝":"desert-island","🏞️":"national-park","🏞":"national-park","🏠":"house","🏡":"house-with-garden","🏥":"hospital","🏰":"castle","🐄":"cow","🐇":"rabbit","🐉":"dragon","🐊":"crocodile","🐌":"snail","🐍":"snake","🐑":"ewe","🐒":"monkey","🐓":"rooster","🐔":"chicken","🐕":"dog","🐘":"elephant","🐙":"octopus","🐚":"spiral-shell","🐛":"bug","🐜":"ant","🐝":"honeybee","🐞":"lady-beetle","🐟":"fish","🐠":"tropical-fish","🐡":"blowfish","🐢":"turtle","🐣":"hatching-chick","🐤":"baby-chick","🐥":"front-facing-baby-chick","🐦":"bird","🐧":"penguin","🐨":"koala","🐫":"two-hump-camel","🐬":"dolphin","🐭":"mouse-face","🐮":"cow-face","🐯":"tiger-face","🐰":"rabbit-face","🐱":"cat-face","🐳":"spouting-whale","🐴":"horse-face","🐵":"monkey-face","🐶":"dog-face","🐷":"pig-face","🐸":"frog","🐹":"hamster","🐺":"wolf","🐻":"bear","🐼":"panda","🐾":"paw-prints","🐿️":"chipmunk","🐿":"chipmunk","👀":"eyes","👂":"ear","👃":"nose","👄":"mouth","👆":"backhand-index-pointing-up","👇":"backhand-index-pointing-down","👈":"backhand-index-pointing-left","👋":"waving-hand","👍":"thumbs-up","👏":"clapping-hands","👐":"open-hands","👑":"crown","👓":"glasses","👕":"t-shirt","👖":"jeans","👗":"dress","👙":"bikini","👜":"handbag","👟":"running-shoe","👦":"boy","👧":"girl","👨":"man","👩":"woman","👩‍⚕️":"woman-health-worker","👩‍⚕":"woman-health-worker","👴":"old-man","👵":"old-woman","👶":"baby","👸":"princess","👻":"ghost","💇":"person-getting-haircut","💊":"pill","💎":"gem-stone","💓":"beating-heart","💕":"two-hearts","💖":"sparkling-heart","💗":"growing-heart","💙":"blue-heart","💚":"green-heart","💛":"yellow-heart","💜":"purple-heart","💡":"light-bulb","💢":"anger-symbol","💤":"zzz","💥":"collision","💦":"sweat-droplets","💧":"droplet","💨":"dashing-away","💪":"flexed-biceps","💫":"dizzy","💮":"white-flower","💯":"hundred-points","💰":"money-bag","💾":"floppy-disk","📂":"open-file-folder","📄":"page-facing-up","📈":"chart-increasing","📊":"bar-chart","📋":"clipboard","📌":"pushpin","📍":"round-pushpin","📒":"ledger","📓":"notebook","📕":"closed-book","📖":"open-book","📗":"green-book","📘":"blue-book","📙":"orange-book","📚":"books","📝":"memo","📣":"megaphone","📦":"package","📴":"mobile-phone-off","📷":"camera","📸":"camera-with-flash","📺":"television","📻":"radio","🔁":"repeat-button","🔄":"counterclockwise-arrows-button","🔊":"speaker-high-volume","🔍":"magnifying-glass-tilted-left","🔐":"locked-with-key","🔑":"key","🔒":"locked","🔓":"unlocked","🔔":"bell","🔗":"link","🔟":"keycap-10","🔢":"input-numbers","🔤":"input-latin-letters","🔥":"fire","🔦":"flashlight","🔨":"hammer","🔴":"red-circle","🔵":"blue-circle","🔶":"large-orange-diamond","🔷":"large-blue-diamond","🔺":"red-triangle","🕊️":"dove","🕊":"dove","🕯️":"candle","🕯":"candle","🕶️":"sunglasses","🕶":"sunglasses","🕷️":"spider","🕷":"spider","🖊️":"pen","🖊":"pen","🖌️":"paintbrush","🖌":"paintbrush","🖍️":"crayon","🖍":"crayon","🖤":"black-heart","🖨️":"printer","🖨":"printer","🖼️":"framed-picture","🖼":"framed-picture","🗂️":"card-index-dividers","🗂":"card-index-dividers","🗑️":"wastebasket","🗑":"wastebasket","🗺️":"world-map","🗺":"world-map","🗽":"statue-of-liberty","😀":"grinning-face","😆":"grinning-squinting-face","😊":"smiling-face-with-smiling-eyes","😋":"face-savoring-food","😎":"smiling-face-with-sunglasses","😖":"confounded-face","😠":"angry-face","😢":"crying-face","😣":"persevering-face","😨":"fearful-face","😲":"astonished-face","😳":"flushed-face","😴":"sleeping-face","😷":"face-with-medical-mask","🙂":"slightly-smiling-face","🙈":"see-no-evil-monkey","🙋":"person-raising-hand","🙌":"raising-hands","🚀":"rocket","🚁":"helicopter","🚂":"locomotive","🚌":"bus","🚑":"ambulance","🚒":"fire-engine","🚓":"police-car","🚗":"automobile","🚙":"sport-utility-vehicle","🚛":"articulated-lorry","🚜":"tractor","🚦":"vertical-traffic-light","🚧":"construction","🚩":"triangular-flag","🚪":"door","🚲":"bicycle","🚶":"person-walking","🚽":"toilet","🚿":"shower","🛁":"bathtub","🛏️":"bed","🛏":"bed","🛝":"playground-slide","🛣️":"motorway","🛣":"motorway","🛤️":"railway-track","🛤":"railway-track","🛷":"sled","🛸":"flying-saucer","🟡":"yellow-circle","🟢":"green-circle","🟣":"purple-circle","🟥":"red-square","🟦":"blue-square","🟧":"orange-square","🟨":"yellow-square","🟩":"green-square","🟪":"purple-square","🟰":"heavy-equals-sign","🤍":"white-heart","🤎":"brown-heart","🤔":"thinking-face","🤖":"robot","🤝":"handshake","🤡":"clown-face","🤧":"sneezing-face","🤨":"face-with-raised-eyebrow","🤲":"palms-up-together","🥁":"drum","🥄":"spoon","🥅":"goal-net","🥒":"cucumber","🥕":"carrot","🥚":"egg","🥛":"glass-of-milk","🥜":"peanuts","🥝":"kiwi-fruit","🥣":"bowl-with-spoon","🥦":"broccoli","🥬":"leafy-green","🥳":"partying-face","🥵":"hot-face","🥾":"hiking-boot","🦀":"crab","🦁":"lion","🦄":"unicorn","🦅":"eagle","🦆":"duck","🦇":"bat","🦈":"shark","🦉":"owl","🦊":"fox","🦋":"butterfly","🦌":"deer","🦑":"squid","🦒":"giraffe","🦓":"zebra","🦕":"sauropod","🦖":"t-rex","🦙":"llama","🦛":"hippopotamus","🦜":"parrot","🦝":"raccoon","🦟":"mosquito","🦠":"microbe","🦩":"flamingo","🦭":"seal","🦴":"bone","🦵":"leg","🦶":"foot","🦷":"tooth","🦸":"person-superhero","🧀":"cheese-wedge","🧁":"cupcake","🧃":"beverage-box","🧊":"ice","🧒":"child","🧠":"brain","🧡":"orange-heart","🧢":"billed-cap","🧣":"scarf","🧤":"gloves","🧥":"coat","🧦":"socks","🧩":"puzzle-piece","🧪":"test-tube","🧮":"abacus","🧱":"brick","🧲":"magnet","🧸":"teddy-bear","🧹":"broom","🧺":"basket","🧻":"roll-of-paper","🧼":"soap","🧽":"sponge","🩳":"shorts","🩴":"thong-sandal","🩷":"pink-heart","🩻":"x-ray","🪀":"yo-yo","🪁":"kite","🪄":"magic-wand","🪇":"maracas","🪈":"flute","🪐":"ringed-planet","🪜":"ladder","🪣":"bucket","🪥":"toothbrush","🪵":"wood","🪸":"coral","🪺":"nest-with-eggs","🪻":"hyacinth","🪼":"jellyfish","🫂":"people-hugging","🫐":"blueberries","🫗":"pouring-liquid","🫘":"beans","🫙":"jar","🫧":"bubbles"};
+KP.EMAP={"1️⃣":"keycap-1","1⃣":"keycap-1","2️⃣":"keycap-2","2⃣":"keycap-2","3️⃣":"keycap-3","3⃣":"keycap-3","4️⃣":"keycap-4","4⃣":"keycap-4","5️⃣":"keycap-5","5⃣":"keycap-5","↔":"left-right-arrow","↩️":"right-arrow-curving-left","↩":"right-arrow-curving-left","⌚":"watch","⏰":"alarm-clock","⏳":"hourglass-not-done","⏹️":"stop-button","⏹":"stop-button","▶":"play-button","▶️":"play-button","☀️":"sun","☀":"sun","☁️":"cloud","☁":"cloud","☂️":"umbrella","☂":"umbrella","☕":"hot-beverage","☝️":"index-pointing-up","☝":"index-pointing-up","⚖️":"balance-scale","⚖":"balance-scale","⚙️":"gear","⚙":"gear","⚡":"high-voltage","⚪":"white-circle","⚽":"soccer-ball","⚾":"baseball","⛄":"snowman-without-snow","⛈️":"cloud-with-lightning-and-rain","⛈":"cloud-with-lightning-and-rain","⛰️":"mountain","⛰":"mountain","⛱️":"umbrella-on-ground","⛱":"umbrella-on-ground","⛵":"sailboat","⛺":"tent","⛽":"fuel-pump","✂️":"scissors","✂":"scissors","✅":"check-mark-button","✈️":"airplane","✈":"airplane","✊":"raised-fist","✋":"raised-hand","✌️":"victory-hand","✌":"victory-hand","✍️":"writing-hand","✍":"writing-hand","✏️":"pencil","✏":"pencil","✔":"check-mark","✔️":"check-mark","✖":"multiply","✖️":"multiply","✨":"sparkles","❄️":"snowflake","❄":"snowflake","❓":"red-question-mark","❗":"red-exclamation-mark","❤️":"red-heart","❤":"red-heart","➕":"plus","➖":"minus","➡️":"right-arrow","➡":"right-arrow","⬆️":"up-arrow","⬆":"up-arrow","⬇️":"down-arrow","⬇":"down-arrow","⬛":"black-large-square","⭐":"star","⭕":"hollow-red-circle","〰️":"wavy-dash","〰":"wavy-dash","🃏":"joker","🌀":"cyclone","🌃":"night-with-stars","🌈":"rainbow","🌊":"water-wave","🌋":"volcano","🌍":"globe-showing-europe-africa","🌐":"globe-with-meridians","🌓":"first-quarter-moon","🌕":"full-moon","🌙":"crescent-moon","🌟":"glowing-star","🌧️":"cloud-with-rain","🌧":"cloud-with-rain","🌰":"chestnut","🌱":"seedling","🌲":"evergreen-tree","🌳":"deciduous-tree","🌴":"palm-tree","🌶️":"hot-pepper","🌶":"hot-pepper","🌷":"tulip","🌸":"cherry-blossom","🌹":"rose","🌺":"hibiscus","🌻":"sunflower","🌼":"blossom","🌽":"ear-of-corn","🌾":"sheaf-of-rice","🌿":"herb","🍁":"maple-leaf","🍂":"fallen-leaf","🍃":"leaf-fluttering-in-wind","🍄":"mushroom","🍅":"tomato","🍆":"eggplant","🍇":"grapes","🍉":"watermelon","🍊":"tangerine","🍋":"lemon","🍌":"banana","🍍":"pineapple","🍎":"red-apple","🍏":"green-apple","🍐":"pear","🍑":"peach","🍒":"cherries","🍓":"strawberry","🍔":"hamburger","🍕":"pizza","🍖":"meat-on-bone","🍙":"rice-ball","🍚":"cooked-rice","🍛":"curry-rice","🍜":"steaming-bowl","🍞":"bread","🍠":"roasted-sweet-potato","🍢":"oden","🍦":"soft-ice-cream","🍩":"doughnut","🍪":"cookie","🍫":"chocolate-bar","🍬":"candy","🍭":"lollipop","🍯":"honey-pot","🍰":"shortcake","🍲":"pot-of-food","🍳":"cooking","🍴":"fork-and-knife","🍽️":"fork-and-knife-with-plate","🍽":"fork-and-knife-with-plate","🎀":"ribbon","🎁":"wrapped-gift","🎂":"birthday-cake","🎃":"jack-o-lantern","🎆":"fireworks","🎈":"balloon","🎉":"party-popper","🎋":"tanabata-tree","🎐":"wind-chime","🎒":"backpack","🎞️":"film-frames","🎞":"film-frames","🎤":"microphone","🎧":"headphone","🎨":"artist-palette","🎩":"top-hat","🎪":"circus-tent","🎮":"video-game","🎯":"bullseye","🎲":"game-die","🎵":"musical-note","🎶":"musical-notes","🎸":"guitar","🎹":"musical-keyboard","🎺":"trumpet","🎻":"violin","🎼":"musical-score","🏀":"basketball","🏁":"chequered-flag","🏃":"person-running","🏅":"sports-medal","🏆":"trophy","🏎️":"racing-car","🏎":"racing-car","🏖️":"beach-with-umbrella","🏖":"beach-with-umbrella","🏜️":"desert","🏜":"desert","🏝️":"desert-island","🏝":"desert-island","🏞️":"national-park","🏞":"national-park","🏠":"house","🏡":"house-with-garden","🏥":"hospital","🏰":"castle","🐄":"cow","🐇":"rabbit","🐉":"dragon","🐊":"crocodile","🐌":"snail","🐍":"snake","🐑":"ewe","🐒":"monkey","🐓":"rooster","🐔":"chicken","🐕":"dog","🐘":"elephant","🐙":"octopus","🐚":"spiral-shell","🐛":"bug","🐜":"ant","🐝":"honeybee","🐞":"lady-beetle","🐟":"fish","🐠":"tropical-fish","🐡":"blowfish","🐢":"turtle","🐣":"hatching-chick","🐤":"baby-chick","🐥":"front-facing-baby-chick","🐦":"bird","🐧":"penguin","🐨":"koala","🐫":"two-hump-camel","🐬":"dolphin","🐭":"mouse-face","🐮":"cow-face","🐯":"tiger-face","🐰":"rabbit-face","🐱":"cat-face","🐳":"spouting-whale","🐴":"horse-face","🐵":"monkey-face","🐶":"dog-face","🐷":"pig-face","🐸":"frog","🐹":"hamster","🐺":"wolf","🐻":"bear","🐼":"panda","🐾":"paw-prints","🐿️":"chipmunk","🐿":"chipmunk","👀":"eyes","👂":"ear","👃":"nose","👄":"mouth","👆":"backhand-index-pointing-up","👇":"backhand-index-pointing-down","👈":"backhand-index-pointing-left","👋":"waving-hand","👍":"thumbs-up","👏":"clapping-hands","👐":"open-hands","👑":"crown","👓":"glasses","👕":"t-shirt","👖":"jeans","👗":"dress","👙":"bikini","👜":"handbag","👟":"running-shoe","👦":"boy","👧":"girl","👨":"man","👩":"woman","👩‍⚕️":"woman-health-worker","👩‍⚕":"woman-health-worker","👴":"old-man","👵":"old-woman","👶":"baby","👸":"princess","👻":"ghost","💇":"person-getting-haircut","💊":"pill","💎":"gem-stone","💓":"beating-heart","💕":"two-hearts","💖":"sparkling-heart","💗":"growing-heart","💙":"blue-heart","💚":"green-heart","💛":"yellow-heart","💜":"purple-heart","💝":"heart-with-ribbon","💡":"light-bulb","💢":"anger-symbol","💤":"zzz","💥":"collision","💦":"sweat-droplets","💧":"droplet","💨":"dashing-away","💪":"flexed-biceps","💫":"dizzy","💮":"white-flower","💯":"hundred-points","💰":"money-bag","💾":"floppy-disk","📂":"open-file-folder","📄":"page-facing-up","📈":"chart-increasing","📊":"bar-chart","📋":"clipboard","📌":"pushpin","📍":"round-pushpin","📒":"ledger","📓":"notebook","📕":"closed-book","📖":"open-book","📗":"green-book","📘":"blue-book","📙":"orange-book","📚":"books","📝":"memo","📣":"megaphone","📦":"package","📴":"mobile-phone-off","📷":"camera","📸":"camera-with-flash","📺":"television","📻":"radio","🔁":"repeat-button","🔄":"counterclockwise-arrows-button","🔊":"speaker-high-volume","🔍":"magnifying-glass-tilted-left","🔐":"locked-with-key","🔑":"key","🔒":"locked","🔓":"unlocked","🔔":"bell","🔗":"link","🔟":"keycap-10","🔢":"input-numbers","🔤":"input-latin-letters","🔥":"fire","🔦":"flashlight","🔨":"hammer","🔴":"red-circle","🔵":"blue-circle","🔶":"large-orange-diamond","🔷":"large-blue-diamond","🔺":"red-triangle","🕊️":"dove","🕊":"dove","🕯️":"candle","🕯":"candle","🕶️":"sunglasses","🕶":"sunglasses","🕷️":"spider","🕷":"spider","🖊️":"pen","🖊":"pen","🖌️":"paintbrush","🖌":"paintbrush","🖍️":"crayon","🖍":"crayon","🖤":"black-heart","🖨️":"printer","🖨":"printer","🖼️":"framed-picture","🖼":"framed-picture","🗂️":"card-index-dividers","🗂":"card-index-dividers","🗑️":"wastebasket","🗑":"wastebasket","🗺️":"world-map","🗺":"world-map","🗽":"statue-of-liberty","😀":"grinning-face","😆":"grinning-squinting-face","😊":"smiling-face-with-smiling-eyes","😋":"face-savoring-food","😎":"smiling-face-with-sunglasses","😖":"confounded-face","😠":"angry-face","😢":"crying-face","😣":"persevering-face","😨":"fearful-face","😲":"astonished-face","😳":"flushed-face","😴":"sleeping-face","😷":"face-with-medical-mask","🙂":"slightly-smiling-face","🙈":"see-no-evil-monkey","🙋":"person-raising-hand","🙌":"raising-hands","🚀":"rocket","🚁":"helicopter","🚂":"locomotive","🚌":"bus","🚑":"ambulance","🚒":"fire-engine","🚓":"police-car","🚗":"automobile","🚙":"sport-utility-vehicle","🚛":"articulated-lorry","🚜":"tractor","🚦":"vertical-traffic-light","🚧":"construction","🚩":"triangular-flag","🚪":"door","🚲":"bicycle","🚶":"person-walking","🚽":"toilet","🚿":"shower","🛁":"bathtub","🛏️":"bed","🛏":"bed","🛝":"playground-slide","🛣️":"motorway","🛣":"motorway","🛤️":"railway-track","🛤":"railway-track","🛷":"sled","🛸":"flying-saucer","🟡":"yellow-circle","🟢":"green-circle","🟣":"purple-circle","🟥":"red-square","🟦":"blue-square","🟧":"orange-square","🟨":"yellow-square","🟩":"green-square","🟪":"purple-square","🟰":"heavy-equals-sign","🤍":"white-heart","🤎":"brown-heart","🤔":"thinking-face","🤖":"robot","🤝":"handshake","🤡":"clown-face","🤧":"sneezing-face","🤨":"face-with-raised-eyebrow","🤲":"palms-up-together","🥁":"drum","🥄":"spoon","🥅":"goal-net","🥒":"cucumber","🥕":"carrot","🥚":"egg","🥛":"glass-of-milk","🥜":"peanuts","🥝":"kiwi-fruit","🥣":"bowl-with-spoon","🥦":"broccoli","🥬":"leafy-green","🥳":"partying-face","🥵":"hot-face","🥾":"hiking-boot","🦀":"crab","🦁":"lion","🦄":"unicorn","🦅":"eagle","🦆":"duck","🦇":"bat","🦈":"shark","🦉":"owl","🦊":"fox","🦋":"butterfly","🦌":"deer","🦑":"squid","🦒":"giraffe","🦓":"zebra","🦕":"sauropod","🦖":"t-rex","🦙":"llama","🦛":"hippopotamus","🦜":"parrot","🦝":"raccoon","🦟":"mosquito","🦠":"microbe","🦩":"flamingo","🦭":"seal","🦴":"bone","🦵":"leg","🦶":"foot","🦷":"tooth","🦸":"person-superhero","🧀":"cheese-wedge","🧁":"cupcake","🧃":"beverage-box","🧊":"ice","🧒":"child","🧠":"brain","🧡":"orange-heart","🧢":"billed-cap","🧣":"scarf","🧤":"gloves","🧥":"coat","🧦":"socks","🧩":"puzzle-piece","🧪":"test-tube","🧮":"abacus","🧱":"brick","🧲":"magnet","🧸":"teddy-bear","🧹":"broom","🧺":"basket","🧻":"roll-of-paper","🧼":"soap","🧽":"sponge","🩳":"shorts","🩴":"thong-sandal","🩷":"pink-heart","🩹":"adhesive-bandage","🩻":"x-ray","🪀":"yo-yo","🪁":"kite","🪄":"magic-wand","🪇":"maracas","🪈":"flute","🪐":"ringed-planet","🪜":"ladder","🪣":"bucket","🪥":"toothbrush","🪨":"rock","🪵":"wood","🪸":"coral","🪺":"nest-with-eggs","🪻":"hyacinth","🪼":"jellyfish","🫂":"people-hugging","🫐":"blueberries","🫗":"pouring-liquid","🫘":"beans","🫙":"jar","🫧":"bubbles"};
 KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,"bathtub":1,"bear":1,"beating-heart":1,"bell":1,"birthday-cake":1,"books":1,"bowl-with-spoon":1,"brain":1,"bubbles":1,"bullseye":1,"butterfly":1,"card-index-dividers":1,"carrot":1,"clown-face":1,"crayon":1,"crocodile":1,"cyclone":1,"dashing-away":1,"deciduous-tree":1,"dog-face":1,"door":1,"drum":1,"duck":1,"ear":1,"egg":1,"film-frames":1,"fireworks":1,"first-quarter-moon":1,"fish":1,"framed-picture":1,"gear":1,"glowing-star":1,"guitar":1,"hamster":1,"handshake":1,"hospital":1,"hundred-points":1,"input-latin-letters":1,"input-numbers":1,"joker":1,"keycap-1":1,"large-blue-diamond":1,"ledger":1,"light-bulb":1,"link":1,"lion":1,"locomotive":1,"lollipop":1,"magnet":1,"magnifying-glass-tilted-left":1,"memo":1,"musical-keyboard":1,"musical-note":1,"musical-notes":1,"musical-score":1,"notebook":1,"open-book":1,"package":1,"paintbrush":1,"pen":1,"pencil":1,"people-hugging":1,"person-superhero":1,"puzzle-piece":1,"racing-car":1,"rainbow":1,"raised-hand":1,"raising-hands":1,"red-apple":1,"red-question-mark":1,"red-triangle":1,"repeat-button":1,"rocket":1,"round-pushpin":1,"seedling":1,"smiling-face-with-smiling-eyes":1,"soap":1,"soft-ice-cream":1,"sponge":1,"sports-medal":1,"t-shirt":1,"test-tube":1,"toilet":1,"toothbrush":1,"vertical-traffic-light":1,"wavy-dash":1,"wind-chime":1};
 
 ;
@@ -1959,7 +1959,7 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
     ctx._missed = false;
     ctx._softMiss = 0;
     ctx._hinted = false;
-    ctx._fewChoice = false;
+    ctx._resetFew();
     if (setupErr) return failed(ctx, setupErr); // 준비가 깨졌으면 놀이 횟수·단계 처리 전에 멈춤
     KP.earn && setTimeout(() => KP.earn.render(), 0);
     const lv = KP.level.get(id);
@@ -2075,6 +2075,8 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
       intervals = new Set(),
       rafs = new Set();
     let score = 0;
+    // 열쇠 별 '보기가 적은 판' 표시. v: 값, set: 놀이가 직접 정했나, drag: 이번 판 끌기 관찰(자동 판정용)
+    const few = { v: false, set: false, drag: null };
 
     const ctx = {
       id: def.id,
@@ -2198,11 +2200,11 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
         // 열쇠 별: 이번 문제를 한 번에 맞혔나 (틀린 적 있으면 별 없음)
         // 가벼운 실수(soft)는 1번까지 봐줌 — 글자 타일을 아무거나 눌러 채우는 것 방지
         // 손가락 힌트가 정답을 가리킨 판, 보기가 2개뿐인 판(찍어도 반)도 별 없음
-        const clean = !ctx._missed && (ctx._softMiss || 0) <= 1 && !ctx._hinted && !ctx._fewChoice;
+        const clean = !ctx._missed && (ctx._softMiss || 0) <= 1 && !ctx._hinted && !ctx._isFew();
         ctx._missed = false;
         ctx._softMiss = 0;
         ctx._hinted = false;
-        ctx._fewChoice = false;
+        ctx._resetFew();
         KP.earn && KP.earn.onWin(ctx, clean);
         const lv = KP.level.get(def.id);
         lv.wins = (lv.wins || 0) + 1;
@@ -2216,7 +2218,10 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
         }
         KP.level.save(def.id, lv);
         ctx._updateLevel();
+        // 축하 동안엔 힌트를 끄되, 이번 판 마지막 힌트는 기억해 둠 (아래 '힌트 되살리기')
+        const keep = ctx._hint;
         ctx.hint(null);
+        const hseq = ctx._hintSeq;
         const sess = ctx._session;
         return KP.celebrate(Object.assign({ levelUp: up, ctx }, o)).then(() => {
           // 시간이 끝나 '마지막 판'을 기다리는 중이면 지금 마무리
@@ -2224,7 +2229,17 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
             setTimeout(() => KP.lastRoundNow(), 300);
             return false;
           }
-          return ctx._active && ctx._session === sess;
+          const ok = ctx._active && ctx._session === sess;
+          // 힌트 되살리기: 판이 끊기지 않는 놀이(두더지·물고기·과일 등)는 start 에서만 힌트를 걸어
+          // win 뒤에 힌트가 사라졌음. win 부터 축하가 끝날 때까지 놀이가 힌트를 새로 걸거나 지우지 않았으면
+          // 마지막 힌트를 다시 건다. 놀이가 win 뒤에 ctx.hint(...) 를 부르면 그쪽이 이김(이 then 이 먼저 돎).
+          // win 전에 ctx.hint(null) 로 지운 놀이는 되살릴 것이 없음. 대상이 사라졌거나 숨겨졌거나
+          // 오답 보기면 showHint 가 가리키지 않음(restored 검사).
+          if (ok && keep && !ctx._hint && ctx._hintSeq === hseq) {
+            ctx._hint = { getTarget: keep.getTarget, text: keep.text, shown: 0, restored: true };
+            ctx._idleAt = Date.now();
+          }
+          return ok;
         });
       },
       /** 틀렸을 때: 흔들기 + 부드러운 소리 + (선택) 안내 */
@@ -2257,7 +2272,7 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
        */
       choices(box, list, o) {
         box.innerHTML = "";
-        if (list.length < 3) ctx._fewChoice = true;
+        if (list.length < 3) ctx.fewChoice(true);
         let busy = false;
         return list.map((v, i) => {
           const b = U.el("button", "choice " + (o.cls || ""), o.render ? o.render(v) : KP.E(String(v)));
@@ -2281,14 +2296,57 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
         if (n > 0 && n % every === 0) return ctx.win({ msg: n + "개!" });
         return Promise.resolve(true);
       },
+      /* --- 열쇠 별: 보기가 적은 판 --- */
+      /**
+       * 이번 판은 찍어도 맞힐 수 있으니(보기 2개 이하 등) 열쇠 별 없음 — 축하·단계·스티커는 그대로.
+       * 판을 차린 뒤(이전 win 다음) 부를 것. win 할 때마다 저절로 풀림.
+       * ctx.fewChoice(false) = '이번 판은 보기가 충분함'을 놀이가 직접 정함 → KP.drag 자동 판정을 끔.
+       */
+      fewChoice(on = true) {
+        few.v = !!on;
+        few.set = true;
+      },
+      /** 자유 놀이·만들기처럼 '정답 없는' win 에서 열쇠 별을 뺄 때 (fewChoice(true) 와 같음) */
+      noStar() {
+        ctx.fewChoice(true);
+      },
+      // 예전 방식(ctx._fewChoice = true/false)도 그대로 동작 (= fewChoice(값))
+      get _fewChoice() {
+        return few.v;
+      },
+      set _fewChoice(v) {
+        ctx.fewChoice(v);
+      },
+      _resetFew() {
+        few.v = false;
+        few.set = false;
+        few.drag = null;
+      },
+      /** KP.drag 가 집을 때 알려 줌 → 이번 판 '끌 수 있는 것 수·놓을 곳 수'의 최댓값 기록 */
+      _dragSeen(pool, spots, judged) {
+        const d = few.drag || (few.drag = { pool: 0, spots: 0, free: false });
+        if (!judged) d.free = true; // 맞고 틀림이 없는 끌기(자유 배치·위치 판정 등)가 섞인 판은 자동 판정 안 함
+        else {
+          d.pool = Math.max(d.pool, pool);
+          d.spots = Math.max(d.spots, spots);
+        }
+      },
+      _isFew() {
+        if (few.set) return few.v;
+        // 자동: 이번 판 내내 끌 수 있는 것이 2개 이하이고 놓을 곳이 1곳뿐인 '맞고 틀림(accept)' 끌기 → 찍어도 반
+        const d = few.drag;
+        return !!(d && !d.free && d.pool > 0 && d.pool <= 2 && d.spots === 1);
+      },
       /* --- 힌트 --- */
       _hint: null,
+      _hintSeq: 0,
       /**
        * 아이가 한동안 멈춰 있으면 손가락으로 가리키며 다시 안내
        * @param {Function|null} getTarget  () => 가리킬 요소
        * @param {string} text  다시 읽어줄 말 (없으면 현재 안내)
        */
       hint(getTarget, text) {
+        ctx._hintSeq++;
         ctx._hint = getTarget ? { getTarget, text, shown: 0 } : null;
         ctx._idleAt = Date.now();
         KP.hideHint();
@@ -2334,10 +2392,30 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
   }
 
   /* ---------------- 힌트 손가락 ---------------- */
-  let hand = null;
+  let hand = null,
+    handMove = null;
   KP.hideHint = function () {
     if (hand) hand.classList.remove("show");
+    if (handMove) {
+      handMove.cancel();
+      handMove = null;
+    }
     U.$$(".hintGlow").forEach((e) => e.classList.remove("hintGlow"));
+  };
+  /** 화면에 실제로 보이는 요소인가 (붙어 있고, 크기가 있고, 숨김이 아님) */
+  function visible(el) {
+    if (!el || !el.isConnected) return false;
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return false;
+    if (el.checkVisibility && !el.checkVisibility({ visibilityProperty: true })) return false;
+    return true;
+  }
+  /** KP.drag 가 집을 때 부름(drag.js) — 열쇠 별 자동 판정용. spots: 놓을 곳들, judged: accept 가 있는 끌기 */
+  KP._dragSeen = function (el, spots, judged) {
+    const ctx = current;
+    if (!ctx || !ctx._active || !ctx.root.contains(el)) return;
+    const pool = U.$$(".draggable:not(.locked)", ctx.root).filter((d) => d === el || visible(d)).length;
+    ctx._dragSeen(pool, spots.filter(visible).length, judged);
   };
   function showHint(ctx) {
     const h = ctx._hint;
@@ -2346,20 +2424,37 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
       t = h.getTarget();
     } catch (e) {}
     if (!t) return;
-    let x, y;
+    let x,
+      y,
+      dest = null;
     if (typeof t.x === "number" && !(t instanceof Element)) {
       // 캔버스 게임: 화면 좌표 {x, y}
+      if (!Number.isFinite(t.x) || !Number.isFinite(t.y)) return;
       x = t.x;
       y = t.y;
     } else {
       if (!t.isConnected) return;
       const r = t.getBoundingClientRect();
       if (!r.width) return;
+      // win 뒤 되살린 힌트는 더 엄격히: 숨겨졌거나 잠겼거나 오답 보기면 가리키지 않음
+      if (h.restored) {
+        if (!visible(t) || t.disabled || t.classList.contains("locked")) return;
+        if (t.classList.contains("choice") && t.dataset.right !== "1") return;
+      }
       // 정답 보기를 가리켰으면 이번 판은 열쇠 별 없음 (기다렸다 누르기 방지)
       if (t.dataset.right === "1" || t.classList.contains("choice")) ctx._hinted = true;
       x = r.left + r.width / 2;
       y = r.top + r.height * 0.6;
       t.classList.add("hintGlow");
+      // 끌기 힌트: 두 번째부터는 손가락이 '놓을 곳'까지 움직여 보여 줌 (accept 로 맞는 자리가 정해진 KP.drag 만)
+      if (h.shown >= 1 && t._kpDragDest) {
+        try {
+          dest = t._kpDragDest();
+        } catch (e) {
+          dest = null;
+        }
+        if (dest && !visible(dest)) dest = null;
+      }
     }
     if (!hand) {
       hand = U.el("div", "hintHand", KP.E("👆"));
@@ -2368,6 +2463,27 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
     hand.style.left = x + "px";
     hand.style.top = y + "px";
     hand.classList.add("show");
+    if (handMove) {
+      handMove.cancel();
+      handMove = null;
+    }
+    if (dest && hand.animate) {
+      const dr = dest.getBoundingClientRect();
+      const tx = dr.left + dr.width / 2,
+        ty = dr.top + dr.height * 0.6;
+      dest.classList.add("hintGlow");
+      ctx._hinted = true; // 놓을 곳까지 알려 줬으니 이번 판은 열쇠 별 없음
+      // 집을 것에서 잠깐 멈춤 → 놓을 곳으로 미끄러짐 → 잠깐 멈춤 (2번 되풀이, 손가락 3.2초 안에 끝)
+      handMove = hand.animate(
+        [
+          { left: x + "px", top: y + "px", offset: 0 },
+          { left: x + "px", top: y + "px", offset: 0.2 },
+          { left: tx + "px", top: ty + "px", offset: 0.75 },
+          { left: tx + "px", top: ty + "px", offset: 1 },
+        ],
+        { duration: 1500, iterations: 2, easing: "ease-in-out" }
+      );
+    }
     const txt = h.text || ctx.instr;
     if (txt) KP.voice.say(txt.replace(/\p{Extended_Pictographic}|️/gu, ""));
     h.shown++;
@@ -2409,6 +2525,9 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
    반환: { lock(), unlock(), home() }
    - 틀리거나 빈 곳에 놓으면 제자리로 부드럽게 돌아간다.
    - snap 후 onDrop 에서 target.appendChild(el) 등 재배치를 하면 된다.
+   - 열쇠 별: accept 가 있는 끌기에서 이번 판 끌 수 있는 것(.draggable, 잠기지 않은 것)이 2개 이하이고
+     놓을 곳이 1곳뿐이면 '찍어도 반'으로 보고 별 없음(ui.js _isFew). 놀이가 ctx.fewChoice(값)로 직접 정하면 그쪽이 우선.
+   - 힌트: ctx.hint(() => 이 요소) 로 가리키면 두 번째 손가락부터 accept 가 맞는 놓을 곳까지 움직여 보여 줌.
 ===================================================================== */
 "use strict";
 (function (KP) {
@@ -2428,6 +2547,11 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
       const t = typeof o.targets === "function" ? o.targets() : o.targets || [];
       return t.filter(Boolean);
     }
+    // 힌트 손가락이 '놓을 곳'을 알 수 있게 (맞는 자리가 정해진 끌기만)
+    el._kpDragDest = () => {
+      if (locked || !o.accept) return null;
+      return targets().find((t) => o.accept(t, el)) || null;
+    };
     function hit(x, y) {
       let best = null,
         bd = 1e9;
@@ -2473,6 +2597,9 @@ KP.EPRE={"abacus":1,"artist-palette":1,"balance-scale":1,"balloon":1,"basket":1,
       el.style.transition = "";
       el.classList.add("dragging");
       KP.audio && KP.audio.sfx("pick");
+      try {
+        KP._dragSeen && KP._dragSeen(el, targets(), !!o.accept);
+      } catch (_) {}
       o.onPick && o.onPick(el);
     });
     el.addEventListener("pointermove", (e) => {
@@ -4000,6 +4127,11 @@ void main(){
           .hwSecH{display:flex;align-items:center;gap:10px;font-size:clamp(20px,2.6vw,26px);color:var(--night);margin:4px 2px 8px}
           .hwSecH .n{background:var(--night);color:#fff;border-radius:12px;padding:1px 10px;font-size:.8em}
           .hwSecH small{font-size:.65em;color:var(--ink2)}
+          /* 접어 둔 묶음(숫자 21~99 등): [펼쳐 보기]를 누르면 칸이 보임 */
+          .hwSec.fold .hwTiles{display:none}
+          .hwSec.fold.open .hwTiles{display:grid}
+          .hwFold{margin-left:auto;font-size:clamp(16px,2vw,20px);min-height:64px;padding:6px 16px}
+          .hwSec.fold.open .hwFold{display:none}
           .hwTiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(74px,9.5vw,100px),1fr));gap:10px}
           .hwTile{position:relative;aspect-ratio:1;background:#fff;border-radius:18px;border:3px solid #e8ebf4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;box-shadow:0 4px 0 #e3e7f2;color:var(--c)}
           .hwTile .ch{font-size:clamp(34px,4.6vw,48px);line-height:1}
@@ -4031,7 +4163,7 @@ void main(){
           .hwBoard canvas{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);touch-action:none}
           .hwBoard canvas.guide{background:#fff;border-radius:6px;box-shadow:0 0 0 3px #f2b8a8,0 8px 0 rgba(47,58,102,.08)}
           .hwSide{grid-row:1/3;grid-column:3;display:flex;flex-direction:column;justify-content:center;gap:12px}
-          .hwSide .btn{justify-content:center}
+          .hwSide .btn{justify-content:center;min-height:64px}
           .hwLine{grid-column:2;display:flex;gap:8px;justify-content:center;align-items:center}
           .hwCell{width:clamp(54px,min(7vw,10vh),76px);aspect-ratio:1;border-radius:6px;background:#fff;box-shadow:0 0 0 2px #f2b8a8;position:relative;display:flex;align-items:center;justify-content:center;font-size:13px;color:#c9cede;overflow:hidden}
           .hwCell canvas{width:100%;height:100%}
@@ -4047,7 +4179,9 @@ void main(){
             .hwModel .pic{flex-direction:row;gap:6px}.hwModel .pic .e{font-size:44px}
             .hwSide{grid-row:auto;grid-column:auto;flex-direction:row;justify-content:center;flex-wrap:wrap;gap:8px}
             .hwLine{grid-column:auto}
-            .hwStepName{font-size:16px}
+            /* 폰: 단계 이름이 두 줄로 접히지 않게 */
+            .hwStepName{font-size:15px;white-space:nowrap;padding:3px 10px}
+            .hwSide .btn{min-height:64px}
           }
           @media (max-aspect-ratio:1/1) and (max-height:760px){
             .hwModel .big{font-size:46px}
@@ -4062,6 +4196,8 @@ void main(){
             .hwBoard{grid-row:1/3;grid-column:2}
             .hwLine{grid-column:1;grid-row:2;gap:5px;flex-wrap:wrap}
             .hwCell{width:40px}
+            .hwStepName{font-size:14px;white-space:nowrap;padding:3px 8px}
+            .hwSide .btn{font-size:16px;padding:6px 10px;min-height:56px}
           }
           /* 도장 */
           .hwStamp{position:absolute;inset:0;z-index:8;display:none;align-items:center;justify-content:center;background:rgba(255,253,246,.88);flex-direction:column;gap:14px}
@@ -4089,8 +4225,18 @@ void main(){
         ctx.tap(ctx.bGo, () => self.openItem(ctx, self.nextIdx(ctx)));
         ctx.tiles = [];
         ctx.book.forEach((s, si) => {
-          const box = U.el("section", "hwSec");
-          box.appendChild(U.el("div", "hwSecH", '<span class="n">' + (si + 1) + "</span>" + s.name + " <small>" + s.items.length + "개</small>"));
+          const box = U.el("section", "hwSec" + (s.fold ? " fold" : ""));
+          const head = U.el("div", "hwSecH", '<span class="n">' + (si + 1) + "</span>" + s.name + " <small>" + s.items.length + "개</small>");
+          box.appendChild(head);
+          if (s.fold) {
+            // 양이 많은 묶음은 접어 둠 — [펼쳐 보기]를 누르거나 차례가 오면 펼침
+            const bOpen = U.btn(KP.E("👀") + " 펼쳐 보기", "btn hwFold");
+            head.appendChild(bOpen);
+            ctx.tap(bOpen, () => {
+              KP.audio.sfx("open");
+              box.classList.add("open");
+            });
+          }
           const grid = U.el("div", "hwTiles");
           s.items.forEach((it) => {
             const t = U.btn('<span class="ch">' + (it.kind === "line" ? KP.E(it.label) : it.label) + '</span><span class="st"></span>', "hwTile" + (it.kind === "word" || String(it.label).length > 2 ? " word" : ""));
@@ -4173,6 +4319,9 @@ void main(){
           t.querySelector(".st").innerHTML = n ? "<b>" + "★".repeat(n) + "</b>" + "★".repeat(3 - n) : "☆☆☆";
           t.classList.toggle("next", i === nx);
         });
+        // 다음 칸이 접힌 묶음 안에 있으면 펼침
+        const nsec = ctx.tiles[nx] && ctx.tiles[nx].closest(".hwSec.fold");
+        if (nsec) nsec.classList.add("open");
         const done = Object.keys(ctx.stars).length;
         // 화면에는 쓴 개수, 말로는 숫자를 빼고(숫자가 붙으면 자연 음성이 없어 기기 목소리가 됨)
         if (done) ctx.say("✍️ 쓰기 공책이에요! " + done + "개 썼어요. 반짝이는 칸부터 써 봐요!", "쓰기 공책이에요! 반짝이는 칸부터 써 봐요!");
@@ -4189,6 +4338,7 @@ void main(){
         if (it.kind === "word") {
           const sm = !!cfg.partSmall;
           const a = it.parts.map((s) => ({ strokes: cfg.partStrokes(s), mode: "dot", demo: true, syl: sm, ch: s }));
+          if (cfg.wordOnce) return a; // 낱말을 한 줄만 (긴 낱말이 두 배로 늘어나지 않게 — ABC 쓰기 공책)
           const b = it.parts.map((s) => ({ strokes: cfg.partStrokes(s), mode: "faint", syl: sm, ch: s }));
           return a.concat(b);
         }
@@ -4218,13 +4368,26 @@ void main(){
           return e;
         });
         if (!quiet) KP.audio.sfx("open");
-        const intro =
-          it.kind === "line" ? it.guide : it.kind === "word" ? U.josa(it.say, "을/를") + " 써 봐요! 한 글자씩!" : U.josa(it.say, "을/를") + " 써 봐요!";
-        if (it.en) {
-          KP.voice.en(it.en);
-          KP.voice.say(intro, { queue: true });
-        } else KP.voice.say(intro);
+        this.sayIntro(it);
         this.startCell(ctx);
+      },
+      /** 시작 안내: 자연 음성이 있는 말을 고름 — "가를 써 봐요!" 가 없으면 "가! 써 봐요!" 처럼 조각으로.
+          영어 글자·낱말은 한국어 안내에 자연 음성이 있으면 한국어로만 (영어 이름 + 한국어는 너무 김) */
+      sayIntro(it) {
+        const U = KP.u;
+        const nat = (t) => !!(KP.voice._natUrls && KP.voice._natUrls(t));
+        if (it.kind === "line") return KP.voice.say(it.guide);
+        const tail = it.kind === "word" ? " 한 글자씩!" : "";
+        const full = U.josa(it.say, "을/를") + " 써 봐요!" + tail;
+        const part = it.say + "! 써 봐요!" + tail;
+        if (nat(full)) return KP.voice.say(full);
+        if (nat(part)) return KP.voice.say(part);
+        if (it.en) {
+          // 영어 이름(자연 음성) + "써 봐요!"
+          KP.voice.en(it.en + "!");
+          return KP.voice.say("써 봐요!" + tail, { queue: true });
+        }
+        return KP.voice.say(full);
       },
       startCell(ctx) {
         const U = KP.u;
@@ -4301,6 +4464,7 @@ void main(){
         T.byS = [];
         T.pts.forEach((q) => (T.byS[q.s] = T.byS[q.s] || []).push(q));
         T.done = false;
+        T.pend = false;
         T.ink = [];
         T.segs = [];
         T.pid = null;
@@ -4414,22 +4578,20 @@ void main(){
         }
         // 시작점 번호 (따라 쓰기: 모든 획 / 흐린 글씨: 다음 획만)
         if (!T.done && c.mode !== "alone") {
+          // 번호 동그라미가 서로 겹치지 않게 놓은 자리를 기억 (ㄷ·ㄹ·ㅁ·ㅌ, '피'처럼 획이 많은 글자)
+          const ru = c.syl ? 4.2 : 5.6;
+          const placed = [];
           strokes.forEach((s, si) => {
+            const mine = T.pts.filter((z) => z.s === si);
+            let p = mine[0];
+            if (!p) return;
+            // 앞 획의 번호와 겹치면 이 획을 따라 조금씩 옮겨 겹치지 않는 첫 자리에
+            const free = (z) => placed.every((q) => Math.hypot(q.x - z.x, q.y - z.y) >= ru * 2.1);
+            if (!free(p)) p = mine.find((z) => free(z) && Math.hypot(z.x - mine[0].x, z.y - mine[0].y) < 40) || mine.find((z) => Math.hypot(z.x - mine[0].x, z.y - mine[0].y) >= (c.syl ? 8 : 11)) || p;
+            placed.push(p);
             if (T.sdone[si]) return;
             if (c.mode === "faint" && si !== nextS) return;
-            let p = T.pts.find((q) => q.s === si);
-            if (!p) return;
-            // 앞 획과 시작점이 겹치면(ㄷ·ㄹ·ㅁ·ㅌ) 번호를 이 획 쪽으로 조금 옮겨 둘 다 보이게
-            const clash = strokes.some((_, sj) => {
-              if (sj >= si) return false;
-              const q = T.pts.find((z) => z.s === sj);
-              return q && Math.hypot(q.x - p.x, q.y - p.y) < 6;
-            });
-            if (clash) {
-              const mine = T.pts.filter((z) => z.s === si);
-              p = mine.find((z) => Math.hypot(z.x - p.x, z.y - p.y) >= (c.syl ? 8 : 11)) || p;
-            }
-            const r = (c.syl ? 4.2 : 5.6) * k;
+            const r = ru * k;
             const isNext = si === nextS;
             g.fillStyle = isNext ? "#ffd23f" : "#fff";
             g.strokeStyle = isNext ? "#fff" : "#c3c9dd";
@@ -4657,7 +4819,7 @@ void main(){
           KP.audio.unlock();
           if (e.pointerType === "pen") T.penAt = Date.now();
           else if (e.pointerType === "touch" && Date.now() - (T.penAt || 0) < 3000) return; // 펜으로 쓰는 중 닿은 손바닥 (펜을 내려놓으면 손가락으로 쓸 수 있음)
-          if (T.done || T.demoing || T.pid !== null || !ctx.cell) return;
+          if (T.done || T.demoing || T.pid !== null || !ctx.cell) return; // 쓰는 중(pointerup 유실 포함)의 다른 손가락은 무시 — 마무리는 1.1초 타이머가 맡음
           T.pid = e.pointerId;
           try {
             ink.setPointerCapture(e.pointerId);
@@ -4706,7 +4868,7 @@ void main(){
             T.last = p;
             if (T.done) break;
           }
-          if (T.last && !T.done) this.offCheck(ctx, T.last);
+          if (T.last && !T.done && !T.pend) this.offCheck(ctx, T.last);
         });
         const end = (e) => {
           if (e.pointerType === "pen") T.penAt = Date.now();
@@ -4715,6 +4877,8 @@ void main(){
           T.last = null;
           T.offAt = 0;
           T.offFired = false;
+          // 획을 다 따라온 뒤에도 손을 뗄 때까지 선을 그림 → 손을 떼면 마무리 (끝부분이 끊긴 채 완성되지 않게)
+          if (T.pend) return this.finishCell(ctx, false);
           // 혼자 쓰기·흐린 글씨: [다 썼어요]를 눌러도 될 만큼 썼으면 반짝 (누르면 거절되는 때는 반짝이지 않게)
           if (!T.done && ctx.cell && this.enough(ctx)) ctx.bDone.classList.add("glowNext");
         };
@@ -4740,7 +4904,11 @@ void main(){
       /** 판정 범위: 안내 글씨 굵기 정도 (넓으면 옆으로 지나가도 된 걸로 쳐짐). 손가락은 펜보다 조금 넓게 */
       radius(ctx) {
         const c = ctx.cell;
-        return (c.syl ? 5.5 : c.mode === "alone" ? 8.5 : 7.5) + (ctx.T.isPen ? 0 : c.syl ? 1 : 1.5);
+        const base = (c.syl ? 5.5 : c.mode === "alone" ? 8.5 : 7.5) + (ctx.T.isPen ? 0 : c.syl ? 1 : 1.5);
+        if (ctx.T.isPen) return base;
+        // 손가락: 화면이 작은 폰에서 작은 글씨 칸(가~호, 10~100)도 최소 28px 은 되게 (태블릿은 원래 값이 더 커서 그대로)
+        const w = ctx.icv.clientWidth || 0;
+        return w > 0 ? Math.max(base, Math.min(12, 2800 / w)) : base;
       },
       /** 쓰는 중 부드러운 도움: 아직 안 쓴 획에서 판정 범위의 1.5배 넘게 벗어난 채 0.6초 넘게 쓰면 이어 쓸 곳을 반짝.
           (흐린 글씨 칸은 획 순서를 따지지 않으므로 '안 쓴 획 아무 데나' 가까우면 벗어난 걸로 치지 않음)
@@ -4815,7 +4983,7 @@ void main(){
       hit(ctx, p) {
         const T = ctx.T,
           c = ctx.cell;
-        if (T.done) return;
+        if (T.done || T.pend) return;
         const R = this.radius(ctx);
         for (const q of T.pts) if (!q.hit && (q.x - p.x) ** 2 + (q.y - p.y) ** 2 < R * R) q.hit = true;
         let changed = false;
@@ -4836,14 +5004,25 @@ void main(){
         }
         if (!changed) return;
         if (c.mode !== "alone") this.drawGuide(ctx);
-        if (T.sdone.every(Boolean)) this.finishCell(ctx, false);
+        if (T.sdone.every(Boolean)) {
+          if (T.pid === null) return this.finishCell(ctx, false);
+          // 아직 쓰는 중: 손을 뗄 때 마무리 (그동안 선은 계속 그려짐). 손을 오래 안 떼면 1.1초 뒤 마무리
+          T.pend = true;
+          ctx.spot.classList.remove("on");
+          const dt0 = ctx.dtok,
+            cell = ctx.cell;
+          ctx.after(1100, () => {
+            if (T.pend && !T.done && dt0 === ctx.dtok && ctx.cell === cell) this.finishCell(ctx, false);
+          });
+        }
       },
       /** 칸 채점: 따라간 정도(coverage) + 선 안에 쓴 정도(accuracy) → 별 1~3 */
       grade(ctx) {
         const T = ctx.T,
           c = ctx.cell;
         const cov = T.pts.length ? T.pts.filter((q) => q.hit).length / T.pts.length : 0;
-        const R = c.syl ? 8 : 11;
+        // 선 안 판정도 폰의 작은 칸에서는 판정 반지름만큼은 넓게
+        const R = Math.max(c.syl ? 8 : 11, this.radius(ctx) * 1.2);
         let inside = 0;
         for (const p of T.ink) {
           for (const q of T.pts) {
@@ -4880,6 +5059,7 @@ void main(){
           }
         }
         T.done = true;
+        T.pend = false;
         T.pid = null;
         const st = this.grade(ctx);
         ctx.cellStars[ctx.ci] = st;

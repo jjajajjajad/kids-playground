@@ -1,6 +1,7 @@
 /* 날씨 옷 입히기 — 오늘 날씨를 보고 곰돌이에게 알맞은 옷·소품을 끌어다 입히기
    날씨: 더움 ☀️ / 비 🌧️ / 눈 ❄️ / 쌀쌀함 🍂
-   1단계: 1개 입히기 (보기 2개)   2단계: 2개 (보기 4개)   3단계: 3개 (보기 5개)
+   1단계: 1개 입히기 (보기 3개 — 틀린 2개는 '확실히 안 맞는 것'만)   2단계: 2개 (보기 4개)   3단계: 3개 (보기 5개)
+   말은 자연 음성 조각으로: "모자! 썼어요!", "곰돌이한테 맞는 옷을 끌어다 입혀요!" (화면 문장과 소리 문장을 따로)
    안 맞는 옷은 "비 오는 날엔 젖어요!" 하고 돌아오고, 다 입으면 밖에 나가 신나게 논다. */
 "use strict";
 KP.game({
@@ -55,6 +56,7 @@ KP.game({
       .s-umb{right:calc(var(--u)*-1.3);top:calc(var(--u)*-1.7);font-size:calc(var(--u)*3.2);z-index:8;transform:rotate(14deg)}
       .yellow .e{filter:hue-rotate(18deg) saturate(3.2) brightness(1.08)}
       .red .e{filter:hue-rotate(-40deg) saturate(2.2)}
+      .green .e{filter:hue-rotate(95deg) saturate(1.6)}
       .drBear.play{animation:drPlay .7s ease-in-out infinite}
       @keyframes drPlay{0%,100%{transform:none}25%{transform:translateY(-12%) rotate(-6deg)}75%{transform:translateY(-12%) rotate(6deg)}}
       .drFun{position:absolute;bottom:4cqh;font-size:min(20cqh,26cqw);line-height:1;z-index:2;animation:popBig .6s cubic-bezier(.2,1.6,.4,1)}
@@ -64,7 +66,7 @@ KP.game({
       @media (orientation:portrait){.drItem{width:clamp(72px,19vw,96px);height:clamp(72px,19vw,96px);font-size:clamp(48px,13vw,66px)}.drTray{gap:8px}}
     `);
     ctx.WEATHER = {
-      hot: { em: "☀️", tx: "더워요", say: "오늘은 해님이 쨍쨍, 아주 더워요!", wrong: "더운 날엔 땀이 뻘뻘 나요! 시원한 걸 골라 볼까?", fun: ["⚽", "공놀이하자! 뻥!"], fx: 0 },
+      hot: { em: "☀️", tx: "더워요", say: "오늘은 해님이 쨍쨍, 아주 더워요!", wrong: "더운 날엔 땀이 뻘뻘 나요! 시원한 걸 골라 볼까?", fun: ["⚽", "공놀이하자! 공을 골대에 뻥!"], fx: 0 },
       rain: { em: "🌧️", tx: "비가 와요", say: "오늘은 주룩주룩 비가 와요!", wrong: "비 오는 날엔 다 젖어요! 다른 걸 골라 볼까?", fun: ["💦", "물웅덩이에서 첨벙첨벙!"], fx: 40 },
       snow: { em: "❄️", tx: "눈이 와요", say: "오늘은 하얀 눈이 펑펑 와요. 추워요!", wrong: "눈 오는 날엔 추워서 덜덜 떨려요! 따뜻한 걸 골라 볼까?", fun: ["⛄", "눈사람 만들자!"], fx: 30 },
       cool: { em: "🍂", tx: "쌀쌀해요", say: "오늘은 바람이 쌀쌀해요!", wrong: "쌀쌀한 날엔 감기 걸려요! 따뜻한 걸 골라 볼까?", fun: ["🍁", "낙엽 밟기, 바스락바스락!"], fx: 10 },
@@ -83,7 +85,7 @@ KP.game({
       ["🧤", "장갑", "hands", ["snow"]],
       ["🧥", "두꺼운 패딩", "body", ["snow"]],
       ["🥾", "털부츠", "feet", ["snow"]],
-      ["🧥", "점퍼", "body", ["cool"]],
+      ["🧥", "점퍼", "body", ["cool"], "green"], // 같은 🧥 그림이 우비·패딩·점퍼 셋 — 색으로 구별
       ["👖", "긴바지", "legs", ["cool", "snow"]],
     ];
     // 날씨별 틀린 보기 (확실히 안 맞는 것만)
@@ -115,7 +117,7 @@ KP.game({
     ctx.lastW = wk;
     const W = ctx.WEATHER[wk];
     const need = lv;
-    const nWrong = lv === 1 ? 1 : 2;
+    const nWrong = 2; // 1단계도 보기 3개(찍어서 반반 맞히기 방지) — 틀린 보기는 WRONG(확실히 안 맞는 것)에서만
 
     // 장면
     const sc = ctx.scene;
@@ -140,7 +142,11 @@ KP.game({
     const list = U.shuffle([...good.map(([e, n, slot, , col]) => ({ e, n, slot, col, ok: true })), ...bad]);
     ctx.tray.innerHTML = "";
     let left = need;
-    ctx.say(W.say + " 곰돌이한테 " + (need === 1 ? "알맞은 옷을 하나" : "알맞은 옷 " + U.NAT[need] + " 가지를") + " 입혀 줘요!");
+    // 화면: "알맞은 옷 두 가지를 입혀 줘요!" / 소리: 자연 음성이 있는 조각들로
+    ctx.say(
+      W.say + " 곰돌이한테 " + (need === 1 ? "알맞은 옷을 하나" : "알맞은 옷 " + U.cntWord(need) + " 가지를") + " 입혀 줘요!",
+      W.say + " 곰돌이한테 맞는 옷을 끌어다 입혀요!" + (need === 2 ? " 두 개!" : need === 3 ? " 세 가지가 필요해요!" : "")
+    );
     const els = list.map((it, i) => {
       const b = U.el("div", "drItem item " + (it.col || ""), KP.E(it.e));
       b.style.animation = "itemIn .4s backwards cubic-bezier(.2,1.4,.4,1)";
@@ -176,7 +182,11 @@ KP.game({
       U.replay(bear, "jump");
       A.sfx("snap");
       A.sfx("sparkle");
-      KP.voice.say(U.josa(it.n, "을/를") + " " + (it.slot === "umb" ? "썼어요" : it.slot === "feet" ? "신었어요" : it.slot === "hat" || it.slot === "eyes" ? "썼어요" : it.slot === "hands" ? "꼈어요" : it.slot === "neck" ? "둘렀어요" : "입었어요") + "!");
+      const verb = it.slot === "umb" ? "썼어요" : it.slot === "feet" ? "신었어요" : it.slot === "hat" || it.slot === "eyes" ? "썼어요" : it.slot === "hands" ? "꼈어요" : it.slot === "neck" ? "둘렀어요" : "입었어요";
+      // "우산을 썼어요!" 처럼 통째로 자연 음성이 있으면 그것, 없으면 "모자! 썼어요!" (조각마다 자연 음성)
+      const full = U.josa(it.n, "을/를") + " " + verb + "!";
+      const more = left > 1 ? " 하나 더!" : "";
+      KP.voice.say((KP.voice._natUrls && KP.voice._natUrls(full) ? full : it.n + "! " + verb + "!") + more);
     };
     const hint = () => {
       const b = els.find((x) => x._it.ok && !x.classList.contains("used"));

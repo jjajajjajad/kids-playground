@@ -158,7 +158,8 @@ KP.game({
           ctx.cnt.textContent = got;
           U.replay(ctx.cnt, "bump");
           if (lv === 3) KP.voice.say(U.NAT[got] + "!");
-          else KP.voice.say(U.josa(target.a + " 사탕", "이/가") + " 쏙!");
+          // 1·2단계: "빨간 사탕! 하나!" — 색 이름 조각 + 수 세기 조각(모두 자연 음성). 예전 "빨간 사탕이 쏙!"은 클립이 없어 기기 목소리였음
+          else KP.voice.say(target.a + " 사탕! " + U.NAT[got] + "!");
           if (got >= need) {
             busy = true;
             done();

@@ -4,8 +4,9 @@
      크게 본 화면에서 [따라 쓰기](획 순서 안내, 순서 틀려도 괜찮음) · [다른 낱말]
    - 글자 합체: 따로 떨어진 놀이 '글자 합체'(hmerge.js)로 옮김 — 버튼은 그 놀이를 엶(숨긴 놀이면 버튼도 숨김).
    - 퀴즈(단계별): 1단계 첫소리 그림 찾기·자음 찾기(보기 2개)
-                   2단계 + 모음 찾기·글자 듣고 찾기·낱말 읽기(보기 3개)
-                   3단계 + 그림 보고 첫 글자(보기 4개) — '글자 만들기'는 글자 합체 2단계로 옮김
+                   2단계 + 모음 찾기·글자 듣고 찾기(보기 3개)
+                   3단계 + 그림 보고 첫 글자·낱말 읽기(첫 글자 강조)(보기 4개) — '글자 만들기'는 글자 합체 2단계로 옮김
+   말: 오답·정답 설명은 이미 녹음된 조각("이건 기차!", "기역을 찾아 봐요!")을 이어 자연 음성으로 (natPick)
    KP.hangul: 자음·모음 표와 글자 합치기 도우미(이 파일이 내보내고 hmerge.js 가 setup 때 읽음) */
 "use strict";
 /* ---------- 공용 한글 자료 KP.hangul ----------
@@ -104,14 +105,14 @@ KP.game({
     const self = this;
     KP.css("hangul", `
       .hgModes{display:flex;gap:clamp(6px,1.2vw,12px);justify-content:center;padding:10px 10px 6px;flex:0 0 auto;flex-wrap:wrap}
-      .hgMode{font-size:clamp(16px,2.2vw,23px);background:#fff;color:var(--night);border-radius:20px;padding:6px 16px;min-height:52px;display:flex;align-items:center;gap:6px;border:4px solid #fff;box-shadow:0 5px 0 rgba(27,37,80,.18)}
+      .hgMode{font-size:clamp(16px,2.2vw,23px);background:#fff;color:var(--night);border-radius:20px;padding:6px 16px;min-height:64px;display:flex;align-items:center;gap:6px;border:4px solid #fff;box-shadow:0 5px 0 rgba(27,37,80,.18)}
       .hgMode .e{font-size:1.35em}
       .hgTabCh{font-weight:400;font-size:1.3em;color:var(--coral)}
       .hgMode.sel .hgTabCh{color:var(--star)}
       .hgMode.sel{background:var(--night);border-color:var(--night);color:#fff;box-shadow:0 5px 0 var(--deep)}
-      @media (orientation:portrait) and (max-width:480px){.hgModes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}.hgMode{font-size:16px;padding:4px 10px;min-height:44px;border-width:3px;gap:3px;flex:1 1 auto;justify-content:center}}
+      @media (orientation:portrait) and (max-width:480px){.hgModes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}.hgMode{font-size:16px;padding:4px 10px;min-height:64px;border-width:3px;gap:3px;flex:1 1 auto;justify-content:center}}
       .hgMode.glow{animation:glow 1s ease-in-out 3}
-      @media (max-width:520px){.hgModes{gap:5px;padding:8px 6px 4px;flex-wrap:nowrap}.hgMode{font-size:14px;padding:3px 7px;min-height:44px;border-width:3px;gap:3px;white-space:nowrap}.hgMode .e{display:none}}
+      @media (max-width:520px){.hgModes{gap:5px;padding:8px 6px 4px;flex-wrap:nowrap}.hgMode{font-size:14px;padding:3px 7px;min-height:64px;border-width:3px;gap:3px;white-space:nowrap}.hgMode .e{display:none}}
       .hgView{flex:1;min-height:0;display:none;flex-direction:column;position:relative}
       .hgView.on{display:flex}
       .hgGrid{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(96px,12.5vw,136px),1fr));gap:clamp(10px,1.6vw,16px);padding:6px clamp(10px,2vw,22px) 24px;align-content:start}
@@ -147,6 +148,7 @@ KP.game({
       .hgOpt{font-size:var(--sz);border-radius:28px}
       .hgOpt.letter{color:var(--ink);font-size:calc(var(--sz) * .9)}
       .hgOpt.word{font-size:calc(var(--sz) * .5);padding:10px 22px;color:var(--ink)}
+      .hgOpt.word .hgFirst{font-weight:400;font-size:1.3em;color:var(--coral)}
     `);
 
     /* ---------- 글자 자료 (KP.hangul 공용) ---------- */
@@ -306,7 +308,8 @@ KP.game({
   quiz(ctx) {
     const U = KP.u;
     const lv = ctx.level;
-    const types = lv === 1 ? ["first", "first", "findC"] : lv === 2 ? ["first", "findC", "findV", "hear", "read"] : ["first", "reverse", "findV", "hear", "read"];
+    // 낱말 읽기(read)는 첫 글자 단서가 있어도 어려워 3단계에만
+    const types = lv === 1 ? ["first", "first", "findC"] : lv === 2 ? ["first", "findC", "findV", "hear"] : ["first", "reverse", "findV", "hear", "read"];
     let t = U.pick(types);
     if (t === ctx.lastType && types.length > 1) t = U.pick(types.filter((x) => x !== t));
     ctx.lastType = t;
@@ -355,6 +358,11 @@ KP.game({
     });
     ctx.hint(() => btns.find((b) => b.dataset.right), cfg.speak || cfg.ask);
   },
+  /** 자연 음성(녹음 조각)이 있는 첫 문장 — 모두 없으면 첫 문장(기기 목소리) */
+  natPick(list) {
+    const nat = (t) => !!(KP.voice._natUrls && KP.voice._natUrls(t));
+    return list.find(nat) || list[0];
+  },
   /** 그림 보고 첫 자음: "기역으로 시작하는 건?" */
   q_first(ctx, n) {
     const U = KP.u;
@@ -372,7 +380,13 @@ KP.game({
       cls: "hgOpt",
       bubble: c + " " + ask,
       ask,
-      wrongMsg: (v) => "이건 " + U.josa(v[0], "이에요/예요") + ". " + U.josa(v[0], "은/는") + " " + U.josa(v[2], "으로/로") + " 시작해요!",
+      // "이건 기차! 기차의 기! 니은을 찾아 봐요!" (조각이 없으면 "이건 기차! 니은을 찾아 봐요!")
+      wrongMsg: (v) =>
+        this.natPick([
+          "이건 " + v[0] + "! " + v[0] + "의 " + v[0][0] + "! " + U.josa(nm, "을/를") + " 찾아 봐요!",
+          "이건 " + v[0] + "! " + U.josa(nm, "을/를") + " 찾아 봐요!",
+          "이건 " + U.josa(v[0], "이에요/예요") + ". " + U.josa(v[0], "은/는") + " " + U.josa(v[2], "으로/로") + " 시작해요!",
+        ]),
       sayRight: (v) => nm + "! " + v[0] + "!",
       cl: n,
       cp: n === 3 ? 3 : 2,
@@ -394,6 +408,8 @@ KP.game({
     const like = (ctx.LIKE.find((g) => g.includes(c)) || "").replace(c, "");
     const pool = [...like].concat(U.shuffle(ctx.H.map((h) => h[0]).filter((x) => x !== c && !like.includes(x))));
     const ask = U.josa(t[0], "은/는") + " 무슨 글자로 시작할까요?";
+    // 말은 "기차! 무슨 글자로 시작할까요?" 처럼 조각으로 (화면 글자는 그대로)
+    const speak = this.natPick([ask, t[0] + "! 무슨 글자로 시작할까요?"]);
     return {
       big: KP.E(t[1]),
       list: U.shuffle([c, ...pool.slice(0, Math.min(3, n - 1))]),
@@ -402,8 +418,9 @@ KP.game({
       cls: "hgOpt letter",
       bubble: "❓ " + ask,
       ask,
-      wrongMsg: (v) => "이건 " + U.josa(ctx.nameOfC(v), "이에요/예요") + ". " + t[0] + "! 첫 소리를 들어 봐요!",
-      sayRight: () => t[0] + "! " + U.josa(nm, "으로/로") + " 시작해요!",
+      speak,
+      wrongMsg: (v) => this.natPick(["이건 " + ctx.nameOfC(v) + "! " + t[0] + "! 첫 소리를 들어 봐요!", "이건 " + U.josa(ctx.nameOfC(v), "이에요/예요") + ". " + t[0] + "! 첫 소리를 들어 봐요!"]),
+      sayRight: () => this.natPick([t[0] + "! " + U.josa(nm, "으로/로") + " 시작해요!", nm + "! " + t[0] + "의 " + t[0][0] + "!", t[0] + "! " + nm + "!"]),
       szl: "clamp(80px,min(12vw,22vh),130px)",
       szp: "clamp(70px,22vw,96px)",
     };
@@ -426,7 +443,7 @@ KP.game({
       right: (v) => v === c,
       render: (v) => v,
       cls: "hgOpt letter",
-      wrongMsg: (v) => "이건 " + U.josa(ctx.nameOfC(v), "이에요/예요") + ". " + U.josa(nm, "을/를") + " 찾아 봐요!",
+      wrongMsg: (v) => this.natPick(["이건 " + ctx.nameOfC(v) + "! " + U.josa(nm, "을/를") + " 찾아 봐요!", "이건 " + U.josa(ctx.nameOfC(v), "이에요/예요") + ". " + U.josa(nm, "을/를") + " 찾아 봐요!"]),
       sayRight: () => nm + "! 맞아요!",
       szl: "clamp(80px,min(12vw,22vh),130px)",
       szp: "clamp(70px,22vw,96px)",
@@ -453,7 +470,7 @@ KP.game({
       right: (x) => x === v,
       render: (x) => x,
       cls: "hgOpt letter",
-      wrongMsg: (x) => "이건 " + U.josa(nameV(x), "이에요/예요") + ". " + U.josa(snd, "을/를") + " 찾아 봐요!",
+      wrongMsg: (x) => this.natPick(["이건 " + nameV(x) + "! " + U.josa(snd, "을/를") + " 찾아 봐요!", "이건 " + U.josa(nameV(x), "이에요/예요") + ". " + U.josa(snd, "을/를") + " 찾아 봐요!"]),
       sayRight: () => snd + "! " + ws[0][0] + "의 " + snd + "!",
       szl: "clamp(80px,min(12vw,22vh),130px)",
       szp: "clamp(70px,22vw,96px)",
@@ -467,19 +484,21 @@ KP.game({
     const cs = U.sample(ctx.H.map((h) => h[0]), n);
     const target = ctx.compose(cs[0], v);
     const list = U.shuffle(cs.map((c) => ctx.compose(c, v)));
-    const speak = U.josa(target, "을/를") + " 찾아요!";
+    const ask = U.josa(target, "을/를") + " 찾아요!";
+    // "가를 찾아요!" 녹음이 없는 글자가 많아 "가! 이 글자를 찾아요!" 조각으로 (화면 글자는 그대로)
+    const speak = this.natPick([ask, target + "! 이 글자를 찾아요!"]);
     const w = ctx.wordFor(target);
     return {
       big: KP.E("👂"),
       bigCls: "ear",
       speak,
-      ask: speak,
-      bubble: speak,
+      ask,
+      bubble: ask,
       list,
       right: (x) => x === target,
       render: (x) => x,
       cls: "hgOpt letter",
-      wrongMsg: (x) => "이건 " + U.josa(x, "이에요/예요") + ". " + U.josa(target, "을/를") + " 찾아 봐요!",
+      wrongMsg: (x) => this.natPick(["이건 " + x + "! " + U.josa(target, "을/를") + " 찾아 봐요!", "이건 " + x + "! 잘 듣고 찾아요! " + target + "!", "이건 " + U.josa(x, "이에요/예요") + ". " + U.josa(target, "을/를") + " 찾아 봐요!"]),
       sayRight: () => target + "!" + (w ? " " + w[0] + "의 " + target + "!" : ""),
       after: (big) => {
         if (w) big.innerHTML = KP.E(w[1]) + "<span>" + target + "</span>";
@@ -504,12 +523,13 @@ KP.game({
       big: KP.E(t[1]),
       list: U.shuffle(picked),
       right: (v) => v[0] === t[0],
-      render: (v) => v[0],
+      // 첫 글자를 크게·진하게 — 그림의 첫소리와 맞춰 볼 수 있게
+      render: (v) => '<b class="hgFirst">' + v[0][0] + "</b>" + v[0].slice(1),
       cls: "hgOpt word",
       bubble: "❓ " + ask,
       ask,
-      wrongMsg: (v) => "이건 " + U.josa(v[0], "이에요/예요") + ". 첫 글자를 잘 봐요! " + t[0][0] + "!",
-      sayRight: () => t[0] + "! " + U.josa(t[0][0], "으로/로") + " 시작해요!",
+      wrongMsg: (v) => this.natPick(["이건 " + v[0] + "! 첫 글자를 잘 봐요! " + t[0][0] + "!", "이건 " + v[0] + "! 첫 글자를 잘 봐요!", "이건 " + U.josa(v[0], "이에요/예요") + ". 첫 글자를 잘 봐요! " + t[0][0] + "!"]),
+      sayRight: () => this.natPick([t[0] + "! " + U.josa(t[0][0], "으로/로") + " 시작해요!", t[0] + "! " + t[0] + "의 " + t[0][0] + "!", t[0] + "! " + t[0][0] + "!", t[0] + "!"]),
       cl: picked.length,
       cp: 1,
       szl: "clamp(80px,min(12vw,20vh),120px)",

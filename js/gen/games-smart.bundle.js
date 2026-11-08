@@ -2,9 +2,11 @@
 
 /* ==== js/games/smart/abc.js ==== */
 /* ABC 놀이 — 위쪽 버튼으로 [배우기]/[퀴즈] 전환. (1단계는 배우기로, 2단계부터 퀴즈로 시작)
-   배우기: A~Z 카드(대문자·소문자+그림+낱말). 누르면 크게 나오며 영어 발음 "A! Apple!" — 다시 누르면 다른 낱말.
-   퀴즈 1단계: "Find A!" 글자 2개 / 2단계: 3개
-   퀴즈 3단계: 모양이 닮은 글자 4개(E·F·H, O·Q·C·G …) 또는 그림을 보고 첫 글자 고르기
+   배우기: A~Z 카드(대문자·소문자+그림+낱말). 누르면 크게 나오며 영어 발음 "A! Apple!"
+           크게 본 카드는 바깥을 누를 때까지 그대로 — [따라 쓰기](ABC 쓰기 공책) · [다른 낱말] · 그림을 누르면 다시 읽기
+   퀴즈 1단계: "Find A!" 글자 2개
+   퀴즈 2단계(보기 3개): 글자 이름 듣고 찾기 · 그림 보고 첫 글자(낱말의 첫 글자를 ?로 가림) · 소문자 보고 짝꿍 대문자
+   퀴즈 3단계(보기 4개): 위 세 가지 + 모양이 닮은 글자(E·F·H, O·Q·C·G …)
    안내는 영어 + 한국어("에이를 찾아요!") 함께 */
 "use strict";
 KP.game({
@@ -18,11 +20,11 @@ KP.game({
     const U = KP.u;
     KP.css("abc", `
       .abModes{display:flex;gap:10px;justify-content:center;padding:8px 10px 6px;flex:0 0 auto;flex-wrap:wrap}
-      @media (max-width:560px){.abModes{gap:5px;padding:8px 4px 4px;flex-wrap:nowrap}.abMode{font-size:14px !important;padding:3px 9px !important;min-height:44px !important;white-space:nowrap}.abMode .e{display:none}}
-      .abMode{font-size:clamp(18px,2.4vw,24px);background:rgba(255,255,255,.7);border-radius:999px;padding:8px 22px;min-height:52px;display:flex;align-items:center;gap:8px;border-bottom:5px solid transparent}
+      @media (max-width:560px){.abModes{gap:5px;padding:8px 4px 4px;flex-wrap:nowrap}.abMode{font-size:14px !important;padding:3px 9px !important;min-height:64px !important;white-space:nowrap}.abMode .e{display:none}}
+      .abMode{font-size:clamp(18px,2.4vw,24px);background:rgba(255,255,255,.7);border-radius:999px;padding:8px 22px;min-height:64px;display:flex;align-items:center;gap:8px;border-bottom:5px solid transparent}
       .abMode .e{font-size:1.4em}
       .abMode.sel{background:#fff;border-bottom-color:var(--cat);color:var(--cat);box-shadow:var(--shadow)}
-      @media (orientation:portrait) and (max-width:480px){.abModes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}.abMode{font-size:16px !important;padding:4px 12px !important;min-height:44px !important;flex:1 1 auto;justify-content:center}}
+      @media (orientation:portrait) and (max-width:480px){.abModes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}.abMode{font-size:16px !important;padding:4px 12px !important;min-height:64px !important;flex:1 1 auto;justify-content:center}}
       .abMode.glow{animation:glow 1s ease-in-out 3}
       .abView{flex:1;min-height:0;display:none;flex-direction:column;position:relative}
       .abView.on{display:flex}
@@ -36,13 +38,20 @@ KP.game({
       .abCard .abW{font-size:clamp(15px,1.8vw,18px)}
       .abCard.seen::after{content:"";position:absolute;top:8px;right:8px;width:12px;height:12px;border-radius:50%;background:var(--sun)}
       .abSpot{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;transition:opacity .2s;z-index:5}
-      .abSpot.on{opacity:1}
-      .abSpotBox{display:flex;align-items:center;gap:clamp(10px,3vw,40px);background:#fff;border-radius:40px;padding:clamp(14px,3vw,30px) clamp(20px,4vw,50px);box-shadow:0 10px 0 rgba(47,58,102,.15),0 20px 60px rgba(47,58,102,.25);border:6px solid var(--c)}
+      .abSpot.on{opacity:1;pointer-events:auto;background:rgba(255,255,255,.55)}
+      .abSpotBox{display:flex;flex-direction:column;align-items:center;gap:clamp(8px,2vh,16px);background:#fff;border-radius:40px;padding:clamp(14px,3vw,30px) clamp(20px,4vw,50px);box-shadow:0 10px 0 rgba(47,58,102,.15),0 20px 60px rgba(47,58,102,.25);border:6px solid var(--c);max-width:94%}
+      .abSpotRow{display:flex;align-items:center;gap:clamp(10px,3vw,40px)}
+      .abSpotPic{display:flex;flex-direction:column;align-items:center;border-radius:28px;padding:4px 10px;background:transparent;box-shadow:none}
+      .abSpotBtns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+      .abBig .abHintW{font-size:.32em;color:var(--ink);letter-spacing:1px}
+      .abBig .abHintW b{color:var(--coral);font-weight:400}
+      .abBig .abLow{color:var(--c);font-size:.95em}
       .abSpot.on .abSpotBox{animation:popBig .45s cubic-bezier(.2,1.6,.4,1)}
       .abSpotBox .abCh{font-size:clamp(100px,15vw,180px)}
-      .abSpotBox .e{font-size:clamp(90px,13vw,160px)}
+      .abSpotPic .e{font-size:clamp(90px,min(13vw,22vh),160px)}
       .abSpotBox .abW{font-size:clamp(28px,4vw,46px);display:block;text-align:center}
-      @media (max-aspect-ratio:1/1){.abSpotBox{flex-direction:column;gap:6px}}
+      @media (max-aspect-ratio:1/1){.abSpotRow{flex-direction:column;gap:6px}}
+      @media (max-height:500px){.abSpotBox .abCh{font-size:clamp(70px,22vh,120px)}.abSpotPic .e{font-size:clamp(60px,20vh,110px)}.abSpotBox .abW{font-size:24px}}
       .abQ{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(12px,3vh,30px);padding:4px 12px 18px}
       .abBig{font-size:clamp(90px,min(30vw,17vh),160px);line-height:1;background:#fff;border-radius:34px;padding:10px 36px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px}
       .abBig.yay{animation:jumpA .5s 2}
@@ -99,6 +108,10 @@ KP.game({
     ctx.vLearn = U.el("div", "abView");
     ctx.grid = U.el("div", "abGrid");
     ctx.spot = U.el("div", "abSpot");
+    // 크게 본 카드: 바깥(흐린 곳)을 누르면 닫힘 — 예전처럼 2.2초 만에 저절로 닫히지 않음
+    ctx.spot.addEventListener("click", (e) => {
+      if (e.target === ctx.spot) this.closeSpot(ctx);
+    });
     ctx.vLearn.append(ctx.grid, ctx.spot);
     ctx.cards = ctx.L.map((l, i) => {
       const [c, , ws] = l;
@@ -139,6 +152,7 @@ KP.game({
     ctx.vQuiz.classList.toggle("on", m === "quiz");
     ctx.vSpell.classList.toggle("on", m === "spell");
     if (!first) KP.audio.sfx("select");
+    ctx.spot.classList.remove("on");
     if (m === "learn") {
       ctx.say("🔤 알파벳을 눌러 봐요! 영어로 말해 줘요!");
       ctx.cards.forEach((c, i) => c.classList.toggle("seen", ctx.seen.has(i)));
@@ -157,14 +171,35 @@ KP.game({
     card.classList.add("seen");
     U.replay(card, "wig");
     KP.audio.note(KP.audio.SCALE[i % 8], { inst: "marimba", dur: 0.3, vol: 0.25 });
-    ctx.spot.innerHTML =
-      '<div class="abSpotBox" style="--c:' + col + '"><span class="abCh" style="color:' + col + '">' + c + "<small>" + c.toLowerCase() + "</small></span><div>" + KP.E(em) + '<span class="abW">' + w + "</span></div></div>";
+    ctx.spot.innerHTML = "";
+    const box = U.el("div", "abSpotBox");
+    box.style.setProperty("--c", col);
+    const row = U.el("div", "abSpotRow");
+    const ch = U.el("span", "abCh", c + "<small>" + c.toLowerCase() + "</small>");
+    ch.style.color = col;
+    const pic = U.btn(KP.E(em) + '<span class="abW">' + w + "</span>", "abSpotPic");
+    row.append(ch, pic);
+    const btns = U.el("div", "abSpotBtns");
+    const bWrite = U.btn(KP.E("✍️") + " 따라 쓰기", "btn big primary");
+    const bNext = U.btn(KP.E("🔄") + " 다른 낱말", "btn big");
+    if (ws.length > 1) btns.append(bWrite, bNext);
+    else btns.append(bWrite);
+    box.append(row, btns);
+    ctx.spot.appendChild(box);
     ctx.spot.classList.remove("on");
     void ctx.spot.offsetWidth;
     ctx.spot.classList.add("on");
+    ctx.tap(pic, () => {
+      U.replay(pic, "pop");
+      KP.voice.en(c + "! " + w + "!");
+    });
+    ctx.tap(bNext, () => this.learn(ctx, i, card));
+    ctx.tap(bWrite, () => {
+      KP.audio.sfx("open");
+      KP.nbWant = { id: "awrite", ch: c }; // ABC 쓰기 공책에서 이 글자로 바로
+      KP.open("awrite");
+    });
     KP.voice.en(c + "! " + w + "!");
-    if (ctx.spotT) ctx.cancel(ctx.spotT);
-    ctx.spotT = ctx.after(2200, () => ctx.spot.classList.remove("on"));
     if (ctx.seen.size >= 6 && !ctx.suggested) {
       ctx.suggested = true;
       ctx.after(2600, () => {
@@ -173,6 +208,12 @@ KP.game({
         KP.voice.say("우와! 퀴즈도 해 볼까요?");
       });
     }
+    ctx.hint(() => (ctx.spot.classList.contains("on") ? bWrite : null), "손가락으로 따라 써 볼까요?");
+  },
+  closeSpot(ctx) {
+    if (!ctx.spot.classList.contains("on")) return;
+    ctx.spot.classList.remove("on");
+    KP.audio.sfx("back");
     ctx.hint(() => ctx.cards.find((x, j) => !ctx.seen.has(j)) || null, "다른 알파벳도 눌러 봐요!");
   },
   /* ---------- 단어 만들기: 그림을 보고 글자를 차례로 골라 단어 완성 ----------
@@ -265,8 +306,16 @@ KP.game({
     if (ti === ctx.lastI) ti = (ti + 1) % ctx.L.length;
     ctx.lastI = ti;
     const [c, ko, ws] = ctx.L[ti];
-    // 그림 보고 첫 글자 고르기는 낱말이 확실한 것만(X·Y 제외)
-    const reverse = lv === 3 && U.rand(2) === 0 && !"XYQ".includes(c);
+    // 문제 종류: find(글자 이름 듣고 찾기) · reverse(그림 보고 첫 글자 — 낱말이 확실한 것만, X·Y·Q 제외) · pair(소문자 보고 짝꿍 대문자)
+    // 1단계는 find 만, 2단계부터 세 가지를 섞음 (같은 종류가 두 번 연속 덜 나오게)
+    let kind = "find";
+    if (lv >= 2) {
+      const kinds = ["find", "reverse", "pair"].filter((k) => !(k === "reverse" && "XYQ".includes(c)) && !(k === "pair" && "COSVWXZ".includes(c))); // 짝꿍: 소문자 모양이 대문자와 같은 글자는 빼기
+      kind = U.pick(kinds);
+      if (kind === ctx.lastKind) kind = U.pick(kinds);
+    }
+    ctx.lastKind = kind;
+    const reverse = kind === "reverse";
     const n = lv === 1 ? 2 : lv === 2 ? 3 : 4;
     const big = U.btn("", "abBig");
     const ans = U.el("div", "abAns");
@@ -281,17 +330,36 @@ KP.game({
     const list = U.shuffle([c, ...others]);
     const koOf = (x) => ctx.L.find((l) => l[0] === x)[1];
     let ask, en, sayRight;
-    if (!reverse) {
+    let wrongTail;
+    if (kind === "find") {
       big.innerHTML = KP.E("🔊") + '<span class="abSay">Find!</span>';
       en = "Find " + c + "!";
       ask = U.josa(ko, "을/를") + " 찾아요!";
+      wrongTail = ask;
       sayRight = () => KP.voice.en(c + "! Great job!");
-    } else {
+    } else if (reverse) {
       const t = U.pick(ws);
-      big.innerHTML = KP.E(t[1]);
+      // 낱말의 첫 글자만 ? 로 가려 보여 줌 (그림 + "?pple")
+      big.innerHTML = KP.E(t[1]) + '<span class="abHintW"><b>?</b>' + t[0].slice(1).toLowerCase() + "</span>";
       en = t[0] + "!";
       ask = "이 그림은 무슨 글자로 시작할까요?";
-      sayRight = () => KP.voice.en(c + "! " + t[0] + "!");
+      wrongTail = "첫 소리를 잘 들어 봐요!";
+      sayRight = () => {
+        KP.voice.en(c + "! " + t[0] + "!");
+        const hw = big.querySelector(".abHintW b");
+        if (hw) hw.textContent = t[0][0];
+      };
+    } else {
+      // 소문자 보고 짝꿍 대문자 찾기
+      big.style.setProperty("--c", ctx.CC[ti % ctx.CC.length]);
+      big.innerHTML = '<span class="abLow">' + c.toLowerCase() + "</span>";
+      en = c.toLowerCase() + "!";
+      ask = "짝꿍 글자를 찾아요!";
+      wrongTail = ask;
+      sayRight = () => {
+        big.innerHTML = '<span class="abLow">' + c + c.toLowerCase() + "</span>";
+        KP.voice.en(c + "! " + ws[0][0] + "!");
+      };
     }
     // 말풍선에 정답 글자를 쓰지 않음(글자 모양만 보고 맞히지 않게) → 소리로만 안내
     ctx.say("🔤 " + ask, false);
@@ -312,7 +380,8 @@ KP.game({
       cls: "abOpt",
       render: (v) => v,
       right: (v) => v === c,
-      wrongMsg: (v) => "이건 " + U.josa(koOf(v), "이에요/예요") + ". " + (reverse ? "첫 소리를 잘 들어 봐요!" : ask),
+      // "이건 비! 에이를 찾아요!" — 이미 있는 조각을 이어 자연 음성으로
+      wrongMsg: (v) => "이건 " + koOf(v) + "! " + wrongTail,
       onRight: async (v, b) => {
         U.replay(big, "yay");
         U.replay(b, "jump");
@@ -336,8 +405,10 @@ KP.game({
 ;
 
 /* ==== js/games/smart/animals.js ==== */
-/* 동물 소리 — 동물 카드를 누르면 동물이 움직이며 이름과 울음소리를 들려줘요. (자유 탐색, 퀴즈 아님)
-   위쪽 버튼으로 사는 곳(농장/정글/바다/하늘)별로 나눠 보기. 한 곳의 친구들을 모두 만나면 큰 축하.
+/* 동물 소리 — 동물 카드를 누르면 동물이 움직이며 이름과 울음소리를 들려줘요. (자유 탐색, 퀴즈 아님 — 단계 없음,
+   '듣고 고르기' 퀴즈는 소리 듣고 찾기(listen)가 맡음)
+   위쪽 버튼으로 사는 곳(농장/정글/바다/하늘)별로 나눠 보기. 목표: 탭마다 '만난 수/전체' 표시,
+   한 곳의 친구들을 모두 만나면(어느 탭에서 만났든) 큰 축하, 36마리 모두 만나면 마지막 큰 축하.
    동물 목록·합성 울음소리는 KP.smartAnimals 로 공개 → 소리 듣고 찾기(listen)·먹이 주기(feed)에서도 사용 */
 "use strict";
 (function (KP) {
@@ -390,9 +461,9 @@ KP.game({
     ["🐵", "원숭이", "jungle", "우끼끼!", "monkey", 1], ["🦒", "기린", "jungle", "목이 길어요!", "tall", 0], ["🦓", "얼룩말", "jungle", "줄무늬가 있어요!", "neigh", 0],
     ["🦛", "하마", "jungle", "하아암! 입이 커요!", "yawn", 0], ["🐊", "악어", "jungle", "쩍! 쩍!", "snap", 0], ["🐍", "뱀", "jungle", "쉬이익!", "hiss", 1],
     ["🦜", "앵무새", "jungle", "안녕! 안녕!", "parrot", 0],
-    ["🐳", "고래", "sea", "푸우! 물을 뿜어요!", "spout", 0], ["🐬", "돌고래", "sea", "끼익끼익!", "dolphin", 1], ["🦈", "상어", "sea", "덥석!", "chomp", 0],
+    ["🐳", "고래", "sea", "푸우! 물을 뿜어요!", "spout", 1], ["🐬", "돌고래", "sea", "끼익끼익!", "dolphin", 1], ["🦈", "상어", "sea", "덥석!", "chomp", 0],
     ["🐙", "문어", "sea", "다리가 여덟 개!", "bubble", 0], ["🦀", "꽃게", "sea", "싹둑싹둑!", "snip", 0], ["🐠", "열대어", "sea", "뻐끔뻐끔!", "bubble", 0],
-    ["🐢", "거북이", "sea", "엉금엉금!", "slow", 0], ["🦭", "물범", "sea", "아우! 아우!", "seal", 0], ["🐧", "펭귄", "sea", "뒤뚱뒤뚱!", "waddle", 0],
+    ["🐢", "거북이", "sea", "엉금엉금!", "slow", 0], ["🦭", "물범", "sea", "아우! 아우!", "seal", 1], ["🐧", "펭귄", "sea", "뒤뚱뒤뚱!", "waddle", 0],
     ["🦅", "독수리", "sky", "끼이약!", "screech", 0], ["🦉", "부엉이", "sky", "부엉부엉!", "hoot", 1], ["🐦", "참새", "sky", "짹짹!", "tweet", 1],
     ["🕊️", "비둘기", "sky", "구구구!", "coo", 1], ["🐝", "꿀벌", "sky", "윙윙!", "buzz", 1], ["🦋", "나비", "sky", "팔랑팔랑!", "flutter", 0],
     ["🦇", "박쥐", "sky", "찍찍!", "squeak", 0],
@@ -429,6 +500,9 @@ KP.game({
       .anTab{flex:1 1 0;max-width:130px;min-width:0;min-height:72px;justify-content:center;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:clamp(15px,2.2vw,22px);
         background:rgba(255,255,255,.7);border-radius:20px;padding:6px clamp(8px,1.6vw,18px);border-bottom:5px solid transparent;transition:transform .15s}
       .anTab .e{font-size:clamp(30px,4.4vw,44px)}
+      .anTab{position:relative}
+      .anCnt{position:absolute;top:-6px;right:-4px;min-width:26px;padding:1px 6px;border-radius:999px;background:#fff;color:var(--ink2);font-size:clamp(11px,1.4vw,14px);font-style:normal;line-height:1.5;box-shadow:0 2px 0 rgba(47,58,102,.15);pointer-events:none}
+      .anCnt.full{background:var(--sun);color:var(--ink)}
       .anTab.sel{background:#fff;border-bottom-color:var(--cat);transform:translateY(-2px);box-shadow:var(--shadow)}
       .anGrid{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(104px,15vw,150px),1fr));
         gap:clamp(14px,2vw,20px) clamp(10px,1.8vw,18px);padding:18px clamp(10px,2vw,22px) 26px;align-content:start;border-radius:28px 28px 0 0;transition:background .3s}
@@ -453,7 +527,7 @@ KP.game({
     ctx.grid = U.el("div", "anGrid");
     ctx.body.append(ctx.tabs, ctx.grid);
     ctx.tabBtns = Z.HABITATS.map((h) => {
-      const b = U.btn(KP.E(h.e) + "<span>" + h.n + "</span>", "anTab");
+      const b = U.btn(KP.E(h.e) + "<span>" + h.n + '</span><i class="anCnt"></i>', "anTab");
       b.dataset.k = h.k;
       ctx.tap(b, () => {
         KP.audio.sfx("select");
@@ -468,8 +542,28 @@ KP.game({
   start(ctx) {
     ctx.met = new Set();
     ctx.done = new Set();
+    ctx.allDone = false;
+    this.counts(ctx);
     ctx.say("🐾 동물 친구를 눌러 봐요! 무슨 소리가 날까요?");
     this.show(ctx, "all");
+  },
+  /** 탭마다 만난 수/전체 */
+  counts(ctx) {
+    const Z = KP.smartAnimals;
+    ctx.tabBtns.forEach((b) => {
+      const k = b.dataset.k;
+      const list = Z.LIST.filter((a) => k === "all" || a[2] === k);
+      const n = list.filter((a) => ctx.met.has(a[1])).length;
+      const c = b.querySelector(".anCnt");
+      c.textContent = n + "/" + list.length;
+      c.classList.toggle("full", n === list.length);
+    });
+  },
+  /** 다음에 가리킬 것: 이 탭의 안 만난 친구 → 없으면 아직 다 못 만난 탭 */
+  nextHint(ctx) {
+    const c = ctx.cards.find((x) => !x.classList.contains("met"));
+    if (c) return c;
+    return ctx.tabBtns.find((b) => b.dataset.k !== "all" && !ctx.done.has(b.dataset.k)) || null;
   },
   show(ctx, k) {
     const U = KP.u,
@@ -491,7 +585,7 @@ KP.game({
       return c;
     });
     ctx.cards = cards;
-    ctx.hint(() => cards.find((c) => !c.classList.contains("met")) || null, "동물 친구를 눌러 봐요!");
+    ctx.hint(() => this.nextHint(ctx), "동물 친구를 눌러 봐요!");
   },
   async play(ctx, c, a) {
     const U = KP.u,
@@ -506,17 +600,19 @@ KP.game({
       ctx.met.add(name);
       c.classList.add("met");
       ctx.score.add();
+      this.counts(ctx);
     }
-    ctx.hint(() => ctx.cards.find((x) => !x.classList.contains("met")) || null, "다른 친구도 눌러 봐요!");
-    // 한 곳의 친구를 모두 만나면 큰 축하
-    if (ctx.hab !== "all" && !ctx.done.has(ctx.hab)) {
-      const all = Z.LIST.filter((x) => x[2] === ctx.hab).every((x) => ctx.met.has(x[1]));
-      if (all) {
-        ctx.done.add(ctx.hab);
-        const h = Z.HABITATS.find((x) => x.k === ctx.hab);
-        await ctx.wait(2200);
-        await ctx.win({ big: true, msg: h.n + " 친구들 다 만났어요!" });
-      }
+    ctx.hint(() => this.nextHint(ctx), "다른 친구도 눌러 봐요!");
+    // 한 곳의 친구를 모두 만나면 큰 축하 ('모두' 탭에서 만나도 그 동물이 사는 곳으로 셈), 모두 만나면 마지막 큰 축하
+    const habDone = !ctx.done.has(hab) && Z.LIST.filter((x) => x[2] === hab).every((x) => ctx.met.has(x[1]));
+    if (habDone) ctx.done.add(hab);
+    const allDone = !ctx.allDone && Z.LIST.every((x) => ctx.met.has(x[1]));
+    if (allDone) ctx.allDone = true;
+    if (habDone || allDone) {
+      const h = Z.HABITATS.find((x) => x.k === hab);
+      await ctx.wait(2200);
+      if (!ctx._active) return;
+      await ctx.win({ big: true, msg: allDone ? "{부름} 동물 친구들 다 만났어요!" : h.n + " 친구들 다 만났어요!" });
     }
   },
 });
@@ -641,6 +737,7 @@ KP.game({
     book,
     partStrokes: (ch) => ST[ch],
     partSmall: false,
+    wordOnce: true, // 단어는 한 줄만(글자 수만큼) — 4글자 단어가 8칸이 되면 이 나이엔 너무 김
     firstHint: "대문자 A부터 써 볼까요?",
   });
 })();
@@ -808,7 +905,8 @@ KP.game({
           ctx.cnt.textContent = got;
           U.replay(ctx.cnt, "bump");
           if (lv === 3) KP.voice.say(U.NAT[got] + "!");
-          else KP.voice.say(U.josa(target.a + " 사탕", "이/가") + " 쏙!");
+          // 1·2단계: "빨간 사탕! 하나!" — 색 이름 조각 + 수 세기 조각(모두 자연 음성). 예전 "빨간 사탕이 쏙!"은 클립이 없어 기기 목소리였음
+          else KP.voice.say(target.a + " 사탕! " + U.NAT[got] + "!");
           if (got >= need) {
             busy = true;
             done();
@@ -876,7 +974,8 @@ KP.game({
       .clrHappy .clrEye::after{display:none}
       .clrHappy{animation:clrHop .55s 2}
       @keyframes clrHop{30%{transform:translateY(-26px) rotate(-8deg) scale(1.08)}60%{transform:translateY(0) scale(1.08,.92)}}
-      .clrObj{font-size:var(--sz);border-radius:30px;padding:clamp(10px,1.4vw,16px)}
+      .clrObj{font-size:var(--sz);border-radius:30px;padding:clamp(10px,1.4vw,16px);background:#e3e9f6}
+      .clrObj.right{background:#d9ffe4}
     `);
     ctx.fx = U.el("div", "clrFx");
     ctx.grid = U.el("div", "clrGrid");
@@ -959,7 +1058,6 @@ KP.game({
       colorOf = (c) => c.c;
       ask = U.josa(target.n, "을/를") + " 찾아요!";
       sayRight = target.n + "! 딩동댕!";
-      ctx.say("🎨 " + ask);
     } else {
       // 색+사물: 종류가 여러 색인 것 중에서 정답
       const kinds = ["heart", "heart", "book", "sq", "apple"];
@@ -979,13 +1077,17 @@ KP.game({
       colorOf = (o) => ctx.C[o[1]].c;
       ask = U.josa(nameOf(t), "을/를") + " 찾아요!";
       sayRight = nameOf(t) + "! 딩동댕!";
-      ctx.say("🎨 " + ask);
     }
+    const nat = (...l) => (KP.voice._natUrls && l.find((t) => KP.voice._natUrls(t))) || l[0]; // 같은 뜻 중 자연 음성(이미 있는 조각)이 있는 문장
+    // "갈색을" 처럼 녹음 없는 조각: "갈색 찾아요!"
+    const askV = nat(ask, nameOf(target) + " 찾아요!");
+    ctx.say("🎨 " + ask, askV);
     const btns = ctx.choices(ctx.grid, list, {
       cls: lv < 3 ? "clrBtn" : "clrObj",
       render,
       right: (v) => v === target,
-      wrongMsg: (v) => "이건 " + U.josa(nameOf(v), "이에요/예요") + ". " + ask,
+      // "이건 하얀색이에요." 처럼 녹음이 없는 말은 "이건 하얀색!"(이미 있는 조각)으로
+      wrongMsg: (v) => nat("이건 " + U.josa(nameOf(v), "이에요/예요") + ". " + ask, "이건 " + nameOf(v) + "! " + ask, "이건 " + nameOf(v) + "! " + askV),
       onRight: async (v, b) => {
         self.splash(ctx, b, colorOf(v));
         b.classList.add("clrHappy");
@@ -998,7 +1100,7 @@ KP.game({
         if (ok) self.next(ctx);
       },
     });
-    ctx.hint(() => btns.find((b) => b.dataset.right), ask);
+    ctx.hint(() => btns.find((b) => b.dataset.right), askV);
   },
 });
 
@@ -1086,6 +1188,8 @@ KP.game({
         if (n === answer) {
           busy = true;
           b.classList.add("right");
+          // 하나씩 다 세기 전에 숫자를 찍어 맞힌 판은 열쇠 별 제외 (1단계는 보기 3개라 찍어도 1/3) — 축하·단계는 그대로
+          if (counted < answer) ctx._softMiss = (ctx._softMiss || 0) + 2;
           ctx.score.add();
           tiles.forEach((t, k) => ctx.after(k * 70, () => U.replay(t, "jump")));
           ctx.round++;
@@ -1122,12 +1226,13 @@ KP.game({
   levels: 3,
   score: "⭐",
   setup(ctx) {
-    // 판 도중 화면을 돌리면 풍선이 화면 밖으로 나갈 수 있어 새 판으로 다시 배치
+    // 화면 크기가 바뀌면: 진짜 회전(가로↔세로)이나 크게 바뀐 경우만 새 판으로 다시 배치하고,
+    // 주소창이 숨겨지거나 나타나는 정도의 작은 변화는 풍선·선 위치만 비율로 옮겨 하던 판을 이어 감
     let rt = null;
     addEventListener("resize", () => {
       if (!ctx._active) return;
       if (rt) ctx.cancel(rt);
-      rt = ctx.after(350, () => this.next(ctx));
+      rt = ctx.after(350, () => this.refit(ctx));
     });
     const U = KP.u;
     KP.css("dots", `
@@ -1189,6 +1294,33 @@ KP.game({
     const rows = Math.ceil(n / cols);
     return U.shuffle([...Array(cols * rows).keys()]).slice(0, n).map((i) => ({ x: ((i % cols) + 0.5) * (W / cols), y: (Math.floor(i / cols) + 0.5) * (H / rows) }));
   },
+  refit(ctx) {
+    const g = ctx.dt;
+    const W = ctx.board.clientWidth,
+      H = ctx.board.clientHeight;
+    if (!g || !W || !H || !g.W || !g.H) return;
+    if (W === g.W && H === g.H) return;
+    const rotated = W > H !== g.W > g.H;
+    const big = Math.abs(W - g.W) / g.W > 0.2 && Math.abs(H - g.H) / g.H > 0.2;
+    if ((rotated || big) && !g.busy()) return this.next(ctx);
+    const sx = W / g.W,
+      sy = H / g.H;
+    g.pts.forEach((p, i) => {
+      p.x *= sx;
+      p.y *= sy;
+      const b = g.balloons[i];
+      b.style.left = p.x + "px";
+      b.style.top = p.y + "px";
+    });
+    g.svg.querySelectorAll("line").forEach((l) => {
+      ["x1", "x2"].forEach((a) => l.setAttribute(a, +l.getAttribute(a) * sx));
+      ["y1", "y2"].forEach((a) => l.setAttribute(a, +l.getAttribute(a) * sy));
+      l.style.animation = "none";
+      l.style.strokeDashoffset = "0";
+    });
+    g.W = W;
+    g.H = H;
+  },
   next(ctx) {
     const U = KP.u,
       A = KP.audio;
@@ -1207,7 +1339,8 @@ KP.game({
     const cols = U.shuffle([...ctx.COLORS]);
     let step = 1,
       busy = false;
-    ctx.say("🎈 1부터 " + n + "까지 차례로 눌러요!", "일부터 " + KP.u.numSino(n) + "까지 차례로 눌러요!");
+    // 화면 글자 그대로 말하기: 숫자는 lookup 이 알아서 읽음 (1단계 "1부터 5까지 차례로 눌러요!"는 자연 음성 클립)
+    ctx.say("🎈 1부터 " + n + "까지 차례로 눌러요!");
     const balloons = pts.map((p, i) => {
       const v = i + 1;
       const b = U.el("button", "dtB", '<span class="dtBody">' + v + "</span>");
@@ -1217,6 +1350,7 @@ KP.game({
       ctx.board.appendChild(b);
       return b;
     });
+    ctx.dt = { W, H, pts, svg, balloons, busy: () => busy };
     let prev = null;
     const tapB = async (b, v, p) => {
       if (busy || b.dataset.done) return;
@@ -1247,11 +1381,14 @@ KP.game({
           KP.voice.say("풍선이 날아가요! 와아!");
           await ctx.wait(1500);
           const big = ctx.round % 5 === 0;
-          const ok = await ctx.win({ big, msg: big ? "{부름} 숫자 박사!" : "1부터 " + n + "까지 다 했어요!", say: big ? "" : "일부터 " + KP.u.numSino(n) + "까지 다 했어요!" });
+          // 1단계 "1부터 5까지 다 했어요!"는 클립 있음. 8·10 은 클립이 없어 말은 자연 음성 "차례차례 잘했어요!"로
+          const msg = big ? "{부름} 숫자 박사!" : "1부터 " + n + "까지 다 했어요!";
+          const ok = await ctx.win({ big, msg, say: big || n === 5 ? undefined : "차례차례 잘했어요!" });
           if (ok) self.next(ctx);
         } else hint();
       } else {
-        ctx.miss(b, "이건 " + self.nj(ctx, v, "이에요/예요") + ". " + self.nj(ctx, step, "을/를") + " 찾아요!");
+        // "이건 칠! 오를 찾아요!" — 모두 자연 음성 조각 ("이건 칠!", "오를", "찾아요!")
+        ctx.miss(b, "이건 " + ctx.SINO[v] + "! " + self.nj(ctx, step, "을/를") + " 찾아요!");
       }
     };
     const hint = () => ctx.hint(() => balloons[step - 1], self.nj(ctx, step, "을/를") + " 찾아요!");
@@ -1263,7 +1400,9 @@ KP.game({
 
 /* ==== js/games/smart/feed.js ==== */
 /* 동물 먹이 주기 — 배고픈 동물에게 맞는 먹이를 끌어다 입에 쏙! 먹으면 냠냠·하트.
-   1단계: 동물 1마리, 먹이 2개 / 2단계: 동물 1마리, 먹이 3개 / 3단계: 동물 2마리, 먹이 4개(둘 다 먹여야 끝) */
+   1단계: 동물 1마리, 먹이 3개 / 2단계: 동물 1마리, 먹이 4개 / 3단계: 동물 2마리, 먹이 5개(둘 다 먹여야 끝)
+   (예전 1단계 먹이 2개는 틀려도 남은 하나가 정답이라 찍어도 열쇠 별이 나왔음 → 보기 3개 이상으로)
+   음성: 동물×먹이 조합 문장은 녹음이 없어서 이미 있는 조각("냠냠!" "당근!" "토끼가" "좋아해요!")으로 이어 말함 */
 "use strict";
 KP.game({
   id: "feed",
@@ -1320,7 +1459,7 @@ KP.game({
     const lv = ctx.level;
     const self = this;
     const nAni = lv === 3 ? 2 : 1;
-    const nFood = [2, 3, 4][lv - 1];
+    const nFood = [3, 4, 5][lv - 1];
     let pool = ctx.FEED.filter((f) => f !== ctx.last);
     const ani = U.sample(pool, nAni);
     ctx.last = ani[0];
@@ -1330,9 +1469,9 @@ KP.game({
     const foods = U.shuffle([...ani, ...distract]);
 
     ctx.wrap.style.setProperty("--asz", nAni === 1 ? "clamp(120px,min(28vw,28vh),230px)" : "clamp(96px,min(22vw,22vh),190px)");
-    ctx.wrap.style.setProperty("--fsz", nFood <= 2 ? "clamp(70px,min(14vw,12vh),110px)" : "clamp(58px,min(12vw,10vh),96px)");
+    ctx.wrap.style.setProperty("--fsz", nFood <= 3 ? "clamp(70px,min(14vw,12vh),110px)" : "clamp(58px,min(12vw,10vh),96px)");
     ctx.wrap.style.setProperty("--aszp", nAni === 1 ? "clamp(120px,56vw,240px)" : "clamp(96px,36vw,190px)");
-    ctx.wrap.style.setProperty("--fszp", ["", "", "clamp(70px,26vw,110px)", "clamp(64px,19vw,96px)", "clamp(56px,14vw,90px)"][nFood]);
+    ctx.wrap.style.setProperty("--fszp", ["", "", "clamp(70px,26vw,110px)", "clamp(64px,19vw,96px)", "clamp(56px,16vw,90px)", "clamp(56px,16vw,86px)"][nFood]);
     ctx.ani.innerHTML = "";
     ctx.tray.innerHTML = "";
     const aniEls = ani.map((a, i) => {
@@ -1344,7 +1483,10 @@ KP.game({
     });
     const who = ani.map((a, i) => (i < ani.length - 1 ? U.josa(a[1], "이랑/랑") : a[1])).join(" "); // 곰이랑 토끼
     const ask = nAni === 1 ? U.josa(ani[0][1], "이/가") + " 배고파요! 맛있는 걸 끌어서 입에 쏙 넣어 줘요!" : U.josa(who, "이/가") + " 배고파요! 좋아하는 걸 하나씩 먹여 줘요!";
-    ctx.say("🍽️ " + ask);
+    // 음성: "곰이랑" 녹음이 없어 "곰 하고 토끼가"(이미 있는 조각)로
+    const tail = nAni === 1 ? " 배고파요! 맛있는 걸 끌어서 입에 쏙 넣어 줘요!" : " 배고파요! 좋아하는 걸 하나씩 먹여 줘요!";
+    const askV = nAni === 1 ? [ask, ani[0][1] + "!" + tail] : [ask, ani[0][1] + " 하고 " + U.josa(ani[1][1], "이/가") + tail, ani[0][1] + " 하고 " + ani[1][1] + "!" + tail];
+    ctx.say("🍽️ " + ask, self.nat(...askV));
     KP.audio.tone(160, { to: 90, dur: 0.35, type: "triangle", vol: 0.18, when: 0.2 });
 
     let left = nAni;
@@ -1360,7 +1502,8 @@ KP.game({
         onReject: (t) => {
           const a = ani.find((x) => x[1] === t.dataset.drop);
           U.replay(t.querySelector(".fdEm"), "wig");
-          ctx.miss(null, U.josa(a[1], "은/는") + " " + U.josa(f[3], "을/를") + " 안 먹어요. 다른 걸 찾아봐요!");
+          const m = U.josa(a[1], "은/는") + " " + U.josa(f[3], "을/를") + " 안 먹어요. 다른 걸 찾아봐요!";
+          ctx.miss(null, self.nat(m, f[3] + "! " + U.josa(a[1], "은/는") + " 이건 안 먹어요. 다른 걸 찾아봐요!", f[3] + "! 이건 안 먹어요. 다른 걸 찾아봐요!"));
         },
         onDrop: (t) => {
           if (!t) return;
@@ -1377,6 +1520,7 @@ KP.game({
       return el;
     });
     const hint = () => ctx.hint(() => foodEls.find((e) => e.dataset.go && !e.dataset.done), "먹이를 끌어서 동물 입에 쏙 넣어 줘요!");
+    ctx.foodEls = foodEls; // 점검용
     hint();
     const done = async () => {
       ctx.score.add();
@@ -1386,6 +1530,11 @@ KP.game({
       const okk = await ctx.win({ big, msg: big ? "{부름} 먹이 주기 대장!" : "배불러요! 고마워요!" });
       if (okk) self.next(ctx);
     };
+  },
+  /** 같은 뜻 문장들 중 자연 음성(이미 녹음된 조각)으로 말할 수 있는 첫 문장, 없으면 첫 문장(기기 목소리) */
+  nat(...list) {
+    const N = KP.voice._natUrls;
+    return (N && list.find((t) => N(t))) || list[0];
   },
   eat(ctx, t, f) {
     const U = KP.u,
@@ -1403,7 +1552,8 @@ KP.game({
       t.appendChild(h);
       ctx.after(1800, () => h.remove());
     }
-    KP.voice.say("냠냠! " + U.josa(f[1], "은/는") + " " + U.josa(f[3], "을/를") + " 좋아해요!");
+    const m = "냠냠! " + U.josa(f[1], "은/는") + " " + U.josa(f[3], "을/를") + " 좋아해요!";
+    KP.voice.say(this.nat(m, "냠냠! " + f[3] + "! " + U.josa(f[1], "이/가") + " 좋아해요!", "냠냠! " + f[3] + "! " + f[1] + "! 좋아해요!"));
   },
 });
 
@@ -1486,6 +1636,7 @@ KP.game({
       .fsItem img{width:calc(78% * var(--sc,1));height:calc(78% * var(--sc,1));object-fit:contain;pointer-events:none;filter:drop-shadow(0 4px 3px rgba(80,40,20,.22))}
       .fsItem.dragging{background:transparent;box-shadow:none;z-index:20}
       .fsItem.used{visibility:hidden}
+      .fsTray.fsGone{visibility:hidden}
       .fsItem.dim{opacity:.35}
       .fsItem.cur{box-shadow:0 0 0 5px #ffc531,0 6px 0 rgba(140,95,50,.18);animation:fsCur 1.4s ease-in-out infinite}
       @keyframes fsCur{50%{transform:scale(1.06)}}
@@ -1554,7 +1705,7 @@ KP.game({
       const n = ctx.shelf.children.length || 4;
       let is;
       if (row) is = U.clamp(Math.min((Math.min(vw * 0.4, 300) - 30) / Math.min(n, 2) - 10, vh * 0.2), 58, 96);
-      else if (portrait) is = U.clamp(Math.min((vw - 60) / n - 14, vh * 0.12), 60, 112);
+      else if (portrait) is = U.clamp(Math.min((vw - 60) / n - 14, vh * 0.15), 64, 120); // 세로 폰: 어항 아래 빈 곳이 커서 조금 크게(64px 이상)
       else is = U.clamp(Math.min((vw * 0.55) / n - 14, vh * 0.12), 60, 104);
       wrap.style.setProperty("--is", Math.round(is) + "px");
       wrap.style.setProperty("--is2", Math.round(row ? U.clamp(Math.min(vw * 0.17, vh * 0.3), 70, 120) : U.clamp(Math.min(vw * 0.3, vh * 0.15), 80, 136)) + "px");
@@ -1667,6 +1818,7 @@ KP.game({
     ctx.rid = ctx.rid || 0; // 판 번호는 계속 올림 (다시 열어도 done 중복 막기와 겹치지 않게)
     const tok = ++ctx.token;
     ctx.shelf.innerHTML = "";
+    ctx.shelf.classList.remove("fsGone");
     ctx.pred.hidden = true;
     this.clearObjs(ctx);
     ctx.scene.querySelectorAll(".fsLoad").forEach((e) => e.remove());
@@ -1796,6 +1948,7 @@ KP.game({
     this.clearObjs(ctx);
     ctx.slots = { true: [], false: [] };
     ctx.shelf.innerHTML = "";
+    ctx.shelf.classList.remove("fsGone");
     ctx.pred.hidden = true;
     ctx.tiltOn = false;
     this.think(ctx, null);
@@ -2129,6 +2282,7 @@ KP.game({
     const run = (n) => {
       const pr = U.shuffle(order[n].slice());
       ctx.shelf.innerHTML = "";
+      ctx.shelf.classList.remove("fsGone");
       this.clearObjs(ctx);
       ctx.slots = { true: [], false: [] };
       let chosen = null;
@@ -2148,6 +2302,7 @@ KP.game({
           ctx.after(1300, async () => {
             if (!self.alive(ctx, rid, sess) || !ctx.st) return;
             els.forEach((e) => e.classList.add("used"));
+            ctx.shelf.classList.add("fsGone"); // 빈 쟁반 상자가 남지 않게(자리는 그대로 — 화면이 흔들리지 않게)
             const TK = ctx.TANK, mid = (TK.l + TK.r) / 2;
             const ps = pr.map((p, j) => (j === 0 ? self.dropIn(ctx, p, mid - 150) : new Promise((r) => ctx.after(150, () => r(self.dropIn(ctx, p, mid + 150))))));
             await Promise.all(ps);
@@ -2207,8 +2362,9 @@ KP.game({
      크게 본 화면에서 [따라 쓰기](획 순서 안내, 순서 틀려도 괜찮음) · [다른 낱말]
    - 글자 합체: 따로 떨어진 놀이 '글자 합체'(hmerge.js)로 옮김 — 버튼은 그 놀이를 엶(숨긴 놀이면 버튼도 숨김).
    - 퀴즈(단계별): 1단계 첫소리 그림 찾기·자음 찾기(보기 2개)
-                   2단계 + 모음 찾기·글자 듣고 찾기·낱말 읽기(보기 3개)
-                   3단계 + 그림 보고 첫 글자(보기 4개) — '글자 만들기'는 글자 합체 2단계로 옮김
+                   2단계 + 모음 찾기·글자 듣고 찾기(보기 3개)
+                   3단계 + 그림 보고 첫 글자·낱말 읽기(첫 글자 강조)(보기 4개) — '글자 만들기'는 글자 합체 2단계로 옮김
+   말: 오답·정답 설명은 이미 녹음된 조각("이건 기차!", "기역을 찾아 봐요!")을 이어 자연 음성으로 (natPick)
    KP.hangul: 자음·모음 표와 글자 합치기 도우미(이 파일이 내보내고 hmerge.js 가 setup 때 읽음) */
 "use strict";
 /* ---------- 공용 한글 자료 KP.hangul ----------
@@ -2307,14 +2463,14 @@ KP.game({
     const self = this;
     KP.css("hangul", `
       .hgModes{display:flex;gap:clamp(6px,1.2vw,12px);justify-content:center;padding:10px 10px 6px;flex:0 0 auto;flex-wrap:wrap}
-      .hgMode{font-size:clamp(16px,2.2vw,23px);background:#fff;color:var(--night);border-radius:20px;padding:6px 16px;min-height:52px;display:flex;align-items:center;gap:6px;border:4px solid #fff;box-shadow:0 5px 0 rgba(27,37,80,.18)}
+      .hgMode{font-size:clamp(16px,2.2vw,23px);background:#fff;color:var(--night);border-radius:20px;padding:6px 16px;min-height:64px;display:flex;align-items:center;gap:6px;border:4px solid #fff;box-shadow:0 5px 0 rgba(27,37,80,.18)}
       .hgMode .e{font-size:1.35em}
       .hgTabCh{font-weight:400;font-size:1.3em;color:var(--coral)}
       .hgMode.sel .hgTabCh{color:var(--star)}
       .hgMode.sel{background:var(--night);border-color:var(--night);color:#fff;box-shadow:0 5px 0 var(--deep)}
-      @media (orientation:portrait) and (max-width:480px){.hgModes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}.hgMode{font-size:16px;padding:4px 10px;min-height:44px;border-width:3px;gap:3px;flex:1 1 auto;justify-content:center}}
+      @media (orientation:portrait) and (max-width:480px){.hgModes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}.hgMode{font-size:16px;padding:4px 10px;min-height:64px;border-width:3px;gap:3px;flex:1 1 auto;justify-content:center}}
       .hgMode.glow{animation:glow 1s ease-in-out 3}
-      @media (max-width:520px){.hgModes{gap:5px;padding:8px 6px 4px;flex-wrap:nowrap}.hgMode{font-size:14px;padding:3px 7px;min-height:44px;border-width:3px;gap:3px;white-space:nowrap}.hgMode .e{display:none}}
+      @media (max-width:520px){.hgModes{gap:5px;padding:8px 6px 4px;flex-wrap:nowrap}.hgMode{font-size:14px;padding:3px 7px;min-height:64px;border-width:3px;gap:3px;white-space:nowrap}.hgMode .e{display:none}}
       .hgView{flex:1;min-height:0;display:none;flex-direction:column;position:relative}
       .hgView.on{display:flex}
       .hgGrid{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(96px,12.5vw,136px),1fr));gap:clamp(10px,1.6vw,16px);padding:6px clamp(10px,2vw,22px) 24px;align-content:start}
@@ -2350,6 +2506,7 @@ KP.game({
       .hgOpt{font-size:var(--sz);border-radius:28px}
       .hgOpt.letter{color:var(--ink);font-size:calc(var(--sz) * .9)}
       .hgOpt.word{font-size:calc(var(--sz) * .5);padding:10px 22px;color:var(--ink)}
+      .hgOpt.word .hgFirst{font-weight:400;font-size:1.3em;color:var(--coral)}
     `);
 
     /* ---------- 글자 자료 (KP.hangul 공용) ---------- */
@@ -2509,7 +2666,8 @@ KP.game({
   quiz(ctx) {
     const U = KP.u;
     const lv = ctx.level;
-    const types = lv === 1 ? ["first", "first", "findC"] : lv === 2 ? ["first", "findC", "findV", "hear", "read"] : ["first", "reverse", "findV", "hear", "read"];
+    // 낱말 읽기(read)는 첫 글자 단서가 있어도 어려워 3단계에만
+    const types = lv === 1 ? ["first", "first", "findC"] : lv === 2 ? ["first", "findC", "findV", "hear"] : ["first", "reverse", "findV", "hear", "read"];
     let t = U.pick(types);
     if (t === ctx.lastType && types.length > 1) t = U.pick(types.filter((x) => x !== t));
     ctx.lastType = t;
@@ -2558,6 +2716,11 @@ KP.game({
     });
     ctx.hint(() => btns.find((b) => b.dataset.right), cfg.speak || cfg.ask);
   },
+  /** 자연 음성(녹음 조각)이 있는 첫 문장 — 모두 없으면 첫 문장(기기 목소리) */
+  natPick(list) {
+    const nat = (t) => !!(KP.voice._natUrls && KP.voice._natUrls(t));
+    return list.find(nat) || list[0];
+  },
   /** 그림 보고 첫 자음: "기역으로 시작하는 건?" */
   q_first(ctx, n) {
     const U = KP.u;
@@ -2575,7 +2738,13 @@ KP.game({
       cls: "hgOpt",
       bubble: c + " " + ask,
       ask,
-      wrongMsg: (v) => "이건 " + U.josa(v[0], "이에요/예요") + ". " + U.josa(v[0], "은/는") + " " + U.josa(v[2], "으로/로") + " 시작해요!",
+      // "이건 기차! 기차의 기! 니은을 찾아 봐요!" (조각이 없으면 "이건 기차! 니은을 찾아 봐요!")
+      wrongMsg: (v) =>
+        this.natPick([
+          "이건 " + v[0] + "! " + v[0] + "의 " + v[0][0] + "! " + U.josa(nm, "을/를") + " 찾아 봐요!",
+          "이건 " + v[0] + "! " + U.josa(nm, "을/를") + " 찾아 봐요!",
+          "이건 " + U.josa(v[0], "이에요/예요") + ". " + U.josa(v[0], "은/는") + " " + U.josa(v[2], "으로/로") + " 시작해요!",
+        ]),
       sayRight: (v) => nm + "! " + v[0] + "!",
       cl: n,
       cp: n === 3 ? 3 : 2,
@@ -2597,6 +2766,8 @@ KP.game({
     const like = (ctx.LIKE.find((g) => g.includes(c)) || "").replace(c, "");
     const pool = [...like].concat(U.shuffle(ctx.H.map((h) => h[0]).filter((x) => x !== c && !like.includes(x))));
     const ask = U.josa(t[0], "은/는") + " 무슨 글자로 시작할까요?";
+    // 말은 "기차! 무슨 글자로 시작할까요?" 처럼 조각으로 (화면 글자는 그대로)
+    const speak = this.natPick([ask, t[0] + "! 무슨 글자로 시작할까요?"]);
     return {
       big: KP.E(t[1]),
       list: U.shuffle([c, ...pool.slice(0, Math.min(3, n - 1))]),
@@ -2605,8 +2776,9 @@ KP.game({
       cls: "hgOpt letter",
       bubble: "❓ " + ask,
       ask,
-      wrongMsg: (v) => "이건 " + U.josa(ctx.nameOfC(v), "이에요/예요") + ". " + t[0] + "! 첫 소리를 들어 봐요!",
-      sayRight: () => t[0] + "! " + U.josa(nm, "으로/로") + " 시작해요!",
+      speak,
+      wrongMsg: (v) => this.natPick(["이건 " + ctx.nameOfC(v) + "! " + t[0] + "! 첫 소리를 들어 봐요!", "이건 " + U.josa(ctx.nameOfC(v), "이에요/예요") + ". " + t[0] + "! 첫 소리를 들어 봐요!"]),
+      sayRight: () => this.natPick([t[0] + "! " + U.josa(nm, "으로/로") + " 시작해요!", nm + "! " + t[0] + "의 " + t[0][0] + "!", t[0] + "! " + nm + "!"]),
       szl: "clamp(80px,min(12vw,22vh),130px)",
       szp: "clamp(70px,22vw,96px)",
     };
@@ -2629,7 +2801,7 @@ KP.game({
       right: (v) => v === c,
       render: (v) => v,
       cls: "hgOpt letter",
-      wrongMsg: (v) => "이건 " + U.josa(ctx.nameOfC(v), "이에요/예요") + ". " + U.josa(nm, "을/를") + " 찾아 봐요!",
+      wrongMsg: (v) => this.natPick(["이건 " + ctx.nameOfC(v) + "! " + U.josa(nm, "을/를") + " 찾아 봐요!", "이건 " + U.josa(ctx.nameOfC(v), "이에요/예요") + ". " + U.josa(nm, "을/를") + " 찾아 봐요!"]),
       sayRight: () => nm + "! 맞아요!",
       szl: "clamp(80px,min(12vw,22vh),130px)",
       szp: "clamp(70px,22vw,96px)",
@@ -2656,7 +2828,7 @@ KP.game({
       right: (x) => x === v,
       render: (x) => x,
       cls: "hgOpt letter",
-      wrongMsg: (x) => "이건 " + U.josa(nameV(x), "이에요/예요") + ". " + U.josa(snd, "을/를") + " 찾아 봐요!",
+      wrongMsg: (x) => this.natPick(["이건 " + nameV(x) + "! " + U.josa(snd, "을/를") + " 찾아 봐요!", "이건 " + U.josa(nameV(x), "이에요/예요") + ". " + U.josa(snd, "을/를") + " 찾아 봐요!"]),
       sayRight: () => snd + "! " + ws[0][0] + "의 " + snd + "!",
       szl: "clamp(80px,min(12vw,22vh),130px)",
       szp: "clamp(70px,22vw,96px)",
@@ -2670,19 +2842,21 @@ KP.game({
     const cs = U.sample(ctx.H.map((h) => h[0]), n);
     const target = ctx.compose(cs[0], v);
     const list = U.shuffle(cs.map((c) => ctx.compose(c, v)));
-    const speak = U.josa(target, "을/를") + " 찾아요!";
+    const ask = U.josa(target, "을/를") + " 찾아요!";
+    // "가를 찾아요!" 녹음이 없는 글자가 많아 "가! 이 글자를 찾아요!" 조각으로 (화면 글자는 그대로)
+    const speak = this.natPick([ask, target + "! 이 글자를 찾아요!"]);
     const w = ctx.wordFor(target);
     return {
       big: KP.E("👂"),
       bigCls: "ear",
       speak,
-      ask: speak,
-      bubble: speak,
+      ask,
+      bubble: ask,
       list,
       right: (x) => x === target,
       render: (x) => x,
       cls: "hgOpt letter",
-      wrongMsg: (x) => "이건 " + U.josa(x, "이에요/예요") + ". " + U.josa(target, "을/를") + " 찾아 봐요!",
+      wrongMsg: (x) => this.natPick(["이건 " + x + "! " + U.josa(target, "을/를") + " 찾아 봐요!", "이건 " + x + "! 잘 듣고 찾아요! " + target + "!", "이건 " + U.josa(x, "이에요/예요") + ". " + U.josa(target, "을/를") + " 찾아 봐요!"]),
       sayRight: () => target + "!" + (w ? " " + w[0] + "의 " + target + "!" : ""),
       after: (big) => {
         if (w) big.innerHTML = KP.E(w[1]) + "<span>" + target + "</span>";
@@ -2707,12 +2881,13 @@ KP.game({
       big: KP.E(t[1]),
       list: U.shuffle(picked),
       right: (v) => v[0] === t[0],
-      render: (v) => v[0],
+      // 첫 글자를 크게·진하게 — 그림의 첫소리와 맞춰 볼 수 있게
+      render: (v) => '<b class="hgFirst">' + v[0][0] + "</b>" + v[0].slice(1),
       cls: "hgOpt word",
       bubble: "❓ " + ask,
       ask,
-      wrongMsg: (v) => "이건 " + U.josa(v[0], "이에요/예요") + ". 첫 글자를 잘 봐요! " + t[0][0] + "!",
-      sayRight: () => t[0] + "! " + U.josa(t[0][0], "으로/로") + " 시작해요!",
+      wrongMsg: (v) => this.natPick(["이건 " + v[0] + "! 첫 글자를 잘 봐요! " + t[0][0] + "!", "이건 " + v[0] + "! 첫 글자를 잘 봐요!", "이건 " + U.josa(v[0], "이에요/예요") + ". 첫 글자를 잘 봐요! " + t[0][0] + "!"]),
+      sayRight: () => this.natPick([t[0] + "! " + U.josa(t[0][0], "으로/로") + " 시작해요!", t[0] + "! " + t[0] + "의 " + t[0][0] + "!", t[0] + "! " + t[0][0] + "!", t[0] + "!"]),
       cl: picked.length,
       cp: 1,
       szl: "clamp(80px,min(12vw,20vh),120px)",
@@ -2762,12 +2937,14 @@ KP.game({
       /* 단계 단추: 작업대 위 나무 선반의 작은 점토 단추 */
       .hmModes{position:absolute;left:0;right:0;top:0;height:var(--mh);z-index:10;display:flex;align-items:center;justify-content:center;gap:clamp(5px,1.2vw,12px);
         background:linear-gradient(#a86a3b,#8a532b);box-shadow:inset 0 -3px 0 rgba(0,0,0,.14),0 3px 6px rgba(60,30,10,.3)}
-      .hmMode{position:relative;width:calc(var(--mh) - 9px);height:calc(var(--mh) - 9px);border-radius:50%;display:flex;align-items:center;justify-content:center;padding:0;font-size:calc(var(--mh) * .44);line-height:1;
+      .hmMode{position:relative;width:var(--mb,calc(var(--mh) - 9px));height:var(--mb,calc(var(--mh) - 9px));flex:0 0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;padding:0;font-size:calc(var(--mb,var(--mh)) * .5);line-height:1;
         background:radial-gradient(circle at 35% 28%,#fffaf0,#f0ddc0 60%,#d6b993);box-shadow:inset 0 -3px 4px rgba(120,80,40,.25),0 3px 0 #66391b;transition:transform .15s}
       .hmMode i{position:absolute;right:-3px;top:-3px;width:17px;height:17px;border-radius:50%;background:#66391b;color:#fff;font-size:11px;line-height:17px;font-style:normal;text-align:center}
       .hmMode.sel{background:radial-gradient(circle at 35% 28%,#fff7c8,#ffd45c 60%,#e6a52a);box-shadow:inset 0 -3px 4px rgba(150,90,0,.3),0 3px 0 #66391b,0 0 0 3px #fff1b0;transform:translateY(-2px)}
       .hmMode.sel i{background:#e8604a}
       .hmMode.glow{animation:glow 1s ease-in-out 3}
+      /* 단추가 화면 폭 때문에 64px 보다 작을 때(폰): 누르는 자리는 위아래·옆 틈까지 넓힘 */
+      .hmMode::before{content:"";position:absolute;inset:min(0px,calc((var(--mb,56px) - 66px) / 2)) -3px;border-radius:30%}
 
       /* 기계: 배경 그림의 기계 부분을 한 장 더 겹쳐 흔들기 · 창 빛 */
       .hmMach{position:absolute;z-index:1;background-repeat:no-repeat;
@@ -3130,8 +3307,13 @@ KP.game({
     ctx._inLay = true;
     try {
       const L = (ctx.L = { W, H });
-      const mh = W < 520 || H < 440 ? 54 : 60;
+      // 단계 단추 선반: 단추는 64px 이상(가능하면) — 폭이 좁은 폰은 6개가 들어가는 만큼만 (누르는 자리는 ::before 로 넓힘)
+      const mh = H < 440 ? 62 : W < 520 ? 70 : 76;
+      const gap = W < 520 ? 4 : Math.max(5, Math.min(12, W * 0.012));
+      const mb = Math.max(44, Math.min(mh - 8, 68, Math.floor((W - 12 - gap * 5) / 6)));
       wrap.style.setProperty("--mh", mh + "px");
+      wrap.style.setProperty("--mb", mb + "px");
+      ctx.modes.style.gap = gap + "px";
       const r = W / H;
       const mode = (L.mode = r >= 2.05 ? "wide" : r < 1 ? "tall" : "land");
       wrap.dataset.l = mode;
@@ -4361,7 +4543,7 @@ KP.game({
 
 /* ==== js/games/smart/listen.js ==== */
 /* 소리 듣고 찾기 — 울음소리를 듣고 어떤 동물인지 골라요. 🔊 버튼으로 다시 듣기.
-   1단계: 보기 2개(사는 곳이 다른 동물) / 2단계: 3개 / 3단계: 4개(같은 곳에 사는 동물끼리 섞임)
+   1단계: 보기 3개(사는 곳이 모두 다른 동물) / 2단계: 3개(같은 곳 1마리 섞임) / 3단계: 4개(같은 곳에 사는 동물 2마리 섞임, 모자라면 다른 곳에서 채움)
    동물 목록·울음소리는 animals.js 의 KP.smartAnimals 사용 */
 "use strict";
 KP.game({
@@ -4420,16 +4602,21 @@ KP.game({
     const lv = ctx.level;
     const self = this;
     const pool = KP.smartAnimals.LIST.filter((a) => a[5]);
-    const n = lv + 1;
     let target = U.pick(pool.filter((a) => a !== ctx.target));
     let others;
+    const pickFrom = (list, k, avoid) => U.sample(list.filter((a) => a !== target && !avoid.includes(a)), k);
     if (lv === 1) {
-      others = U.sample(pool.filter((a) => a[2] !== target[2]), 1);
+      // 사는 곳이 모두 다른 3마리(정답 + 2) — 쉬운 보기 3개라 1단계도 열쇠 별을 받을 수 있음
+      const habs = U.sample([...new Set(pool.map((a) => a[2]))].filter((h) => h !== target[2]), 2);
+      others = habs.map((h) => U.pick(pool.filter((a) => a[2] === h)));
     } else if (lv === 2) {
-      others = U.sample(pool.filter((a) => a !== target), 2);
+      // 같은 곳 1마리 + 다른 곳 1마리 → 1단계보다 조금 헷갈림
+      const same = pickFrom(pool.filter((a) => a[2] === target[2]), 1, []);
+      others = same.concat(pickFrom(pool.filter((a) => a[2] !== target[2]), 2 - same.length, same));
     } else {
-      const same = U.shuffle(pool.filter((a) => a !== target && a[2] === target[2]));
-      others = same.slice(0, 2).concat(U.sample(pool.filter((a) => a !== target && !same.slice(0, 2).includes(a)), 1));
+      // 같은 곳 2마리 + 1마리. 같은 곳 친구가 모자라면(바다 등) 다른 곳에서 채워 늘 보기 4개
+      const same = pickFrom(pool.filter((a) => a[2] === target[2]), 2, []);
+      others = same.concat(pickFrom(pool, 3 - same.length, same));
     }
     ctx.target = target;
     const list = U.shuffle([target, ...others]);
@@ -4438,6 +4625,7 @@ KP.game({
     ctx.grid.style.setProperty("--szl", ["", "", "clamp(80px,min(16vw,26vh),170px)", "clamp(80px,min(14vw,24vh),150px)", "clamp(70px,min(12vw,20vh),130px)"][list.length]);
     ctx.grid.style.setProperty("--szp", ["", "", "clamp(80px,min(34vw,17vh),150px)", "clamp(70px,min(30vw,11vh),130px)", "clamp(70px,min(28vw,14vh),130px)"][list.length]);
     const ask = "누구 소리일까요? 잘 들어 봐요!";
+    const nat = (...l) => (KP.voice._natUrls && l.find((t) => KP.voice._natUrls(t))) || l[0]; // 같은 뜻 중 자연 음성(이미 있는 조각)이 있는 문장
     ctx.say("👂 " + ask, false);
     let played = false;
     const go = () => {
@@ -4452,7 +4640,12 @@ KP.game({
       cls: "lsCh",
       render: (a) => KP.E(a[0]) + "<span>" + a[1] + "</span>",
       right: (a) => a === target,
-      wrongMsg: (a) => "이건 " + U.josa(a[1], "이에요/예요") + ". " + U.josa(a[1], "은/는") + " " + a[3] + " 다시 들어 봐요!",
+      wrongMsg: (a) =>
+        nat(
+          "이건 " + U.josa(a[1], "이에요/예요") + ". " + U.josa(a[1], "은/는") + " " + a[3] + " 다시 들어 봐요!",
+          "이건 " + a[1] + "! " + U.josa(a[1], "은/는") + " " + a[3] + " 다시 들어 봐요!",
+          "이건 " + a[1] + "! " + a[3] + " 다시 들어 봐요!"
+        ),
       onRight: async (a, b) => {
         b.classList.add("lsYay");
         b.appendChild(U.el("span", "lsBub", a[3].split("!")[0] + "!"));
@@ -4684,7 +4877,10 @@ KP.game({
       .mxRoom .psJars{position:absolute;z-index:5;background:rgba(255,251,242,.6);border-radius:22px;padding:6px 8px 8px}
       .mxRoom .psJars.col{display:grid;grid-template-columns:repeat(2,auto);gap:4px 6px}
       .mxRoom .psJars.row{flex-wrap:nowrap;gap:4px}
-      .mxRoom .psJar{width:clamp(54px,8.6vmin,92px);height:clamp(78px,12.6vmin,128px)}
+      .mxRoom .psJar{width:clamp(64px,10vmin,92px);height:clamp(90px,14vmin,128px)}
+      .mxRoom .psJars.row.tight{gap:1px;padding:6px 3px 8px}
+      .mxRoom .psJars.row.wrap{display:grid;grid-template-columns:repeat(3,auto);justify-content:center;gap:4px 8px}
+      .mxRoom .psJars.row.wrap .psJar{height:76px}
       .mxBub{position:absolute;left:0;top:0;z-index:6;display:flex;align-items:center;gap:.35em;background:#fffaf2;border-radius:26px;padding:.3em .5em .3em .35em;box-shadow:0 5px 0 rgba(120,80,40,.16);font-size:max(18px,min(30px,calc(var(--dh,300px)*.1)));color:var(--ink);cursor:pointer;will-change:transform}
       .mxBub:after{content:"";position:absolute;left:var(--tx,18%);bottom:-.4em;width:.8em;height:.8em;background:#fffaf2;transform:rotate(45deg);border-radius:0 0 .18em 0}
       .mxBub.in{animation:popIn .4s .5s backwards}
@@ -4727,7 +4923,7 @@ KP.game({
     ctx.tap(ctx.bDrain, () => this.drain(ctx));
     ctx.bub.addEventListener("click", () => {
       U.replay(ctx.bub, "pop");
-      if (ctx.order) KP.voice.say("이런 색 물감 주세요! " + U.josa(ctx.order.name, "이에요/예요") + ".");
+      if (ctx.order) KP.voice.say(this.nat("이런 색 물감 주세요! " + U.josa(ctx.order.name, "이에요/예요") + ".", "이런 색 물감 주세요! " + ctx.order.name + "!"));
       if (ctx.actor) ctx.actor.react("headTop");
     });
     ctx.round = 0;
@@ -4835,6 +5031,12 @@ KP.game({
       jars = ctx.studio.jarsEl;
     jars.classList.toggle("col", land);
     jars.classList.toggle("row", !land);
+    // 세로 폰에서 물감 5개(3단계): 한 줄에 64px 로 들어가면 간격만 좁히고(390px), 그래도 안 되면 두 줄(3+2, 360px) — 터치 64px 지키기
+    const nJar = [...jars.children].filter((j) => j.style.display !== "none").length;
+    const jarW = Math.min(92, Math.max(64, Math.min(innerWidth, innerHeight) * 0.1)); // CSS clamp(64px,10vmin,92px) 와 같게
+    const fitRow = (gap, pad) => nJar * jarW + (nJar - 1) * gap + pad * 2 <= w - 6;
+    jars.classList.toggle("tight", !land && !fitRow(4, 8) && fitRow(1, 3));
+    jars.classList.toggle("wrap", !land && !fitRow(1, 3));
     const jw = jars.offsetWidth || 160,
       jh = jars.offsetHeight || 100;
     let D, cx, cy;
@@ -4850,10 +5052,10 @@ KP.game({
       ctx.bDrain.style.top = "";
       ctx.bDrain.style.bottom = "12px";
     } else {
-      D = Math.min(w * 0.86, ((h - jh - 24) / T) * 0.6, 560);
+      D = Math.min(w * 0.86, ((h - jh - 24) / T) * (jars.classList.contains("wrap") ? 0.5 : 0.6), 560); // 물감 두 줄이면 그릇을 조금 작게(손님 인형이 가려지지 않게)
       cx = w / 2;
       cy = h - jh - 18 - (D * T) / 2;
-      jars.style.left = Math.max(6, (w - jw) / 2) + "px";
+      jars.style.left = Math.max(3, (w - jw) / 2) + "px";
       jars.style.top = h - jh - 8 + "px";
       ctx.bDrain.style.right = "";
       ctx.bDrain.style.left = "10px";
@@ -4877,7 +5079,7 @@ KP.game({
     // 실제 팔레트 자리(자르기 한계로 조금 어긋날 수 있음)에 그릇을 놓음
     const p = st.uvToPx(S.pal[0], S.pal[1]);
     const bx = U_clamp(p.x, D / 2 + 4, w - D / 2 - 4),
-      by = U_clamp(p.y, (D * T) / 2 + 4, h - (D * T) / 2 - 4);
+      by = U_clamp(p.y, (D * T) / 2 + 4, h - (D * T) / 2 - 4 - (land ? 0 : jh + 6)); // 세로: 물감 통 줄 위에(가리지 않게)
     ctx.studio.fit(D);
     const be = ctx.studio.bowlEl;
     be.style.transform = "translate(" + Math.round(bx - D / 2) + "px," + Math.round(by - (D * T) / 2) + "px)";
@@ -4962,6 +5164,11 @@ KP.game({
     this.dropStage(ctx);
   },
 
+  /** 같은 뜻 문장 중 자연 음성(이미 녹음된 조각)으로 말할 수 있는 첫 문장, 없으면 첫 문장 */
+  nat(...l) {
+    const N = KP.voice._natUrls;
+    return (N && l.find((t) => N(t))) || l[0];
+  },
   async next(ctx, first) {
     const U = KP.u,
       P = KP.paint,
@@ -5058,7 +5265,13 @@ KP.game({
     ctx.poured = false;
     ctx.dirty = false;
     const hello = first ? "안녕! 나는 " + U.josa(act.name, "이에요/예요") + ". " : "";
-    ctx.say("🎨 " + hello + "이런 색 물감 주세요! " + U.josa(name, "이에요/예요") + ".");
+    // 음성: "다홍이에요." 처럼 녹음 없는 조합은 "다홍!"(이미 있는 조각)으로
+    const req = "이런 색 물감 주세요! " + U.josa(name, "이에요/예요") + ".";
+    const reqV = this.nat(req, "이런 색 물감 주세요! " + name + "!");
+    const helloV = first ? this.nat(hello.trim(), "안녕! 나는 " + act.name + "!") + " " : "";
+    const asked = ctx.say("🎨 " + hello + req, this.nat(helloV + reqV, helloV + req));
+    // 첫 판: 두 동작(짜기→젓기)을 처음부터 알려 주기 — 이미 넣기 시작했으면 생략
+    if (first && asked) asked.then(() => live() && ctx.order && !ctx.poured && KP.voice.say("물감 통을 눌러 그릇에 넣어요! 숟가락으로 빙글빙글 저어요!"));
     await Promise.race([enter, ctx.wait(1200)]);
     if (!live()) return;
     act.wave(1.4);
@@ -5178,7 +5391,8 @@ KP.game({
     ctx.bub.innerHTML = '<span class="mxSw" style="--t:' + hex + '"></span><span class="mxRec"><b>' + KP.E("💖") + "</b></span>";
     const isNew = P.discover(o.name);
     P.saveMine(hex, o.name, tot); // 만든 물감은 내 물감 통에도 (색칠 공방·그림 그리기 팔레트)
-    KP.voice.say(U.pick(["와, 똑같아요! 고마워요!", "딱 이 색이에요! 고마워요!", "우와, 정말 예뻐요! 고마워요!"]) + (isNew ? " 도감에 " + U.josa(o.name, "이/가") + " 생겼어요!" : ""));
+    const thx = U.pick(["와, 똑같아요! 고마워요!", "딱 이 색이에요! 고마워요!", "우와, 정말 예뻐요! 고마워요!"]);
+    KP.voice.say(isNew ? this.nat(thx + " 도감에 " + U.josa(o.name, "이/가") + " 생겼어요!", thx + " " + o.name + "! 도감에 생겼어요!") : thx);
     ctx.after(900, () => live() && act.happy());
     ctx.score.add(1);
     ctx.round++;
@@ -5209,9 +5423,11 @@ KP.game({
 ;
 
 /* ==== js/games/smart/more.js ==== */
-/* 많은 쪽 찾기 — 접시 두 개 중 많은 쪽/적은 쪽을 골라요. 맞히면 접시 위 과일이 하나씩 폴짝 뛰며 함께 세어요.
-   1단계: 확 차이 나는 두 접시 중 "많은 쪽" / 2단계: 1~2개 차이, 많은 쪽·적은 쪽
-   3단계: 위 접시와 "같은 개수" 찾기(접시 3개) 또는 1개 차이(최대 9개) */
+/* 많은 쪽 찾기 — 접시 중 많은 쪽/적은 쪽을 골라요. 맞히면 접시 위 과일이 하나씩 폴짝 뛰며 함께 세어요.
+   1단계: 접시 3개 — 확 많은 접시 1개 + 적은 접시 2개 중 "많은 쪽"
+   2단계: 접시 3개 — 1~2개 차이. 한 접시만 다르고 나머지 두 접시는 같은 개수(그래서 '더 많은/더 적은' 접시가 하나뿐)
+   3단계: 위 접시와 "같은 개수" 찾기(접시 3개) 또는 1개 차이 두 접시(최대 9개, 이 판은 열쇠 별 제외)
+   (보기 3개 이상이 열쇠 별 규칙 — 2개뿐인 3단계 '1개 차이' 판은 ctx.choices 가 _fewChoice 로 표시) */
 "use strict";
 KP.game({
   id: "more",
@@ -5229,6 +5445,7 @@ KP.game({
       .mrRef .mrPlate{--ps:var(--rs);cursor:default;box-shadow:0 6px 0 rgba(47,58,102,.12),0 0 0 6px #ffe7a3}
       .mrRow{--ps:var(--psl);display:flex;gap:clamp(12px,4vw,60px);justify-content:center;align-items:center}
       @media (max-aspect-ratio:1/1){.mrRow{--ps:var(--psp)}.mrRef .mrPlate{--ps:var(--rsp)}}
+      .mrRow.three{flex-wrap:wrap;row-gap:clamp(14px,3vh,30px);max-width:100%}
       .mrPlate{position:relative;width:var(--ps);height:var(--ps);min-width:0;min-height:0;padding:0;border-radius:50%;
         background:radial-gradient(circle,#fff 0 58%,#eef2fb 60% 66%,#fff 68%);box-shadow:0 8px 0 rgba(47,58,102,.14)}
       .mrPlate.right{background:radial-gradient(circle,#efffef 0 58%,#c9f2d4 60% 66%,#efffef 68%)}
@@ -5300,11 +5517,15 @@ KP.game({
     const C = ctx.CNT;
     const same = lv === 3 && U.rand(2) === 0;
     ctx.ref.classList.toggle("on", same);
-    ctx.wrap.style.setProperty("--psl", same ? "clamp(110px,min(22vw,32vh),220px)" : "clamp(150px,min(34vw,52vh),360px)");
-    ctx.wrap.style.setProperty("--psp", same ? "clamp(96px,30vw,140px)" : "clamp(140px,44vw,200px)");
+    const three = !same && lv < 3; // 1·2단계: 접시 3개 (위 접시 없음 → 조금 더 크게, 폰 세로는 2+1 줄)
+    ctx.row.classList.toggle("three", three);
+    ctx.wrap.style.setProperty("--psl", same ? "clamp(110px,min(22vw,32vh),220px)" : three ? "clamp(130px,min(27vw,46vh),300px)" : "clamp(150px,min(34vw,52vh),360px)");
+    ctx.wrap.style.setProperty("--psp", same ? "clamp(96px,30vw,140px)" : three ? "clamp(120px,40vw,190px)" : "clamp(140px,44vw,200px)");
     ctx.wrap.style.setProperty("--rs", "clamp(110px,min(22vw,26vh),200px)");
     ctx.wrap.style.setProperty("--rsp", "clamp(110px,40vw,170px)");
-    let list, target, ask, wrongMsg, rightMsg;
+    // 자연 음성 클립이 있으면 그 문장, 없으면 이름을 떼어 말하기 ("귤이 더 많은…" → "귤! 더 많은…")
+    const nat = (a, b) => (KP.voice._natUrls && KP.voice._natUrls(a) ? a : b);
+    let list, target, ask, spoken, wrongMsg, rightMsg;
     if (same) {
       const r = 1 + U.rand(5);
       const opts = new Set([r]);
@@ -5317,25 +5538,33 @@ KP.game({
       rightMsg = (n) => "똑같이 " + C[n] + " 개! 딩동댕!";
     } else {
       let a, b;
+      const many = lv === 1 || U.rand(2) === 0;
       if (lv === 1) {
-        a = 1 + U.rand(2);
-        b = a + 3 + U.rand(2);
+        // 적은 접시 2개(1~3개, 서로 다름) + 확 많은 접시 1개
+        const lows = U.sample([1, 2, 3], 2);
+        b = Math.max(...lows) + 3 + U.rand(2);
+        list = U.shuffle([...lows, b]);
+        target = b;
       } else if (lv === 2) {
-        a = 1 + U.rand(5);
+        a = 1 + U.rand(4);
         b = a + 1 + U.rand(2);
+        // 정답 접시 하나만 다르고 나머지 두 접시는 같은 개수
+        list = many ? U.shuffle([a, a, b]) : U.shuffle([a, b, b]);
+        target = many ? b : a;
       } else {
         a = 3 + U.rand(6);
         b = a + 1;
+        list = U.shuffle([a, b]);
+        target = many ? b : a;
       }
-      const many = lv === 1 || U.rand(2) === 0;
-      list = U.shuffle([a, b]);
-      target = many ? b : a;
       const word = many ? "많은" : "적은";
       ask = U.josa(name, "이/가") + " 더 " + word + " 접시를 찾아요!";
+      spoken = nat(ask, name + "! 더 " + word + " 접시를 찾아요!");
       wrongMsg = (n) => "이 접시는 " + C[n] + " 개예요. 더 " + word + " 쪽을 찾아봐요!";
-      rightMsg = (n) => name + " " + C[n] + " 개! 이쪽이 더 " + (many ? "많아요" : "적어요") + "!";
+      // "이쪽이 더 적어요!"는 클립이 없어 적은 쪽은 "딩동댕!"으로
+      rightMsg = (n) => name + " " + C[n] + " 개! " + (many ? "이쪽이 더 많아요!" : "딩동댕!");
     }
-    ctx.say((same ? "🟰 " : "🍽️ ") + ask);
+    ctx.say((same ? "🟰 " : "🍽️ ") + ask, spoken || true);
     const btns = ctx.choices(ctx.row, list, {
       cls: "mrPlate",
       render: (n) => this.plate(n, em, Math.max(...list)),
@@ -5352,7 +5581,7 @@ KP.game({
         if (ok) self.next(ctx);
       },
     });
-    ctx.hint(() => btns.find((b) => b.dataset.right), ask);
+    ctx.hint(() => btns.find((b) => b.dataset.right), spoken || ask);
   },
 });
 
@@ -5362,8 +5591,9 @@ KP.game({
 /* 100까지 숫자 — 위쪽 버튼: [100판] [10씩 세기] [퀴즈] [쓰기]
    - 100판: 1~100 판에서 수를 누르면 크게 보여 주고 "이십삼! 스물셋!" + 십 막대·낱개 블록으로 크기를 보여 줌
    - 10씩 세기: 10, 20, … 100 을 차례로 누르면 십 막대가 하나씩 쌓이며 "십! 이십!…" (고유어도 함께)
-   - 퀴즈(단계별 범위 1단계 1~20 / 2단계 1~50 / 3단계 1~100)
-       수 듣고 찾기 · 블록 보고 몇인지 · 다음 수는?(2단계~) · 몇십 찾기
+   - 퀴즈(단계별 범위 1단계 1~10 / 2단계 1~20 / 3단계 1~50, 몇십 찾기는 10~100) — 만 3~4세에 맞게 작은 수부터
+       수 듣고 찾기 · 블록 보고 몇인지 · 다음 수는?(2단계~) · 몇십 찾기(3단계)
+   - 10씩 세기 완성은 큰 축하만 하고 열쇠 별·단계에는 넣지 않음(반짝이는 단추만 눌러도 끝나므로)
    - 쓰기: 숫자 쓰기 공책으로 */
 "use strict";
 KP.game({
@@ -5378,10 +5608,10 @@ KP.game({
     const self = this;
     KP.css("n100", `
       .n1Modes{display:flex;gap:clamp(6px,1.2vw,12px);justify-content:center;padding:10px 10px 6px;flex:0 0 auto;flex-wrap:wrap}
-      .n1Mode{font-size:clamp(16px,2.2vw,23px);background:#fff;color:var(--night);border-radius:20px;padding:6px 16px;min-height:52px;display:flex;align-items:center;gap:6px;border:4px solid #fff;box-shadow:0 5px 0 rgba(27,37,80,.18)}
+      .n1Mode{font-size:clamp(16px,2.2vw,23px);background:#fff;color:var(--night);border-radius:20px;padding:6px 16px;min-height:64px;display:flex;align-items:center;gap:6px;border:4px solid #fff;box-shadow:0 5px 0 rgba(27,37,80,.18)}
       .n1Mode .e{font-size:1.3em}
       .n1Mode.sel{background:var(--night);border-color:var(--night);color:#fff}
-      @media (max-width:560px){.n1Modes{gap:5px;padding:8px 4px 4px;flex-wrap:nowrap}.n1Mode{font-size:14px;padding:3px 9px;min-height:44px;white-space:nowrap}.n1Mode .e{display:none}}
+      @media (max-width:560px){.n1Modes{gap:5px;padding:8px 4px 4px;flex-wrap:nowrap}.n1Mode{font-size:14px;padding:3px 9px;min-height:64px;white-space:nowrap}.n1Mode .e{display:none}}
       .n1View{flex:1;min-height:0;display:none;position:relative}
       .n1View.on{display:flex}
       /* 100판 */
@@ -5409,7 +5639,7 @@ KP.game({
       .n1Stack .n1Ten i{width:clamp(14px,2vw,22px);height:clamp(9px,1.7vh,18px)}
       .n1Row{display:grid;grid-template-columns:repeat(10,1fr);gap:clamp(5px,1vw,10px);width:min(100%,900px)}
       @media (max-aspect-ratio:1/1){.n1Row{grid-template-columns:repeat(5,1fr)}}
-      .n1T{font-size:clamp(24px,3.4vw,40px);border-radius:18px;background:#fff;color:var(--c);min-height:clamp(58px,8vw,84px);box-shadow:0 5px 0 color-mix(in srgb,var(--c) 45%,#fff);border:3px solid color-mix(in srgb,var(--c) 30%,#fff)}
+      .n1T{font-size:clamp(24px,3.4vw,40px);border-radius:18px;background:#fff;color:var(--c);min-height:clamp(64px,8vw,84px);box-shadow:0 5px 0 color-mix(in srgb,var(--c) 45%,#fff);border:3px solid color-mix(in srgb,var(--c) 30%,#fff)}
       .n1T.done{background:var(--c);color:#fff}
       .n1T.next{border-color:var(--star);position:relative;animation:none}
       /* 다음 칸 반짝: 빛을 따로 한 장(::after)에 그려 두고 밝기만 바꿈 (glowLoop, app.css) — 매번 다시 칠하면 저가 태블릿이 버벅임. inset:-3px = 테두리 두께. 예전 glow 의 brightness(1.12)가 빛까지 밝혔으므로 빛 색을 미리 12% 밝게(197,49→221,55) */
@@ -5423,7 +5653,7 @@ KP.game({
       .n1Q .choice{font-size:clamp(40px,6.4vw,74px);min-width:clamp(96px,14vw,150px);color:var(--ocean)}
       @media (orientation:portrait) and (max-width:480px){
         .n1Modes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}
-        .n1Mode{font-size:16px;padding:4px 12px;min-height:44px;flex:1 1 auto;justify-content:center;border-width:3px}
+        .n1Mode{font-size:16px;padding:4px 12px;min-height:64px;flex:1 1 auto;justify-content:center;border-width:3px}
         .n1Learn{padding:2px 4px 8px;gap:8px}
         .n1Chart{gap:2px}
         .n1N{font-size:calc(var(--cw) / 21);border-radius:5px}
@@ -5438,7 +5668,7 @@ KP.game({
       @media (orientation:landscape) and (max-height:500px){
         .n1Body{flex-direction:row}
         .n1Body .n1Modes{flex-direction:column;flex-wrap:nowrap;justify-content:center;gap:6px;padding:4px 2px 4px 6px;width:108px}
-        .n1Body .n1Mode{font-size:16px;padding:4px 6px;min-height:46px;justify-content:center;border-width:3px;border-radius:16px}
+        .n1Body .n1Mode{font-size:16px;padding:4px 6px;min-height:64px;justify-content:center;border-width:3px;border-radius:16px}
         .n1Body .n1Mode .e{display:none}
         .n1Learn{padding:4px 8px 4px 4px;gap:10px}
         .n1Chart{gap:2px;aspect-ratio:auto;width:var(--cw);height:var(--ch)}
@@ -5605,7 +5835,7 @@ KP.game({
       // 순서가 아니면 다음 수를 알려 줌
       U.replay(ctx.tBtns[t - 1], "wrong");
       KP.audio.sfx("bad");
-      KP.voice.say("다음은 " + U.josa(U.numSino((ctx.tDone + 1) * 10), "이에요/예요") + "!");
+      KP.voice.say("다음은 " + U.numSino((ctx.tDone + 1) * 10) + "!"); // "다음은 사십!" (자연 음성 조각)
       return;
     }
     ctx.tDone = t;
@@ -5624,23 +5854,26 @@ KP.game({
       const tk = ctx.tok;
       ctx.after(900, async () => {
         if (tk !== ctx.tok) return;
-        KP.voice.say("십이 열 개면 백! 백까지 다 셌어요!");
+        const talk = KP.voice.say("십이 열 개면 백! 백까지 다 셌어요!");
         ctx.score.add();
-        const ok = await ctx.win({ big: true, msg: "백까지 성공!" });
-        if (ok && ctx.m === "tens" && tk === ctx.tok) this.mode(ctx, "tens", true);
+        // 반짝이는 다음 단추만 차례로 눌러도 끝나는 놀이 → ctx.win(열쇠 별·단계·스티커) 대신 축하 연출만
+        await Promise.race([talk, ctx.wait(3500)]);
+        if (tk !== ctx.tok || !ctx._active) return;
+        await KP.celebrate({ big: true, msg: "백까지 성공!", ctx, sticker: false });
+        if (ctx._active && ctx.m === "tens" && tk === ctx.tok) this.mode(ctx, "tens", true);
       });
     }
   },
   quiz(ctx) {
     const U = KP.u;
     const lv = ctx.level;
-    const max = lv === 1 ? 20 : lv === 2 ? 50 : 100;
-    const types = lv === 1 ? ["hear", "hear", "blocks"] : lv === 2 ? ["hear", "blocks", "next", "tens"] : ["hear", "blocks", "next", "tens", "before"];
+    const max = lv === 1 ? 10 : lv === 2 ? 20 : 50;
+    const types = lv === 1 ? ["hear", "hear", "blocks"] : lv === 2 ? ["hear", "blocks", "next"] : ["hear", "blocks", "next", "tens", "before"];
     let t = U.pick(types);
     if (t === ctx.lastT && types.length > 2) t = U.pick(types.filter((x) => x !== t));
     ctx.lastT = t;
     let n = 1 + U.rand(max);
-    if (t === "tens") n = 10 * (1 + U.rand(max / 10));
+    if (t === "tens") n = 10 * (1 + U.rand(10)); // 몇십은 100까지
     if (t === "next") n = Math.min(n, max - 1);
     if (t === "before") n = Math.max(n, 2);
     const answer = t === "next" ? n + 1 : t === "before" ? n - 1 : n;
@@ -5648,7 +5881,8 @@ KP.game({
     const cand = new Set();
     const swap = Number(String(answer).split("").reverse().join(""));
     // 다음/앞의 수 문제에서는 화면에 보이는 수(n)는 보기에서 뺌
-    const ok = (x) => x >= 1 && x <= 100 && x !== answer && !((t === "next" || t === "before") && x === n);
+    const lim = t === "tens" ? 100 : max; // 보기도 그 단계 범위 안에서만
+    const ok = (x) => x >= 1 && x <= lim && x !== answer && !((t === "next" || t === "before") && x === n);
     [swap, answer + 1, answer - 1, answer + 10, answer - 10].forEach((x) => ok(x) && cand.add(x));
     if (t === "tens") [answer + 10, answer - 10, answer + 20].forEach((x) => x >= 10 && x <= 100 && x !== answer && cand.add(x));
     while (cand.size < 6) {
@@ -5688,7 +5922,8 @@ KP.game({
       cls: "num",
       render: (v) => String(v),
       right: (v) => v === answer,
-      wrongMsg: (v) => "이건 " + U.josa(U.numSino(v), "이에요/예요") + ". " + speak,
+      // "이건 삼! 사를 찾아요! 넷!" — 이미 있는 조각을 이어 자연 음성으로
+      wrongMsg: (v) => "이건 " + U.numSino(v) + "! " + speak,
       onRight: async (v, b) => {
         U.replay(ask, "yay");
         U.replay(b, "jump");
@@ -5713,7 +5948,9 @@ KP.game({
    배우기: 1~10 카드를 누르면 큰 숫자가 나오고, 숫자만큼 그림이 하나씩 튀어나오며 "하나, 둘, 셋…" 함께 세기.
            큰 숫자의 점선을 손가락으로 따라 써 볼 수 있어요.
    퀴즈 1단계: "셋을 찾아요!" 1~5 중 3개 / 2단계: 1~10 중 4개
-   퀴즈 3단계: 큰 숫자만큼 사과를 바구니에 담고 ✔ 누르기 (빼기도 가능) */
+   퀴즈 3단계: 큰 숫자만큼 사과를 바구니에 담고 ✔ 누르기 (빼기도 가능)
+   [쓰기 공책]·[100까지]는 다른 놀이로 가는 버튼 → 한 번 누르면 반짝이며 "한 번 더!", 3초 안에 한 번 더 눌러야 이동
+   (글 못 읽는 아이가 아무거나 누르다 갑자기 다른 놀이로 튕기지 않게) */
 "use strict";
 KP.game({
   id: "numbers",
@@ -5726,12 +5963,16 @@ KP.game({
     const U = KP.u;
     KP.css("numbers", `
       .nbModes{display:flex;gap:10px;justify-content:center;padding:8px 10px 6px;flex:0 0 auto;flex-wrap:wrap}
-      @media (max-width:560px){.nbModes{gap:5px;padding:8px 4px 4px;flex-wrap:nowrap}.nbMode{font-size:14px !important;padding:3px 9px !important;min-height:44px !important;white-space:nowrap}.nbMode .e{display:none}}
+      @media (max-width:560px){.nbModes{gap:5px;padding:8px 4px 4px;flex-wrap:nowrap}.nbMode{font-size:14px !important;padding:3px 9px !important;min-height:52px !important;white-space:nowrap}.nbMode .e{display:none}}
       .nbMode{font-size:clamp(18px,2.4vw,24px);background:rgba(255,255,255,.7);border-radius:999px;padding:8px 22px;min-height:52px;display:flex;align-items:center;gap:8px;border-bottom:5px solid transparent}
       .nbMode .e{font-size:1.4em}
       .nbMode.sel{background:#fff;border-bottom-color:var(--cat);color:var(--cat);box-shadow:var(--shadow)}
-      @media (orientation:portrait) and (max-width:480px){.nbModes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}.nbMode{font-size:16px !important;padding:4px 12px !important;min-height:44px !important;flex:1 1 auto;justify-content:center}}
+      @media (orientation:portrait) and (max-width:480px){.nbModes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}.nbMode{font-size:16px !important;padding:4px 12px !important;min-height:52px !important;flex:1 1 auto;justify-content:center}}
       .nbMode.glow{animation:glow 1s ease-in-out 3}
+      .nbMode.go{opacity:.78}
+      .nbMode.go .e{opacity:.8}
+      .nbMode.arm{background:#fff;color:var(--cat);box-shadow:0 0 0 4px var(--cat),var(--shadow);opacity:1;animation:nbArm .5s ease-in-out infinite alternate}
+      @keyframes nbArm{to{transform:scale(1.07)}}
       .nbView{flex:1;min-height:0;display:none;flex-direction:column}
       .nbView.on{display:flex}
       .nbShow{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:clamp(10px,3vw,40px);padding:4px 12px}
@@ -5748,7 +5989,7 @@ KP.game({
       @keyframes nbPop{from{transform:scale(0) translateY(40px)}}
       .nbObj b{position:absolute;right:-6px;top:-8px;font-size:18px;min-width:26px;height:26px;border-radius:13px;background:var(--coral);color:#fff;font-weight:400;display:flex;align-items:center;justify-content:center}
       .nbCards{flex:0 0 auto;display:grid;grid-template-columns:repeat(10,1fr);gap:clamp(6px,1vw,10px);padding:6px 12px 16px}
-      @media (max-aspect-ratio:1/1){.nbCards{grid-template-columns:repeat(5,1fr)}}
+      @media (max-aspect-ratio:1/1){.nbCards{grid-template-columns:repeat(5,1fr);gap:5px;padding:6px 8px 14px}}
       .nbCard{font-size:clamp(34px,4.6vw,52px);color:#fff;border-radius:22px;min-height:clamp(72px,9vw,96px);background:var(--c);box-shadow:0 6px 0 color-mix(in srgb,var(--c) 65%,#000);animation:itemIn .35s backwards;animation-delay:calc(var(--i)*40ms);text-shadow:0 2px 0 rgba(0,0,0,.15)}
       .nbCard:active,.nbCard.on{transform:translateY(4px);box-shadow:0 2px 0 color-mix(in srgb,var(--c) 65%,#000)}
       .nbCard.seen::after{content:"";position:absolute;top:6px;right:8px;width:10px;height:10px;border-radius:50%;background:#fff}
@@ -5777,18 +6018,38 @@ KP.game({
     const modes = U.el("div", "nbModes");
     ctx.bLearn = U.btn(KP.E("📖") + "배우기", "nbMode");
     ctx.bQuiz = U.btn(KP.E("❓") + "퀴즈", "nbMode");
-    ctx.bWrite = U.btn(KP.E("📝") + "쓰기 공책", "nbMode");
-    ctx.b100 = U.btn(KP.E("🧮") + "100까지", "nbMode");
+    ctx.bWrite = U.btn(KP.E("📝") + "쓰기 공책", "nbMode go");
+    ctx.b100 = U.btn(KP.E("🧮") + "100까지", "nbMode go");
     modes.append(ctx.bLearn, ctx.bQuiz, ctx.bWrite, ctx.b100);
-    ctx.tap(ctx.bWrite, () => {
-      KP.audio.sfx("open");
+    // 다른 놀이로 가는 버튼: 두 번 눌러야 이동 (첫 번째는 반짝 + "쓰기 공책! 한 번 더!")
+    let armed = null,
+      armT = null;
+    const disarm = () => {
+      if (armed) armed.classList.remove("arm");
+      armed = null;
+      if (armT) ctx.cancel(armT);
+      armT = null;
+    };
+    ctx.disarm = disarm;
+    const twice = (b, say, go) =>
+      ctx.tap(b, () => {
+        if (armed === b) {
+          disarm();
+          KP.audio.sfx("open");
+          return go();
+        }
+        disarm();
+        armed = b;
+        b.classList.add("arm");
+        KP.audio.sfx("tap");
+        KP.voice.say(say);
+        armT = ctx.after(3000, disarm);
+      });
+    twice(ctx.bWrite, "쓰기 공책! 한 번 더!", () => {
       if (ctx.lastN != null) KP.nbWant = { id: "nwrite", ch: String(ctx.lastN) };
       KP.open("nwrite");
     });
-    ctx.tap(ctx.b100, () => {
-      KP.audio.sfx("open");
-      KP.open("n100");
-    });
+    twice(ctx.b100, "1부터 100까지! 한 번 더!", () => KP.open("n100"));
     ctx.tap(ctx.bLearn, () => this.mode(ctx, "learn"));
     ctx.tap(ctx.bQuiz, () => this.mode(ctx, "quiz"));
     // 배우기 화면
@@ -5863,6 +6124,7 @@ KP.game({
     this.mode(ctx, ctx.level === 1 ? "learn" : "quiz", true);
   },
   mode(ctx, m, first) {
+    if (ctx.disarm) ctx.disarm();
     ctx.m = m;
     ctx.token = (ctx.token || 0) + 1; // 세던 중이면 멈추기
     ctx.bLearn.classList.toggle("sel", m === "learn");
@@ -5881,6 +6143,7 @@ KP.game({
   },
   /* ---------------- 배우기 ---------------- */
   learn(ctx, n) {
+    if (ctx.disarm) ctx.disarm();
     ctx.lastN = n;
     const U = KP.u,
       A = KP.audio;
@@ -5920,10 +6183,13 @@ KP.game({
       ctx.objs.querySelectorAll(".nbObj").forEach((o, i) => ctx.after(i * 60, () => U.replay(o, "jump")));
       if (ctx.seen.size >= 5 && !ctx.suggested) {
         ctx.suggested = true;
-        ctx.after(2200, () => {
-          if (ctx.m !== "learn") return;
+        // 숫자 5개를 다 봤으면 퀴즈로 자연스럽게 이어 가기 (그사이 다른 카드를 누르면 배우기 계속)
+        ctx.after(2200, async () => {
+          if (ctx.m !== "learn" || ctx.token !== tk) return;
           U.replay(ctx.bQuiz, "glow");
-          KP.voice.say("우와, 숫자 박사! 퀴즈도 해 볼까요?");
+          await Promise.race([KP.voice.say("우와, 숫자 박사! 퀴즈도 해 볼까요?"), ctx.wait(3500)]);
+          await ctx.wait(700);
+          if (ctx._active && ctx.m === "learn" && ctx.token === tk) this.mode(ctx, "quiz");
         });
       }
     });
@@ -5952,7 +6218,7 @@ KP.game({
         cls: "num",
         render: (v) => String(v),
         right: (v) => v === t,
-        wrongMsg: (v) => "이건 " + U.josa(U.NAT[v], "이에요/예요") + ". " + ask,
+        wrongMsg: (v) => "이건 " + U.NAT[v] + "! " + ask, // "이건 둘! 셋을 찾아요!" — 모두 자연 음성 조각
         onRight: async (v, b) => {
           U.replay(b, "jump");
           A.sfx("good");
@@ -6039,7 +6305,7 @@ KP.game({
 ;
 
 /* ==== js/games/smart/nwrite.js ==== */
-/* 숫자 쓰기 공책 — 0~9 획순 따라 쓰기, 그다음 10~100 (100판처럼 열 칸씩)
+/* 숫자 쓰기 공책 — 0~9 획순 따라 쓰기, 그다음 몇십(10~100) · 11~19 · 21~99(접어 둠)
    획순(초등 수학 쓰기 일반): 위에서 시작, 0은 위에서 시계 반대 방향, 4는 2획(ㄴ자 → 세로),
    5는 2획(세로·배 → 윗줄), 그 밖에는 한 번에. 두 자리 수는 한 칸에 두 숫자를 나란히. */
 "use strict";
@@ -6099,12 +6365,17 @@ KP.game({
     const one = [];
     for (let n = 0; n <= 9; n++)
       one.push({ id: "D" + n, kind: "jamo", label: String(n), ch: String(n), say: n ? U.numNative(n) : "영", color: COLORS[n], strokes: D[n], word: n ? [U.numNative(n) + " · " + U.numSino(n), THINGS[n]] : ["영 · 하나도 없어요", "🧺"] });
-    const big = [];
-    for (let n = 10; n <= 100; n++)
-      big.push({ id: "N" + n, kind: "jamo", label: String(n), ch: String(n), say: U.numSino(n), color: COLORS[Math.floor(n / 10) % 10], strokes: numStrokes(n), syl: true, word: [U.numSino(n) + (n < 100 ? " · " + U.numNative(n) : ""), "🔢"] });
+    const two = (n) => ({ id: "N" + n, kind: "jamo", label: String(n), ch: String(n), say: U.numSino(n), color: COLORS[Math.floor(n / 10) % 10], strokes: numStrokes(n), syl: true, word: [U.numSino(n) + (n < 100 ? " · " + U.numNative(n) : ""), "🔢"] });
+    // 두 자리 수는 양이 많아(91개) 나눔: 몇십(10·20…100) → 11~19 → 나머지(접어 둠). 저장 키(N+수)는 예전과 같음
+    const tens = [],
+      teen = [],
+      rest = [];
+    for (let n = 10; n <= 100; n++) (n % 10 === 0 ? tens : n < 20 ? teen : rest).push(two(n));
     return [
       { id: "digit", name: "숫자 0~9", items: one },
-      { id: "big", name: "10~100", items: big },
+      { id: "tens", name: "몇십 10~100", items: tens },
+      { id: "teen", name: "11~19", items: teen },
+      { id: "big", name: "21~99", items: rest, fold: true },
     ];
   }
   KP.notebook({
@@ -6213,17 +6484,18 @@ KP.game({
     ctx.grid.style.setProperty("--szl", { 4: "clamp(80px,min(14vw,30vh),170px)", 6: "clamp(70px,min(13vw,22vh),150px)", 9: "clamp(60px,min(11vw,15vh),110px)" }[n]);
     ctx.grid.style.setProperty("--szp", { 4: "clamp(80px,34vw,160px)", 6: "clamp(70px,min(32vw,16vh),140px)", 9: "clamp(60px,min(22vw,14vh),110px)" }[n]);
     const ask = "하나만 달라요! 다른 걸 찾아요!";
+    const nat = (...l) => (KP.voice._natUrls && l.find((t) => KP.voice._natUrls(t))) || l[0]; // 같은 뜻 중 자연 음성(이미 있는 조각)이 있는 문장
     ctx.say("🔍 " + ask);
     const btns = ctx.choices(ctx.grid, list, {
       cls: "oddBtn",
       render: (v) => KP.E(v.odd ? odd : same),
       right: (v) => v.odd,
-      wrongMsg: () => "이건 똑같은 " + U.josa(sameName, "이에요/예요") + ". 다른 걸 찾아봐요!",
+      wrongMsg: () => nat("이건 똑같은 " + U.josa(sameName, "이에요/예요") + ". 다른 걸 찾아봐요!", "이건 똑같은 " + sameName + "! 다른 걸 찾아봐요!", "이건 똑같아요. 다른 걸 찾아봐요!"),
       onRight: async (v, b) => {
         b.appendChild(U.el("span", "oddMag", KP.E("🔍")));
         btns.forEach((x, i) => x !== b && ctx.after(i * 50, () => U.replay(x, "oddLook")));
         KP.audio.sfx("sparkle");
-        KP.voice.say("찾았다! " + why);
+        KP.voice.say(nat("찾았다! " + why, "찾았다! " + oddName + "!", "찾았다!"));
         ctx.score.add();
         ctx.round++;
         await ctx.wait(1300);
@@ -6247,7 +6519,8 @@ KP.game({
    - 아이가 칠한 3D 인형 1마리가 나무 옆에서 함께(작은 도움 동작): 씨앗 심기(고개 숙여 톡톡)·물뿌리개 들기·비 오면 만세·
      열매 바구니 들기·눈사람 토닥토닥. 칠한 인형이 없으면 기본 인형. 3D 가 안 되면 그림 인형(같은 동작 일부)
    1단계: 씨앗 심기·물·해님 → 나무. 계절마다 행동 하나 (봄 꽃봉오리 콕콕 / 여름 구름 눌러 소나기 / 가을 사과 따서 바구니 / 겨울 눈사람)
-          한 바퀴(사계절)는 단계가 올라가도 끝까지 이어서 함
+          한 바퀴(사계절)는 단계가 올라가도 끝까지 이어서 함. 단계 계산은 '한 바퀴 = 한 판'(겨울 큰 축하만 셈) —
+          봄·여름·가을 축하는 그대로 하되 연승에 넣지 않음(예전엔 3계절 연승으로 첫 바퀴 만에 2단계가 되어 반복 체험이 없었음)
    2단계: 지금 계절을 보고 '다음은 어떤 계절?' (보기 4개 — 점토 정원 작은 그림)
    3단계: 계절 물건(벚꽃·수박·밤·장갑…)을 끌어서 알맞은 계절 나무에 넣기 (나무 4그루, 물건 그림은 점토 느낌으로 바꿔 그림)
    공용: _shared/clay-stage.js(무대) · doll-actor.js(인형) · doll-follow.js(손에 든 물건) · play-feedback.js(반짝임)
@@ -6891,8 +7164,9 @@ KP.game({
       .ssItem.dragging{z-index:50;background:transparent;box-shadow:none}
       @media (max-aspect-ratio:3/4){
         .ssSort{grid-template-columns:repeat(2,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr) auto}
-        .ssAsk{display:grid;grid-template-columns:repeat(4,1fr)}
-        .ssAsk .choice{aspect-ratio:auto;height:clamp(96px,15vh,170px)}
+        /* 세로 폰: 보기 4개를 2×2 로 크게(한 줄 4개는 그림이 작아 계절 구분이 어려웠음) */
+        .ssAsk{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+        .ssAsk .choice{aspect-ratio:auto;height:clamp(100px,16vh,180px)}
       }
       @media (orientation:landscape) and (max-height:520px){
         .ss{flex-direction:row}
@@ -7134,10 +7408,12 @@ KP.game({
         // 인형: 나무 왼쪽 앞 (좁은 화면은 화면 안쪽으로)
         if (act) {
           const g0 = pxToGround(base.x, base.y + ry * 0.9) || st.spot("tree");
-          act.setH(st.fitH(g0[0], g0[1], H > W ? 0.27 : 0.32));
+          act.setH(st.fitH(g0[0], g0[1], H > W ? 0.24 : 0.32));
           const bw = act.box().w || S * 0.3;
-          const dx = U.clamp(base.x - cw * 0.44, bw * 0.6 + 4, W - bw * 0.6 - 4);
-          dollAt = pxToGround(dx, base.y + ry * 1.05) || g0;
+          // 세로 화면: 흙 자리가 화면 폭을 거의 다 차지해 옆에 설 곳이 없음 → 흙 자리 '뒤쪽 왼편'(풀밭)에 세워 흙을 가리지 않게
+          const tall = H > W;
+          const dx = U.clamp(tall ? sv.x - sw2 * 0.3 : base.x - cw * 0.44, bw * 0.6 + 4, W - bw * 0.6 - 4);
+          dollAt = pxToGround(dx, tall ? sv.y - ry * 1.15 : base.y + ry * 1.05) || g0;
           if (act.a.state === "idle" && !act._jump && !ctx._dollEntering) act.place(dollAt[0], dollAt[1]);
         }
       }
@@ -7556,7 +7832,7 @@ KP.game({
         await ctx.say("꽃이 활짝 피었어요! 나비가 날아왔어요!");
         await ctx.wait(900);
         if (!alive(r)) return false;
-        return ctx.win({ msg: "봄 🌸", quiet: true });
+        return seasonWin({ msg: "봄 🌸", quiet: true });
       }
       async function summer(r) {
         setSeason(1, "act");
@@ -7588,7 +7864,7 @@ KP.game({
         await ctx.say("시원한 소나기! 매미가 맴맴 노래해요!");
         await ctx.wait(700);
         if (!alive(r)) return false;
-        return ctx.win({ msg: "여름 ☀️", quiet: true });
+        return seasonWin({ msg: "여름 ☀️", quiet: true });
       }
       async function autumn(r) {
         setSeason(2, "act");
@@ -7622,7 +7898,7 @@ KP.game({
         await ctx.wait(900);
         if (!alive(r)) return false;
         holdNone();
-        return ctx.win({ msg: "가을 🍁", quiet: true });
+        return seasonWin({ msg: "가을 🍁", quiet: true });
       }
       async function winter(r) {
         setSeason(3, "act");
@@ -7650,6 +7926,18 @@ KP.game({
         if (!alive(r)) return false;
         ctx.score.add();
         return ctx.win({ big: true, msg: "{부름} 사계절 박사!" });
+      }
+      /** 봄·여름·가을 축하: ctx.win 그대로(열쇠 별·마지막 판 처리 포함) 하되 단계 연승(streak)에는 넣지 않음 */
+      function seasonWin(o) {
+        const lv = KP.level.get("seasons");
+        const keep = lv.streak || 0;
+        lv.streak = -1; // win 이 +1 → 0, 3연승 승급 안 됨
+        KP.level.save("seasons", lv);
+        const p = ctx.win(o);
+        const lv2 = KP.level.get("seasons");
+        lv2.streak = keep;
+        KP.level.save("seasons", lv2);
+        return p;
       }
       async function cycle(r) {
         if (!grown && !(await seedPhase(r))) return;
@@ -7932,7 +8220,9 @@ KP.game({
       .shdPic.fly{animation:shdFly .9s}
       @keyframes shdFly{30%{transform:translateY(-18px) rotate(-6deg) scale(1.08)}60%{transform:translateY(0) rotate(4deg)}}
       .shdGrid{--sz:var(--szl);display:grid;grid-template-columns:repeat(var(--cl),auto);gap:clamp(12px,2.4vw,28px);justify-content:center}
-      @media (max-aspect-ratio:1/1){.shdGrid{--sz:var(--szp);grid-template-columns:repeat(var(--cp),auto)}.shdWrap{--psz:var(--pszp)!important}}
+      @media (max-aspect-ratio:1/1){.shdGrid{--sz:var(--szp);grid-template-columns:repeat(var(--cp),auto)}.shdWrap{--psz:var(--pszp)!important}
+        /* 세로 폰 보기 3개: 2+1 (셋째는 가운데) → 그림자를 크게 */
+        .shdGrid.three>.shdBtn:nth-child(3){grid-column:1/-1;justify-self:center}}
       .shdBtn{background:#e9eef8;border-radius:28px;padding:clamp(8px,1.2vw,14px)}
       .shdBox{position:relative;display:block;width:var(--sz);height:var(--sz);font-size:var(--sz);line-height:1}
       .shdBox .e{position:absolute;inset:0;width:100%;height:100%}
@@ -7982,11 +8272,14 @@ KP.game({
     ctx.wrap.style.setProperty("--psz", "clamp(90px,min(16vw,22vh),170px)");
     ctx.wrap.style.setProperty("--pszp", "clamp(90px,34vw,150px)");
     ctx.grid.style.setProperty("--cl", list.length);
-    ctx.grid.style.setProperty("--cp", list.length === 3 ? 3 : 2);
+    ctx.grid.style.setProperty("--cp", 2);
+    ctx.grid.classList.toggle("three", list.length === 3);
     ctx.grid.style.setProperty("--szl", list.length === 3 ? "clamp(80px,min(15vw,24vh),170px)" : "clamp(76px,min(13vw,22vh),150px)");
-    ctx.grid.style.setProperty("--szp", list.length === 3 ? "clamp(76px,24vw,110px)" : "clamp(76px,min(34vw,15vh),130px)");
+    ctx.grid.style.setProperty("--szp", list.length === 3 ? "clamp(80px,min(36vw,16vh),150px)" : "clamp(76px,min(34vw,15vh),130px)");
     const ask = U.josa(target[1], "이/가") + " 숨었어요! " + target[1] + " 그림자를 찾아요!";
-    ctx.say("🌓 " + ask);
+    // "트랙터가"처럼 녹음 없는 조각이면 "트랙터! 숨었어요! …"(이미 있는 조각)로
+    const askV = KP.voice._natUrls && !KP.voice._natUrls(ask) ? target[1] + "! 숨었어요! " + target[1] + " 그림자를 찾아요!" : ask;
+    ctx.say("🌓 " + ask, askV);
     const btns = ctx.choices(ctx.grid, U.shuffle(list), {
       cls: "shdBtn",
       render: (v) => '<span class="shdBox"><span class="shdSil">' + KP.E(v[0]) + '</span><span class="shdCol">' + KP.E(v[0]) + "</span></span>",
@@ -8015,7 +8308,8 @@ KP.game({
 /* 모양 찾기 — 말한 모양을 찾아 눌러요. 모양 친구들은 맞히면 웃으며 폴짝!
    1단계: 동그라미·네모·세모 3개 (색이 모두 다름)
    2단계: 6가지 모양 중 4개 (모두 같은 색 → 모양만 보고 찾기)
-   3단계: 생활 물건에서 모양 찾기 (🍕 세모, ⚽ 동그라미, 📺 네모 …) */
+   3단계: 생활 물건에서 모양 찾기 (🍕 세모, ⚽ 동그라미, 📺 네모, 🪁 마름모, ⭐ 별, 💝 하트 — 6가지 모양 모두 정답이 될 수 있음)
+   음성: "도넛은 동그라미 모양이에요."처럼 녹음 없는 조합은 "이건 도넛! 동그라미 모양이에요."(이미 있는 조각)로 */
 "use strict";
 KP.game({
   id: "shape",
@@ -8071,7 +8365,8 @@ KP.game({
       ["⚽", "축구공", "circle"], ["🍩", "도넛", "circle"], ["🍪", "쿠키", "circle"], ["🏀", "농구공", "circle"],
       ["🍕", "피자", "triangle"], ["🧀", "치즈", "triangle"], ["🍙", "주먹밥", "triangle"], ["⛺", "텐트", "triangle"],
       ["📺", "텔레비전", "square"], ["🎁", "선물 상자", "square"], ["🖼️", "액자", "square"], ["🚪", "문", "square"],
-      ["🪁", "연", "diamond"], ["⭐", "별", "star"], ["❤️", "하트", "heart"],
+      ["🍊", "귤", "circle"], ["🌕", "달", "circle"],
+      ["🪁", "연", "diamond"], ["⭐", "별", "star"], ["🌟", "반짝별", "star"], ["❤️", "하트", "heart"], ["💝", "하트 상자", "heart"],
     ];
     ctx.round = 0;
   },
@@ -8118,7 +8413,7 @@ KP.game({
       ctx.grid.style.setProperty("--szl", lv === 1 ? "clamp(90px,min(18vw,30vh),200px)" : "clamp(90px,min(15vw,24vh),170px)");
       ctx.grid.style.setProperty("--szp", lv === 1 ? "clamp(90px,min(40vw,19vh),170px)" : "clamp(90px,min(34vw,19vh),160px)");
     } else {
-      const groups = ["circle", "triangle", "square", "diamond"];
+      const groups = ["circle", "triangle", "square", "diamond", "star", "heart"];
       let tk = U.pick(groups);
       if (tk === ctx.lastK) tk = U.pick(groups.filter((g) => g !== tk));
       ctx.lastK = tk;
@@ -8135,6 +8430,8 @@ KP.game({
       ctx.grid.style.setProperty("--szp", "clamp(64px,min(28vw,14vh),130px)");
     }
     ctx.say("🔷 " + ask);
+    // 같은 뜻 문장 중 자연 음성이 있는 것
+    const nat = (...l) => (KP.voice._natUrls && l.find((t) => KP.voice._natUrls(t))) || l[0];
     const btns = ctx.choices(ctx.grid, list, {
       cls: lv < 3 ? "shpBtn" : "shpObj",
       render,
@@ -8142,11 +8439,11 @@ KP.game({
       wrongMsg: (v) =>
         lv < 3
           ? "이건 " + U.josa(nameOf(v), "이에요/예요") + ". " + ask
-          : U.josa(nameOf(v), "은/는") + " " + S[v[2]][0] + " 모양이에요. " + ask,
+          : nat(U.josa(nameOf(v), "은/는") + " " + S[v[2]][0] + " 모양이에요. " + ask, "이건 " + nameOf(v) + "! " + S[v[2]][0] + " 모양이에요. " + ask),
       onRight: async (v, b) => {
         b.classList.add("shpHappy", "shpRing");
         KP.audio.sfx("boing");
-        KP.voice.say(lv < 3 ? nameOf(v) + "! 딩동댕!" : U.josa(nameOf(v), "은/는") + " " + S[v[2]][0] + " 모양! 딩동댕!");
+        KP.voice.say(lv < 3 ? nameOf(v) + "! 딩동댕!" : nat(U.josa(nameOf(v), "은/는") + " " + S[v[2]][0] + " 모양! 딩동댕!", nameOf(v) + "! " + S[v[2]][0] + " 모양! 딩동댕!"));
         if (lv === 3) U.replay(ctx.ref, "jump");
         ctx.score.add();
         ctx.round++;
@@ -8164,7 +8461,8 @@ KP.game({
 
 /* ==== js/games/smart/size.js ==== */
 /* 큰 것 작은 것 — 같은 그림이 크기만 달라요.
-   1단계: 2개 중 큰 것/작은 것 / 2단계: 3개 중 제일 큰 것/제일 작은 것
+   1단계: 3개 중 하나만 크기가 달라요 — 큰 것 하나+작은 것 둘(큰 것 찾기) 또는 그 반대 (크기 두 가지만, 보기 3개라 열쇠 별 가능)
+   2단계: 크기가 모두 다른 3개 중 제일 큰 것/제일 작은 것
    3단계: 3~4개를 작은 것부터 큰 것까지 차례로 누르기 (누를 때마다 번호와 올라가는 소리) */
 "use strict";
 KP.game({
@@ -8180,7 +8478,9 @@ KP.game({
       .szWrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:6px 10px 20px}
       .szShelf{--sz:var(--szl);display:flex;align-items:flex-end;justify-content:center;gap:clamp(8px,2vw,26px);padding:16px clamp(10px,2vw,26px) 0;
         border-bottom:14px solid #e6b673;border-radius:0 0 10px 10px;box-shadow:0 8px 0 #c9934d;max-width:100%}
-      @media (max-aspect-ratio:1/1){.szShelf{--sz:var(--szp)}}
+      @media (max-aspect-ratio:1/1){.szShelf{--sz:var(--szp)}
+        /* 세로 폰: 칸 폭을 그림 크기에 맞춰(작은 그림 칸은 좁게, 그래도 72px 이상) → 큰 그림을 더 크게 그릴 수 있어 '작은 것'도 점처럼 안 보임 */
+        .szShelf .szItem{width:max(72px,calc(var(--sz) * var(--k) + 16px))}}
       .szItem{position:relative;display:flex;align-items:flex-end;justify-content:center;width:calc(var(--sz) + 16px);height:calc(var(--sz) + 22px);
         border-radius:26px 26px 0 0;padding:0 0 4px;background:rgba(255,255,255,.55);transition:background .2s}
       .szItem:active{background:rgba(255,255,255,.9)}
@@ -8210,31 +8510,37 @@ KP.game({
     const U = KP.u;
     const lv = ctx.level;
     const self = this;
-    let thing = U.pick(ctx.THINGS);
-    if (thing === ctx.last) thing = U.pick(ctx.THINGS);
+    const thing = U.pick(ctx.THINGS.filter((t) => t !== ctx.last));
     ctx.last = thing;
     const [em, name] = thing;
-    const n = lv === 1 ? 2 : lv === 2 ? 3 : ctx.round % 2 ? 4 : 3;
-    const ks = { 2: [0.48, 1], 3: [0.42, 0.7, 1], 4: [0.34, 0.54, 0.76, 1] }[n];
+    const n = lv === 3 && ctx.round % 2 ? 4 : 3;
+    const big = U.rand(2) === 0; // 1·2단계: 큰 것 찾기? 작은 것 찾기?
+    // 1단계: 크기 두 가지(하나만 다름) / 2·3단계: 모두 다른 크기
+    const ks = lv === 1 ? (big ? [0.46, 0.46, 1] : [0.46, 1, 1]) : { 3: [0.42, 0.7, 1], 4: [0.4, 0.6, 0.8, 1] }[n];
     let order = U.shuffle(ks.map((k, i) => ({ k, rank: i })));
     if (lv === 3) while (order.every((o, i) => o.rank === i)) order = U.shuffle(order);
-    ctx.shelf.style.setProperty("--szl", { 2: "clamp(110px,min(26vw,44vh),280px)", 3: "clamp(90px,min(22vw,40vh),240px)", 4: "clamp(80px,min(19vw,36vh),210px)" }[n]);
-    ctx.shelf.style.setProperty("--szp", { 2: "clamp(100px,38vw,170px)", 3: "clamp(80px,26vw,120px)", 4: "clamp(60px,19vw,90px)" }[n]);
+    ctx.shelf.style.setProperty("--szl", { 3: "clamp(90px,min(22vw,40vh),240px)", 4: "clamp(80px,min(19vw,36vh),210px)" }[n]);
+    // 세로: 칸 폭 합(그림 크기 합 + 칸 여백 16px·간격 8px·선반 여백) 이 화면 폭에 맞게
+    const sumK = ks.reduce((a, b) => a + Math.max(b, 0.56), 0); // 작은 칸도 최소 84px(.choice) → 작은 그림은 0.56 으로 셈
+    ctx.shelf.style.setProperty("--szp", "clamp(64px,calc((100vw - " + (16 * n + 8 * (n - 1) + 68) + "px) / " + sumK.toFixed(2) + "),min(" + (n === 3 ? 170 : 150) + "px,32vh))");
     ctx.shelf.innerHTML = "";
     const render = (o) => KP.E(em);
 
     if (lv < 3) {
-      const big = U.rand(2) === 0;
-      const word = n === 2 ? (big ? "큰" : "작은") : big ? "제일 큰" : "제일 작은";
+      const word = lv === 1 ? (big ? "큰" : "작은") : big ? "제일 큰" : "제일 작은";
       const target = big ? order.find((o) => o.rank === n - 1) : order.find((o) => o.rank === 0);
       const ask = word + " " + U.josa(name, "을/를") + " 찾아요!";
-      ctx.say((big ? "🐘 " : "🐭 ") + ask);
+      const nat = (...l) => (KP.voice._natUrls && l.find((t) => KP.voice._natUrls(t))) || l[0]; // 같은 뜻 중 자연 음성(이미 있는 조각)이 있는 문장
+      const askV = nat(ask, word + " " + name + " 찾아요!"); // "도넛을" 녹음이 없으면 "큰 도넛 찾아요!"
+      ctx.say((big ? "🐘 " : "🐭 ") + ask, askV);
       const btns = ctx.choices(ctx.shelf, order, {
         cls: "szItem",
         render,
         right: (o) => o === target,
         wrongMsg: (o) =>
-          n === 2 ? "이건 " + (big ? "작은 " : "큰 ") + U.josa(name, "이에요/예요") + ". " + ask : "이것보다 더 " + (big ? "큰 " : "작은 ") + U.josa(name, "이/가") + " 있어요!",
+          lv === 1
+            ? nat("이건 " + (big ? "작은 " : "큰 ") + U.josa(name, "이에요/예요") + ". " + ask, "이건 " + (big ? "작은 " : "큰 ") + name + "! " + askV)
+            : "이것보다 더 " + (big ? "큰 " : "작은 ") + U.josa(name, "이/가") + " 있어요!",
         onRight: async (o, b) => {
           KP.audio.sfx(big ? "boing" : "bubble");
           KP.voice.say(word + " " + name + "! 딩동댕!");
@@ -8247,7 +8553,7 @@ KP.game({
         },
       });
       btns.forEach((b, i) => b.style.setProperty("--k", order[i].k));
-      ctx.hint(() => btns.find((b) => b.dataset.right), ask);
+      ctx.hint(() => btns.find((b) => b.dataset.right), askV);
       return;
     }
 
@@ -8288,7 +8594,9 @@ KP.game({
       ctx.shelf.appendChild(b);
       return b;
     });
-    const hint = () => ctx.hint(() => btns.find((b) => +b.dataset.seq === step), step === 0 ? "제일 작은 " + name + "부터 눌러요!" : "그다음 큰 걸 눌러요!");
+    const hint = () => ctx.hint(() => btns.find((b) => +b.dataset.seq === step), step === 0 ? first : "그다음 큰 걸 눌러요!");
+    // "제일 작은 OO부터" 녹음이 없는 그림은 이미 있는 문장으로
+    const first = KP.voice._natUrls && !KP.voice._natUrls("제일 작은 " + name + "부터 눌러요!") ? say : "제일 작은 " + name + "부터 눌러요!";
     hint();
   },
 });

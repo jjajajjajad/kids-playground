@@ -373,7 +373,8 @@ KP.game({
         st.cur++;
         st.inks = [];
         A.sfx("good");
-        KP.voice.say("좋아요! 이번엔 " + KP.u.ordWord(st.cur + 1) + " 깃발에서 시작!");
+        // "이번엔 두 번째 깃발에서 시작!" 은 자연 음성이 없어 "다음 깃발에서 시작해요!"(자연 음성)로 — 깃발은 화면에서 반짝여 알려 줌
+      KP.voice.say("좋아요! 다음 깃발에서 시작해요!");
         setHint();
         return;
       }
@@ -443,6 +444,11 @@ KP.game({
     if (shape.say) {
       // 화면은 "ㄱ 따라 그려요!", 말(말풍선 다시 듣기·힌트 포함)은 "기역을 따라 그려요!"
       ctx.say("🚩 깃발에서 시작해서 " + shape.name + " 따라 그려요!", "깃발에서 시작해서 " + U.josa(shape.say, "을/를") + " 따라 그려요!");
-    } else ctx.say("🚩 깃발에서 시작해서 " + U.josa(shape.name, "을/를") + " 따라 그려요!");
+    } else {
+      // "무지개 길을" 처럼 자연 음성이 없는 이름은 "무지개 길! 깃발에서 시작해서 따라 그려요!"(조각마다 자연 음성)
+      const full = "깃발에서 시작해서 " + U.josa(shape.name, "을/를") + " 따라 그려요!";
+      const nat = !KP.voice._natUrls || KP.voice._natUrls(full);
+      ctx.say("🚩 " + full, nat ? full : shape.name + "! 깃발에서 시작해서 따라 그려요!");
+    }
   },
 });

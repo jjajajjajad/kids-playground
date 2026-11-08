@@ -79,6 +79,8 @@ KP.game({
         if (n === answer) {
           busy = true;
           b.classList.add("right");
+          // 하나씩 다 세기 전에 숫자를 찍어 맞힌 판은 열쇠 별 제외 (1단계는 보기 3개라 찍어도 1/3) — 축하·단계는 그대로
+          if (counted < answer) ctx._softMiss = (ctx._softMiss || 0) + 2;
           ctx.score.add();
           tiles.forEach((t, k) => ctx.after(k * 70, () => U.replay(t, "jump")));
           ctx.round++;

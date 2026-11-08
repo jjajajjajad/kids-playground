@@ -5,7 +5,8 @@
    - 아이가 칠한 3D 인형 1마리가 나무 옆에서 함께(작은 도움 동작): 씨앗 심기(고개 숙여 톡톡)·물뿌리개 들기·비 오면 만세·
      열매 바구니 들기·눈사람 토닥토닥. 칠한 인형이 없으면 기본 인형. 3D 가 안 되면 그림 인형(같은 동작 일부)
    1단계: 씨앗 심기·물·해님 → 나무. 계절마다 행동 하나 (봄 꽃봉오리 콕콕 / 여름 구름 눌러 소나기 / 가을 사과 따서 바구니 / 겨울 눈사람)
-          한 바퀴(사계절)는 단계가 올라가도 끝까지 이어서 함
+          한 바퀴(사계절)는 단계가 올라가도 끝까지 이어서 함. 단계 계산은 '한 바퀴 = 한 판'(겨울 큰 축하만 셈) —
+          봄·여름·가을 축하는 그대로 하되 연승에 넣지 않음(예전엔 3계절 연승으로 첫 바퀴 만에 2단계가 되어 반복 체험이 없었음)
    2단계: 지금 계절을 보고 '다음은 어떤 계절?' (보기 4개 — 점토 정원 작은 그림)
    3단계: 계절 물건(벚꽃·수박·밤·장갑…)을 끌어서 알맞은 계절 나무에 넣기 (나무 4그루, 물건 그림은 점토 느낌으로 바꿔 그림)
    공용: _shared/clay-stage.js(무대) · doll-actor.js(인형) · doll-follow.js(손에 든 물건) · play-feedback.js(반짝임)
@@ -649,8 +650,9 @@
       .ssItem.dragging{z-index:50;background:transparent;box-shadow:none}
       @media (max-aspect-ratio:3/4){
         .ssSort{grid-template-columns:repeat(2,1fr);grid-template-rows:minmax(0,1fr) minmax(0,1fr) auto}
-        .ssAsk{display:grid;grid-template-columns:repeat(4,1fr)}
-        .ssAsk .choice{aspect-ratio:auto;height:clamp(96px,15vh,170px)}
+        /* 세로 폰: 보기 4개를 2×2 로 크게(한 줄 4개는 그림이 작아 계절 구분이 어려웠음) */
+        .ssAsk{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+        .ssAsk .choice{aspect-ratio:auto;height:clamp(100px,16vh,180px)}
       }
       @media (orientation:landscape) and (max-height:520px){
         .ss{flex-direction:row}
@@ -892,10 +894,12 @@
         // 인형: 나무 왼쪽 앞 (좁은 화면은 화면 안쪽으로)
         if (act) {
           const g0 = pxToGround(base.x, base.y + ry * 0.9) || st.spot("tree");
-          act.setH(st.fitH(g0[0], g0[1], H > W ? 0.27 : 0.32));
+          act.setH(st.fitH(g0[0], g0[1], H > W ? 0.24 : 0.32));
           const bw = act.box().w || S * 0.3;
-          const dx = U.clamp(base.x - cw * 0.44, bw * 0.6 + 4, W - bw * 0.6 - 4);
-          dollAt = pxToGround(dx, base.y + ry * 1.05) || g0;
+          // 세로 화면: 흙 자리가 화면 폭을 거의 다 차지해 옆에 설 곳이 없음 → 흙 자리 '뒤쪽 왼편'(풀밭)에 세워 흙을 가리지 않게
+          const tall = H > W;
+          const dx = U.clamp(tall ? sv.x - sw2 * 0.3 : base.x - cw * 0.44, bw * 0.6 + 4, W - bw * 0.6 - 4);
+          dollAt = pxToGround(dx, tall ? sv.y - ry * 1.15 : base.y + ry * 1.05) || g0;
           if (act.a.state === "idle" && !act._jump && !ctx._dollEntering) act.place(dollAt[0], dollAt[1]);
         }
       }
@@ -1314,7 +1318,7 @@
         await ctx.say("꽃이 활짝 피었어요! 나비가 날아왔어요!");
         await ctx.wait(900);
         if (!alive(r)) return false;
-        return ctx.win({ msg: "봄 🌸", quiet: true });
+        return seasonWin({ msg: "봄 🌸", quiet: true });
       }
       async function summer(r) {
         setSeason(1, "act");
@@ -1346,7 +1350,7 @@
         await ctx.say("시원한 소나기! 매미가 맴맴 노래해요!");
         await ctx.wait(700);
         if (!alive(r)) return false;
-        return ctx.win({ msg: "여름 ☀️", quiet: true });
+        return seasonWin({ msg: "여름 ☀️", quiet: true });
       }
       async function autumn(r) {
         setSeason(2, "act");
@@ -1380,7 +1384,7 @@
         await ctx.wait(900);
         if (!alive(r)) return false;
         holdNone();
-        return ctx.win({ msg: "가을 🍁", quiet: true });
+        return seasonWin({ msg: "가을 🍁", quiet: true });
       }
       async function winter(r) {
         setSeason(3, "act");
@@ -1408,6 +1412,18 @@
         if (!alive(r)) return false;
         ctx.score.add();
         return ctx.win({ big: true, msg: "{부름} 사계절 박사!" });
+      }
+      /** 봄·여름·가을 축하: ctx.win 그대로(열쇠 별·마지막 판 처리 포함) 하되 단계 연승(streak)에는 넣지 않음 */
+      function seasonWin(o) {
+        const lv = KP.level.get("seasons");
+        const keep = lv.streak || 0;
+        lv.streak = -1; // win 이 +1 → 0, 3연승 승급 안 됨
+        KP.level.save("seasons", lv);
+        const p = ctx.win(o);
+        const lv2 = KP.level.get("seasons");
+        lv2.streak = keep;
+        KP.level.save("seasons", lv2);
+        return p;
       }
       async function cycle(r) {
         if (!grown && !(await seedPhase(r))) return;

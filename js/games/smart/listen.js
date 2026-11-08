@@ -1,5 +1,5 @@
 /* 소리 듣고 찾기 — 울음소리를 듣고 어떤 동물인지 골라요. 🔊 버튼으로 다시 듣기.
-   1단계: 보기 2개(사는 곳이 다른 동물) / 2단계: 3개 / 3단계: 4개(같은 곳에 사는 동물끼리 섞임)
+   1단계: 보기 3개(사는 곳이 모두 다른 동물) / 2단계: 3개(같은 곳 1마리 섞임) / 3단계: 4개(같은 곳에 사는 동물 2마리 섞임, 모자라면 다른 곳에서 채움)
    동물 목록·울음소리는 animals.js 의 KP.smartAnimals 사용 */
 "use strict";
 KP.game({
@@ -58,16 +58,21 @@ KP.game({
     const lv = ctx.level;
     const self = this;
     const pool = KP.smartAnimals.LIST.filter((a) => a[5]);
-    const n = lv + 1;
     let target = U.pick(pool.filter((a) => a !== ctx.target));
     let others;
+    const pickFrom = (list, k, avoid) => U.sample(list.filter((a) => a !== target && !avoid.includes(a)), k);
     if (lv === 1) {
-      others = U.sample(pool.filter((a) => a[2] !== target[2]), 1);
+      // 사는 곳이 모두 다른 3마리(정답 + 2) — 쉬운 보기 3개라 1단계도 열쇠 별을 받을 수 있음
+      const habs = U.sample([...new Set(pool.map((a) => a[2]))].filter((h) => h !== target[2]), 2);
+      others = habs.map((h) => U.pick(pool.filter((a) => a[2] === h)));
     } else if (lv === 2) {
-      others = U.sample(pool.filter((a) => a !== target), 2);
+      // 같은 곳 1마리 + 다른 곳 1마리 → 1단계보다 조금 헷갈림
+      const same = pickFrom(pool.filter((a) => a[2] === target[2]), 1, []);
+      others = same.concat(pickFrom(pool.filter((a) => a[2] !== target[2]), 2 - same.length, same));
     } else {
-      const same = U.shuffle(pool.filter((a) => a !== target && a[2] === target[2]));
-      others = same.slice(0, 2).concat(U.sample(pool.filter((a) => a !== target && !same.slice(0, 2).includes(a)), 1));
+      // 같은 곳 2마리 + 1마리. 같은 곳 친구가 모자라면(바다 등) 다른 곳에서 채워 늘 보기 4개
+      const same = pickFrom(pool.filter((a) => a[2] === target[2]), 2, []);
+      others = same.concat(pickFrom(pool, 3 - same.length, same));
     }
     ctx.target = target;
     const list = U.shuffle([target, ...others]);
@@ -76,6 +81,7 @@ KP.game({
     ctx.grid.style.setProperty("--szl", ["", "", "clamp(80px,min(16vw,26vh),170px)", "clamp(80px,min(14vw,24vh),150px)", "clamp(70px,min(12vw,20vh),130px)"][list.length]);
     ctx.grid.style.setProperty("--szp", ["", "", "clamp(80px,min(34vw,17vh),150px)", "clamp(70px,min(30vw,11vh),130px)", "clamp(70px,min(28vw,14vh),130px)"][list.length]);
     const ask = "누구 소리일까요? 잘 들어 봐요!";
+    const nat = (...l) => (KP.voice._natUrls && l.find((t) => KP.voice._natUrls(t))) || l[0]; // 같은 뜻 중 자연 음성(이미 있는 조각)이 있는 문장
     ctx.say("👂 " + ask, false);
     let played = false;
     const go = () => {
@@ -90,7 +96,12 @@ KP.game({
       cls: "lsCh",
       render: (a) => KP.E(a[0]) + "<span>" + a[1] + "</span>",
       right: (a) => a === target,
-      wrongMsg: (a) => "이건 " + U.josa(a[1], "이에요/예요") + ". " + U.josa(a[1], "은/는") + " " + a[3] + " 다시 들어 봐요!",
+      wrongMsg: (a) =>
+        nat(
+          "이건 " + U.josa(a[1], "이에요/예요") + ". " + U.josa(a[1], "은/는") + " " + a[3] + " 다시 들어 봐요!",
+          "이건 " + a[1] + "! " + U.josa(a[1], "은/는") + " " + a[3] + " 다시 들어 봐요!",
+          "이건 " + a[1] + "! " + a[3] + " 다시 들어 봐요!"
+        ),
       onRight: async (a, b) => {
         b.classList.add("lsYay");
         b.appendChild(U.el("span", "lsBub", a[3].split("!")[0] + "!"));

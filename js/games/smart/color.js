@@ -35,7 +35,8 @@ KP.game({
       .clrHappy .clrEye::after{display:none}
       .clrHappy{animation:clrHop .55s 2}
       @keyframes clrHop{30%{transform:translateY(-26px) rotate(-8deg) scale(1.08)}60%{transform:translateY(0) scale(1.08,.92)}}
-      .clrObj{font-size:var(--sz);border-radius:30px;padding:clamp(10px,1.4vw,16px)}
+      .clrObj{font-size:var(--sz);border-radius:30px;padding:clamp(10px,1.4vw,16px);background:#e3e9f6}
+      .clrObj.right{background:#d9ffe4}
     `);
     ctx.fx = U.el("div", "clrFx");
     ctx.grid = U.el("div", "clrGrid");
@@ -118,7 +119,6 @@ KP.game({
       colorOf = (c) => c.c;
       ask = U.josa(target.n, "을/를") + " 찾아요!";
       sayRight = target.n + "! 딩동댕!";
-      ctx.say("🎨 " + ask);
     } else {
       // 색+사물: 종류가 여러 색인 것 중에서 정답
       const kinds = ["heart", "heart", "book", "sq", "apple"];
@@ -138,13 +138,17 @@ KP.game({
       colorOf = (o) => ctx.C[o[1]].c;
       ask = U.josa(nameOf(t), "을/를") + " 찾아요!";
       sayRight = nameOf(t) + "! 딩동댕!";
-      ctx.say("🎨 " + ask);
     }
+    const nat = (...l) => (KP.voice._natUrls && l.find((t) => KP.voice._natUrls(t))) || l[0]; // 같은 뜻 중 자연 음성(이미 있는 조각)이 있는 문장
+    // "갈색을" 처럼 녹음 없는 조각: "갈색 찾아요!"
+    const askV = nat(ask, nameOf(target) + " 찾아요!");
+    ctx.say("🎨 " + ask, askV);
     const btns = ctx.choices(ctx.grid, list, {
       cls: lv < 3 ? "clrBtn" : "clrObj",
       render,
       right: (v) => v === target,
-      wrongMsg: (v) => "이건 " + U.josa(nameOf(v), "이에요/예요") + ". " + ask,
+      // "이건 하얀색이에요." 처럼 녹음이 없는 말은 "이건 하얀색!"(이미 있는 조각)으로
+      wrongMsg: (v) => nat("이건 " + U.josa(nameOf(v), "이에요/예요") + ". " + ask, "이건 " + nameOf(v) + "! " + ask, "이건 " + nameOf(v) + "! " + askV),
       onRight: async (v, b) => {
         self.splash(ctx, b, colorOf(v));
         b.classList.add("clrHappy");
@@ -157,6 +161,6 @@ KP.game({
         if (ok) self.next(ctx);
       },
     });
-    ctx.hint(() => btns.find((b) => b.dataset.right), ask);
+    ctx.hint(() => btns.find((b) => b.dataset.right), askV);
   },
 });

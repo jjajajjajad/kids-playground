@@ -35,12 +35,14 @@ KP.game({
       /* 단계 단추: 작업대 위 나무 선반의 작은 점토 단추 */
       .hmModes{position:absolute;left:0;right:0;top:0;height:var(--mh);z-index:10;display:flex;align-items:center;justify-content:center;gap:clamp(5px,1.2vw,12px);
         background:linear-gradient(#a86a3b,#8a532b);box-shadow:inset 0 -3px 0 rgba(0,0,0,.14),0 3px 6px rgba(60,30,10,.3)}
-      .hmMode{position:relative;width:calc(var(--mh) - 9px);height:calc(var(--mh) - 9px);border-radius:50%;display:flex;align-items:center;justify-content:center;padding:0;font-size:calc(var(--mh) * .44);line-height:1;
+      .hmMode{position:relative;width:var(--mb,calc(var(--mh) - 9px));height:var(--mb,calc(var(--mh) - 9px));flex:0 0 auto;border-radius:50%;display:flex;align-items:center;justify-content:center;padding:0;font-size:calc(var(--mb,var(--mh)) * .5);line-height:1;
         background:radial-gradient(circle at 35% 28%,#fffaf0,#f0ddc0 60%,#d6b993);box-shadow:inset 0 -3px 4px rgba(120,80,40,.25),0 3px 0 #66391b;transition:transform .15s}
       .hmMode i{position:absolute;right:-3px;top:-3px;width:17px;height:17px;border-radius:50%;background:#66391b;color:#fff;font-size:11px;line-height:17px;font-style:normal;text-align:center}
       .hmMode.sel{background:radial-gradient(circle at 35% 28%,#fff7c8,#ffd45c 60%,#e6a52a);box-shadow:inset 0 -3px 4px rgba(150,90,0,.3),0 3px 0 #66391b,0 0 0 3px #fff1b0;transform:translateY(-2px)}
       .hmMode.sel i{background:#e8604a}
       .hmMode.glow{animation:glow 1s ease-in-out 3}
+      /* 단추가 화면 폭 때문에 64px 보다 작을 때(폰): 누르는 자리는 위아래·옆 틈까지 넓힘 */
+      .hmMode::before{content:"";position:absolute;inset:min(0px,calc((var(--mb,56px) - 66px) / 2)) -3px;border-radius:30%}
 
       /* 기계: 배경 그림의 기계 부분을 한 장 더 겹쳐 흔들기 · 창 빛 */
       .hmMach{position:absolute;z-index:1;background-repeat:no-repeat;
@@ -403,8 +405,13 @@ KP.game({
     ctx._inLay = true;
     try {
       const L = (ctx.L = { W, H });
-      const mh = W < 520 || H < 440 ? 54 : 60;
+      // 단계 단추 선반: 단추는 64px 이상(가능하면) — 폭이 좁은 폰은 6개가 들어가는 만큼만 (누르는 자리는 ::before 로 넓힘)
+      const mh = H < 440 ? 62 : W < 520 ? 70 : 76;
+      const gap = W < 520 ? 4 : Math.max(5, Math.min(12, W * 0.012));
+      const mb = Math.max(44, Math.min(mh - 8, 68, Math.floor((W - 12 - gap * 5) / 6)));
       wrap.style.setProperty("--mh", mh + "px");
+      wrap.style.setProperty("--mb", mb + "px");
+      ctx.modes.style.gap = gap + "px";
       const r = W / H;
       const mode = (L.mode = r >= 2.05 ? "wide" : r < 1 ? "tall" : "land");
       wrap.dataset.l = mode;

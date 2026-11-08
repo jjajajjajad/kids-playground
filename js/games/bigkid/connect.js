@@ -1,6 +1,7 @@
 /* 짝 잇기 — 왼쪽 그림에서 오른쪽 짝까지 손가락으로 선을 그어 연결
    주제: 엄마와 아기, 동물과 먹이, 동물과 집, 탈것과 길, 짝꿍 물건
-   1단계: 2쌍 (쉬운 주제)  2단계: 3쌍  3단계: 4쌍 (모든 주제)
+   1단계: 3쌍 (쉬운 주제)  2단계: 4쌍  3단계: 5쌍 (모든 주제) — 화면이 낮으면(폰 가로) 들어가는 만큼만
+   짝 설명 말: [그림, 짝, 설명, 자연 음성 조각 문장] — 설명 문장에 자연 음성이 없으면 조각 문장("원숭이는 바나나 냠냠!")으로
    (선 긋기가 어려우면 왼쪽 → 오른쪽 차례로 톡톡 눌러도 이어진다) */
 "use strict";
 KP.game({
@@ -17,7 +18,7 @@ KP.game({
       .cnSvg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}
       .cnCol{position:absolute;top:0;bottom:0;display:flex;flex-direction:column;justify-content:space-evenly;align-items:center;z-index:2;width:44%}
       .cnCol.l{left:0}.cnCol.r{right:0}
-      .cnItem{--s:clamp(80px,min(15vw,17vh),140px);width:var(--s);height:var(--s);border-radius:26px;background:#fff8e6;box-shadow:0 6px 0 #f1d79a;display:flex;align-items:center;justify-content:center;font-size:calc(var(--s)*.66);line-height:1;position:relative;touch-action:none;transition:transform .12s;animation:itemIn .4s backwards cubic-bezier(.2,1.4,.4,1);animation-delay:calc(var(--i,0)*70ms)}
+      .cnItem{--s:min(clamp(80px,min(15vw,17vh),140px),var(--fs,999px));width:var(--s);height:var(--s);border-radius:26px;background:#fff8e6;box-shadow:0 6px 0 #f1d79a;display:flex;align-items:center;justify-content:center;font-size:calc(var(--s)*.66);line-height:1;position:relative;touch-action:none;transition:transform .12s;animation:itemIn .4s backwards cubic-bezier(.2,1.4,.4,1);animation-delay:calc(var(--i,0)*70ms)}
       .cnCol.r .cnItem{background:#eaf6ff;box-shadow:0 6px 0 #b8dcf7}
       .cnItem.sel{transform:scale(1.1);box-shadow:0 0 0 6px var(--sun),0 6px 0 #f1d79a}
       .cnItem.done{background:#e6fbec;box-shadow:0 6px 0 #9fe0b3}
@@ -31,13 +32,15 @@ KP.game({
       .cnLine.bad{stroke:#ff9aa9;transition:opacity .4s}
       .cnLine.ok{animation:cnDraw .35s ease-out}
       @keyframes cnDraw{from{stroke-width:22}}
-      @media (orientation:portrait){.cnItem{--s:clamp(80px,min(26vw,13vh),130px)}.cnCol{width:46%}}
+      @media (orientation:portrait){.cnItem{--s:min(clamp(80px,min(26vw,13vh),130px),var(--fs,999px))}.cnCol{width:46%}}
+      .cnSpark{position:absolute;z-index:3;pointer-events:none;font-size:clamp(26px,4vw,40px);line-height:1;margin:-.5em 0 0 -.5em;animation:cnSpark .9s ease-out forwards}
+      @keyframes cnSpark{0%{transform:scale(.2);opacity:0}30%{transform:scale(1.2);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(.6);opacity:0}}
     `);
     ctx.THEMES = [
-      { name: "먹이", easy: 1, say: "동물 친구가 좋아하는 먹이를 이어 주세요!", pairs: [["🐰", "🥕", "토끼는 당근을 냠냠"], ["🐵", "🍌", "원숭이는 바나나를 냠냠"], ["🐶", "🦴", "강아지는 뼈다귀를 좋아해요"], ["🐱", "🐟", "고양이는 생선을 좋아해요"], ["🐿️", "🌰", "다람쥐는 도토리를 냠냠"], ["🐼", "🎋", "판다는 대나무를 냠냠"], ["🐭", "🧀", "생쥐는 치즈를 좋아해요"], ["🐝", "🌻", "꿀벌은 꽃에서 꿀을 모아요"]] },
-      { name: "탈것", easy: 1, say: "탈것이 다니는 길을 이어 주세요!", pairs: [["🚗", "🛣️", "자동차는 도로를 달려요"], ["⛵", "🌊", "배는 바다에 떠요"], ["✈️", "☁️", "비행기는 하늘을 날아요"], ["🚂", "🛤️", "기차는 기찻길을 달려요"], ["🚀", "🌙", "로켓은 우주로 슝"]] },
-      { name: "엄마", easy: 1, say: "엄마와 아기를 이어 주세요!", pairs: [["🐔", "🐥", "엄마 닭과 아기 병아리"], ["🐘", "baby:🐘", "엄마 코끼리와 아기 코끼리"], ["🦒", "baby:🦒", "엄마 기린과 아기 기린"], ["🐧", "baby:🐧", "엄마 펭귄과 아기 펭귄"], ["🐳", "baby:🐳", "엄마 고래와 아기 고래"], ["🐢", "baby:🐢", "엄마 거북이와 아기 거북이"]] },
-      { name: "집", say: "동물 친구가 사는 곳을 이어 주세요!", pairs: [["🐦", "🪺", "새는 둥지에 살아요"], ["🐟", "🌊", "물고기는 물속에 살아요"], ["🐧", "🧊", "펭귄은 얼음 나라에 살아요"], ["🐫", "🏜️", "낙타는 사막에 살아요"], ["🐒", "🌳", "원숭이는 나무 위에 살아요"], ["🐶", "🏠", "강아지는 집에서 살아요"]] },
+      { name: "먹이", easy: 1, say: "동물 친구가 좋아하는 먹이를 이어 주세요!", pairs: [["🐰", "🥕", "토끼는 당근을 냠냠"], ["🐵", "🍌", "원숭이는 바나나를 냠냠", "원숭이는 바나나 냠냠!"], ["🐶", "🦴", "강아지는 뼈다귀를 좋아해요", "강아지는 뼈다귀 좋아해요!"], ["🐱", "🐟", "고양이는 생선을 좋아해요", "고양이는 생선 좋아해요!"], ["🐿️", "🌰", "다람쥐는 도토리를 냠냠", "다람쥐! 도토리 냠냠!"], ["🐼", "🎋", "판다는 대나무를 냠냠", "판다! 대나무 냠냠!"], ["🐭", "🧀", "생쥐는 치즈를 좋아해요", "생쥐! 치즈 좋아해요!"], ["🐝", "🌻", "꿀벌은 꽃에서 꿀을 모아요", "꿀벌은 윙윙! 꽃!"]] },
+      { name: "탈것", easy: 1, say: "탈것이 다니는 길을 이어 주세요!", pairs: [["🚗", "🛣️", "자동차는 도로를 달려요", "자동차! 우와, 달려간다!"], ["⛵", "🌊", "배는 바다에 떠요"], ["✈️", "☁️", "비행기는 하늘을 날아요", "비행기! 하늘!"], ["🚂", "🛤️", "기차는 기찻길을 달려요", "기차! 칙칙폭폭!"], ["🚀", "🌙", "로켓은 우주로 슝"]] },
+      { name: "엄마", easy: 1, say: "엄마와 아기를 이어 주세요!", pairs: [["🐔", "🐥", "엄마 닭과 아기 병아리", "엄마 닭! 아기 병아리!"], ["🐘", "baby:🐘", "엄마 코끼리와 아기 코끼리", "엄마 코끼리! 아기 코끼리!"], ["🦒", "baby:🦒", "엄마 기린과 아기 기린", "엄마 기린! 아기 기린!"], ["🐧", "baby:🐧", "엄마 펭귄과 아기 펭귄", "엄마 펭귄! 아기 펭귄!"], ["🐳", "baby:🐳", "엄마 고래와 아기 고래", "엄마 고래! 아기 고래!"], ["🐢", "baby:🐢", "엄마 거북이와 아기 거북이", "엄마 거북이! 아기 거북이!"]] },
+      { name: "집", say: "동물 친구가 사는 곳을 이어 주세요!", pairs: [["🐦", "🪺", "새는 둥지에 살아요"], ["🐟", "🌊", "물고기는 물속에 살아요", "바다에 사는 건 물고기!"], ["🐧", "🧊", "펭귄은 얼음 나라에 살아요", "펭귄! 얼음!"], ["🐫", "🏜️", "낙타는 사막에 살아요"], ["🐒", "🌳", "원숭이는 나무 위에 살아요", "원숭이! 나무!"], ["🐶", "🏠", "강아지는 집에서 살아요", "강아지! 집!"]] },
       { name: "짝꿍", say: "같이 쓰는 짝꿍 물건을 이어 주세요!", pairs: [["🔒", "🔑", "자물쇠는 열쇠로 철컥"], ["🧦", "👟", "양말 신고 운동화 신어요"], ["🥄", "🥣", "숟가락으로 그릇 속 밥을 떠요"], ["⚽", "🥅", "공을 골대에 뻥"], ["🖌️", "🎨", "붓으로 물감을 콕콕"], ["🪥", "🦷", "칫솔로 이를 닦아요"]] },
     ];
     ctx.COLORS = ["#ff7452", "#2f95f5", "#2fb466", "#8a63ee", "#ff5d8f"];
@@ -50,7 +53,16 @@ KP.game({
     ctx.body.appendChild(ctx.board);
     ctx.round = 0;
     ctx.token = 0;
-    addEventListener("resize", () => ctx._active && ctx.redraw && ctx.redraw());
+    // 화면을 돌리면 그림 크기 상한(--fs)도 다시 (n개가 세로로 들어가게)
+    ctx.fitN = (n) => {
+      const bh = ctx.board.clientHeight;
+      if (bh) ctx.board.style.setProperty("--fs", Math.max(64, Math.floor((bh / n) * 0.84)) + "px");
+    };
+    addEventListener("resize", () => {
+      if (!ctx._active) return;
+      if (ctx.cnN) ctx.fitN(ctx.cnN);
+      if (ctx.redraw) requestAnimationFrame(() => ctx._active && ctx.redraw());
+    });
   },
   start(ctx) {
     ctx.round = 0;
@@ -65,7 +77,14 @@ KP.game({
       A = KP.audio;
     const lv = ctx.level;
     const tok = ++ctx.token;
-    const n = lv + 1;
+    // 한 판 3~5쌍. 화면이 낮으면 그림이 64px 아래로 작아지지 않는 만큼만
+    let n = lv + 2;
+    const bh = ctx.board.clientHeight;
+    if (bh) {
+      while (n > 3 && bh / n < 64 / 0.84) n--;
+    }
+    ctx.cnN = n;
+    ctx.fitN(n); // 세로로 n개가 들어가는 크기 상한
     const theme = U.pick(ctx.THEMES.filter((t) => (lv === 1 ? t.easy : true) && t !== ctx.lastTheme));
     ctx.lastTheme = theme;
     const pairs = U.sample(theme.pairs, n);
@@ -156,7 +175,10 @@ KP.game({
         U.replay(r, "jump");
         A.sfx("snap");
         A.note(A.SCALE[4 + done.length], { inst: "bell", dur: 0.5, vol: 0.22 });
-        KP.voice.say(pairs[k][2] + "!");
+        // 설명 문장에 자연 음성이 없으면 조각 문장으로 (기기 목소리보다 자연 음성 우선)
+        const full = pairs[k][2] + "!";
+        KP.voice.say(pairs[k][3] && !(KP.voice._natUrls && KP.voice._natUrls(full)) ? pairs[k][3] : full);
+        spark(anchor(l), anchor(r));
         if (done.length === n) finish();
         else hint();
         return true;
@@ -168,6 +190,21 @@ KP.game({
       ctx.after(800, () => bad.remove());
       ctx.miss(b, "음, 짝이 아니에요. 다른 친구를 찾아볼까?");
       return false;
+    };
+    // 맞춘 선 위로 반짝이 ✨
+    const spark = (a, b) => {
+      for (let i = 0; i < 4; i++) {
+        const t = (i + 1) / 5;
+        const sp = U.el("div", "cnSpark", KP.E(i % 2 ? "✨" : "⭐"));
+        sp.style.left = a.x + (b.x - a.x) * t + "px";
+        sp.style.top = a.y + (b.y - a.y) * t + "px";
+        sp.style.setProperty("--dx", U.randf(-30, 30) + "px");
+        sp.style.setProperty("--dy", U.randf(-50, -20) + "px");
+        sp.style.animationDelay = i * 70 + "ms";
+        ctx.board.appendChild(sp);
+        ctx.after(1100 + i * 70, () => sp.remove());
+      }
+      A.sfx("sparkle");
     };
     const clearSel = () => {
       if (selected) selected.classList.remove("sel");
@@ -237,7 +274,14 @@ KP.game({
 
     const hint = () => {
       const l = L.find((x) => !x.classList.contains("done"));
-      ctx.hint(() => l, "그림에서 짝까지 손가락으로 쭉 선을 그어요!");
+      // 첫 힌트는 왼쪽 그림, 두 번째부터는 그 짝(정답을 보여 준 판은 열쇠 별 없음)
+      ctx.hint(() => {
+        if (ctx._hint && ctx._hint.shown >= 1) {
+          ctx._hinted = true;
+          return R.find((x) => x.dataset.k === l.dataset.k);
+        }
+        return l;
+      }, "그림에서 짝까지 손가락으로 쭉 선을 그어요!");
     };
     hint();
     const finish = async () => {

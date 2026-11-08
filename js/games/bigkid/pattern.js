@@ -1,5 +1,5 @@
 /* 규칙 찾기 — 줄의 다음에 올 것을 끌어서 빈칸에 쏙!
-   1단계: AB AB (보기 2개)
+   1단계: AB AB (보기 3개 — 줄에 없는 그림 1개를 섞어 찍어 맞히기 방지)
    2단계: AAB · ABC (보기 3개)
    3단계: ABB · AABB · 두 가지 속성(모양은 번갈아, 색은 두 개씩) (보기 3~4개)
    - 판이 시작되면 줄이 순서대로 통통 튀며 리듬으로 들려줌
@@ -27,6 +27,7 @@ KP.game({
       @keyframes ptBeat{40%{transform:translateY(-18%) scale(1.12)}}
       .ptOpts{display:flex;gap:clamp(14px,3vw,34px);justify-content:center;flex-wrap:wrap}
       .ptOpt{width:clamp(92px,13vw,136px);height:clamp(92px,13vw,136px);border-radius:28px;background:#fff;box-shadow:0 8px 0 rgba(47,58,102,.14);display:flex;align-items:center;justify-content:center;font-size:clamp(64px,9.4vw,100px);line-height:1;animation:itemIn .35s backwards cubic-bezier(.2,1.4,.4,1);animation-delay:calc(var(--i,0)*70ms + .2s)}
+      @media (orientation:landscape) and (max-height:500px){.ptOpt{width:clamp(72px,21vh,136px);height:clamp(72px,21vh,136px);font-size:clamp(50px,15vh,100px)}.ptWrap{gap:6px;padding-bottom:8px}}
       .ptCell.slot .ptOpt{position:absolute;inset:-4px;width:auto;height:auto;font-size:inherit;box-shadow:none;background:transparent;animation:popIn .3s}
     `);
     ctx.wrap = U.el("div", "ptWrap");
@@ -65,6 +66,10 @@ KP.game({
         cs = W / per - gap;
       }
       cs = Math.min(cs, 124, H * 0.26);
+      // 낮은 화면(폰 가로): 줄 + 보기 줄이 세로로 다 들어가게
+      const rows = Math.ceil(n / per),
+        optH = ctx.opts.offsetHeight || 100;
+      cs = Math.max(48, Math.min(cs, (H - optH - 40 - 24) / rows - gap));
       ctx.row.style.setProperty("--cs", Math.floor(cs) + "px");
       ctx.row.style.setProperty("--pg", gap + "px");
       ctx.row.style.maxWidth = per * (cs + gap) + 40 + 4 + "px";
@@ -105,7 +110,7 @@ KP.game({
     const seq = Array.from({ length: shown }, (_, k) => symItem[rule[k % P]]);
     const answer = symItem[rule[shown % P]];
     let options = syms.map((s) => symItem[s]);
-    const nOpt = lv === 1 ? 2 : 3;
+    const nOpt = 3; // 1단계도 보기 3개 (2개면 찍어도 반은 맞음 — 열쇠 별 규칙)
     if (options.length < nOpt) options.push(items[syms.length]);
     options = U.shuffle(options.slice(0, Math.max(nOpt, options.length)));
     return { seq, answer, options, rule };
@@ -185,6 +190,7 @@ KP.game({
       o.dataset.right = right ? "1" : "";
       return o;
     });
+    ctx.ptSize(); // 보기 줄 높이까지 알고 다시 맞춤
     ctx.say(g.two ? "모양도 색도 잘 봐요! 빈칸에는 무엇이 올까요?" : "줄을 잘 봐요! 빈칸에 올 것을 끌어다 넣어요.");
     // 처음에 줄을 리듬으로 들려주기
     ctx.after(700, () => beat(cells.length, () => U.replay(slot, "wig")));

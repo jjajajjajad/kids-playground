@@ -1,5 +1,7 @@
-/* 동물 소리 — 동물 카드를 누르면 동물이 움직이며 이름과 울음소리를 들려줘요. (자유 탐색, 퀴즈 아님)
-   위쪽 버튼으로 사는 곳(농장/정글/바다/하늘)별로 나눠 보기. 한 곳의 친구들을 모두 만나면 큰 축하.
+/* 동물 소리 — 동물 카드를 누르면 동물이 움직이며 이름과 울음소리를 들려줘요. (자유 탐색, 퀴즈 아님 — 단계 없음,
+   '듣고 고르기' 퀴즈는 소리 듣고 찾기(listen)가 맡음)
+   위쪽 버튼으로 사는 곳(농장/정글/바다/하늘)별로 나눠 보기. 목표: 탭마다 '만난 수/전체' 표시,
+   한 곳의 친구들을 모두 만나면(어느 탭에서 만났든) 큰 축하, 36마리 모두 만나면 마지막 큰 축하.
    동물 목록·합성 울음소리는 KP.smartAnimals 로 공개 → 소리 듣고 찾기(listen)·먹이 주기(feed)에서도 사용 */
 "use strict";
 (function (KP) {
@@ -52,9 +54,9 @@
     ["🐵", "원숭이", "jungle", "우끼끼!", "monkey", 1], ["🦒", "기린", "jungle", "목이 길어요!", "tall", 0], ["🦓", "얼룩말", "jungle", "줄무늬가 있어요!", "neigh", 0],
     ["🦛", "하마", "jungle", "하아암! 입이 커요!", "yawn", 0], ["🐊", "악어", "jungle", "쩍! 쩍!", "snap", 0], ["🐍", "뱀", "jungle", "쉬이익!", "hiss", 1],
     ["🦜", "앵무새", "jungle", "안녕! 안녕!", "parrot", 0],
-    ["🐳", "고래", "sea", "푸우! 물을 뿜어요!", "spout", 0], ["🐬", "돌고래", "sea", "끼익끼익!", "dolphin", 1], ["🦈", "상어", "sea", "덥석!", "chomp", 0],
+    ["🐳", "고래", "sea", "푸우! 물을 뿜어요!", "spout", 1], ["🐬", "돌고래", "sea", "끼익끼익!", "dolphin", 1], ["🦈", "상어", "sea", "덥석!", "chomp", 0],
     ["🐙", "문어", "sea", "다리가 여덟 개!", "bubble", 0], ["🦀", "꽃게", "sea", "싹둑싹둑!", "snip", 0], ["🐠", "열대어", "sea", "뻐끔뻐끔!", "bubble", 0],
-    ["🐢", "거북이", "sea", "엉금엉금!", "slow", 0], ["🦭", "물범", "sea", "아우! 아우!", "seal", 0], ["🐧", "펭귄", "sea", "뒤뚱뒤뚱!", "waddle", 0],
+    ["🐢", "거북이", "sea", "엉금엉금!", "slow", 0], ["🦭", "물범", "sea", "아우! 아우!", "seal", 1], ["🐧", "펭귄", "sea", "뒤뚱뒤뚱!", "waddle", 0],
     ["🦅", "독수리", "sky", "끼이약!", "screech", 0], ["🦉", "부엉이", "sky", "부엉부엉!", "hoot", 1], ["🐦", "참새", "sky", "짹짹!", "tweet", 1],
     ["🕊️", "비둘기", "sky", "구구구!", "coo", 1], ["🐝", "꿀벌", "sky", "윙윙!", "buzz", 1], ["🦋", "나비", "sky", "팔랑팔랑!", "flutter", 0],
     ["🦇", "박쥐", "sky", "찍찍!", "squeak", 0],
@@ -91,6 +93,9 @@ KP.game({
       .anTab{flex:1 1 0;max-width:130px;min-width:0;min-height:72px;justify-content:center;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:clamp(15px,2.2vw,22px);
         background:rgba(255,255,255,.7);border-radius:20px;padding:6px clamp(8px,1.6vw,18px);border-bottom:5px solid transparent;transition:transform .15s}
       .anTab .e{font-size:clamp(30px,4.4vw,44px)}
+      .anTab{position:relative}
+      .anCnt{position:absolute;top:-6px;right:-4px;min-width:26px;padding:1px 6px;border-radius:999px;background:#fff;color:var(--ink2);font-size:clamp(11px,1.4vw,14px);font-style:normal;line-height:1.5;box-shadow:0 2px 0 rgba(47,58,102,.15);pointer-events:none}
+      .anCnt.full{background:var(--sun);color:var(--ink)}
       .anTab.sel{background:#fff;border-bottom-color:var(--cat);transform:translateY(-2px);box-shadow:var(--shadow)}
       .anGrid{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(104px,15vw,150px),1fr));
         gap:clamp(14px,2vw,20px) clamp(10px,1.8vw,18px);padding:18px clamp(10px,2vw,22px) 26px;align-content:start;border-radius:28px 28px 0 0;transition:background .3s}
@@ -115,7 +120,7 @@ KP.game({
     ctx.grid = U.el("div", "anGrid");
     ctx.body.append(ctx.tabs, ctx.grid);
     ctx.tabBtns = Z.HABITATS.map((h) => {
-      const b = U.btn(KP.E(h.e) + "<span>" + h.n + "</span>", "anTab");
+      const b = U.btn(KP.E(h.e) + "<span>" + h.n + '</span><i class="anCnt"></i>', "anTab");
       b.dataset.k = h.k;
       ctx.tap(b, () => {
         KP.audio.sfx("select");
@@ -130,8 +135,28 @@ KP.game({
   start(ctx) {
     ctx.met = new Set();
     ctx.done = new Set();
+    ctx.allDone = false;
+    this.counts(ctx);
     ctx.say("🐾 동물 친구를 눌러 봐요! 무슨 소리가 날까요?");
     this.show(ctx, "all");
+  },
+  /** 탭마다 만난 수/전체 */
+  counts(ctx) {
+    const Z = KP.smartAnimals;
+    ctx.tabBtns.forEach((b) => {
+      const k = b.dataset.k;
+      const list = Z.LIST.filter((a) => k === "all" || a[2] === k);
+      const n = list.filter((a) => ctx.met.has(a[1])).length;
+      const c = b.querySelector(".anCnt");
+      c.textContent = n + "/" + list.length;
+      c.classList.toggle("full", n === list.length);
+    });
+  },
+  /** 다음에 가리킬 것: 이 탭의 안 만난 친구 → 없으면 아직 다 못 만난 탭 */
+  nextHint(ctx) {
+    const c = ctx.cards.find((x) => !x.classList.contains("met"));
+    if (c) return c;
+    return ctx.tabBtns.find((b) => b.dataset.k !== "all" && !ctx.done.has(b.dataset.k)) || null;
   },
   show(ctx, k) {
     const U = KP.u,
@@ -153,7 +178,7 @@ KP.game({
       return c;
     });
     ctx.cards = cards;
-    ctx.hint(() => cards.find((c) => !c.classList.contains("met")) || null, "동물 친구를 눌러 봐요!");
+    ctx.hint(() => this.nextHint(ctx), "동물 친구를 눌러 봐요!");
   },
   async play(ctx, c, a) {
     const U = KP.u,
@@ -168,17 +193,19 @@ KP.game({
       ctx.met.add(name);
       c.classList.add("met");
       ctx.score.add();
+      this.counts(ctx);
     }
-    ctx.hint(() => ctx.cards.find((x) => !x.classList.contains("met")) || null, "다른 친구도 눌러 봐요!");
-    // 한 곳의 친구를 모두 만나면 큰 축하
-    if (ctx.hab !== "all" && !ctx.done.has(ctx.hab)) {
-      const all = Z.LIST.filter((x) => x[2] === ctx.hab).every((x) => ctx.met.has(x[1]));
-      if (all) {
-        ctx.done.add(ctx.hab);
-        const h = Z.HABITATS.find((x) => x.k === ctx.hab);
-        await ctx.wait(2200);
-        await ctx.win({ big: true, msg: h.n + " 친구들 다 만났어요!" });
-      }
+    ctx.hint(() => this.nextHint(ctx), "다른 친구도 눌러 봐요!");
+    // 한 곳의 친구를 모두 만나면 큰 축하 ('모두' 탭에서 만나도 그 동물이 사는 곳으로 셈), 모두 만나면 마지막 큰 축하
+    const habDone = !ctx.done.has(hab) && Z.LIST.filter((x) => x[2] === hab).every((x) => ctx.met.has(x[1]));
+    if (habDone) ctx.done.add(hab);
+    const allDone = !ctx.allDone && Z.LIST.every((x) => ctx.met.has(x[1]));
+    if (allDone) ctx.allDone = true;
+    if (habDone || allDone) {
+      const h = Z.HABITATS.find((x) => x.k === hab);
+      await ctx.wait(2200);
+      if (!ctx._active) return;
+      await ctx.win({ big: true, msg: allDone ? "{부름} 동물 친구들 다 만났어요!" : h.n + " 친구들 다 만났어요!" });
     }
   },
 });

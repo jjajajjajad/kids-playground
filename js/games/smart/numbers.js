@@ -2,7 +2,9 @@
    배우기: 1~10 카드를 누르면 큰 숫자가 나오고, 숫자만큼 그림이 하나씩 튀어나오며 "하나, 둘, 셋…" 함께 세기.
            큰 숫자의 점선을 손가락으로 따라 써 볼 수 있어요.
    퀴즈 1단계: "셋을 찾아요!" 1~5 중 3개 / 2단계: 1~10 중 4개
-   퀴즈 3단계: 큰 숫자만큼 사과를 바구니에 담고 ✔ 누르기 (빼기도 가능) */
+   퀴즈 3단계: 큰 숫자만큼 사과를 바구니에 담고 ✔ 누르기 (빼기도 가능)
+   [쓰기 공책]·[100까지]는 다른 놀이로 가는 버튼 → 한 번 누르면 반짝이며 "한 번 더!", 3초 안에 한 번 더 눌러야 이동
+   (글 못 읽는 아이가 아무거나 누르다 갑자기 다른 놀이로 튕기지 않게) */
 "use strict";
 KP.game({
   id: "numbers",
@@ -15,12 +17,16 @@ KP.game({
     const U = KP.u;
     KP.css("numbers", `
       .nbModes{display:flex;gap:10px;justify-content:center;padding:8px 10px 6px;flex:0 0 auto;flex-wrap:wrap}
-      @media (max-width:560px){.nbModes{gap:5px;padding:8px 4px 4px;flex-wrap:nowrap}.nbMode{font-size:14px !important;padding:3px 9px !important;min-height:44px !important;white-space:nowrap}.nbMode .e{display:none}}
+      @media (max-width:560px){.nbModes{gap:5px;padding:8px 4px 4px;flex-wrap:nowrap}.nbMode{font-size:14px !important;padding:3px 9px !important;min-height:52px !important;white-space:nowrap}.nbMode .e{display:none}}
       .nbMode{font-size:clamp(18px,2.4vw,24px);background:rgba(255,255,255,.7);border-radius:999px;padding:8px 22px;min-height:52px;display:flex;align-items:center;gap:8px;border-bottom:5px solid transparent}
       .nbMode .e{font-size:1.4em}
       .nbMode.sel{background:#fff;border-bottom-color:var(--cat);color:var(--cat);box-shadow:var(--shadow)}
-      @media (orientation:portrait) and (max-width:480px){.nbModes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}.nbMode{font-size:16px !important;padding:4px 12px !important;min-height:44px !important;flex:1 1 auto;justify-content:center}}
+      @media (orientation:portrait) and (max-width:480px){.nbModes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}.nbMode{font-size:16px !important;padding:4px 12px !important;min-height:52px !important;flex:1 1 auto;justify-content:center}}
       .nbMode.glow{animation:glow 1s ease-in-out 3}
+      .nbMode.go{opacity:.78}
+      .nbMode.go .e{opacity:.8}
+      .nbMode.arm{background:#fff;color:var(--cat);box-shadow:0 0 0 4px var(--cat),var(--shadow);opacity:1;animation:nbArm .5s ease-in-out infinite alternate}
+      @keyframes nbArm{to{transform:scale(1.07)}}
       .nbView{flex:1;min-height:0;display:none;flex-direction:column}
       .nbView.on{display:flex}
       .nbShow{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;gap:clamp(10px,3vw,40px);padding:4px 12px}
@@ -37,7 +43,7 @@ KP.game({
       @keyframes nbPop{from{transform:scale(0) translateY(40px)}}
       .nbObj b{position:absolute;right:-6px;top:-8px;font-size:18px;min-width:26px;height:26px;border-radius:13px;background:var(--coral);color:#fff;font-weight:400;display:flex;align-items:center;justify-content:center}
       .nbCards{flex:0 0 auto;display:grid;grid-template-columns:repeat(10,1fr);gap:clamp(6px,1vw,10px);padding:6px 12px 16px}
-      @media (max-aspect-ratio:1/1){.nbCards{grid-template-columns:repeat(5,1fr)}}
+      @media (max-aspect-ratio:1/1){.nbCards{grid-template-columns:repeat(5,1fr);gap:5px;padding:6px 8px 14px}}
       .nbCard{font-size:clamp(34px,4.6vw,52px);color:#fff;border-radius:22px;min-height:clamp(72px,9vw,96px);background:var(--c);box-shadow:0 6px 0 color-mix(in srgb,var(--c) 65%,#000);animation:itemIn .35s backwards;animation-delay:calc(var(--i)*40ms);text-shadow:0 2px 0 rgba(0,0,0,.15)}
       .nbCard:active,.nbCard.on{transform:translateY(4px);box-shadow:0 2px 0 color-mix(in srgb,var(--c) 65%,#000)}
       .nbCard.seen::after{content:"";position:absolute;top:6px;right:8px;width:10px;height:10px;border-radius:50%;background:#fff}
@@ -66,18 +72,38 @@ KP.game({
     const modes = U.el("div", "nbModes");
     ctx.bLearn = U.btn(KP.E("📖") + "배우기", "nbMode");
     ctx.bQuiz = U.btn(KP.E("❓") + "퀴즈", "nbMode");
-    ctx.bWrite = U.btn(KP.E("📝") + "쓰기 공책", "nbMode");
-    ctx.b100 = U.btn(KP.E("🧮") + "100까지", "nbMode");
+    ctx.bWrite = U.btn(KP.E("📝") + "쓰기 공책", "nbMode go");
+    ctx.b100 = U.btn(KP.E("🧮") + "100까지", "nbMode go");
     modes.append(ctx.bLearn, ctx.bQuiz, ctx.bWrite, ctx.b100);
-    ctx.tap(ctx.bWrite, () => {
-      KP.audio.sfx("open");
+    // 다른 놀이로 가는 버튼: 두 번 눌러야 이동 (첫 번째는 반짝 + "쓰기 공책! 한 번 더!")
+    let armed = null,
+      armT = null;
+    const disarm = () => {
+      if (armed) armed.classList.remove("arm");
+      armed = null;
+      if (armT) ctx.cancel(armT);
+      armT = null;
+    };
+    ctx.disarm = disarm;
+    const twice = (b, say, go) =>
+      ctx.tap(b, () => {
+        if (armed === b) {
+          disarm();
+          KP.audio.sfx("open");
+          return go();
+        }
+        disarm();
+        armed = b;
+        b.classList.add("arm");
+        KP.audio.sfx("tap");
+        KP.voice.say(say);
+        armT = ctx.after(3000, disarm);
+      });
+    twice(ctx.bWrite, "쓰기 공책! 한 번 더!", () => {
       if (ctx.lastN != null) KP.nbWant = { id: "nwrite", ch: String(ctx.lastN) };
       KP.open("nwrite");
     });
-    ctx.tap(ctx.b100, () => {
-      KP.audio.sfx("open");
-      KP.open("n100");
-    });
+    twice(ctx.b100, "1부터 100까지! 한 번 더!", () => KP.open("n100"));
     ctx.tap(ctx.bLearn, () => this.mode(ctx, "learn"));
     ctx.tap(ctx.bQuiz, () => this.mode(ctx, "quiz"));
     // 배우기 화면
@@ -152,6 +178,7 @@ KP.game({
     this.mode(ctx, ctx.level === 1 ? "learn" : "quiz", true);
   },
   mode(ctx, m, first) {
+    if (ctx.disarm) ctx.disarm();
     ctx.m = m;
     ctx.token = (ctx.token || 0) + 1; // 세던 중이면 멈추기
     ctx.bLearn.classList.toggle("sel", m === "learn");
@@ -170,6 +197,7 @@ KP.game({
   },
   /* ---------------- 배우기 ---------------- */
   learn(ctx, n) {
+    if (ctx.disarm) ctx.disarm();
     ctx.lastN = n;
     const U = KP.u,
       A = KP.audio;
@@ -209,10 +237,13 @@ KP.game({
       ctx.objs.querySelectorAll(".nbObj").forEach((o, i) => ctx.after(i * 60, () => U.replay(o, "jump")));
       if (ctx.seen.size >= 5 && !ctx.suggested) {
         ctx.suggested = true;
-        ctx.after(2200, () => {
-          if (ctx.m !== "learn") return;
+        // 숫자 5개를 다 봤으면 퀴즈로 자연스럽게 이어 가기 (그사이 다른 카드를 누르면 배우기 계속)
+        ctx.after(2200, async () => {
+          if (ctx.m !== "learn" || ctx.token !== tk) return;
           U.replay(ctx.bQuiz, "glow");
-          KP.voice.say("우와, 숫자 박사! 퀴즈도 해 볼까요?");
+          await Promise.race([KP.voice.say("우와, 숫자 박사! 퀴즈도 해 볼까요?"), ctx.wait(3500)]);
+          await ctx.wait(700);
+          if (ctx._active && ctx.m === "learn" && ctx.token === tk) this.mode(ctx, "quiz");
         });
       }
     });
@@ -241,7 +272,7 @@ KP.game({
         cls: "num",
         render: (v) => String(v),
         right: (v) => v === t,
-        wrongMsg: (v) => "이건 " + U.josa(U.NAT[v], "이에요/예요") + ". " + ask,
+        wrongMsg: (v) => "이건 " + U.NAT[v] + "! " + ask, // "이건 둘! 셋을 찾아요!" — 모두 자연 음성 조각
         onRight: async (v, b) => {
           U.replay(b, "jump");
           A.sfx("good");

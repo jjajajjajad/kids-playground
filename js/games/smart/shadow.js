@@ -18,7 +18,9 @@ KP.game({
       .shdPic.fly{animation:shdFly .9s}
       @keyframes shdFly{30%{transform:translateY(-18px) rotate(-6deg) scale(1.08)}60%{transform:translateY(0) rotate(4deg)}}
       .shdGrid{--sz:var(--szl);display:grid;grid-template-columns:repeat(var(--cl),auto);gap:clamp(12px,2.4vw,28px);justify-content:center}
-      @media (max-aspect-ratio:1/1){.shdGrid{--sz:var(--szp);grid-template-columns:repeat(var(--cp),auto)}.shdWrap{--psz:var(--pszp)!important}}
+      @media (max-aspect-ratio:1/1){.shdGrid{--sz:var(--szp);grid-template-columns:repeat(var(--cp),auto)}.shdWrap{--psz:var(--pszp)!important}
+        /* 세로 폰 보기 3개: 2+1 (셋째는 가운데) → 그림자를 크게 */
+        .shdGrid.three>.shdBtn:nth-child(3){grid-column:1/-1;justify-self:center}}
       .shdBtn{background:#e9eef8;border-radius:28px;padding:clamp(8px,1.2vw,14px)}
       .shdBox{position:relative;display:block;width:var(--sz);height:var(--sz);font-size:var(--sz);line-height:1}
       .shdBox .e{position:absolute;inset:0;width:100%;height:100%}
@@ -68,11 +70,14 @@ KP.game({
     ctx.wrap.style.setProperty("--psz", "clamp(90px,min(16vw,22vh),170px)");
     ctx.wrap.style.setProperty("--pszp", "clamp(90px,34vw,150px)");
     ctx.grid.style.setProperty("--cl", list.length);
-    ctx.grid.style.setProperty("--cp", list.length === 3 ? 3 : 2);
+    ctx.grid.style.setProperty("--cp", 2);
+    ctx.grid.classList.toggle("three", list.length === 3);
     ctx.grid.style.setProperty("--szl", list.length === 3 ? "clamp(80px,min(15vw,24vh),170px)" : "clamp(76px,min(13vw,22vh),150px)");
-    ctx.grid.style.setProperty("--szp", list.length === 3 ? "clamp(76px,24vw,110px)" : "clamp(76px,min(34vw,15vh),130px)");
+    ctx.grid.style.setProperty("--szp", list.length === 3 ? "clamp(80px,min(36vw,16vh),150px)" : "clamp(76px,min(34vw,15vh),130px)");
     const ask = U.josa(target[1], "이/가") + " 숨었어요! " + target[1] + " 그림자를 찾아요!";
-    ctx.say("🌓 " + ask);
+    // "트랙터가"처럼 녹음 없는 조각이면 "트랙터! 숨었어요! …"(이미 있는 조각)로
+    const askV = KP.voice._natUrls && !KP.voice._natUrls(ask) ? target[1] + "! 숨었어요! " + target[1] + " 그림자를 찾아요!" : ask;
+    ctx.say("🌓 " + ask, askV);
     const btns = ctx.choices(ctx.grid, U.shuffle(list), {
       cls: "shdBtn",
       render: (v) => '<span class="shdBox"><span class="shdSil">' + KP.E(v[0]) + '</span><span class="shdCol">' + KP.E(v[0]) + "</span></span>",

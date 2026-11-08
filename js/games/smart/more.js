@@ -1,6 +1,8 @@
-/* 많은 쪽 찾기 — 접시 두 개 중 많은 쪽/적은 쪽을 골라요. 맞히면 접시 위 과일이 하나씩 폴짝 뛰며 함께 세어요.
-   1단계: 확 차이 나는 두 접시 중 "많은 쪽" / 2단계: 1~2개 차이, 많은 쪽·적은 쪽
-   3단계: 위 접시와 "같은 개수" 찾기(접시 3개) 또는 1개 차이(최대 9개) */
+/* 많은 쪽 찾기 — 접시 중 많은 쪽/적은 쪽을 골라요. 맞히면 접시 위 과일이 하나씩 폴짝 뛰며 함께 세어요.
+   1단계: 접시 3개 — 확 많은 접시 1개 + 적은 접시 2개 중 "많은 쪽"
+   2단계: 접시 3개 — 1~2개 차이. 한 접시만 다르고 나머지 두 접시는 같은 개수(그래서 '더 많은/더 적은' 접시가 하나뿐)
+   3단계: 위 접시와 "같은 개수" 찾기(접시 3개) 또는 1개 차이 두 접시(최대 9개, 이 판은 열쇠 별 제외)
+   (보기 3개 이상이 열쇠 별 규칙 — 2개뿐인 3단계 '1개 차이' 판은 ctx.choices 가 _fewChoice 로 표시) */
 "use strict";
 KP.game({
   id: "more",
@@ -18,6 +20,7 @@ KP.game({
       .mrRef .mrPlate{--ps:var(--rs);cursor:default;box-shadow:0 6px 0 rgba(47,58,102,.12),0 0 0 6px #ffe7a3}
       .mrRow{--ps:var(--psl);display:flex;gap:clamp(12px,4vw,60px);justify-content:center;align-items:center}
       @media (max-aspect-ratio:1/1){.mrRow{--ps:var(--psp)}.mrRef .mrPlate{--ps:var(--rsp)}}
+      .mrRow.three{flex-wrap:wrap;row-gap:clamp(14px,3vh,30px);max-width:100%}
       .mrPlate{position:relative;width:var(--ps);height:var(--ps);min-width:0;min-height:0;padding:0;border-radius:50%;
         background:radial-gradient(circle,#fff 0 58%,#eef2fb 60% 66%,#fff 68%);box-shadow:0 8px 0 rgba(47,58,102,.14)}
       .mrPlate.right{background:radial-gradient(circle,#efffef 0 58%,#c9f2d4 60% 66%,#efffef 68%)}
@@ -89,11 +92,15 @@ KP.game({
     const C = ctx.CNT;
     const same = lv === 3 && U.rand(2) === 0;
     ctx.ref.classList.toggle("on", same);
-    ctx.wrap.style.setProperty("--psl", same ? "clamp(110px,min(22vw,32vh),220px)" : "clamp(150px,min(34vw,52vh),360px)");
-    ctx.wrap.style.setProperty("--psp", same ? "clamp(96px,30vw,140px)" : "clamp(140px,44vw,200px)");
+    const three = !same && lv < 3; // 1·2단계: 접시 3개 (위 접시 없음 → 조금 더 크게, 폰 세로는 2+1 줄)
+    ctx.row.classList.toggle("three", three);
+    ctx.wrap.style.setProperty("--psl", same ? "clamp(110px,min(22vw,32vh),220px)" : three ? "clamp(130px,min(27vw,46vh),300px)" : "clamp(150px,min(34vw,52vh),360px)");
+    ctx.wrap.style.setProperty("--psp", same ? "clamp(96px,30vw,140px)" : three ? "clamp(120px,40vw,190px)" : "clamp(140px,44vw,200px)");
     ctx.wrap.style.setProperty("--rs", "clamp(110px,min(22vw,26vh),200px)");
     ctx.wrap.style.setProperty("--rsp", "clamp(110px,40vw,170px)");
-    let list, target, ask, wrongMsg, rightMsg;
+    // 자연 음성 클립이 있으면 그 문장, 없으면 이름을 떼어 말하기 ("귤이 더 많은…" → "귤! 더 많은…")
+    const nat = (a, b) => (KP.voice._natUrls && KP.voice._natUrls(a) ? a : b);
+    let list, target, ask, spoken, wrongMsg, rightMsg;
     if (same) {
       const r = 1 + U.rand(5);
       const opts = new Set([r]);
@@ -106,25 +113,33 @@ KP.game({
       rightMsg = (n) => "똑같이 " + C[n] + " 개! 딩동댕!";
     } else {
       let a, b;
+      const many = lv === 1 || U.rand(2) === 0;
       if (lv === 1) {
-        a = 1 + U.rand(2);
-        b = a + 3 + U.rand(2);
+        // 적은 접시 2개(1~3개, 서로 다름) + 확 많은 접시 1개
+        const lows = U.sample([1, 2, 3], 2);
+        b = Math.max(...lows) + 3 + U.rand(2);
+        list = U.shuffle([...lows, b]);
+        target = b;
       } else if (lv === 2) {
-        a = 1 + U.rand(5);
+        a = 1 + U.rand(4);
         b = a + 1 + U.rand(2);
+        // 정답 접시 하나만 다르고 나머지 두 접시는 같은 개수
+        list = many ? U.shuffle([a, a, b]) : U.shuffle([a, b, b]);
+        target = many ? b : a;
       } else {
         a = 3 + U.rand(6);
         b = a + 1;
+        list = U.shuffle([a, b]);
+        target = many ? b : a;
       }
-      const many = lv === 1 || U.rand(2) === 0;
-      list = U.shuffle([a, b]);
-      target = many ? b : a;
       const word = many ? "많은" : "적은";
       ask = U.josa(name, "이/가") + " 더 " + word + " 접시를 찾아요!";
+      spoken = nat(ask, name + "! 더 " + word + " 접시를 찾아요!");
       wrongMsg = (n) => "이 접시는 " + C[n] + " 개예요. 더 " + word + " 쪽을 찾아봐요!";
-      rightMsg = (n) => name + " " + C[n] + " 개! 이쪽이 더 " + (many ? "많아요" : "적어요") + "!";
+      // "이쪽이 더 적어요!"는 클립이 없어 적은 쪽은 "딩동댕!"으로
+      rightMsg = (n) => name + " " + C[n] + " 개! " + (many ? "이쪽이 더 많아요!" : "딩동댕!");
     }
-    ctx.say((same ? "🟰 " : "🍽️ ") + ask);
+    ctx.say((same ? "🟰 " : "🍽️ ") + ask, spoken || true);
     const btns = ctx.choices(ctx.row, list, {
       cls: "mrPlate",
       render: (n) => this.plate(n, em, Math.max(...list)),
@@ -141,6 +156,6 @@ KP.game({
         if (ok) self.next(ctx);
       },
     });
-    ctx.hint(() => btns.find((b) => b.dataset.right), ask);
+    ctx.hint(() => btns.find((b) => b.dataset.right), spoken || ask);
   },
 });

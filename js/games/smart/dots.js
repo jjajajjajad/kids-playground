@@ -10,12 +10,13 @@ KP.game({
   levels: 3,
   score: "⭐",
   setup(ctx) {
-    // 판 도중 화면을 돌리면 풍선이 화면 밖으로 나갈 수 있어 새 판으로 다시 배치
+    // 화면 크기가 바뀌면: 진짜 회전(가로↔세로)이나 크게 바뀐 경우만 새 판으로 다시 배치하고,
+    // 주소창이 숨겨지거나 나타나는 정도의 작은 변화는 풍선·선 위치만 비율로 옮겨 하던 판을 이어 감
     let rt = null;
     addEventListener("resize", () => {
       if (!ctx._active) return;
       if (rt) ctx.cancel(rt);
-      rt = ctx.after(350, () => this.next(ctx));
+      rt = ctx.after(350, () => this.refit(ctx));
     });
     const U = KP.u;
     KP.css("dots", `
@@ -77,6 +78,33 @@ KP.game({
     const rows = Math.ceil(n / cols);
     return U.shuffle([...Array(cols * rows).keys()]).slice(0, n).map((i) => ({ x: ((i % cols) + 0.5) * (W / cols), y: (Math.floor(i / cols) + 0.5) * (H / rows) }));
   },
+  refit(ctx) {
+    const g = ctx.dt;
+    const W = ctx.board.clientWidth,
+      H = ctx.board.clientHeight;
+    if (!g || !W || !H || !g.W || !g.H) return;
+    if (W === g.W && H === g.H) return;
+    const rotated = W > H !== g.W > g.H;
+    const big = Math.abs(W - g.W) / g.W > 0.2 && Math.abs(H - g.H) / g.H > 0.2;
+    if ((rotated || big) && !g.busy()) return this.next(ctx);
+    const sx = W / g.W,
+      sy = H / g.H;
+    g.pts.forEach((p, i) => {
+      p.x *= sx;
+      p.y *= sy;
+      const b = g.balloons[i];
+      b.style.left = p.x + "px";
+      b.style.top = p.y + "px";
+    });
+    g.svg.querySelectorAll("line").forEach((l) => {
+      ["x1", "x2"].forEach((a) => l.setAttribute(a, +l.getAttribute(a) * sx));
+      ["y1", "y2"].forEach((a) => l.setAttribute(a, +l.getAttribute(a) * sy));
+      l.style.animation = "none";
+      l.style.strokeDashoffset = "0";
+    });
+    g.W = W;
+    g.H = H;
+  },
   next(ctx) {
     const U = KP.u,
       A = KP.audio;
@@ -95,7 +123,8 @@ KP.game({
     const cols = U.shuffle([...ctx.COLORS]);
     let step = 1,
       busy = false;
-    ctx.say("🎈 1부터 " + n + "까지 차례로 눌러요!", "일부터 " + KP.u.numSino(n) + "까지 차례로 눌러요!");
+    // 화면 글자 그대로 말하기: 숫자는 lookup 이 알아서 읽음 (1단계 "1부터 5까지 차례로 눌러요!"는 자연 음성 클립)
+    ctx.say("🎈 1부터 " + n + "까지 차례로 눌러요!");
     const balloons = pts.map((p, i) => {
       const v = i + 1;
       const b = U.el("button", "dtB", '<span class="dtBody">' + v + "</span>");
@@ -105,6 +134,7 @@ KP.game({
       ctx.board.appendChild(b);
       return b;
     });
+    ctx.dt = { W, H, pts, svg, balloons, busy: () => busy };
     let prev = null;
     const tapB = async (b, v, p) => {
       if (busy || b.dataset.done) return;
@@ -135,11 +165,14 @@ KP.game({
           KP.voice.say("풍선이 날아가요! 와아!");
           await ctx.wait(1500);
           const big = ctx.round % 5 === 0;
-          const ok = await ctx.win({ big, msg: big ? "{부름} 숫자 박사!" : "1부터 " + n + "까지 다 했어요!", say: big ? "" : "일부터 " + KP.u.numSino(n) + "까지 다 했어요!" });
+          // 1단계 "1부터 5까지 다 했어요!"는 클립 있음. 8·10 은 클립이 없어 말은 자연 음성 "차례차례 잘했어요!"로
+          const msg = big ? "{부름} 숫자 박사!" : "1부터 " + n + "까지 다 했어요!";
+          const ok = await ctx.win({ big, msg, say: big || n === 5 ? undefined : "차례차례 잘했어요!" });
           if (ok) self.next(ctx);
         } else hint();
       } else {
-        ctx.miss(b, "이건 " + self.nj(ctx, v, "이에요/예요") + ". " + self.nj(ctx, step, "을/를") + " 찾아요!");
+        // "이건 칠! 오를 찾아요!" — 모두 자연 음성 조각 ("이건 칠!", "오를", "찾아요!")
+        ctx.miss(b, "이건 " + ctx.SINO[v] + "! " + self.nj(ctx, step, "을/를") + " 찾아요!");
       }
     };
     const hint = () => ctx.hint(() => balloons[step - 1], self.nj(ctx, step, "을/를") + " 찾아요!");

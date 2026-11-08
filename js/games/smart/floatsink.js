@@ -74,6 +74,7 @@ KP.game({
       .fsItem img{width:calc(78% * var(--sc,1));height:calc(78% * var(--sc,1));object-fit:contain;pointer-events:none;filter:drop-shadow(0 4px 3px rgba(80,40,20,.22))}
       .fsItem.dragging{background:transparent;box-shadow:none;z-index:20}
       .fsItem.used{visibility:hidden}
+      .fsTray.fsGone{visibility:hidden}
       .fsItem.dim{opacity:.35}
       .fsItem.cur{box-shadow:0 0 0 5px #ffc531,0 6px 0 rgba(140,95,50,.18);animation:fsCur 1.4s ease-in-out infinite}
       @keyframes fsCur{50%{transform:scale(1.06)}}
@@ -142,7 +143,7 @@ KP.game({
       const n = ctx.shelf.children.length || 4;
       let is;
       if (row) is = U.clamp(Math.min((Math.min(vw * 0.4, 300) - 30) / Math.min(n, 2) - 10, vh * 0.2), 58, 96);
-      else if (portrait) is = U.clamp(Math.min((vw - 60) / n - 14, vh * 0.12), 60, 112);
+      else if (portrait) is = U.clamp(Math.min((vw - 60) / n - 14, vh * 0.15), 64, 120); // 세로 폰: 어항 아래 빈 곳이 커서 조금 크게(64px 이상)
       else is = U.clamp(Math.min((vw * 0.55) / n - 14, vh * 0.12), 60, 104);
       wrap.style.setProperty("--is", Math.round(is) + "px");
       wrap.style.setProperty("--is2", Math.round(row ? U.clamp(Math.min(vw * 0.17, vh * 0.3), 70, 120) : U.clamp(Math.min(vw * 0.3, vh * 0.15), 80, 136)) + "px");
@@ -255,6 +256,7 @@ KP.game({
     ctx.rid = ctx.rid || 0; // 판 번호는 계속 올림 (다시 열어도 done 중복 막기와 겹치지 않게)
     const tok = ++ctx.token;
     ctx.shelf.innerHTML = "";
+    ctx.shelf.classList.remove("fsGone");
     ctx.pred.hidden = true;
     this.clearObjs(ctx);
     ctx.scene.querySelectorAll(".fsLoad").forEach((e) => e.remove());
@@ -384,6 +386,7 @@ KP.game({
     this.clearObjs(ctx);
     ctx.slots = { true: [], false: [] };
     ctx.shelf.innerHTML = "";
+    ctx.shelf.classList.remove("fsGone");
     ctx.pred.hidden = true;
     ctx.tiltOn = false;
     this.think(ctx, null);
@@ -717,6 +720,7 @@ KP.game({
     const run = (n) => {
       const pr = U.shuffle(order[n].slice());
       ctx.shelf.innerHTML = "";
+      ctx.shelf.classList.remove("fsGone");
       this.clearObjs(ctx);
       ctx.slots = { true: [], false: [] };
       let chosen = null;
@@ -736,6 +740,7 @@ KP.game({
           ctx.after(1300, async () => {
             if (!self.alive(ctx, rid, sess) || !ctx.st) return;
             els.forEach((e) => e.classList.add("used"));
+            ctx.shelf.classList.add("fsGone"); // 빈 쟁반 상자가 남지 않게(자리는 그대로 — 화면이 흔들리지 않게)
             const TK = ctx.TANK, mid = (TK.l + TK.r) / 2;
             const ps = pr.map((p, j) => (j === 0 ? self.dropIn(ctx, p, mid - 150) : new Promise((r) => ctx.after(150, () => r(self.dropIn(ctx, p, mid + 150))))));
             await Promise.all(ps);

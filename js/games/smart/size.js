@@ -1,5 +1,6 @@
 /* 큰 것 작은 것 — 같은 그림이 크기만 달라요.
-   1단계: 2개 중 큰 것/작은 것 / 2단계: 3개 중 제일 큰 것/제일 작은 것
+   1단계: 3개 중 하나만 크기가 달라요 — 큰 것 하나+작은 것 둘(큰 것 찾기) 또는 그 반대 (크기 두 가지만, 보기 3개라 열쇠 별 가능)
+   2단계: 크기가 모두 다른 3개 중 제일 큰 것/제일 작은 것
    3단계: 3~4개를 작은 것부터 큰 것까지 차례로 누르기 (누를 때마다 번호와 올라가는 소리) */
 "use strict";
 KP.game({
@@ -15,7 +16,9 @@ KP.game({
       .szWrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:6px 10px 20px}
       .szShelf{--sz:var(--szl);display:flex;align-items:flex-end;justify-content:center;gap:clamp(8px,2vw,26px);padding:16px clamp(10px,2vw,26px) 0;
         border-bottom:14px solid #e6b673;border-radius:0 0 10px 10px;box-shadow:0 8px 0 #c9934d;max-width:100%}
-      @media (max-aspect-ratio:1/1){.szShelf{--sz:var(--szp)}}
+      @media (max-aspect-ratio:1/1){.szShelf{--sz:var(--szp)}
+        /* 세로 폰: 칸 폭을 그림 크기에 맞춰(작은 그림 칸은 좁게, 그래도 72px 이상) → 큰 그림을 더 크게 그릴 수 있어 '작은 것'도 점처럼 안 보임 */
+        .szShelf .szItem{width:max(72px,calc(var(--sz) * var(--k) + 16px))}}
       .szItem{position:relative;display:flex;align-items:flex-end;justify-content:center;width:calc(var(--sz) + 16px);height:calc(var(--sz) + 22px);
         border-radius:26px 26px 0 0;padding:0 0 4px;background:rgba(255,255,255,.55);transition:background .2s}
       .szItem:active{background:rgba(255,255,255,.9)}
@@ -45,31 +48,37 @@ KP.game({
     const U = KP.u;
     const lv = ctx.level;
     const self = this;
-    let thing = U.pick(ctx.THINGS);
-    if (thing === ctx.last) thing = U.pick(ctx.THINGS);
+    const thing = U.pick(ctx.THINGS.filter((t) => t !== ctx.last));
     ctx.last = thing;
     const [em, name] = thing;
-    const n = lv === 1 ? 2 : lv === 2 ? 3 : ctx.round % 2 ? 4 : 3;
-    const ks = { 2: [0.48, 1], 3: [0.42, 0.7, 1], 4: [0.34, 0.54, 0.76, 1] }[n];
+    const n = lv === 3 && ctx.round % 2 ? 4 : 3;
+    const big = U.rand(2) === 0; // 1·2단계: 큰 것 찾기? 작은 것 찾기?
+    // 1단계: 크기 두 가지(하나만 다름) / 2·3단계: 모두 다른 크기
+    const ks = lv === 1 ? (big ? [0.46, 0.46, 1] : [0.46, 1, 1]) : { 3: [0.42, 0.7, 1], 4: [0.4, 0.6, 0.8, 1] }[n];
     let order = U.shuffle(ks.map((k, i) => ({ k, rank: i })));
     if (lv === 3) while (order.every((o, i) => o.rank === i)) order = U.shuffle(order);
-    ctx.shelf.style.setProperty("--szl", { 2: "clamp(110px,min(26vw,44vh),280px)", 3: "clamp(90px,min(22vw,40vh),240px)", 4: "clamp(80px,min(19vw,36vh),210px)" }[n]);
-    ctx.shelf.style.setProperty("--szp", { 2: "clamp(100px,38vw,170px)", 3: "clamp(80px,26vw,120px)", 4: "clamp(60px,19vw,90px)" }[n]);
+    ctx.shelf.style.setProperty("--szl", { 3: "clamp(90px,min(22vw,40vh),240px)", 4: "clamp(80px,min(19vw,36vh),210px)" }[n]);
+    // 세로: 칸 폭 합(그림 크기 합 + 칸 여백 16px·간격 8px·선반 여백) 이 화면 폭에 맞게
+    const sumK = ks.reduce((a, b) => a + Math.max(b, 0.56), 0); // 작은 칸도 최소 84px(.choice) → 작은 그림은 0.56 으로 셈
+    ctx.shelf.style.setProperty("--szp", "clamp(64px,calc((100vw - " + (16 * n + 8 * (n - 1) + 68) + "px) / " + sumK.toFixed(2) + "),min(" + (n === 3 ? 170 : 150) + "px,32vh))");
     ctx.shelf.innerHTML = "";
     const render = (o) => KP.E(em);
 
     if (lv < 3) {
-      const big = U.rand(2) === 0;
-      const word = n === 2 ? (big ? "큰" : "작은") : big ? "제일 큰" : "제일 작은";
+      const word = lv === 1 ? (big ? "큰" : "작은") : big ? "제일 큰" : "제일 작은";
       const target = big ? order.find((o) => o.rank === n - 1) : order.find((o) => o.rank === 0);
       const ask = word + " " + U.josa(name, "을/를") + " 찾아요!";
-      ctx.say((big ? "🐘 " : "🐭 ") + ask);
+      const nat = (...l) => (KP.voice._natUrls && l.find((t) => KP.voice._natUrls(t))) || l[0]; // 같은 뜻 중 자연 음성(이미 있는 조각)이 있는 문장
+      const askV = nat(ask, word + " " + name + " 찾아요!"); // "도넛을" 녹음이 없으면 "큰 도넛 찾아요!"
+      ctx.say((big ? "🐘 " : "🐭 ") + ask, askV);
       const btns = ctx.choices(ctx.shelf, order, {
         cls: "szItem",
         render,
         right: (o) => o === target,
         wrongMsg: (o) =>
-          n === 2 ? "이건 " + (big ? "작은 " : "큰 ") + U.josa(name, "이에요/예요") + ". " + ask : "이것보다 더 " + (big ? "큰 " : "작은 ") + U.josa(name, "이/가") + " 있어요!",
+          lv === 1
+            ? nat("이건 " + (big ? "작은 " : "큰 ") + U.josa(name, "이에요/예요") + ". " + ask, "이건 " + (big ? "작은 " : "큰 ") + name + "! " + askV)
+            : "이것보다 더 " + (big ? "큰 " : "작은 ") + U.josa(name, "이/가") + " 있어요!",
         onRight: async (o, b) => {
           KP.audio.sfx(big ? "boing" : "bubble");
           KP.voice.say(word + " " + name + "! 딩동댕!");
@@ -82,7 +91,7 @@ KP.game({
         },
       });
       btns.forEach((b, i) => b.style.setProperty("--k", order[i].k));
-      ctx.hint(() => btns.find((b) => b.dataset.right), ask);
+      ctx.hint(() => btns.find((b) => b.dataset.right), askV);
       return;
     }
 
@@ -123,7 +132,9 @@ KP.game({
       ctx.shelf.appendChild(b);
       return b;
     });
-    const hint = () => ctx.hint(() => btns.find((b) => +b.dataset.seq === step), step === 0 ? "제일 작은 " + name + "부터 눌러요!" : "그다음 큰 걸 눌러요!");
+    const hint = () => ctx.hint(() => btns.find((b) => +b.dataset.seq === step), step === 0 ? first : "그다음 큰 걸 눌러요!");
+    // "제일 작은 OO부터" 녹음이 없는 그림은 이미 있는 문장으로
+    const first = KP.voice._natUrls && !KP.voice._natUrls("제일 작은 " + name + "부터 눌러요!") ? say : "제일 작은 " + name + "부터 눌러요!";
     hint();
   },
 });

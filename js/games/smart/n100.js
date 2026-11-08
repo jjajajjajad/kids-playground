@@ -1,8 +1,9 @@
 /* 100까지 숫자 — 위쪽 버튼: [100판] [10씩 세기] [퀴즈] [쓰기]
    - 100판: 1~100 판에서 수를 누르면 크게 보여 주고 "이십삼! 스물셋!" + 십 막대·낱개 블록으로 크기를 보여 줌
    - 10씩 세기: 10, 20, … 100 을 차례로 누르면 십 막대가 하나씩 쌓이며 "십! 이십!…" (고유어도 함께)
-   - 퀴즈(단계별 범위 1단계 1~20 / 2단계 1~50 / 3단계 1~100)
-       수 듣고 찾기 · 블록 보고 몇인지 · 다음 수는?(2단계~) · 몇십 찾기
+   - 퀴즈(단계별 범위 1단계 1~10 / 2단계 1~20 / 3단계 1~50, 몇십 찾기는 10~100) — 만 3~4세에 맞게 작은 수부터
+       수 듣고 찾기 · 블록 보고 몇인지 · 다음 수는?(2단계~) · 몇십 찾기(3단계)
+   - 10씩 세기 완성은 큰 축하만 하고 열쇠 별·단계에는 넣지 않음(반짝이는 단추만 눌러도 끝나므로)
    - 쓰기: 숫자 쓰기 공책으로 */
 "use strict";
 KP.game({
@@ -17,10 +18,10 @@ KP.game({
     const self = this;
     KP.css("n100", `
       .n1Modes{display:flex;gap:clamp(6px,1.2vw,12px);justify-content:center;padding:10px 10px 6px;flex:0 0 auto;flex-wrap:wrap}
-      .n1Mode{font-size:clamp(16px,2.2vw,23px);background:#fff;color:var(--night);border-radius:20px;padding:6px 16px;min-height:52px;display:flex;align-items:center;gap:6px;border:4px solid #fff;box-shadow:0 5px 0 rgba(27,37,80,.18)}
+      .n1Mode{font-size:clamp(16px,2.2vw,23px);background:#fff;color:var(--night);border-radius:20px;padding:6px 16px;min-height:64px;display:flex;align-items:center;gap:6px;border:4px solid #fff;box-shadow:0 5px 0 rgba(27,37,80,.18)}
       .n1Mode .e{font-size:1.3em}
       .n1Mode.sel{background:var(--night);border-color:var(--night);color:#fff}
-      @media (max-width:560px){.n1Modes{gap:5px;padding:8px 4px 4px;flex-wrap:nowrap}.n1Mode{font-size:14px;padding:3px 9px;min-height:44px;white-space:nowrap}.n1Mode .e{display:none}}
+      @media (max-width:560px){.n1Modes{gap:5px;padding:8px 4px 4px;flex-wrap:nowrap}.n1Mode{font-size:14px;padding:3px 9px;min-height:64px;white-space:nowrap}.n1Mode .e{display:none}}
       .n1View{flex:1;min-height:0;display:none;position:relative}
       .n1View.on{display:flex}
       /* 100판 */
@@ -48,7 +49,7 @@ KP.game({
       .n1Stack .n1Ten i{width:clamp(14px,2vw,22px);height:clamp(9px,1.7vh,18px)}
       .n1Row{display:grid;grid-template-columns:repeat(10,1fr);gap:clamp(5px,1vw,10px);width:min(100%,900px)}
       @media (max-aspect-ratio:1/1){.n1Row{grid-template-columns:repeat(5,1fr)}}
-      .n1T{font-size:clamp(24px,3.4vw,40px);border-radius:18px;background:#fff;color:var(--c);min-height:clamp(58px,8vw,84px);box-shadow:0 5px 0 color-mix(in srgb,var(--c) 45%,#fff);border:3px solid color-mix(in srgb,var(--c) 30%,#fff)}
+      .n1T{font-size:clamp(24px,3.4vw,40px);border-radius:18px;background:#fff;color:var(--c);min-height:clamp(64px,8vw,84px);box-shadow:0 5px 0 color-mix(in srgb,var(--c) 45%,#fff);border:3px solid color-mix(in srgb,var(--c) 30%,#fff)}
       .n1T.done{background:var(--c);color:#fff}
       .n1T.next{border-color:var(--star);position:relative;animation:none}
       /* 다음 칸 반짝: 빛을 따로 한 장(::after)에 그려 두고 밝기만 바꿈 (glowLoop, app.css) — 매번 다시 칠하면 저가 태블릿이 버벅임. inset:-3px = 테두리 두께. 예전 glow 의 brightness(1.12)가 빛까지 밝혔으므로 빛 색을 미리 12% 밝게(197,49→221,55) */
@@ -62,7 +63,7 @@ KP.game({
       .n1Q .choice{font-size:clamp(40px,6.4vw,74px);min-width:clamp(96px,14vw,150px);color:var(--ocean)}
       @media (orientation:portrait) and (max-width:480px){
         .n1Modes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}
-        .n1Mode{font-size:16px;padding:4px 12px;min-height:44px;flex:1 1 auto;justify-content:center;border-width:3px}
+        .n1Mode{font-size:16px;padding:4px 12px;min-height:64px;flex:1 1 auto;justify-content:center;border-width:3px}
         .n1Learn{padding:2px 4px 8px;gap:8px}
         .n1Chart{gap:2px}
         .n1N{font-size:calc(var(--cw) / 21);border-radius:5px}
@@ -77,7 +78,7 @@ KP.game({
       @media (orientation:landscape) and (max-height:500px){
         .n1Body{flex-direction:row}
         .n1Body .n1Modes{flex-direction:column;flex-wrap:nowrap;justify-content:center;gap:6px;padding:4px 2px 4px 6px;width:108px}
-        .n1Body .n1Mode{font-size:16px;padding:4px 6px;min-height:46px;justify-content:center;border-width:3px;border-radius:16px}
+        .n1Body .n1Mode{font-size:16px;padding:4px 6px;min-height:64px;justify-content:center;border-width:3px;border-radius:16px}
         .n1Body .n1Mode .e{display:none}
         .n1Learn{padding:4px 8px 4px 4px;gap:10px}
         .n1Chart{gap:2px;aspect-ratio:auto;width:var(--cw);height:var(--ch)}
@@ -244,7 +245,7 @@ KP.game({
       // 순서가 아니면 다음 수를 알려 줌
       U.replay(ctx.tBtns[t - 1], "wrong");
       KP.audio.sfx("bad");
-      KP.voice.say("다음은 " + U.josa(U.numSino((ctx.tDone + 1) * 10), "이에요/예요") + "!");
+      KP.voice.say("다음은 " + U.numSino((ctx.tDone + 1) * 10) + "!"); // "다음은 사십!" (자연 음성 조각)
       return;
     }
     ctx.tDone = t;
@@ -263,23 +264,26 @@ KP.game({
       const tk = ctx.tok;
       ctx.after(900, async () => {
         if (tk !== ctx.tok) return;
-        KP.voice.say("십이 열 개면 백! 백까지 다 셌어요!");
+        const talk = KP.voice.say("십이 열 개면 백! 백까지 다 셌어요!");
         ctx.score.add();
-        const ok = await ctx.win({ big: true, msg: "백까지 성공!" });
-        if (ok && ctx.m === "tens" && tk === ctx.tok) this.mode(ctx, "tens", true);
+        // 반짝이는 다음 단추만 차례로 눌러도 끝나는 놀이 → ctx.win(열쇠 별·단계·스티커) 대신 축하 연출만
+        await Promise.race([talk, ctx.wait(3500)]);
+        if (tk !== ctx.tok || !ctx._active) return;
+        await KP.celebrate({ big: true, msg: "백까지 성공!", ctx, sticker: false });
+        if (ctx._active && ctx.m === "tens" && tk === ctx.tok) this.mode(ctx, "tens", true);
       });
     }
   },
   quiz(ctx) {
     const U = KP.u;
     const lv = ctx.level;
-    const max = lv === 1 ? 20 : lv === 2 ? 50 : 100;
-    const types = lv === 1 ? ["hear", "hear", "blocks"] : lv === 2 ? ["hear", "blocks", "next", "tens"] : ["hear", "blocks", "next", "tens", "before"];
+    const max = lv === 1 ? 10 : lv === 2 ? 20 : 50;
+    const types = lv === 1 ? ["hear", "hear", "blocks"] : lv === 2 ? ["hear", "blocks", "next"] : ["hear", "blocks", "next", "tens", "before"];
     let t = U.pick(types);
     if (t === ctx.lastT && types.length > 2) t = U.pick(types.filter((x) => x !== t));
     ctx.lastT = t;
     let n = 1 + U.rand(max);
-    if (t === "tens") n = 10 * (1 + U.rand(max / 10));
+    if (t === "tens") n = 10 * (1 + U.rand(10)); // 몇십은 100까지
     if (t === "next") n = Math.min(n, max - 1);
     if (t === "before") n = Math.max(n, 2);
     const answer = t === "next" ? n + 1 : t === "before" ? n - 1 : n;
@@ -287,7 +291,8 @@ KP.game({
     const cand = new Set();
     const swap = Number(String(answer).split("").reverse().join(""));
     // 다음/앞의 수 문제에서는 화면에 보이는 수(n)는 보기에서 뺌
-    const ok = (x) => x >= 1 && x <= 100 && x !== answer && !((t === "next" || t === "before") && x === n);
+    const lim = t === "tens" ? 100 : max; // 보기도 그 단계 범위 안에서만
+    const ok = (x) => x >= 1 && x <= lim && x !== answer && !((t === "next" || t === "before") && x === n);
     [swap, answer + 1, answer - 1, answer + 10, answer - 10].forEach((x) => ok(x) && cand.add(x));
     if (t === "tens") [answer + 10, answer - 10, answer + 20].forEach((x) => x >= 10 && x <= 100 && x !== answer && cand.add(x));
     while (cand.size < 6) {
@@ -327,7 +332,8 @@ KP.game({
       cls: "num",
       render: (v) => String(v),
       right: (v) => v === answer,
-      wrongMsg: (v) => "이건 " + U.josa(U.numSino(v), "이에요/예요") + ". " + speak,
+      // "이건 삼! 사를 찾아요! 넷!" — 이미 있는 조각을 이어 자연 음성으로
+      wrongMsg: (v) => "이건 " + U.numSino(v) + "! " + speak,
       onRight: async (v, b) => {
         U.replay(ask, "yay");
         U.replay(b, "jump");

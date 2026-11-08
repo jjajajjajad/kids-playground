@@ -17,12 +17,12 @@ KP.game({
       A = KP.audio;
     KP.css("jigsaw", `
       .jgTools{display:flex;gap:clamp(6px,1.4vw,12px);justify-content:center;align-items:center;padding:2px 10px 8px;flex:0 0 auto;flex-wrap:nowrap}
-      .jgSize{min-width:clamp(72px,9vw,90px);height:clamp(62px,7.4vw,72px);border-radius:18px;background:#fff;box-shadow:0 5px 0 rgba(47,58,102,.14);display:flex;align-items:center;justify-content:center;padding:6px}
+      .jgSize{min-width:clamp(72px,9vw,90px);height:clamp(64px,7.4vw,72px);border-radius:18px;background:#fff;box-shadow:0 5px 0 rgba(47,58,102,.14);display:flex;align-items:center;justify-content:center;padding:6px}
       .jgSize.sel{background:var(--sun);box-shadow:0 5px 0 #d9a000}
       .jgGrid{display:grid;gap:2px;width:clamp(30px,4.2vw,40px);height:clamp(30px,4.2vw,40px)}
       .jgGrid i{background:#6a76a3;border-radius:2px}
       .jgSize.sel .jgGrid i{background:#2f3a66}
-      .jgPicBtn{height:clamp(54px,7.4vw,66px);border-radius:18px;background:#fff;box-shadow:0 5px 0 rgba(47,58,102,.14);display:flex;align-items:center;gap:6px;padding:5px 12px 5px 5px;font-size:clamp(17px,2.4vw,22px)}
+      .jgPicBtn{height:clamp(64px,7.4vw,66px);border-radius:18px;background:#fff;box-shadow:0 5px 0 rgba(47,58,102,.14);display:flex;align-items:center;gap:6px;padding:5px 12px 5px 5px;font-size:clamp(17px,2.4vw,22px)}
       .jgPicBtn img.th{height:100%;aspect-ratio:1;border-radius:12px;object-fit:cover}
       .jgPicBtn .e{font-size:1.4em}
       .jgBoard{background:linear-gradient(180deg,#fff9ec,#ffeccc)}
@@ -44,7 +44,7 @@ KP.game({
       .jgSec{grid-column:1/-1;font-size:clamp(17px,2.3vw,21px);color:#6a5a3a;padding:6px 4px 0}
       .jgPicBtn .lb{white-space:nowrap}
       @media (max-width:520px){.jgPicBtn .lb{display:none}}
-      @media (orientation: portrait) and (max-width: 480px), (orientation: landscape) and (max-height: 500px){.jgPicBtn{flex:0 0 auto;min-width:54px;min-height:54px;padding:5px}.jgPicBtn img.th{width:44px;height:44px;flex:0 0 auto}}
+      @media (orientation: portrait) and (max-width: 480px), (orientation: landscape) and (max-height: 500px){.jgPicBtn{flex:0 0 auto;min-width:64px;min-height:64px;padding:5px}.jgPicBtn img.th{width:52px;height:52px;flex:0 0 auto}}
     `);
 
     /* ---------- 화면 ---------- */
@@ -373,7 +373,11 @@ KP.game({
           ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => th.addEventListener(ev, () => clearTimeout(hold)));
           del.addEventListener("click", async (e) => {
             e.stopPropagation();
-            await KP.db.del("photos", p.id);
+            // 지우기에 실패하면(false) 목록에서 빼지 않음 — 다음에 열면 다시 나타나는 일 방지
+            if ((await KP.db.del("photos", p.id)) === false) {
+              th.classList.remove("armed");
+              return KP.toast("지우지 못했어요. 다시 해 주세요");
+            }
             const i = ctx.pics.indexOf(p);
             ctx.pics.splice(i, 1);
             if (ctx.picIdx >= ctx.pics.length) ctx.picIdx = 0;
@@ -505,7 +509,9 @@ KP.game({
         const c = Math.min(T.w / cols, T.h / rows);
         if (c > best.c) best = { c, cols, rows };
       }
-      st.ts = Math.min(1, (best.c * 0.8) / s);
+      // 쟁반 조각 크기: 조각 몸통(s)만 보면 탭(튀어나온 부분)끼리 겹침 → 탭 몫(PADR)까지 넣어 계산
+      // (탭은 조각마다 들쭉날쭉이라 양쪽 다 튀어나오는 일은 드물어 full 전체 대신 s×(1+PADR))
+      st.ts = Math.min(1, (best.c * 0.9) / (s * (1 + PADR)));
       const slots = [];
       for (let k = 0; k < cnt; k++) {
         const col = k % best.cols,
@@ -732,7 +738,7 @@ KP.game({
         const left = st.pieces.filter((p) => !p.placed).length;
         if (left === 0) finish();
         else {
-          if (Math.random() < 0.5) KP.voice.say(U.pick(["착!", "딱 맞아요!", "좋아요!", "맞았다!"]));
+          if (Math.random() < 0.5) KP.voice.say(U.pick(["딱 맞아요!", "좋아요!", "맞았다!"])) // ("착!"은 자연 음성이 없어 뺌);
           setHint();
         }
       } else if (inFrame) {
@@ -743,11 +749,14 @@ KP.game({
         pc.tsc = st.ts;
         pc.moved = false;
         A.sfx("boing");
+        // 틀린 자리: 가벼운 실수로 기록(열쇠 별은 1번까지 봐줌, 조각 퍼즐은 이리저리 대 보는 게 자연스러워 단계는 안 내림)
         const now = performance.now();
+        let msg = null;
         if (now - lastTalk > 3500) {
           lastTalk = now;
-          KP.voice.say(U.pick(["여기는 아니에요. 흐린 그림을 잘 봐요!", "다른 자리일까? 다시 해 봐요!", "아깝다! 그림이 이어지는 곳을 찾아봐요."]));
+          msg = U.pick(["여기는 아니에요. 흐린 그림을 잘 봐요!", "다른 자리일까? 다시 해 봐요!", "아깝다! 그림이 이어지는 곳을 찾아봐요."]);
         }
+        ctx.miss(null, msg, { soft: true });
       } else {
         // 쟁반 위: 놓은 자리에 그대로
         pc.hx = U.clamp(pc.x, st.s * 0.3, W - st.s * 0.3);
@@ -820,7 +829,9 @@ KP.game({
       ctx.sizePick = 0; // 단계가 바뀌면 단계 크기로
       ctx.lastLevel = ctx.level;
     }
-    const n = ctx.sizePick || ctx.level + 1;
+    // 폰(짧은 쪽 500px 미만)에서는 단계 크기를 3×3 까지만 — 4×4 는 쟁반 조각이 45px 정도로 너무 작아짐 (직접 고른 크기는 그대로)
+    const small = Math.min(innerWidth, innerHeight) < 500;
+    const n = ctx.sizePick || Math.min(ctx.level + 1, small ? 3 : 4);
     st.n = n;
     const pic = ctx.pics[ctx.picIdx % ctx.pics.length];
     if (!pic.src) {

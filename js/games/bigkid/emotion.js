@@ -1,8 +1,9 @@
 /* 기분 알아보기 — 상황 그림 + 짧은 이야기를 듣고 친구의 기분(표정) 고르기
-   1단계: 기뻐요 / 슬퍼요 (2개 중 고르기)
+   1단계: 기뻐요 / 슬퍼요 문제 (보기 3개: 기뻐요·슬퍼요 + 화나요/놀라요 중 하나 — 찍어서 반은 안 되게)
    2단계: + 화나요 / 놀라요 (3개 중 고르기)
-   3단계: + 무서워요 / 부끄러워요 (4개 중 고르기)
-   맞히면 친구 얼굴에 표정이 생기고, "슬플 땐 꼭 안아줘요" 같은 따뜻한 한마디. */
+   3단계: + 무서워요 / 부끄러워요 (4개 중 고르기). 헷갈리기 쉬운 장면(lv:3)은 3단계에만
+   맞히면 친구 얼굴에 표정이 생기고, "슬플 땐 꼭 안아줘요" 같은 따뜻한 한마디(말이 끝나면 바로 다음).
+   장면을 누르면 이야기를 다시 읽어 줌(🔊 표시). 1단계는 상황 그림(💧 같은 작은 단서)을 더 크게. */
 "use strict";
 KP.game({
   id: "emotion",
@@ -44,7 +45,10 @@ KP.game({
       .emHero.got .emQ,.emHero.got .emHead{visibility:hidden}
       .emCare{position:absolute;right:5%;top:8%;font-size:14cqw;line-height:1;animation:popBig .5s cubic-bezier(.2,1.6,.4,1);filter:drop-shadow(0 4px 4px rgba(0,0,0,.15))}
       .emDark{--bg:linear-gradient(#1f2a55,#33407a 62%,#2a3463 62.3%,#222b52)}
+      .emSnow{--bg:linear-gradient(#dfefff,#f6fbff 62%,#ffffff 62.3%,#e8f1fb)}
       .emIn{--bg:linear-gradient(#fff3dc,#ffe9c4 62%,#e5c193 62.3%,#d6ab78)}
+      .emSnd{position:absolute;left:3%;top:4%;font-size:7cqw;line-height:1;opacity:.75;pointer-events:none;z-index:5}
+      .emScene.say .emSnd{animation:popIn .4s}
       .emAns .choice{flex-direction:column;gap:2px;padding:8px 12px 6px;min-width:clamp(84px,14vw,150px)}
       .emFace{font-size:clamp(48px,7.4vw,80px);line-height:1}
       .emLbl{font-size:clamp(15px,2vw,20px);color:var(--ink2)}
@@ -64,10 +68,16 @@ KP.game({
       { f: "joy", t: "강아지가 꼬리를 흔들며 달려왔어요!", it: [["🐶", 68, 60, 22, "hop"], ["💛", 82, 30, 10, "float"], ["🐾", 50, 82, 8]] },
       { f: "joy", t: "엄마가 맛있는 케이크를 만들어 줬어요!", bg: "emIn", it: [["🍰", 68, 60, 22], ["✨", 82, 36, 10, "float"]] },
       { f: "joy", t: "놀이터에서 미끄럼틀을 슝 탔어요!", it: [["🛝", 68, 56, 30], ["☀️", 86, 16, 12, "float"]] },
+      { f: "joy", t: "오늘은 하얀 눈이 펑펑 와요.", no: ["surprise"], bg: "emSnow", it: [["⛄", 68, 60, 24, "hop"], ["❄️", 84, 22, 10, "float"], ["❄️", 54, 30, 8, "float"]] },
+      { f: "joy", t: "스티커를 받았어요!", no: ["surprise"], bg: "emIn", it: [["🌟", 66, 50, 22, "hop"], ["✨", 84, 26, 10, "float"], ["💛", 52, 28, 9, "float"]] },
+      { f: "joy", t: "다 같이 노래해요!", it: [["🎵", 64, 34, 14, "float"], ["🎶", 82, 52, 14, "float"], ["🐻", 72, 68, 18, "hop"]] },
+      { f: "joy", t: "잘 만들었어요!", no: ["surprise"], it: [["🏰", 68, 58, 24], ["✨", 84, 28, 10, "float"], ["🚩", 70, 26, 9]] },
       { f: "sad", t: "아이스크림을 땅에 툭 떨어뜨렸어요.", no: ["surprise"], it: [["🍦", 64, 78, 18, "", 160], ["💧", 52, 40, 8, "float"]] },
       { f: "sad", t: "풍선이 하늘로 날아가 버렸어요.", no: ["surprise"], it: [["🎈", 72, 22, 16, "float"], ["☁️", 88, 12, 12]] },
       { f: "sad", t: "아끼는 장난감 자동차가 부서졌어요.", no: ["angry"], bg: "emIn", it: [["🚗", 66, 68, 20, "", 30], ["⚙️", 82, 80, 8, "", 20], ["💧", 50, 38, 8, "float"]] },
-      { f: "angry", t: "친구가 내 장난감을 확 뺏어 갔어요!", no: ["sad"], it: [["🏃", 76, 56, 20, "run"], ["🧸", 66, 50, 11, "run"], ["💢", 48, 26, 10, "shake"]] },
+      { f: "sad", t: "넘어져서 무릎이 아파요.", no: ["surprise", "angry", "fear"], it: [["🩹", 66, 64, 18, "", -20], ["💧", 50, 38, 8, "float"], ["🪨", 82, 82, 10]] },
+      { f: "sad", t: "비가 와서 밖에서 못 놀아요.", no: ["angry"], bg: "emIn", it: [["🌧️", 72, 26, 20, "float"], ["🛝", 76, 68, 18], ["💧", 50, 38, 8, "float"]] },
+      { f: "angry", lv: 3, t: "친구가 내 장난감을 확 뺏어 갔어요!", no: ["sad"], it: [["🏃", 76, 56, 20, "run"], ["🧸", 66, 50, 11, "run"], ["💢", 48, 26, 10, "shake"]] },
       { f: "angry", t: "열심히 쌓은 블록 탑을 누가 쾅 무너뜨렸어요!", no: ["sad", "surprise"], bg: "emIn", it: [["🧱", 62, 80, 12, "", 30], ["🧱", 76, 76, 12, "", -20], ["🧱", 70, 60, 11, "", 60], ["💥", 72, 40, 14], ["💢", 46, 24, 10, "shake"]] },
       { f: "angry", t: "동생이 내 그림에 마구 낙서를 했어요!", no: ["sad"], bg: "emIn", it: [["🖼️", 68, 50, 24], ["🖍️", 82, 74, 12, "shake", -30], ["💢", 46, 24, 10, "shake"]] },
       { f: "surprise", t: "문을 열었더니 깜짝 생일 파티!", no: ["joy"], bg: "emIn", it: [["🎉", 66, 34, 16, "shake"], ["🎂", 70, 66, 20], ["🎈", 88, 30, 12, "float"]] },
@@ -77,7 +87,7 @@ KP.game({
       { f: "fear", t: "깜깜한 밤에 혼자 방에 있어요.", no: ["sad"], bg: "emDark", it: [["🌙", 78, 22, 14], ["🛏️", 70, 74, 22]] },
       { f: "fear", t: "커다란 개가 멍멍 크게 짖어요!", no: ["surprise", "angry"], it: [["🐕", 72, 58, 30, "shake"], ["💢", 60, 26, 10, "shake"]] },
       { f: "shy", t: "친구들 앞에서 혼자 노래를 해요.", no: ["fear", "joy"], bg: "emIn", it: [["🎤", 44, 48, 12, "", -20], ["👀", 72, 50, 12], ["👀", 86, 64, 11], ["👀", 70, 78, 11]] },
-      { f: "shy", t: "선생님이 모두 앞에서 이름을 불러 칭찬했어요.", no: ["joy", "surprise"], bg: "emIn", it: [["⭐", 48, 24, 12, "float"], ["👀", 74, 48, 11], ["👀", 86, 70, 11], ["👏", 66, 74, 12, "shake"]] },
+      { f: "shy", lv: 3, t: "선생님이 모두 앞에서 이름을 불러 칭찬했어요.", no: ["joy", "surprise"], bg: "emIn", it: [["⭐", 48, 24, 12, "float"], ["👀", 74, 48, 11], ["👀", 86, 70, 11], ["👏", 66, 74, 12, "shake"]] },
     ];
     ctx.wrap = U.el("div", "emWrap");
     ctx.box = U.el("div", "emBox");
@@ -86,7 +96,11 @@ KP.game({
     ctx.ans = U.el("div", "qAns emAns");
     ctx.wrap.append(ctx.box, ctx.ans);
     ctx.body.appendChild(ctx.wrap);
-    ctx.tap(ctx.scene, () => ctx.cur && KP.voice.say(ctx.cur.t + " 어떤 기분일까요?"));
+    ctx.tap(ctx.scene, () => {
+      if (!ctx.cur) return;
+      U.replay(ctx.scene, "say");
+      KP.voice.say(ctx.cur.t + " 친구는 어떤 기분일까요?");
+    });
     ctx.round = 0;
     ctx.token = 0;
   },
@@ -101,11 +115,15 @@ KP.game({
     const lv = ctx.level;
     const tok = ++ctx.token;
     const pool = lv === 1 ? ["joy", "sad"] : lv === 2 ? ["joy", "sad", "angry", "surprise"] : ["joy", "sad", "angry", "surprise", "fear", "shy"];
-    const nC = lv + 1;
-    // 같은 장면·같은 기분 연속 피하기
-    let sc;
-    do sc = U.pick(ctx.SCENES.filter((s) => pool.includes(s.f)));
-    while (ctx.cur && (sc === ctx.cur || (sc.f === ctx.cur.f && Math.random() < 0.6)));
+    const nC = lv < 3 ? 3 : 4; // 보기는 1단계부터 3개 이상 (열쇠 별 규칙)
+    // 같은 장면·같은 기분 연속 피하기 (최근 3장면은 다시 안 나오게)
+    const cand = ctx.SCENES.filter((s) => pool.includes(s.f) && (s.lv || 1) <= lv);
+    ctx.recent = ctx.recent || [];
+    let sc,
+      guard = 0;
+    do sc = U.pick(cand);
+    while (guard++ < 40 && ((ctx.cur && (sc === ctx.cur || (sc.f === ctx.cur.f && Math.random() < 0.6))) || ctx.recent.includes(sc)));
+    ctx.recent = [sc, ...ctx.recent].slice(0, Math.min(3, cand.length - 2));
     ctx.cur = sc;
     const F = ctx.FEEL[sc.f];
 
@@ -117,15 +135,23 @@ KP.game({
       const it = U.el("div", "emIt " + (cls || ""), KP.E(e));
       it.style.left = x + "%";
       it.style.top = y + "%";
-      it.style.setProperty("--s", s + "cqw");
+      // 1단계: 작은 단서 그림(💧 💢 ❗ 같은 것)을 더 크게 보여 줌
+      it.style.setProperty("--s", (lv === 1 && s < 14 ? Math.round(s * 1.5) : s) + "cqw");
       if (r) it.style.setProperty("--r", r + "deg");
       el.appendChild(it);
     });
     const hero = U.el("div", "emHero", '<div class="emShirt"></div><div class="emHead"><i class="emEye l"></i><i class="emEye r"></i><b class="emMouth"></b></div><span class="emQ">?</span>');
     el.appendChild(hero);
+    el.appendChild(U.el("span", "emSnd", KP.E("🔊")));
 
     ctx.say(sc.t + " 친구는 어떤 기분일까요?");
-    const opts = U.shuffle([sc.f, ...U.sample(pool.filter((f) => f !== sc.f && !(sc.no || []).includes(f)), nC - 1)]);
+    // 보기: 같은 단계의 기분에서 먼저 고르고, 모자라면(헷갈리는 기분은 빼므로) 다음 단계 기분으로 채움
+    const no = sc.no || [];
+    const okF = (f) => f !== sc.f && !no.includes(f);
+    let others = U.shuffle(pool.filter(okF));
+    if (lv === 1) others = [...others, ...U.shuffle(["angry", "surprise"].filter(okF))];
+    others = [...others, ...U.shuffle(Object.keys(ctx.FEEL).filter((f) => okF(f) && !others.includes(f)))];
+    const opts = U.shuffle([sc.f, ...others.slice(0, nC - 1)]);
     const btns = ctx.choices(ctx.ans, opts, {
       cls: "emCh",
       render: (f) => '<span class="emFace">' + KP.E(ctx.FEEL[f].face) + '</span><span class="emLbl">' + ctx.FEEL[f].name + "</span>",
@@ -140,8 +166,9 @@ KP.game({
           el.appendChild(U.el("div", "emCare", KP.E(F.icon)));
           A.sfx("sparkle");
         });
-        ctx.say(F.name + "! " + F.care);
-        await ctx.wait(Math.max(3200, F.care.length * 200));
+        const talk = ctx.say(F.name + "! " + F.care);
+        // 돌봄 말이 끝나면 바로 다음으로 (최소 1.8초, 최대 예전 길이)
+        await Promise.all([ctx.wait(1800), Promise.race([talk, ctx.wait(Math.max(3200, F.care.length * 200))])]);
         if (tok !== ctx.token) return;
         ctx.score.add();
         ctx.round++;

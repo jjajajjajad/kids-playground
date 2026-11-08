@@ -33,9 +33,9 @@ KP.game({
       @keyframes mzPulse{from{opacity:.1}to{opacity:.85}}
       .mzRight{position:absolute;right:10px;top:8px;z-index:3;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
       .mzBoard.tall .mzRight{flex-direction:row-reverse;align-items:flex-start}
-      .mzMe{height:60px;min-width:60px;padding:0 8px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:32px;line-height:1;
+      .mzMe{height:64px;min-width:64px;padding:0 8px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:32px;line-height:1;
         background:rgba(255,255,255,.92);box-shadow:0 4px 0 rgba(0,0,0,.14)}
-      .mzMe img{width:46px;height:46px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 0 0 2px #ffd54a;display:block}
+      .mzMe img{width:50px;height:50px;border-radius:50%;object-fit:cover;border:3px solid #fff;box-shadow:0 0 0 2px #ffd54a;display:block}
       .mzPick{position:absolute;inset:0;z-index:8;background:rgba(29,34,70,.55);display:flex;align-items:center;justify-content:center;padding:12px}
       .mzPickBox{background:#fff;border-radius:26px;padding:16px 18px 18px;max-width:min(560px,94%);max-height:94%;overflow:auto;box-shadow:0 8px 0 rgba(0,0,0,.15);text-align:center}
       .mzPickBox h3{margin:0 0 12px;font-size:clamp(22px,3vw,28px);font-weight:400;color:var(--ink)}
@@ -47,7 +47,7 @@ KP.game({
       .mzPickT:active .ph{transform:scale(.94)}
       .mzPickDel{position:absolute;top:-6px;right:0;width:30px;height:30px;border-radius:50%;background:#ff7b54;color:#fff;font-size:15px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 0 rgba(0,0,0,.2)}
       .mzPickNote{margin-top:12px;font-size:13px;color:var(--ink2)}
-      .mzChase{position:relative;height:60px;min-width:96px;padding:0 12px;border-radius:999px;
+      .mzChase{position:relative;height:64px;min-width:96px;padding:0 12px;border-radius:999px;
         display:flex;align-items:center;justify-content:center;gap:2px;font-size:32px;line-height:1;
         background:rgba(255,255,255,.92);box-shadow:0 4px 0 rgba(0,0,0,.14)}
       .mzChase .e:last-child{font-size:24px;width:24px;height:24px;opacity:.85}
@@ -1349,12 +1349,13 @@ KP.game({
           if (ch.t <= 0) ch.mode = "run";
           return;
         case "sit":
-          // 다시 잡으면 기지개 켜고 출발. 손을 안 대고 한참 있으면 천천히 다시 일어남(한 번만 쉼)
+          // 손을 뗀 동안은 술래도 계속 쉼 — 다시 잡아야 기지개 켜고 출발.
+          // (예전엔 3.5초 뒤 혼자 일어나 달려와서, 길을 보며 생각하느라 멈춘 아이가 손을 안 대고도 잡혔음)
           ch.t += dt;
-          if (st.dragging || ch.t > 3.5) {
+          if (st.dragging) {
             ch.mode = "stand";
             ch.t = 0.45;
-            ch.rested = !st.dragging;
+            ch.rested = false;
           }
           return;
         case "stand":
