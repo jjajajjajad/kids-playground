@@ -54,7 +54,8 @@ KP.game({
       .wp-spot{position:absolute;pointer-events:none;border-radius:50%}
       .wp-sponge{position:absolute;font-size:clamp(54px,8vw,80px);line-height:1;pointer-events:none;opacity:0;transition:opacity .2s;z-index:3;transform:translate(-30%,-75%) rotate(-12deg)}
       .wp-sponge.on{opacity:1}
-      @media (max-width:600px){ .wp-add span{display:none} .wp-add{padding:8px 12px} .wp-new{width:58px;height:58px;font-size:30px} }
+      /* 폰: 글자는 숨기고 그림 단추만 — 그래도 64px 이상 (2026-11-08) */
+      @media (max-width:600px){ .wp-add span{display:none} .wp-add{padding:8px 12px;min-width:64px;min-height:64px;justify-content:center} .wp-new{width:64px;height:64px;font-size:32px} }
     `);
 
     /* ---------- 기본 친구들 ---------- */

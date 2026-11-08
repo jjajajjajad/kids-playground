@@ -196,12 +196,15 @@ KP.game({
       if (c.state === "race") {
         // 내 차: 목표 위치로 부드럽게 (최고 속도 제한)
         const d = c.pT - c.p;
-        c.p += Math.min(d, Math.max(0.1 * dt, d * 4 * dt), 0.45 * dt);
+        // 최고 속도: 아무리 빨리 연타해도 결승까지 4~5초는 달리게 (예전 0.45 → 2.2초 만에 끝)
+        c.p += Math.min(d, Math.max(0.1 * dt, d * 4 * dt), c.vmax * dt);
         // 상대 차: 기본 속도 + 아이가 뒤처지면 살짝 느려짐
         const gap = c.o - c.p;
         // 열심히 누르는 중이면 상대가 살짝 봐줌 (안 누르면 그냥 달림)
         const trying = c.t - (c.lastTap || -9) < 1.5;
         let v = c.ov * (trying ? (gap > 0.12 ? 0.55 : gap > 0.04 ? 0.8 : 1) : 1);
+        // 내 차가 한참 앞서면 상대도 조금 힘을 내서 '비슷하게' 달림 (그래도 계속 누르면 내가 이김: 최고 속도가 더 빠름)
+        if (gap < -0.08) v *= gap < -0.2 ? 1.6 : 1.3;
         if (c.t < 1) v *= c.t; // 천천히 출발
         c.o = Math.min(1, c.o + v * dt);
         c.t += dt;
@@ -293,8 +296,9 @@ KP.game({
     ctx.size();
     const lv = ctx.level;
     // 상대 차가 끝까지 가는 시간(초): 질수록 느긋해짐
-    const T = [15, 12, 10][lv - 1] + Math.min(ctx.losses, 3) * 2.5;
-    ctx.ctl = { state: "ready", p: 0, pT: 0, o: 0, ov: 1 / T, t: 0, taps: [18, 22, 26][lv - 1], tapN: 0 };
+    // (예전 15초·18번 → 연타하면 3초 만에 끝나 경주 느낌이 짧았음) 상대를 조금 빠르게, 누를 횟수는 늘려 비슷하게 달리기
+    const T = [12, 10.5, 9][lv - 1] + Math.min(ctx.losses, 3) * 2.5;
+    ctx.ctl = { state: "ready", p: 0, pT: 0, o: 0, ov: 1 / T, t: 0, taps: [26, 32, 38][lv - 1], vmax: [0.2, 0.22, 0.24][lv - 1], tapN: 0 };
     ctx.say("화면을 콕콕콕 빨리 누르면 내 차가 달려요!");
     // 출발 신호
     const L = ctx.light,

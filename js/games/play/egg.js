@@ -1,5 +1,6 @@
 /* 깜짝 달걀 — 둥지 속 달걀을 톡톡톡! 금이 점점 커지다가 쩍! 아기 동물이 나와 울음소리를 내요
-   1단계: 달걀 3개 / 2단계: 4개 / 3단계: 5개 (가끔 반짝 황금알 → 특별한 친구)
+   1단계: 달걀 3개 / 2단계: 4개 + 가끔 반짝 황금알(특별한 친구) / 3단계: 5개 + 황금알 + 단단한 알 1개(다섯 번 톡톡)
+   - 좁은 폰 세로는 두 줄(2+1, 2+2, 3+2)로 달걀을 키우고, 풀밭(초록)이 맨 윗줄 둥지 높이부터 깔림
    - 다 깨면 성공, 다음 판엔 다른 친구들 */
 "use strict";
 KP.game({
@@ -13,7 +14,7 @@ KP.game({
     const U = KP.u;
     KP.css("egg", `
       .eg-stage{flex:1;min-height:0;position:relative;margin:0 12px 12px;border-radius:24px;overflow:hidden;box-shadow:var(--shadow);
-        background:linear-gradient(180deg,#fff4d6 0%,#ffe9b8 58%,#9fd889 58%,#7cc56b 100%);display:flex;align-items:center;justify-content:center}
+        background:linear-gradient(180deg,#fff4d6 0%,#ffe9b8 var(--gy,58%),#9fd889 var(--gy,58%),#7cc56b 100%);display:flex;align-items:center;justify-content:center}
       .eg-stage::before{content:"";position:absolute;left:6%;top:8%;width:clamp(60px,9vw,100px);aspect-ratio:1;border-radius:50%;background:radial-gradient(circle,#fff7b8 0 40%,#ffd84a 70%,transparent 72%);box-shadow:0 0 50px 16px rgba(255,220,100,.5)}
       .eg-row{position:relative;display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:clamp(6px,2vw,26px);padding:10px;max-width:100%}
       .eg-cell{position:relative;width:var(--es);height:calc(var(--es)*1.55);display:flex;align-items:flex-end;justify-content:center}
@@ -45,9 +46,13 @@ KP.game({
         padding:4px 12px;border-radius:16px;box-shadow:0 4px 0 rgba(0,0,0,.1);animation:popBig .4s cubic-bezier(.2,1.6,.4,1);pointer-events:none}
       .eg-shell{position:absolute;width:var(--s);height:var(--s);background:var(--bg);clip-path:polygon(50% 0,100% 60%,30% 100%,0 40%);z-index:5;pointer-events:none;animation:eg-shell .8s ease-out forwards}
       @keyframes eg-shell{to{transform:translate(var(--dx),var(--dy)) rotate(var(--r));opacity:0}}
-      .eg-tap{position:absolute;font-size:clamp(20px,3vw,30px);color:#fff;-webkit-text-stroke:3px #c47f00;paint-order:stroke;z-index:6;pointer-events:none;animation:eg-tapT .6s ease-out forwards}
+      .eg-tap{position:absolute;font-size:clamp(24px,3.4vw,34px);color:#fff;-webkit-text-stroke:5px #8a4b00;paint-order:stroke;text-shadow:0 3px 0 #8a4b00;z-index:6;pointer-events:none;animation:eg-tapT .6s ease-out forwards}
       @keyframes eg-tapT{from{transform:translate(-50%,0) scale(.5)}40%{transform:translate(-50%,-20px) scale(1.1)}to{transform:translate(-50%,-40px);opacity:0}}
-      .eg-gold .eg-half{box-shadow:inset -10px -14px 22px rgba(160,100,0,.25),inset 8px 8px 14px rgba(255,255,255,.7),0 0 24px 6px rgba(255,210,60,.65)}
+      .eg-hard .eg-half{box-shadow:inset -12px -16px 22px rgba(70,45,20,.4),inset 8px 8px 14px rgba(255,255,255,.5),inset 0 0 0 4px rgba(120,90,55,.55)}
+      .eg-hard.eg-tok{animation:eg-hardT .3s}
+      @keyframes eg-hardT{30%{transform:translateX(-4px) scale(.98,1.02)}60%{transform:translateX(4px)}}
+      .eg-gold .eg-half{box-shadow:inset -10px -14px 22px rgba(160,100,0,.25),inset 8px 8px 14px rgba(255,255,255,.7)}
+      .eg-gold{filter:drop-shadow(0 0 12px rgba(255,210,60,.8))} /* 반짝임은 알 모양대로 (그림자는 반쪽 자르기에 네모로 잘려서) */
     `);
     const stage = U.el("div", "eg-stage");
     const row = U.el("div", "eg-row");
@@ -71,17 +76,29 @@ KP.game({
       "radial-gradient(circle at 30% 60%,#d9c6ff 0 7%,transparent 8%),radial-gradient(circle at 70% 30%,#d9c6ff 0 8%,transparent 9%),#f8f3ff",
       "#f6e3c8",
     ];
+    ctx.HARD = "radial-gradient(circle at 28% 30%,#a88a66 0 5%,transparent 6%),radial-gradient(circle at 66% 48%,#a88a66 0 6%,transparent 7%),radial-gradient(circle at 42% 72%,#a88a66 0 4%,transparent 5%),radial-gradient(circle at 75% 78%,#a88a66 0 5%,transparent 6%),#dcc6a4";
     ctx.GOLD = "radial-gradient(circle at 32% 26%,#fffbe0 0 10%,#ffd84a 40%,#f0a800 100%)";
     ctx.round = 0;
     ctx.size = () => {
       const n = ctx.n || 3;
       const W = stage.clientWidth,
         H = stage.clientHeight;
-      const perRow = W < 560 ? Math.min(n, n > 3 ? 2 : 3) : n;
+      // 좁은 폰 세로: 두 줄(3개 → 2+1, 4개 → 2+2, 5개 → 3+2)로 달걀을 크게
+      const perRow = W < 560 ? (n <= 2 ? n : Math.ceil(n / 2)) : n;
       const rows = Math.ceil(n / perRow);
       const es = Math.floor(U.clamp(Math.min((W - 40) / perRow / 1.35, (H - 70) / rows / 1.75), 74, 190));
       row.style.setProperty("--es", es + "px");
-      row.style.maxWidth = perRow * es * 1.45 + 40 + "px";
+      // 한 줄에 perRow 개만 (다음 달걀 하나가 더 들어갈 틈은 없게: 여유 es*0.5)
+      const gap = U.clamp(innerWidth * 0.02, 6, 26);
+      row.style.maxWidth = perRow * es + (perRow - 1) * gap + 20 + es * 0.5 + "px";
+      // 풀밭은 맨 윗줄 둥지 높이부터 (위 줄 달걀이 하늘에 떠 보이지 않게)
+      const first = row.firstElementChild;
+      if (first && H) {
+        const sr = stage.getBoundingClientRect(),
+          cr = first.getBoundingClientRect();
+        const gy = ((cr.bottom - cr.height * 0.3 - sr.top) / H) * 100;
+        stage.style.setProperty("--gy", U.clamp(gy, 25, 75).toFixed(1) + "%");
+      } else stage.style.removeProperty("--gy");
     };
     addEventListener("resize", () => ctx._active && ctx.size());
   },
@@ -106,18 +123,21 @@ KP.game({
     ctx.used.push(...babies.map((b) => b[0]));
     const goldAt = lv >= 2 && Math.random() < 0.5 ? U.rand(n) : -1;
     if (goldAt >= 0) babies[goldAt] = U.pick(ctx.SPECIAL);
+    // 3단계: 단단한 알 하나 (다섯 번 톡톡 해야 깨짐) — 황금알과 겹치지 않게
+    const hardAt = lv >= 3 ? U.pick(Array.from({ length: n }, (_, i) => i).filter((i) => i !== goldAt)) : -1;
     const skins = U.shuffle([...ctx.SKINS]);
     ctx.row.innerHTML = "";
-    ctx.size();
     let left = n,
       busy = false;
     ctx.say("달걀을 톡톡톡! 세 번 두드려 봐요. 누가 나올까? 🥚");
     const eggs = babies.map((bb, i) => {
-      const gold = i === goldAt;
+      const gold = i === goldAt,
+        hard = i === hardAt,
+        need = hard ? 5 : 3;
       const cell = U.el("div", "eg-cell item");
       cell.style.setProperty("--i", i);
-      const egg = U.el("div", "eg-egg eg-wobble" + (gold ? " eg-gold" : ""));
-      egg.style.setProperty("--bg", gold ? ctx.GOLD : skins[i % skins.length]);
+      const egg = U.el("div", "eg-egg eg-wobble" + (gold ? " eg-gold" : "") + (hard ? " eg-hard" : ""));
+      egg.style.setProperty("--bg", gold ? ctx.GOLD : hard ? ctx.HARD : skins[i % skins.length]);
       egg.style.animationDelay = -i * 0.7 + "s";
       egg.dataset.k = 0;
       egg.dataset.tap = "1";
@@ -139,16 +159,18 @@ KP.game({
         U.replay(egg, "eg-tok");
         const r = egg.getBoundingClientRect(),
           cr = cell.getBoundingClientRect();
-        const t = U.el("div", "eg-tap", ["톡!", "톡톡!", "쩍!"][Math.min(k, 3) - 1]);
+        const t = U.el("div", "eg-tap", k >= need ? "쩍!" : k % 2 ? "톡!" : "톡톡!");
         t.style.left = r.left - cr.left + r.width / 2 + "px";
         t.style.top = "10%";
         cell.appendChild(t);
         ctx.after(620, () => t.remove());
-        if (k < 3) {
-          egg.dataset.k = k;
-          A.note(k === 1 ? "E5" : "G5", { inst: "marimba", dur: 0.2, vol: 0.3 });
+        if (k < need) {
+          // 금: 보통 알은 1번째·2번째, 단단한 알은 2번째·4번째 톡에 생김
+          egg.dataset.k = Math.floor((k * 2) / (need - 1));
+          A.note(hard ? ["C5", "D5", "E5", "G5"][k - 1] : k === 1 ? "E5" : "G5", { inst: "marimba", dur: 0.2, vol: 0.3 });
           A.noise({ dur: 0.05, vol: 0.12, hp: 2500 });
-          if (k === 2) KP.voice.say(U.pick(["금이 갔어요!", "한 번 더!", "어? 움직여요!"]));
+          if (hard && k === 2) KP.voice.say("한 번 더!");
+          else if (k === need - 1) KP.voice.say(U.pick(["금이 갔어요!", "한 번 더!", "어? 움직여요!"]));
           hint();
           return;
         }
@@ -167,7 +189,8 @@ KP.game({
         const bub = U.el("div", "eg-say", bb[2] + "!");
         ctx.after(600, () => {
           cell.appendChild(bub);
-          KP.voice.say(bb[2] + "! " + (gold ? "반짝반짝 " : "") + U.josa(bb[1], "이에요/예요"));
+          // 황금알 친구는 "…반짝반짝 아기 용!" (조사 붙은 자연 음성이 없어서 이름만)
+          KP.voice.say(bb[2] + "! " + (gold ? "반짝반짝 " + bb[1] + "!" : U.josa(bb[1], "이에요/예요")));
         });
         left--;
         ctx.score.add();
@@ -183,6 +206,7 @@ KP.game({
       });
       return egg;
     });
+    ctx.size();
     const hint = () => {
       const e = eggs.find((x) => !x.classList.contains("open"));
       ctx.hint(() => e, "달걀을 톡톡톡 두드려 봐요!");

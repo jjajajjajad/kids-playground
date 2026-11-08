@@ -1,7 +1,9 @@
 /* 생일 촛불 끄기 — 오늘의 주인공 동물 친구 생일! 케이크 위 촛불을 콕 눌러 후~
    - 일렁이는 불꽃, 끄면 바람 소리 + 연기 모락모락
    - 다 끄면 생일 축하 노래 + "○○야 생일 축하해!"
-   1단계: 촛불 3개 / 2단계: 4개 / 3단계: 5개 (장난꾸러기 촛불이 한 번 다시 켜짐!) */
+   1단계: 촛불 3개 / 2단계: 4개 / 3단계: 5개 (장난꾸러기 촛불 2개가 한 번씩 다시 켜짐!)
+   - 촛불은 한 개당 76px 간격 이상(유아 손가락) — 넓은 화면은 케이크를 옆으로 길게, 좁은 폰은 2층(아래층 앞줄·위층 뒷줄)에 엇갈려 꽂음
+   - 노래는 2판에 한 번 전곡, 나머지는 앞 두 소절만(판 사이 기다림 줄이기) */
 "use strict";
 KP.game({
   id: "candle",
@@ -21,7 +23,7 @@ KP.game({
       .cd-flags i{width:clamp(22px,3.4vw,38px);height:clamp(28px,4.4vw,48px);clip-path:polygon(0 0,100% 0,50% 100%);margin-top:clamp(10px,2vh,18px);background:var(--c)}
       .cd-banner{position:absolute;top:clamp(46px,9vh,74px);left:14px;font-size:clamp(22px,3.6vw,36px);color:#fff;background:#ff6fb5;padding:4px 22px;border-radius:999px;
         box-shadow:0 5px 0 #d0377f;white-space:nowrap;z-index:2}
-      .cd-wrap{position:relative;width:var(--ck);margin-bottom:clamp(10px,3vh,30px)}
+      .cd-wrap{position:relative;width:var(--cw,var(--ck));margin-bottom:clamp(10px,3vh,30px)}
       .cd-hero{position:absolute;left:50%;bottom:calc(var(--ck)*.8);width:calc(var(--ck)*.5);height:calc(var(--ck)*.5);margin-left:calc(var(--ck)*-.25);font-size:calc(var(--ck)*.5);line-height:1;z-index:0}
       .cd-hero .e{width:100%;height:100%;display:block}
       .cd-hero.happy{animation:cd-happy .5s ease-in-out infinite alternate}
@@ -33,15 +35,17 @@ KP.game({
       .cd-cake{position:relative;z-index:1;width:100%;height:calc(var(--ck)*.62)}
       .cd-plate{position:absolute;left:-6%;right:-6%;bottom:-4%;height:16%;border-radius:50%;background:linear-gradient(#fff,#dfe3ef);box-shadow:0 6px 0 rgba(0,0,0,.08)}
       .cd-t1{position:absolute;left:4%;right:4%;bottom:4%;height:46%;border-radius:18px;background:linear-gradient(90deg,#f39ac0,#ffc3dc 40%,#f39ac0)}
-      .cd-t2{position:absolute;left:20%;right:20%;bottom:47%;height:34%;border-radius:16px;background:linear-gradient(90deg,#fff1d6,#fffaf0 40%,#f6e2bd)}
+      .cd-t2{position:absolute;left:12%;right:12%;bottom:47%;height:34%;border-radius:16px;background:linear-gradient(90deg,#fff1d6,#fffaf0 40%,#f6e2bd)}
       .cd-drip{position:absolute;left:0;right:0;top:0;height:42%;border-radius:16px 16px 0 0;
         background:radial-gradient(circle at 10% 100%,var(--f) 0 9%,transparent 9.5%) 0 0/20% 100% repeat-x,linear-gradient(var(--f),var(--f)) 0 0/100% 62% no-repeat}
       .cd-t1 .cd-drip{--f:#fff}
       .cd-t2 .cd-drip{--f:#ff8ac0}
       .cd-dots{position:absolute;left:6%;right:6%;bottom:14%;height:30%;background:radial-gradient(circle,#ff5b6e 0 3px,transparent 4px) 0 0/24px 20px,radial-gradient(circle,#3aa0ff 0 3px,transparent 4px) 12px 10px/24px 20px}
       .cd-berry{position:absolute;bottom:72%;font-size:calc(var(--ck)*.09);line-height:1;z-index:3}
-      .cd-candles{position:absolute;left:16%;right:16%;bottom:78%;display:flex;justify-content:space-around;align-items:flex-end;z-index:2}
-      .cd-c{position:relative;flex:1;max-width:calc(var(--ck)*.2);height:calc(var(--ck)*.42);display:flex;flex-direction:column;align-items:center;justify-content:flex-end;cursor:pointer}
+      .cd-candles{position:absolute;inset:0;z-index:2;pointer-events:none}
+      .cd-c{position:absolute;bottom:78%;height:calc(var(--ck)*.42);min-width:64px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;cursor:pointer;pointer-events:auto;z-index:2}
+      .cd-c.front{bottom:50%;height:calc(var(--ck)*.3);z-index:3}
+      .cd-c::before{content:"";position:absolute;left:0;right:0;top:-12px;bottom:0}
       .cd-c.hintGlow{border-radius:20px}
       .cd-stick{width:calc(var(--ck)*.055);height:48%;border-radius:5px 5px 2px 2px;background:repeating-linear-gradient(160deg,var(--c1) 0 7px,#fff 7px 12px);box-shadow:inset -3px 0 0 rgba(0,0,0,.08)}
       .cd-wick{width:3px;height:6%;background:#4a3a2a;border-radius:2px}
@@ -56,7 +60,7 @@ KP.game({
       .cd-smoke{position:absolute;left:50%;bottom:58%;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:rgba(150,150,165,.55);pointer-events:none;filter:blur(2px);
         animation:cd-smoke 1.6s ease-out forwards;animation-delay:var(--dl)}
       @keyframes cd-smoke{0%{transform:translate(0,0) scale(.4);opacity:.8}50%{transform:translate(var(--dx),-50px) scale(1.2)}100%{transform:translate(calc(var(--dx)*-1),-110px) scale(1.8);opacity:0}}
-      .cd-hoo{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);font-size:clamp(20px,3vw,30px);color:#7aa7d9;white-space:nowrap;pointer-events:none;animation:cd-hoo .8s ease-out forwards}
+      .cd-hoo{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);font-size:clamp(20px,3vw,30px);color:#4a7ab8;text-shadow:0 0 6px #fff,0 0 3px #fff;white-space:nowrap;pointer-events:none;z-index:5;animation:cd-hoo .8s ease-out forwards}
       @keyframes cd-hoo{from{opacity:0;transform:translate(10%,10px)}30%{opacity:1}to{opacity:0;transform:translate(-90%,-10px)}}
       .cd-note{position:absolute;font-size:clamp(26px,4vw,42px);pointer-events:none;animation:cd-note 2s ease-out forwards;z-index:4}
       @keyframes cd-note{to{transform:translate(var(--dx),-160px) rotate(20deg);opacity:0}}
@@ -83,7 +87,42 @@ KP.game({
       const W = room.clientWidth,
         H = room.clientHeight;
       const ck = Math.round(U.clamp(Math.min(W * 0.8, (H - 130) / 1.36), 200, 460));
+      // 촛불 간격(가운데~가운데) SP 이상 — 한 줄에 다 안 들어가면 케이크를 옆으로 늘리고, 그래도 안 되면 2층에 나눠 꽂기
+      const n = ctx.nC || 3,
+        SP = 76,
+        maxW = W * 0.94;
+      let rows = 1,
+        cw = Math.max(ck, (n * SP) / 0.72);
+      if (cw > maxW) {
+        rows = 2;
+        cw = Math.max(ck, ((n - 1) * SP) / 2 / 0.76); // 엇갈려 꽂으면 옆 촛불(다른 줄)과 SP/2, 같은 줄끼리 SP
+      }
+      cw = Math.round(Math.min(Math.max(cw, ck), Math.max(maxW, ck)));
       wrap.style.setProperty("--ck", ck + "px");
+      wrap.style.setProperty("--cw", cw + "px");
+      // 자리 잡기: 1줄 = 위층(14~86%)에 고르게
+      //   2줄 = 12~88% 에 고르게 놓고 앞줄(아래층)·뒷줄(위층)을 엇갈리게 — 5개: 앞 0·2·4 / 뒤 1·3, 4개: 앞 0·3 / 뒤 1·2
+      //   (앞뒤가 겹쳐 서지 않게. 뒷줄 촛불은 앞줄 위로 솟은 윗부분을 누름)
+      const cs = Array.from(ctx.candlesEl.children),
+        m = cs.length;
+      cs.forEach((c, i) => {
+        let x, w, front;
+        if (rows === 1) {
+          front = false;
+          x = 14 + ((i + 0.5) * 72) / m;
+          w = (cw * 0.72) / m;
+        } else {
+          front = m === 4 ? i === 0 || i === 3 : i % 2 === 0;
+          const step = 76 / Math.max(1, m - 1);
+          x = m === 4 ? [12, 35, 65, 88][i] : 12 + i * step; // 4개: 뒷줄 둘 사이를 조금 더 벌림
+          w = (cw * step * 2) / 100;
+        }
+        w = Math.round(Math.min(w, Math.max(ck * 0.34, 80)));
+        c.classList.toggle("front", front);
+        c.style.left = x + "%";
+        c.style.width = w + "px";
+        c.style.marginLeft = -w / 2 + "px";
+      });
     };
     addEventListener("resize", () => ctx._active && ctx.size());
   },
@@ -103,10 +142,11 @@ KP.game({
     ctx.hero.classList.remove("happy");
     ctx.room.classList.remove("dark");
     ctx.banner.textContent = hero[1] + " 생일";
-    ctx.size();
     ctx.candlesEl.innerHTML = "";
+    ctx.nC = n;
+    // 3단계: 장난꾸러기 촛불 2개 (끄면 한 번씩 다시 켜짐)
+    const trick = new Set(lv === 3 ? U.sample(Array.from({ length: n }, (_, i) => i), 2) : []);
     let left = n,
-      trick = lv === 3 ? U.rand(n) : -1,
       busy = false;
     ctx.say("오늘은 " + hero[1] + " 생일! 촛불을 콕 눌러서 후~ 불어 줘요 🎂");
     const candles = Array.from({ length: n }, (_, i) => {
@@ -118,6 +158,7 @@ KP.game({
       ctx.fast(c, () => blow(c, i));
       return c;
     });
+    ctx.size();
     const blow = (c, i) => {
       if (busy || c.classList.contains("out")) return;
       c.classList.add("blow");
@@ -139,8 +180,8 @@ KP.game({
       });
       left--;
       // 장난꾸러기 촛불: 한 번 다시 켜지기
-      if (i === trick) {
-        trick = -1;
+      if (trick.has(i)) {
+        trick.delete(i);
         ctx.after(1400, () => {
           if (!ctx._active || busy) return;
           c.classList.remove("out");
@@ -164,7 +205,9 @@ KP.game({
       ctx.hero.classList.add("happy");
       KP.voice.say("다 껐다! 다 같이 노래해요!");
       await ctx.wait(1500);
-      const len = A.melody(A.SONGS.birthday.notes, { beat: 0.36, inst: "bell", vol: 0.22 });
+      // 2판에 한 번은 전곡, 나머지는 앞 두 소절만 (판 사이 기다림 줄이기)
+      const song = A.SONGS.birthday.notes;
+      const len = A.melody(ctx.round % 2 === 0 ? song : song.slice(0, 12), { beat: 0.36, inst: "bell", vol: 0.22 }) || 1;
       // 음표가 둥실둥실
       const notes = ["🎵", "🎶", "🎈", "🎉"];
       for (let k = 0; k < 10; k++)
@@ -179,7 +222,7 @@ KP.game({
       ctx.score.add();
       ctx.round++;
       const big = ctx.round % 4 === 0;
-      const ok = await ctx.win({ big, msg: U.josa(hero[1], "아/야") + " 생일 축하해!" });
+      const ok = await ctx.win({ big, msg: U.josa(hero[1], "아/야") + " 생일 축하해!", say: "생일 축하해!" });
       if (ok) this.next(ctx);
     };
   },

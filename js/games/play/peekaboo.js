@@ -62,12 +62,13 @@ KP.game({
     ctx.size = (n) => {
       const W = stage.clientWidth,
         H = stage.clientHeight;
-      const perRow = W < 560 && n > 3 ? 2 : n;
+      const perRow = W < 560 && n >= 3 ? 2 : n; // 좁은 폰 세로: 두 줄(2+1, 2+2)로 집을 크게
       const rows = Math.ceil(n / perRow);
       const hs = Math.floor(U.clamp(Math.min((W - 40) / perRow / 1.35, (H - 90) / rows / 1.6), 90, 220));
       row.style.setProperty("--hs", hs + "px");
       row.style.maxWidth = perRow * (hs * 1.3 + 30) + "px";
     };
+    addEventListener("resize", () => ctx._active && ctx.row.children.length && ctx.size(ctx.row.children.length));
     ctx.creak = () => {
       KP.audio.tone(260, { to: 420, dur: 0.25, vol: 0.06, type: "triangle" });
       KP.audio.note("C5", { inst: "marimba", dur: 0.2, vol: 0.2 });

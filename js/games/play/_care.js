@@ -858,9 +858,13 @@
           r && r(b);
         } else {
           wrongN++;
-          if (o.mode === 1) ctx.miss(b, "이건 조금 있다가 해요!", { soft: true });
+          // 이 물건을 쓸 차례가 뒤에 있으면 "나중 일", 아니면 "다른 걸 골라 볼까?" (둘 다 자연 음성 있는 문장)
+          const ci = cur ? o.steps.indexOf(cur) : -1;
+          const later = o.steps.some((s, k) => k > ci && !s.auto && s.tool === b.dataset.tool);
+          const msg = later ? "음, 이건 조금 나중 일이에요." : "다른 걸 골라 볼까?";
+          if (o.mode === 1) ctx.miss(b, msg, { soft: true });
           else {
-            ctx.miss(b, cur && cur.wrong ? cur.wrong : "음, 그 전에 할 일이 있어요!");
+            ctx.miss(b, cur && cur.wrong ? cur.wrong : msg);
             if (wrongN >= 2 && btns[want]) btns[want].classList.add("glow"); // 두 번 헷갈리면 살짝 알려 주기
           }
         }
@@ -897,7 +901,8 @@
           ctx.say(st.say);
           ctx.hint(() => btns[st.tool], st.say);
         } else if (o.mode === 2) {
-          ctx.say(first && o.ask ? o.ask : "다음엔 뭘 할까요?");
+          if (first && o.ask) ctx.say(o.ask);
+          else ctx.say("다음엔 뭘 할까요?", "무엇을 할까요?"); // 말은 자연 음성 있는 문장으로
           ctx.hint(() => btns[st.tool], st.say);
         } else {
           if (first && o.ask) ctx.say(o.ask);

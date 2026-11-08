@@ -503,22 +503,26 @@
           .zpSep{grid-column:1/-1;height:3px}
           .zpSp{width:clamp(44px,5.2vh,58px);height:clamp(44px,5.2vh,58px);font-size:26px}
           .zpTools{display:grid;grid-template-columns:repeat(3,auto);justify-content:center}
-          .zpTool{min-width:0;padding:4px 6px}
+          .zpTool{min-width:54px;min-height:58px;justify-content:center;padding:4px 6px}
+          .zpSize{width:50px;height:50px}
           .zpAct{flex-direction:column;flex-wrap:nowrap;justify-content:center}
           .zpB{min-width:96px;padding:8px 10px;font-size:15px}
           .zpB .e{font-size:34px}
           .zpB.send{min-width:96px;padding:12px 10px}
         }
         /* 폰처럼 좁은 세로 화면 */
+        /* (2026-11-08) 손가락이 닿기 쉽게: 색 36→최대 52px(키 작은 폰은 조금 작게), 도구·굵기 52px 이상, '보내기' 글자는 낱말 단위로 줄바꿈 */
         @media (max-width:500px){
-          .zpSp{width:36px;height:36px;font-size:18px;border-width:3px}
-          .zpTool{min-width:44px;padding:3px 5px;font-size:11px}
-          .zpTool .e{font-size:22px}
-          .zpSize{width:34px;height:34px}
-          .zpPal{gap:6px}
-          .zpB{min-width:0;flex:1;padding:5px 4px;font-size:12.5px}
+          .zpSp{width:clamp(42px,min(6.2vh,calc((100vw - 80px) / 6)),52px);height:clamp(42px,min(6.2vh,calc((100vw - 80px) / 6)),52px);font-size:22px;border-width:3px}
+          .zpTools{gap:5px}
+          .zpTool{min-width:52px;min-height:clamp(48px,6.4vh,56px);justify-content:center;padding:3px 4px;font-size:11px}
+          .zpTool .e{font-size:24px}
+          .zpSize{width:clamp(44px,min(6.2vh,calc((100vw - 80px) / 6)),52px);height:clamp(44px,min(6.2vh,calc((100vw - 80px) / 6)),52px)}
+          .zpPal{gap:6px 5px}
+          .zpB{min-width:0;flex:1;min-height:clamp(56px,7.6vh,66px);padding:5px 3px;font-size:12.5px}
+          .zpB span{word-break:keep-all}
           .zpB .e{font-size:26px}
-          .zpB.send{min-width:0;flex:1.4}
+          .zpB.send{min-width:0;flex:1.3}
         }
       `);
       const choose = U.el("div", "zpChoose");
@@ -1142,6 +1146,7 @@
         ctx.miss(ctx.bSend, "먼저 예쁘게 색칠해 봐요!", { soft: true });
         return;
       }
+      const nPainted = fbs.filter((e, i) => !isWhite(e) || ctx.pp[i]).length; // 칠한 부위 수 (열쇠 별 기준)
       const svg = ctx.paper.querySelector("svg");
       // 동물원에서는 원래 도안 크기 기준으로 그림
       const vb = svg.getAttribute("viewBox");
@@ -1165,6 +1170,8 @@
       KP.zooNew = item.id;
       ctx.paper.classList.add("fly");
       KP.audio.sfx("whoosh");
+      // 열쇠 별: 부위를 3곳 이상(또는 절반 이상) 칠했을 때만 (한 부위만 칠하고 보내기 반복 방지)
+      if (nPainted < Math.min(3, Math.ceil(fbs.length / 2))) ctx._fewChoice = true;
       const ok = await ctx.win({ msg: T[tid].name + " 출발!", big: true });
       ctx.paper.innerHTML = "";
       ctx.paper.classList.remove("fly");
@@ -1476,6 +1483,8 @@
         @keyframes zHeart{to{transform:translateY(-70px) scale(1.3);opacity:0}}
         .zTreat{position:absolute;font-size:clamp(30px,4.4vw,44px);line-height:1;pointer-events:none;transition:top .7s cubic-bezier(.4,1.6,.6,1);filter:drop-shadow(0 4px 2px rgba(20,50,10,.3))}
         .zBar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:0 10px 12px;flex:0 0 auto}
+        .zBar .btn{min-height:64px}
+        @media (max-width:500px){.zBar{gap:8px}.zBar .btn{min-height:64px;padding-top:6px;padding-bottom:6px}}
         .zEmpty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;z-index:9700;font-size:clamp(20px,3vw,30px);color:#2f3a66;text-shadow:0 2px 0 #fff}
         .zDel{position:absolute;z-index:9999;background:#fff;border-radius:999px;padding:8px 14px;font-size:18px;box-shadow:0 4px 0 rgba(0,0,0,.15);color:#c62828}
         .z3Canvas{position:absolute;inset:0;width:100%;height:100%;display:none;touch-action:none;z-index:1}
@@ -2043,16 +2052,39 @@
         a.ty = a.y;
       }
       // 누르기 / 길게 누르기(보내기)
-      let lp = 0;
+      // 주의: 누르면 poke() 가 몸통을 튀게(jump) 해서 손가락 아래가 잠깐 비므로 pointerleave 로 취소하면
+      //       꾹 누르기가 절대 안 됨(2026-11-08 확인). → 12px 넘게 움직였을 때만 취소 (3D 와 같은 방식)
+      let lp = 0,
+        lx = 0,
+        ly = 0;
       el.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         e.stopPropagation();
         KP.audio.unlock();
         this.poke(ctx, a);
         clearTimeout(lp);
-        lp = setTimeout(() => this.askDelete(ctx, a), 1200); // 꾹 → 집에서 쉬기 버튼
+        lx = e.clientX;
+        ly = e.clientY;
+        try {
+          el.setPointerCapture(e.pointerId);
+        } catch (_) {}
+        lp = setTimeout(() => {
+          lp = 0;
+          if (el.isConnected) this.askDelete(ctx, a);
+        }, 1200); // 꾹 → 집에서 쉬기 버튼
       });
-      ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => el.addEventListener(ev, () => clearTimeout(lp)));
+      el.addEventListener("pointermove", (e) => {
+        if (lp && Math.hypot(e.clientX - lx, e.clientY - ly) > 12) {
+          clearTimeout(lp);
+          lp = 0;
+        }
+      });
+      ["pointerup", "pointercancel", "lostpointercapture"].forEach((ev) =>
+        el.addEventListener(ev, () => {
+          clearTimeout(lp);
+          lp = 0;
+        })
+      );
       this.place(ctx, a);
       return a;
     },

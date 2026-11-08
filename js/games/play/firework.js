@@ -15,8 +15,19 @@ KP.game({
     KP.css("firework", `
       .fwBoard{background:#0b1030}
       .fwTools{position:absolute;left:0;right:0;bottom:10px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:0 10px;z-index:2;pointer-events:none}
-      .fwBtn{pointer-events:auto;font-size:clamp(26px,4.2vw,40px);width:clamp(52px,7.6vw,72px);height:clamp(52px,7.6vw,72px);border-radius:50%;background:rgba(255,255,255,.14);border:3px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+      .fwBtn{pointer-events:auto;font-size:clamp(26px,4.2vw,40px);width:clamp(64px,9vw,72px);height:clamp(64px,9vw,72px);border-radius:50%;background:rgba(255,255,255,.14);border:3px solid rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
       .fwBtn.sel{background:rgba(255,255,255,.9);border-color:#ffd54a;transform:scale(1.12)}
+      /* 폰 세로: 두 줄로 하늘 아래를 가리지 않게 — 왼쪽·오른쪽 가장자리에 4개씩 세로로 */
+      @media (max-width:600px) and (orientation:portrait){
+        .fwTools{left:8px;right:8px;bottom:8px;padding:0;display:grid;grid-template-columns:64px 1fr 64px;grid-template-rows:repeat(4,64px);gap:8px}
+        .fwBtn{width:64px;height:64px;font-size:30px}
+        .fwBtn:nth-child(-n+4){grid-column:1}
+        .fwBtn:nth-child(n+5){grid-column:3}
+        .fwBtn:nth-child(4n+1){grid-row:1}
+        .fwBtn:nth-child(4n+2){grid-row:2}
+        .fwBtn:nth-child(4n+3){grid-row:3}
+        .fwBtn:nth-child(4n){grid-row:4}
+      }
       .fwHint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:clamp(24px,4vw,40px);pointer-events:none;text-shadow:0 2px 8px #000;transition:opacity .6s}
       .fwBoard.dragHint .fwHint{opacity:0}
     `);

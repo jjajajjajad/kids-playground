@@ -1,7 +1,9 @@
 /* 악기 소리 맞추기 — 소리를 듣고 어떤 악기인지 그림 고르기
    - 악기 11가지: 북·피아노·나팔·기타·종·바이올린·피리·마라카스·실로폰·트라이앵글·탬버린
      (모두 Web Audio 합성으로 악기 특징을 살림 — 나팔은 부드러운 금관 느낌)
-   - 🔊 다시 듣기, 단계: 보기 2 / 3 / 4개 */
+   - 진짜 악기 녹음(KP.sampler: 북·피아노·실로폰·기타·탬버린·마라카스)을 불러오면 그 소리로, 못 불러오면 합성음
+   - 🔊 다시 듣기, 단계: 보기 3 / 3 / 4개
+     (1·2단계는 소리가 비슷한 악기끼리 — 종·트라이앵글·실로폰 / 마라카스·탬버린 / 나팔·피리·바이올린 — 같이 나오지 않게) */
 "use strict";
 KP.game({
   id: "inst",
@@ -12,7 +14,8 @@ KP.game({
   score: "⭐",
   setup(ctx) {
     const U = KP.u,
-      A = KP.audio;
+      A = KP.audio,
+      SM = KP.sampler;
     KP.css("inst", `
       .in-stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
       .in-listen{display:flex;flex-direction:column;align-items:center;gap:6px;background:#fff;border-radius:50%;width:clamp(150px,26vh,230px);height:clamp(150px,26vh,230px);justify-content:center;position:relative;
@@ -66,18 +69,23 @@ KP.game({
       A.tone(f * 2, { type: "triangle", attack: 0.04, dur: dur + 0.1, vol: 0.07, when });
       A.tone(f * 3, { attack: 0.06, dur: dur * 0.8, vol: 0.035, when });
     };
+    // 진짜 악기 녹음이 있으면 그걸로 (sampler.js 의 폴백 방식: 성공하면 true, 아니면 합성음)
+    const ok = (k) => SM && SM.ok(k);
     const INSTS = [
-      { id: "drum", name: "북", pic: KP.E("🥁"), snd: () => [0, 0.42, 0.84, 1.05].forEach((w, i) => { A.kick({ vol: 0.75, when: w }); if (i > 1) A.noise({ dur: 0.15, vol: 0.12, bp: 1600, when: w }); }), len: 1.6 },
-      { id: "piano", name: "피아노", pic: KP.E("🎹"), snd: () => ["C4", "E4", "G4", "C5", "G4", "C5"].forEach((n, i) => piano(n, i * 0.22)), len: 2 },
-      { id: "trumpet", name: "나팔", pic: KP.E("🎺"), snd: () => [["G4", 0.16], ["G4", 0.16], ["G4", 0.16], ["C5", 0.8]].reduce((t, [n, d]) => (brass(n, d, t), t + d + 0.06), 0), len: 1.8 },
-      { id: "guitar", name: "기타", pic: KP.E("🎸"), snd: () => [0, 0.6].forEach((w) => ["C3", "E3", "G3", "C4", "E4"].forEach((n, i) => A.note(n, { inst: "pluck", dur: 1.4, vol: 0.2, when: w + i * 0.035 }))), len: 2 },
-      { id: "bell", name: "종", pic: KP.E("🔔"), snd: () => { A.note("G4", { inst: "bell", dur: 1.6, vol: 0.32 }); A.note("E4", { inst: "bell", dur: 1.8, vol: 0.32, when: 0.7 }); }, len: 2.2 },
-      { id: "violin", name: "바이올린", pic: KP.E("🎻"), snd: () => [["E4", 0.6], ["G4", 0.6], ["C5", 1.1]].reduce((t, [n, d]) => { const f = A.hz(n); A.note(f, { inst: "pad", dur: d, vol: 0.2, when: t }); A.tone(f * 2, { type: "triangle", attack: 0.15, dur: d + 0.2, vol: 0.05, when: t }); A.tone(f * 3, { attack: 0.2, dur: d, vol: 0.02, when: t }); return t + d; }, 0), len: 2.4 },
-      { id: "flute", name: "피리", pic: KP.E("🪈"), snd: () => [["G5", 0.3], ["E5", 0.3], ["C5", 0.6], ["D5", 0.3], ["E5", 0.6]].reduce((t, [n, d]) => { A.note(n, { inst: "soft", dur: d + 0.15, vol: 0.24, when: t }); A.noise({ dur: d, vol: 0.02, bp: A.hz(n), q: 4, when: t }); return t + d; }, 0), len: 2.1 },
-      { id: "maraca", name: "마라카스", pic: KP.E("🪇"), snd: () => [0, 0.2, 0.4, 0.5, 0.8, 1.0, 1.2, 1.3].forEach((w) => A.noise({ dur: 0.1, vol: 0.13, hp: 4500, attack: 0.02, when: w })), len: 1.6 },
-      { id: "xylo", name: "실로폰", pic: SVG.xylo, snd: () => ["C5", "D5", "E5", "F5", "G5", "A5", "B5", "C6"].forEach((n, i) => { const f = A.hz(n); A.note(f, { inst: "marimba", dur: 0.5, vol: 0.28, when: i * 0.11 }); A.tone(f * 4.1, { dur: 0.06, vol: 0.03, when: i * 0.11 }); }), len: 1.4 },
-      { id: "tri", name: "트라이앵글", pic: SVG.tri, snd: () => [0, 0.8].forEach((w) => { const f = A.hz("E6"); A.note(f, { inst: "bell", dur: 1.6, vol: 0.14, when: w }); A.tone(f * 2.76, { dur: 1.2, vol: 0.035, when: w }); }), len: 2.2 },
-      { id: "tamb", name: "탬버린", pic: SVG.tamb, snd: () => [0, 0.3, 0.6, 0.75, 0.9].forEach((w) => { for (let k = 0; k < 4; k++) A.noise({ dur: 0.1, vol: 0.09, hp: 6500, when: w + k * 0.025 }); A.noise({ dur: 0.05, vol: 0.06, bp: 900, when: w }); }), len: 1.5 },
+      { id: "drum", g: "hit", name: "북", pic: KP.E("🥁"), snd: () => [0, 0.42, 0.84, 1.05].forEach((w, i) => {
+        if (ok("drums")) { SM.hit("drums", "kick", { when: w, vol: 0.85 }); if (i > 1) SM.hit("drums", "snare", { when: w, vol: 0.4 }); return; }
+        A.kick({ vol: 0.75, when: w }); if (i > 1) A.noise({ dur: 0.15, vol: 0.12, bp: 1600, when: w });
+      }), len: 1.6 },
+      { id: "piano", g: "keys", name: "피아노", pic: KP.E("🎹"), snd: () => ["C4", "E4", "G4", "C5", "G4", "C5"].forEach((n, i) => (ok("piano") ? SM.note("piano", n, { when: i * 0.22, vol: 0.3, dur: 0.9 }) : piano(n, i * 0.22))), len: 2 },
+      { id: "trumpet", g: "long", name: "나팔", pic: KP.E("🎺"), snd: () => [["G4", 0.16], ["G4", 0.16], ["G4", 0.16], ["C5", 0.8]].reduce((t, [n, d]) => (brass(n, d, t), t + d + 0.06), 0), len: 1.8 },
+      { id: "guitar", g: "pluck", name: "기타", pic: KP.E("🎸"), snd: () => [0, 0.6].forEach((w) => ["C3", "E3", "G3", "C4", "E4"].forEach((n, i) => (ok("guitar") ? SM.note("guitar", n, { when: w + i * 0.035, vol: 0.3, dur: 1.3 }) : A.note(n, { inst: "pluck", dur: 1.4, vol: 0.2, when: w + i * 0.035 })))), len: 2 },
+      { id: "bell", g: "metal", name: "종", pic: KP.E("🔔"), snd: () => { A.note("G4", { inst: "bell", dur: 1.6, vol: 0.32 }); A.note("E4", { inst: "bell", dur: 1.8, vol: 0.32, when: 0.7 }); }, len: 2.2 },
+      { id: "violin", g: "long", name: "바이올린", pic: KP.E("🎻"), snd: () => [["E4", 0.6], ["G4", 0.6], ["C5", 1.1]].reduce((t, [n, d]) => { const f = A.hz(n); A.note(f, { inst: "pad", dur: d, vol: 0.2, when: t }); A.tone(f * 2, { type: "triangle", attack: 0.15, dur: d + 0.2, vol: 0.05, when: t }); A.tone(f * 3, { attack: 0.2, dur: d, vol: 0.02, when: t }); return t + d; }, 0), len: 2.4 },
+      { id: "flute", g: "long", name: "피리", pic: KP.E("🪈"), snd: () => [["G5", 0.3], ["E5", 0.3], ["C5", 0.6], ["D5", 0.3], ["E5", 0.6]].reduce((t, [n, d]) => { A.note(n, { inst: "soft", dur: d + 0.15, vol: 0.24, when: t }); A.noise({ dur: d, vol: 0.02, bp: A.hz(n), q: 4, when: t }); return t + d; }, 0), len: 2.1 },
+      { id: "maraca", g: "shake", name: "마라카스", pic: KP.E("🪇"), snd: () => [0, 0.2, 0.4, 0.5, 0.8, 1.0, 1.2, 1.3].forEach((w, i) => (ok("shaker") ? SM.hit("shaker", i % 2 ? "up" : "down", { when: w, vol: 0.5 }) : A.noise({ dur: 0.1, vol: 0.13, hp: 4500, attack: 0.02, when: w }))), len: 1.6 },
+      { id: "xylo", g: "metal", name: "실로폰", pic: SVG.xylo, snd: () => ["C5", "D5", "E5", "F5", "G5", "A5", "B5", "C6"].forEach((n, i) => { if (ok("xylo")) return void SM.note("xylo", n, { when: i * 0.11, vol: 0.45 }); const f = A.hz(n); A.note(f, { inst: "marimba", dur: 0.5, vol: 0.28, when: i * 0.11 }); A.tone(f * 4.1, { dur: 0.06, vol: 0.03, when: i * 0.11 }); }), len: 1.4 },
+      { id: "tri", g: "metal", name: "트라이앵글", pic: SVG.tri, snd: () => [0, 0.8].forEach((w) => { const f = A.hz("E6"); A.note(f, { inst: "bell", dur: 1.6, vol: 0.14, when: w }); A.tone(f * 2.76, { dur: 1.2, vol: 0.035, when: w }); }), len: 2.2 },
+      { id: "tamb", g: "shake", name: "탬버린", pic: SVG.tamb, snd: () => [0, 0.3, 0.6, 0.75, 0.9].forEach((w) => { if (ok("tamb")) return void SM.hit("tamb", "hit", { when: w, vol: 0.5 }); for (let k = 0; k < 4; k++) A.noise({ dur: 0.1, vol: 0.09, hp: 6500, when: w + k * 0.025 }); A.noise({ dur: 0.05, vol: 0.06, bp: 900, when: w }); }), len: 1.5 },
     ];
 
     const stage = U.el("div", "in-stage");
@@ -88,6 +96,7 @@ KP.game({
     let answer = null,
       last = null,
       playT = 0,
+      replayT = 0,
       btns = [];
     function playIt(inst) {
       inst = inst || answer;
@@ -101,11 +110,25 @@ KP.game({
       U.replay(bListen, "pop");
       playIt();
     });
+    /** 보기 고르기: 1·2단계는 소리 묶음(g)이 서로 다른 악기만 (비슷한 소리끼리 헷갈리지 않게), 3단계는 아무거나 */
+    function pickOpts(n) {
+      if (ctx.level >= 3) return U.sample(INSTS.filter((x) => x !== answer), n - 1);
+      const used = new Set([answer.g]),
+        out = [];
+      for (const x of U.shuffle(INSTS.filter((x) => x !== answer))) {
+        if (out.length >= n - 1) break;
+        if (used.has(x.g)) continue;
+        used.add(x.g);
+        out.push(x);
+      }
+      return out;
+    }
     function next() {
-      const n = [2, 3, 4][ctx.level - 1];
+      const n = [3, 3, 4][ctx.level - 1];
+      ctx.cancel(replayT);
       answer = U.pick(INSTS.filter((x) => x !== last));
       last = answer;
-      const opts = U.shuffle([answer, ...U.sample(INSTS.filter((x) => x !== answer), n - 1)]);
+      const opts = U.shuffle([answer, ...pickOpts(n)]);
       ans.innerHTML = "";
       btns = ctx.choices(ans, opts, {
         cls: "in-ch",
@@ -114,6 +137,7 @@ KP.game({
         wrongMsg: (v) => U.josa(v.name, "이/가") + " 아니에요. 다시 들어 볼까요?",
         onRight: async (v, b) => {
           ctx.hint(null);
+          ctx.cancel(replayT); // 오답 뒤 예약해 둔 '다시 들려주기'가 정답 소리와 겹치지 않게
           b.classList.add("play");
           playIt(v);
           ctx.score.add();
@@ -124,9 +148,14 @@ KP.game({
           if (ok) next();
         },
       });
-      // 틀리면 정답 소리를 다시 들려주기
+      // 틀리면 정답 소리를 다시 들려주기 — 연달아 틀려도 예약은 하나만 (소리가 겹치지 않게)
       btns.forEach((b) => {
-        if (!b.dataset.right) b.addEventListener("click", () => !KP.celebrating && ctx.after(1700, () => !KP.celebrating && playIt()));
+        if (!b.dataset.right)
+          b.addEventListener("click", () => {
+            if (KP.celebrating) return;
+            ctx.cancel(replayT);
+            replayT = ctx.after(1700, () => !KP.celebrating && playIt());
+          });
       });
       ctx.say("무슨 악기 소리일까요? 잘 들어 보세요!");
       ctx.after(2300, () => playIt());
@@ -135,6 +164,8 @@ KP.game({
     ctx.next = next;
   },
   start(ctx) {
+    // 진짜 악기 녹음 미리 불러오기 (기다리지 않음 — 그사이엔 합성음)
+    if (KP.sampler) KP.sampler.load(["drums", "piano", "xylo", "guitar", "tamb", "shaker"]);
     ctx.bgmWas = KP.audio.bgm.on;
     if (ctx.bgmWas) KP.audio.bgm.stop();
     ctx.round = 0;

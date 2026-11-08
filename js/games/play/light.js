@@ -112,7 +112,7 @@ KP.game({
     const U = KP.u,
       A = KP.audio;
     const lv = ctx.level;
-    ctx.steps = [7, 9, 11][lv - 1];
+    ctx.steps = [9, 10, 11][lv - 1]; // 1단계 7칸 → 9칸: 첫 초록불에 다 가 버려 빨간불을 못 겪던 문제
     ctx.yellow = lv === 3;
     ctx.pos = 0;
     ctx.lamps[1].style.display = ctx.yellow ? "" : "none";
@@ -121,10 +121,15 @@ KP.game({
     ctx.size();
     let sig = "r",
       done = false,
-      lastTalk = 0;
-    const DUR = { g: [4.5, 3.4, 2.8][lv - 1], y: 1.3, r: [3, 2.8, 2.6][lv - 1] };
+      lastTalk = 0,
+      started = false, // 첫 초록불 전(준비 시간)에는 눌러도 틀림 아님
+      sawRed = false, // 이번 판에 초록불 → 빨간불을 겪었나
+      redMiss = 0, // 이번 판 빨간불에 누른 횟수 (첫 번째는 가볍게)
+      lastHop = 0;
+    const DUR = { g: [3.4, 3.2, 2.8][lv - 1], y: 1.3, r: [2.6, 2.6, 2.5][lv - 1] };
     const setSig = (s, speak = true) => {
       sig = s;
+      if (s === "r" && started) sawRed = true;
       ctx.lamps.forEach((l) => l.classList.toggle("on", l.classList.contains(s)));
       ctx.go.className = "lt-go " + s;
       ctx.go.querySelector("span").textContent = s === "g" ? "깡총!" : s === "y" ? "기다려" : "멈춰!";
@@ -151,6 +156,7 @@ KP.game({
     ctx.say("초록불일 때만 깡총! 빨간불엔 멈춰요 🚦");
     setSig("r", false);
     ctx.after(2600, () => {
+      started = true;
       setSig("g");
       ctx.sigT = ctx.after(DUR.g * 1000, cycle);
     });
@@ -158,7 +164,11 @@ KP.game({
     const hop = () => {
       if (done || KP.celebrating) return;
       const rab = ctx.rab;
+      // 깡총 최소 간격: 연타해도 한 번에 너무 멀리 가지 않게 (1·2단계 0.38초, 3단계 0.32초)
+      const now0 = performance.now();
+      if (sig === "g" && now0 - lastHop < (lv === 3 ? 320 : 380)) return;
       if (sig === "g") {
+        lastHop = now0;
         ctx.pos = Math.min(ctx.steps, Math.floor(ctx.pos) + 1);
         rab.classList.remove("idle", "oops");
         U.replay(rab, "hop");
@@ -172,6 +182,26 @@ KP.game({
         ctx.scene.insertBefore(pr, ctx.carrot);
         ctx.after(2600, () => pr.remove());
         if (ctx.pos >= ctx.steps) arrive();
+        // 빨간불을 한 번도 못 보고 도착할 것 같으면, 당근 두 칸 앞에서 신호를 바꿔 '멈추기'를 꼭 한 번 겪게
+        else if (!sawRed && ctx.pos >= ctx.steps - 2) {
+          ctx.cancel(ctx.sigT);
+          ctx.sigT = ctx.after(350, () => {
+            if (done || sig !== "g") return;
+            const nx = ctx.yellow ? "y" : "r";
+            setSig(nx);
+            ctx.sigT = ctx.after(DUR[nx] * 1000 * U.randf(0.9, 1.1), cycle);
+          });
+        }
+      } else if (!started) {
+        // 시작 전 빨간불: 틀림 아님 — 살짝 멈칫하고 "초록불 기다려요"만
+        rab.classList.remove("hop", "idle");
+        U.replay(rab, "oops");
+        A.note("E5", { inst: "soft", dur: 0.12, vol: 0.12 });
+        const now = Date.now();
+        if (now - lastTalk > 2200) {
+          lastTalk = now;
+          KP.voice.say("초록불 기다려요");
+        }
       } else {
         // 빨간불/노란불 — 깜짝 멈칫
         rab.classList.remove("hop", "idle");
@@ -187,7 +217,9 @@ KP.game({
         const now = Date.now();
         if (now - lastTalk > 2200) {
           lastTalk = now;
-          ctx.miss(null, sig === "r" ? "빨간불엔 멈춰요!" : "노란불엔 기다려요!");
+          // 판마다 첫 번째는 가벼운 실수(배우는 중), 그다음부터 틀림
+          redMiss++;
+          ctx.miss(null, sig === "r" ? "빨간불엔 멈춰요!" : "노란불엔 기다려요!", { soft: redMiss === 1 });
         }
       }
     };

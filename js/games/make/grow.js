@@ -1,6 +1,8 @@
 /* 꽃 키우기 — 물뿌리개로 물 주고, 해님을 누르면 쑥쑥!
-   - 화분 3개: 씨앗 → 싹 → 잎 → 봉오리 → 꽃 (꽃 종류는 랜덤)
-   - 물뿌리개를 끌어다 화분 위에 대면 물방울이 떨어짐 → 흙이 촉촉해지면 해님 누르기 → 한 단계 자람
+   - 화분 3개: 씨앗 → 싹 → 봉오리 → 꽃 (꽃 종류는 랜덤) — 물 주기·해님 3번이면 꽃 (예전 4번은 지루해서 줄임, 2026-11-08)
+   - 물뿌리개를 끌어다 화분에 겹치게 대면(몸통이든 주둥이든) 물방울이 떨어짐 → 흙이 촉촉해지면 해님 누르기 → 한 단계 자람
+   - 꽃이 피면 잠시 그대로 두고 감상(꽃을 콕 → 이름) → 축하 뒤 정원으로
+   - 가만히 있으면 반투명 물뿌리개가 목마른 화분까지 날아가 '끌기'를 보여 줌
    - 핀 꽃은 "내 정원"(KP.store "grow:garden")에 영구 저장 → 정원이 날마다 커짐, 🌼 단추로 정원 보기
    - 화분 상태도 저장(KP.store "grow:pots") → 껐다 켜도 이어서 키우기
    - 나비·벌이 날아다님 (꽃이 많을수록 더 많이) */
@@ -47,13 +49,23 @@ KP.game({
       .gr-view.show{display:flex;animation:enter .3s}
       .gr-vtop{display:flex;align-items:center;gap:10px;padding:12px 14px;font-size:clamp(20px,3vw,30px)}
       .gr-vtop .btn{font-size:clamp(18px,2.4vw,22px)}
-      .gr-vgrid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--fs,74px),1fr));gap:4px 6px;padding:20px 14px 24px;align-content:start}
+      .gr-vscroll{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;position:relative;z-index:1}
+      .gr-vgrid{margin-top:auto;display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:2px clamp(6px,2vw,22px);padding:20px 14px 18px}
+      .gr-vgrid .gr-vf{min-width:var(--fs,74px)}
+      .gr-vsun{position:absolute;right:4%;top:9%;font-size:clamp(56px,10vh,96px);animation:grSun 8s linear infinite;pointer-events:none}
+      .gr-vbug{position:absolute;left:0;top:0;font-size:clamp(32px,5vh,46px);pointer-events:none;z-index:2;animation:grFly var(--d,11s) ease-in-out infinite alternate;animation-delay:var(--dl,0s)}
+      @keyframes grFly{0%{transform:translate(8vw,42vh) rotate(-8deg)}25%{transform:translate(34vw,30vh) rotate(8deg)}50%{transform:translate(58vw,46vh) rotate(-6deg)}75%{transform:translate(76vw,32vh) rotate(6deg)}100%{transform:translate(86vw,48vh) rotate(-8deg)}}
+      .gr-vgrass{position:absolute;left:0;right:0;bottom:0;height:14%;background:repeating-linear-gradient(100deg,#7fcc63 0 10px,#8fd56d 10px 20px);pointer-events:none}
+      .gr-ghost{position:absolute;z-index:6;pointer-events:none;opacity:0;width:clamp(110px,15vw,170px);filter:drop-shadow(0 6px 4px rgba(0,0,0,.15))}
+      .gr-ghost svg{width:100%;display:block}
+      .gr-pot.bloom{animation:grBloom 1.2s ease-in-out infinite}
+      @keyframes grBloom{50%{transform:translateY(-4%) rotate(2deg)}}
       .gr-vf{display:flex;flex-direction:column;align-items:center;font-size:var(--fs,74px);line-height:1;animation:itemIn .4s backwards;animation-delay:calc(var(--i) * 18ms)}
       .gr-vf .e{animation:grSway 3s ease-in-out infinite;animation-delay:calc(var(--i) * -0.37s);transform-origin:bottom center}
       .gr-vf small{font-size:12px;color:#2e6b2a;margin-top:2px}
       @keyframes grSway{50%{transform:rotate(6deg)}}
-      .gr-vempty{grid-column:1/-1;text-align:center;font-size:22px;color:#2e6b2a;padding-top:40px}
-      @media (max-aspect-ratio:1/1){ .gr{margin:0 10px 10px} .gr-pot{width:30vw} .gr-can{top:36%;width:28vw} }
+      .gr-vempty{grid-column:1/-1;width:100%;text-align:center;font-size:22px;color:#2e6b2a;padding-top:40px}
+      @media (max-aspect-ratio:1/1){ .gr{margin:0 10px 10px} .gr-pot{width:30vw} .gr-can,.gr-ghost{width:28vw} .gr-can{top:36%} }
     `);
 
     const FLOWERS = [
@@ -62,6 +74,8 @@ KP.game({
     ];
     KP.loadE(FLOWERS.map((f) => f[0]).concat(["🦋", "🐝"]));
     const STAGE_NAMES = ["씨앗", "싹", "잎", "봉오리", "꽃"];
+    // 자라는 순서: 씨앗(0) → 싹(1) → 봉오리(3) → 꽃(4). '잎(2)' 단계는 건너뜀 (예전에 저장된 2 는 3 으로)
+    const NEXT = { 0: 1, 1: 3, 2: 3, 3: 4 };
 
     /* ---------- 저장된 상태 ---------- */
     const newPot = () => ({ stage: 0, water: 0, kind: U.rand(FLOWERS.length) });
@@ -129,8 +143,16 @@ KP.game({
       ctx.fast(el, () => {
         const p = pots[i];
         U.replay(el, "jump");
+        if (p.stage >= 4) {
+          // 핀 꽃: 이름을 말하고 꽃가루가 퐁
+          A.note(A.SCALE[(i * 2 + 3) % 8], { inst: "bell", dur: 0.5, vol: 0.2 });
+          A.sfx("sparkle");
+          KP.voice.say(FLOWERS[p.kind][1] + "!");
+          puff(i, 14);
+          return;
+        }
         A.sfx("tap2");
-        const nm = p.stage === 4 ? FLOWERS[p.kind][1] : STAGE_NAMES[p.stage];
+        const nm = STAGE_NAMES[p.stage];
         KP.voice.say(p.water >= 1 ? nm + "! 물을 먹었어요. 해님을 눌러요!" : nm + "! 목말라요. 물을 주세요!");
       });
       return el;
@@ -189,17 +211,54 @@ KP.game({
       // 기울였을 때 주둥이 끝 (대략 오른쪽 위)
       return { x: r.left - s.left + r.width * 0.96, y: r.top - s.top + r.height * (can.classList.contains("pour") ? 0.45 : 0.2) };
     }
+    /** 물 줄 화분: 주둥이 끝이 화분 위에 있거나, 물뿌리개 몸통이 화분(위쪽 공간 포함)과 겹치면 — 가장 많이 겹친 화분.
+        (예전엔 주둥이 끝만 봐서 아이가 몸통을 화분 위에 올리면 물이 안 나왔음) */
     function potUnder() {
       if (!drag) return -1;
       const sp = spout(),
-        s = scene.getBoundingClientRect();
+        s = scene.getBoundingClientRect(),
+        c = can.getBoundingClientRect();
+      const cx0 = c.left - s.left + c.width * 0.12,
+        cx1 = c.left - s.left + c.width * 0.9,
+        cy0 = c.top - s.top,
+        cy1 = c.top - s.top + c.height * 0.9;
+      let best = -1,
+        bestA = 0;
       for (let i = 0; i < 3; i++) {
         const r = potEls[i].getBoundingClientRect();
         const x = r.left - s.left,
           y = r.top - s.top;
         if (sp.x > x - 30 && sp.x < x + r.width + 30 && sp.y < y + r.height * 0.75 && sp.y > y - r.height * 0.9) return i;
+        // 화분 + 그 위 공간(화분 높이의 0.9배)과 물뿌리개 몸통이 겹친 넓이
+        const ox = Math.min(cx1, x + r.width) - Math.max(cx0, x),
+          oy = Math.min(cy1, y + r.height * 0.7) - Math.max(cy0, y - r.height * 0.9);
+        const a = ox > 0 && oy > 0 ? ox * oy : 0;
+        if (a > bestA) {
+          bestA = a;
+          best = i;
+        }
       }
-      return -1;
+      return bestA > c.width * c.height * 0.12 ? best : -1;
+    }
+    /** 물방울이 나올 자리: 주둥이가 화분 위면 주둥이, 아니면 물뿌리개 아래쪽에서 화분 가운데로 */
+    function pourFrom(i) {
+      const sp = spout(),
+        s = scene.getBoundingClientRect(),
+        r = potEls[i].getBoundingClientRect();
+      const px = r.left - s.left + r.width / 2;
+      if (Math.abs(sp.x - px) < r.width * 0.75) return { x: sp.x, y: sp.y, vx: 30 };
+      const c = can.getBoundingClientRect();
+      return { x: Math.max(c.left, Math.min(c.right, r.left + r.width / 2)) - s.left, y: c.top - s.top + c.height * 0.8, vx: (px - (c.left - s.left + c.width / 2)) * 0.3 };
+    }
+    /** 꽃가루 퐁 */
+    function puff(i, n) {
+      const s2 = scene.getBoundingClientRect(),
+        pr = potEls[i].getBoundingClientRect();
+      for (let k = 0; k < n; k++) {
+        const a = Math.random() * 6.28,
+          sp = 80 + Math.random() * 200;
+        drops.push({ x: pr.left - s2.left + pr.width / 2, y: pr.top - s2.top + pr.height * 0.15, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 150, life: 1.4, c: U.pick(["#ffd23f", "#ff8fb8", "#ffffff", FLOWERS[pots[i].kind][2]]), s: 3 + Math.random() * 4 });
+      }
     }
     let dropsDrawn = false;
     function step(dt) {
@@ -208,8 +267,9 @@ KP.game({
       potEls.forEach((p, k) => p.classList.toggle("over", k === i));
       can.classList.toggle("pour", i >= 0);
       if (i >= 0) {
-        const sp = spout();
-        for (let k = 0; k < 3; k++) drops.push({ x: sp.x + (Math.random() - 0.3) * 18, y: sp.y + 10, vx: 30 + Math.random() * 40, vy: 40 + Math.random() * 60, life: 1 });
+        idle = 0;
+        const sp = pourFrom(i);
+        for (let k = 0; k < 3; k++) drops.push({ x: sp.x + (Math.random() - 0.3) * 18, y: sp.y + 10, vx: sp.vx + Math.random() * 40, vy: 40 + Math.random() * 60, life: 1 });
         sndAcc += dt;
         if (sndAcc > 0.32) {
           sndAcc = 0;
@@ -223,7 +283,9 @@ KP.game({
             renderPot(i);
             A.note("C6", { inst: "bell", dur: 0.4, vol: 0.15 });
             A.note("G6", { inst: "bell", dur: 0.5, vol: 0.12, when: 0.1 });
-            KP.voice.say(saidSun ? "꿀꺽꿀꺽! 촉촉해졌어요!" : "꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
+            // 말풍선도 바꿈 (소리를 못 들어도 다음 할 일이 보이게)
+            if (pots.some((q) => q.stage < 4 && q.water < 1)) ctx.say(saidSun ? "꿀꺽꿀꺽! 촉촉해졌어요!" : "꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
+            else ctx.say("꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
             saidSun = true;
             setHint();
           }
@@ -256,6 +318,15 @@ KP.game({
       }
       fg.globalAlpha = 1;
       if (drops.length > 400) drops.splice(0, drops.length - 400);
+      // 끌기 보여 주기: 9초 넘게 가만히 있고 목마른 화분이 있으면 반투명 물뿌리개가 그 화분까지 날아감
+      if (!drag && !busy && !view.classList.contains("show")) {
+        idle += dt;
+        if (idle > 9) {
+          idle = 0;
+          const k = pots.findIndex((p) => p.stage < 4 && p.water < 1);
+          if (k >= 0 && !pots.some((p) => p.stage < 4 && p.water >= 1)) ghostTo(k);
+        }
+      } else if (drag) idle = 0;
       // 나비·벌
       bugs.forEach((b) => {
         b.t += dt * b.sp;
@@ -263,6 +334,30 @@ KP.game({
           y = (b.cy + Math.sin(b.t * 1.9 + b.ph) * b.ay) * H;
         b.el.style.transform = "translate(" + x + "px," + y + "px) scaleX(" + (Math.cos(b.t * 0.7 + b.ph) > 0 ? -1 : 1) + ") rotate(" + Math.sin(b.t * 9) * 8 + "deg)";
       });
+    }
+    let idle = 0;
+    const ghost = U.el("div", "gr-ghost", can.innerHTML);
+    function ghostTo(k) {
+      if (!ghost.animate) return;
+      const s = scene.getBoundingClientRect(),
+        c = can.getBoundingClientRect(),
+        r = potEls[k].getBoundingClientRect();
+      const x0 = c.left - s.left,
+        y0 = c.top - s.top;
+      const x1 = r.left - s.left + r.width * 0.5 - c.width * 0.9,
+        y1 = r.top - s.top - c.height * 0.6;
+      Object.assign(ghost.style, { left: x0 + "px", top: y0 + "px" });
+      ghost.animate(
+        [
+          { transform: "translate(0,0)", opacity: 0 },
+          { transform: "translate(0,0)", opacity: 0.6, offset: 0.15 },
+          { transform: "translate(" + (x1 - x0) + "px," + (y1 - y0) + "px)", opacity: 0.6, offset: 0.65 },
+          { transform: "translate(" + (x1 - x0) + "px," + (y1 - y0) + "px) rotate(-30deg)", opacity: 0.6, offset: 0.85 },
+          { transform: "translate(" + (x1 - x0) + "px," + (y1 - y0) + "px) rotate(-30deg)", opacity: 0 },
+        ],
+        { duration: 2200, easing: "ease-in-out" }
+      );
+      U.replay(can, "wig");
     }
     let D = 1;
     function fit() {
@@ -278,7 +373,7 @@ KP.game({
     let bugs = [];
     function makeBugs() {
       bugs.forEach((b) => b.el.remove());
-      const n = Math.min(5, 1 + Math.floor(garden().length / 3) + pots.filter((p) => p.stage >= 3).length);
+      const n = Math.min(5, 2 + Math.floor(garden().length / 3) + pots.filter((p) => p.stage >= 3).length);
       bugs = Array.from({ length: n }, (_, i) => {
         const el = U.el("div", "gr-bug", KP.E(i % 2 ? "🐝" : "🦋"));
         scene.insertBefore(el, fx);
@@ -293,7 +388,8 @@ KP.game({
       ["C5", "E5", "G5", "C6"].forEach((n, i) => A.note(n, { inst: "bell", dur: 0.6, vol: 0.14, when: i * 0.07 }));
       const ready = pots.map((p, i) => (p.stage < 4 && p.water >= 1 ? i : -1)).filter((i) => i >= 0);
       if (!ready.length) {
-        KP.voice.say(pots.some((p) => p.stage < 4) ? "해님이 반짝! 그런데 먼저 물을 주세요!" : "해님이 반짝반짝!");
+        if (pots.some((p) => p.stage < 4)) ctx.say("해님이 반짝! 그런데 먼저 물을 주세요!");
+        else KP.voice.say("해님이 반짝반짝!");
         U.replay(can, "jump");
         return;
       }
@@ -318,7 +414,7 @@ KP.game({
       let bloomed = [];
       ready.forEach((i) => {
         const p = pots[i];
-        p.stage++;
+        p.stage = NEXT[p.stage] || 4;
         p.water = 0;
         renderPot(i, true);
         if (p.stage === 4) bloomed.push(i);
@@ -328,7 +424,7 @@ KP.game({
       makeBugs();
       if (!bloomed.length) {
         const st = pots[ready[0]].stage;
-        KP.voice.say(["", "싹이 났어요!", "잎이 쑥쑥 자랐어요!", "봉오리가 생겼어요! 곧 꽃이 필 거예요!"][st] + " 또 물을 주세요!");
+        ctx.say(["", "싹이 났어요!", "잎이 쑥쑥 자랐어요!", "봉오리가 생겼어요! 곧 꽃이 필 거예요!"][st] + " 또 물을 주세요!");
         busy = false;
         setHint();
         return;
@@ -339,20 +435,16 @@ KP.game({
         const g = garden();
         g.push({ e: em, n: name, d: KP.gate.monthDay(), t: Date.now() });
         KP.store.set("grow:garden", g);
-        // 꽃가루 터짐
-        const s2 = scene.getBoundingClientRect(),
-          pr = potEls[i].getBoundingClientRect();
-        for (let k = 0; k < 40; k++) {
-          const a = Math.random() * 6.28,
-            sp = 80 + Math.random() * 200;
-          drops.push({ x: pr.left - s2.left + pr.width / 2, y: pr.top - s2.top + pr.height * 0.15, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 150, life: 1.4, c: U.pick(["#ffd23f", "#ff8fb8", "#ffffff", FLOWERS[p.kind][2]]), s: 3 + Math.random() * 4 });
-        }
+        // 꽃가루 터짐 + 꽃이 살랑살랑
+        puff(i, 40);
+        potEls[i].classList.add("bloom");
         A.sfx("sparkle");
         updateGardenBtn();
         U.replay(bGarden, "bump");
         ctx.say(U.josa(name, "이/가") + " 피었어요! 내 정원에 심었어요.");
       }
-      await ctx.wait(1500);
+      // 내가 키운 꽃을 볼 시간 (꽃을 콕 누르면 이름을 말함)
+      await ctx.wait(3200);
       ctx.round = (ctx.round || 0) + 1;
       const ok = await ctx.win({ big: ctx.round % 3 === 0, msg: U.josa(FLOWERS[pots[bloomed[0]].kind][1], "이/가") + " 피었어요!" });
       if (!ok) return;
@@ -365,12 +457,13 @@ KP.game({
         document.body.appendChild(f);
         requestAnimationFrame(() => requestAnimationFrame(() => (f.style.transform = "translate(" + (b.left - a.left - a.width * 0.2) + "px," + (b.top - a.top + a.height * 0.1) + "px) scale(.25)")));
         setTimeout(() => f.remove(), 950);
+        potEls[i].classList.remove("bloom");
         pots[i] = newPot();
         renderPot(i, true);
       }
       savePots();
       A.sfx("whoosh");
-      KP.voice.say("새 씨앗을 심었어요! 물을 주세요!");
+      ctx.say("새 씨앗을 심었어요! 물을 주세요!");
       busy = false;
       setHint();
     });
@@ -384,10 +477,22 @@ KP.game({
       const top = U.el("div", "gr-vtop");
       const back = U.btn(KP.E("↩️") + " 돌아가기", "btn");
       top.append(back, U.el("div", "", KP.E("🌼") + " 내 정원 · 꽃 " + g.length + "송이"));
+      // 하늘·해님·나비가 있는 정원: 꽃은 아래 풀밭부터 크게 심음 (꽃이 많아지면 조금씩 작게, 넘치면 위로 스크롤)
+      view.append(U.el("div", "gr-vsun", KP.E("☀️")), U.el("div", "gr-vgrass"));
+      const nb = Math.min(4, 1 + Math.floor(g.length / 4));
+      for (let k = 0; k < nb; k++) {
+        const b = U.el("div", "gr-vbug", KP.E(k % 2 ? "🐝" : "🦋"));
+        b.style.setProperty("--d", 9 + k * 2.5 + "s");
+        b.style.setProperty("--dl", -k * 3.1 + "s");
+        view.appendChild(b);
+      }
+      const scroll = U.el("div", "gr-vscroll");
       const grid = U.el("div", "gr-vgrid");
-      const fs = g.length > 80 ? 44 : g.length > 40 ? 56 : 74;
+      scroll.appendChild(grid);
+      const fs = g.length > 80 ? 48 : g.length > 40 ? 62 : g.length > 16 ? 84 : 112;
       grid.style.setProperty("--fs", fs + "px");
       if (!g.length) grid.appendChild(U.el("div", "gr-vempty", "아직 핀 꽃이 없어요. 물을 주고 해님을 눌러 꽃을 피워요!"));
+      requestAnimationFrame(() => (scroll.scrollTop = scroll.scrollHeight));
       g.forEach((f, i) => {
         const c = U.el("div", "gr-vf", KP.E(f.e) + "<small>" + (f.d || "") + "</small>");
         c.style.setProperty("--i", Math.min(i, 60));
@@ -398,7 +503,7 @@ KP.game({
         });
         grid.appendChild(c);
       });
-      view.append(top, grid);
+      view.append(top, scroll);
       view.classList.add("show");
       KP.voice.say(g.length ? "내 정원에 꽃이 피었어요!" : "아직 핀 꽃이 없어요. 꽃을 피워 봐요!"); // 송이 수는 화면 위에
       back.addEventListener("click", () => {
@@ -419,6 +524,9 @@ KP.game({
         savePots();
       }
       view.classList.remove("show");
+      potEls.forEach((el) => el.classList.remove("bloom"));
+      idle = 0;
+      if (!ghost.parentNode) scene.insertBefore(ghost, fx);
       renderAll();
       updateGardenBtn();
       requestAnimationFrame(() => {

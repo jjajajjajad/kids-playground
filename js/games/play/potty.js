@@ -735,11 +735,14 @@ KP.game({
     const ok = await C.routine(ctx, { bar: ctx._bar || (ctx._bar = U.el("div", "kc-bar")), tools: TOOLS, steps, mode: lv, ask: lv === 2 ? "화장실에 왔어요! 먼저 뭘 할까요?" : lv === 3 ? "혼자서 해 볼까요?" : null });
     if (!ok || !live()) return;
     ctx.stage = "done";
+    ctx.say("다 했어요! 🧻", false); // 마지막 안내("거품을 싹싹…")가 축하 동안 말풍선에 남지 않게 (글자만)
     ctx.score.add();
     ctx.round++;
     const big = ctx.round % 4 === 0;
     const msg = big ? "화장실 가고 싶으면 말해 줘요!" : U.pick(["응가 끙끙, 시원하다!", "{부름} 화장실 박사!", "혼자서도 잘해요!"]);
-    const r = await ctx.win({ big, msg });
+    // 말은 자연 음성이 있는 문장으로 (화면 글자는 그대로)
+    const say = { "응가 끙끙, 시원하다!": "시원하다!", "{부름} 화장실 박사!": "{부름} 참 잘했어요!", "혼자서도 잘해요!": "참 잘했어요!" }[msg] || msg;
+    const r = await ctx.win({ big, msg, say });
     if (r && live()) this.next(ctx);
   },
 

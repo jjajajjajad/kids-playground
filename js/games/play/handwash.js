@@ -2,7 +2,8 @@
    - 장면 속 물건을 직접 눌러요: 꽃 수도꼭지(물 틀기·잠그기, 손잡이가 돌아감) → 물비누 펌프(꾹 → 거품 덩이) → 손 문지르기 → 헹구기 → 수건
    - 손 그림 3자세(손바닥 → 손등 → 깍지)로 바뀌며, 문지른 자리만 거품이 생김 (표면 마스크 KP.care setSkin — 손 모양 안에서만)
      3단계는 놀다 온 흙 묻은 손: 문지른 곳만 깨끗해짐. 헹굴 때는 물줄기 아래에서 비빈 자리만 거품이 흘러내림
-   - 단계: 1 순서 안내(할 물건이 반짝) → 2 '다음엔 뭘 할까요?' 순서 고르기 → 3 흙 묻은 손을 혼자서 (시간 제한 없음)
+   - 단계: 1 순서 안내(할 물건이 반짝)·손바닥과 깍지 두 자세만·덜 문질러도 됨 → 2 '다음엔 뭘 할까요?' 순서 고르기(세 자세) → 3 흙 묻은 손을 혼자서 (시간 제한 없음)
+   - 자세가 바뀔 때 "휙!" 소리·글자로 알려 줌(손이 왜 바뀌었는지 알게)
    - 아이가 칠한 인형 친구(정면 그림)가 시작·끝에 옆에서 작게 응원
    공용: play/_care.js(문지르기 판·표면 마스크·순서) · _shared/clay-stage.js(배경 자르기만, 3D 없음) */
 "use strict";
@@ -199,7 +200,7 @@ KP.game({
     put(ctx.stream, spout.x - sw / 2, spout.y - 3, sw, Math.max(24, top + h * 0.34 - spout.y));
     // 물비누 펌프(왼쪽)·수건(오른쪽): 세면대 가장자리 위, 좁은 화면이면 보이는 곳 안쪽으로
     if (tall) {
-      const side = Math.max(70, Math.min(x - 6, W * 0.2));
+      const side = Math.max(80, W * 0.2); // 폰 세로에서도 펌프·수건이 64px 넘게
       const ph = Math.max(96, side * 1.45), pw = ph * (172 / 256);
       put(ctx.pump, Math.max(4, x - pw * 0.72), H * 0.79 - ph, pw, ph);
       const tw = Math.max(80, side * 1.15), th = tw * (199 / 256);
@@ -331,18 +332,24 @@ KP.game({
         };
       });
 
+    // 1단계는 손바닥·깍지 두 자세만, 문지르기도 조금 덜 (한 판이 너무 길지 않게)
+    const poseList = lv === 1 ? [0, 2] : ctx.POSES.map((_, i) => i);
+    const rubNeed = lv === 1 ? 1.4 : 1.8;
     const rubAll = async () => {
-      for (let i = 0; i < ctx.POSES.length; i++) {
+      for (const i of poseList) {
         if (!alive()) return;
-        if (i > 0) {
+        if (i !== poseList[0]) {
           await this.setPose(ctx, i, alive);
           if (!alive()) return;
+          // 손 자세가 바뀌었다고 알려 주기
+          A.sfx("whoosh");
+          C.pop(ctx, ctx.scene, cx(), F().y + F().h * 0.12, "휙!");
           S.skinFill("wet", 0.6);
           // 앞 자세에서 묻은 거품이 조금 남아 있게
           for (const p of U.sample(C.ptsIn(ctx.POSES[i].shape, 8, 0.05), 4)) S.skinDab("foam", p.x, p.y, 0.07);
           mudNow = addMud();
         }
-        await rubZone("rub", { foam: true }, ctx.POSES[i].say, 1.8, mudNow);
+        await rubZone("rub", { foam: true }, ctx.POSES[i].say, rubNeed, mudNow);
         if (!alive()) return;
         S.finishZone("mud");
         S.skinFade("dirt");
@@ -379,7 +386,6 @@ KP.game({
       {
         tool: "soap",
         say: "비누를 눌러요!",
-        wrong: "음, 그 전에 할 일이 있어요!",
         act: async () => {
           U.replay(ctx.pump, "press");
           A.sfx("pop");
@@ -461,7 +467,9 @@ KP.game({
         ctx.round++;
         const big = ctx.round % 4 === 0;
         const msg = big ? "이제 진짜로 손 씻어 볼까?" : U.pick(["뽀득뽀득 깨끗한 손!", "{부름} 손 씻기 박사!", "와, 깨끗해졌어요!"]);
-        const r = await ctx.win({ big, msg });
+        // 말은 자연 음성이 있는 문장으로 (화면 글자는 그대로)
+        const say = msg === "뽀득뽀득 깨끗한 손!" ? "깨끗해졌어요!" : msg === "{부름} 손 씻기 박사!" ? "{부름} 참 잘했어요!" : msg;
+        const r = await ctx.win({ big, msg, say });
         pal(false);
         if (r && alive()) this.next(ctx);
       });

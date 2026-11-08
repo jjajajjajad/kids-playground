@@ -56,10 +56,18 @@ KP.game({
         .dw-pal,.dw-pal.mine3{grid-template-columns:repeat(7,var(--sw));gap:8px}
         .dw-acts{grid-template-columns:repeat(4,var(--ab));gap:8px;justify-content:end}
       }
+      /* 폰 세로(2026-11-08): 도구 6 + 굵기 3 + 단추 4 를 한 줄 5칸씩 3줄로(가운데 맞춤) → 모두 폰에서 64px 안팎.
+         (도구·굵기·단추 묶음은 display:contents 로 풀어서 .dw 의 10칸 격자에 2칸씩 차지) */
       @media (orientation:portrait) and (max-width:480px){
-        .dw{--ab:42px}
-        .dw-sizes{gap:4px}
-        .dw-acts{gap:4px}
+        .dw{--ab:clamp(46px,min(calc((100vw - 64px) / 5),7.7vh),72px);--tb:var(--ab);--sw:clamp(46px,min(calc((100vw - 64px) / 5),7.7vh),72px);
+          gap:6px;padding:2px 8px 8px;grid-template-columns:repeat(10,minmax(0,1fr));grid-template-rows:repeat(3,auto) minmax(0,1fr) auto;grid-template-areas:none}
+        .dw-tools,.dw-sizes,.dw-acts{display:contents}
+        .dw-tools > *,.dw-sizes > *,.dw-acts > *{grid-column:span 2;justify-self:center}
+        .dw-acts > :nth-child(2){grid-column:3 / span 2}
+        .dw-tool{border-radius:18px}
+        .dw-tool.sel{transform:none}
+        .dw .board{grid-column:1 / -1;grid-row:4}
+        .dw-pal,.dw-pal.mine3{grid-column:1 / -1;grid-row:5;grid-template-columns:repeat(5,var(--sw));gap:6px 8px}
       }
       @media (orientation:landscape) and (max-height:500px){
         .dw{gap:6px 8px;padding:2px 10px 8px;--tb:46px;--sw:44px;--ab:44px}
@@ -209,6 +217,11 @@ KP.game({
       refresh();
       U.replay(toolBtns[id], "jump");
       A.sfx("select");
+      if (speak && !pref.toolTried) {
+        pref.toolTried = true;
+        savePref();
+        if (ctx.toolHinted) ctx.hint(null);
+      }
       if (speak) KP.voice.say(TOOLS.find((t) => t.id === id).name + (id === "stamp" && was !== "stamp" ? "! 콩콩 찍어 봐요" : ""));
     }
 
@@ -494,7 +507,14 @@ KP.game({
       ops.forEach((op) => replay(op, ig));
       updateUndo();
     }
+    let strokesSince = 0; // 지난 저장 뒤로 그린 획 수 (열쇠 별 기준)
     function commit(op) {
+      strokesSince++;
+      // 처음 그림을 그린 뒤에도 도구를 한 번도 안 바꿨으면 → 도구 줄(무지개 펜)을 손가락으로 한 번 알려 줌
+      if (strokesSince === 3 && !pref.toolTried && !ctx.toolHinted) {
+        ctx.toolHinted = true;
+        ctx.hint(() => toolBtns.rainbow, "눌러 봐요!");
+      }
       ops.push(op);
       if (ops.length > 20) {
         bg.setTransform(D, 0, 0, D, 0, 0);
@@ -732,7 +752,11 @@ KP.game({
         KP.toast("🖼️ 내 작품에 저장했어요!");
         A.sfx("sticker");
         delete bSave.dataset.busy; // 기다리는 중에 나가도 버튼이 잠기지 않게
+        // 열쇠 별: 지난 저장 뒤로 6획 이상 그렸을 때만 (점 하나 + 💾 반복 방지)
+        const few = strokesSince < 6;
+        strokesSince = 0;
         ctx.after(900, async () => {
+          if (few) ctx._fewChoice = true;
           await ctx.win({ msg: "내 작품에 저장했어요!" });
         });
       } else {

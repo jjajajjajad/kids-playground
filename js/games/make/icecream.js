@@ -1,5 +1,7 @@
 /* 아이스크림 가게 — 손님 동물의 주문대로 아이스크림 만들기
-   1단계: 자유롭게 만들어 드리기 / 2단계: "딸기 두 개 주세요!"(맛 하나·개수) / 3단계: 맛 두 가지 + 콘·컵, 토핑 주문
+   1단계: "딸기 주세요!"(맛 하나, 개수는 마음대로) — 가끔 자유 주문(아무거나 → 축하는 하되 열쇠 별 없음)
+   2단계: "딸기 두 개 주세요!"(맛 하나·개수) / 3단계: 맛 두 가지(각 1~2개)
+   4단계: 맛 두 가지 + 콘·컵, 토핑 주문 (예전 3단계 — 3~4세에 한 번에 오르면 벅차서 나눔, 2026-11-08)
    - 콘/컵 고르기, 스쿱 최대 5개 쌓기(뚝 떨어지는 연출), 토핑: 스프링클·체리·초코칩
    - 드리기 → 손님이 냠냠 먹고 하트 / 틀리면 무엇이 다른지 말해 줌
    - 📸 → 내 작품(kind "icecream") */
@@ -9,7 +11,7 @@ KP.game({
   icon: "🍦",
   name: "아이스크림 가게",
   cat: "make",
-  levels: 3,
+  levels: 4,
   score: "🍦",
   setup(ctx) {
     const U = KP.u,
@@ -61,6 +63,17 @@ KP.game({
         .ic-bub svg{height:64px}
         .ic-cust{width:44%;bottom:24%}
         .ic-animal{font-size:clamp(80px,11vh,120px)}
+      }
+      /* 폰 세로(2026-11-08): 맛 단추 6칸 한 줄(51px) → 3칸씩 2줄, 모든 단추 64px 이상 (가게 그림은 조금 줄어듦) */
+      @media (orientation:portrait) and (max-width:480px){
+        .ic{padding:0 6px 8px;gap:6px}
+        .ic-ctl{gap:6px}
+        .ic-row{gap:6px}
+        .ic-fl{grid-template-columns:repeat(3,1fr)}
+        .ic-mix{gap:6px}
+        .ic-b{min-height:clamp(58px,7.8vh,68px);min-width:0;flex-direction:row;gap:4px;font-size:14px}
+        .ic-mix .ic-b,.ic-ac .ic-b{flex-direction:column;gap:1px;font-size:12.5px}
+        .ic-animal{font-size:clamp(76px,10vh,110px)}
       }
       @media (orientation:landscape) and (max-height:500px){
         .ic{gap:8px;padding:0 10px 8px}
@@ -242,19 +255,27 @@ KP.game({
     /* ---------- 손님 · 주문 ---------- */
     function makeOrder() {
       const lv = ctx.level;
-      if (lv === 1) return { free: true };
+      if (lv === 1) {
+        // 맛 하나만 (몇 개든 좋음). 세 번에 한 번쯤은 자유 주문
+        ctx.freeN = (ctx.freeN || 0) + 1;
+        if (ctx.freeN % 3 === 0) return { free: true };
+        return { only: U.rand(FLAVORS.length) };
+      }
       if (lv === 2) {
         const f = U.rand(FLAVORS.length);
         return { counts: { [f]: 1 + U.rand(3) } };
       }
       const [f1, f2] = U.sample([0, 1, 2, 3, 4, 5], 2);
       const o = { counts: { [f1]: 1 + U.rand(2), [f2]: 1 + U.rand(2) } };
-      if (Math.random() < 0.5) o.cont = U.pick(["cone", "cup"]);
-      if (Math.random() < 0.45) o.top = U.pick(["cherry", "sprinkle", "chip"]);
+      if (lv >= 4) {
+        if (Math.random() < 0.5) o.cont = U.pick(["cone", "cup"]);
+        if (Math.random() < 0.45) o.top = U.pick(["cherry", "sprinkle", "chip"]);
+      }
       return o;
     }
     function orderText(o) {
       if (o.free) return U.pick(["아이스크림 주세요! 맛있게 만들어 주세요!", "제일 맛있는 아이스크림 주세요!", "아이스크림 하나 주세요!"]);
+      if (o.only != null) return FLAVORS[o.only][0] + " 주세요!";
       const parts = Object.entries(o.counts).map(([f, n]) => FLAVORS[f][0] + " " + ["", "하나", "두 개", "세 개"][n]);
       let t = parts.join(", ");
       if (o.cont) t = (o.cont === "cup" ? "컵에 " : "콘에 ") + t;
@@ -264,6 +285,7 @@ KP.game({
     }
     function orderPic(o) {
       if (o.free) return iceSVG({ cont: "cone", scoops: [0, 2, 1] }).replace("<svg ", '<svg style="opacity:.9" ');
+      if (o.only != null) return iceSVG({ cont: "cone", scoops: [o.only] });
       const scoops = [];
       Object.entries(o.counts).forEach(([f, n]) => {
         for (let i = 0; i < n; i++) scoops.push(+f);
@@ -281,6 +303,7 @@ KP.game({
       const pool = CUSTOMERS.filter((c) => !who || c[0] !== who[0]);
       who = U.pick(pool);
       order = makeOrder();
+      freeHint = null;
       animal.innerHTML = KP.E(who[0]);
       cust.classList.add("away");
       bub.style.display = "none";
@@ -297,9 +320,18 @@ KP.game({
         hint();
       });
     }
+    let freeHint = null; // 자유 주문 힌트: 손님마다 한 단추만 가리킴 (부를 때마다 바뀌면 손가락이 왔다 갔다 함)
     function need() {
       // 다음에 눌러야 할 맛 단추 (힌트용)
-      if (!order || order.free) return st.scoops.length ? bServe : flBtns[U.rand(6)];
+      if (!order || order.free) {
+        if (st.scoops.length) return bServe;
+        if (!freeHint) freeHint = flBtns[U.rand(6)];
+        return freeHint;
+      }
+      if (order.only != null) {
+        if (st.scoops.some((f) => f !== order.only)) return bUndo;
+        return st.scoops.length ? bServe : flBtns[order.only];
+      }
       const have = {};
       st.scoops.forEach((f) => (have[f] = (have[f] || 0) + 1));
       for (const [f, n] of Object.entries(order.counts)) if ((have[f] || 0) < n) return flBtns[f];
@@ -315,6 +347,10 @@ KP.game({
     }
     function check() {
       if (order.free) return null;
+      if (order.only != null) {
+        const bad = st.scoops.find((f) => f !== order.only);
+        return bad == null ? null : U.josa(FLAVORS[bad][0], "은/는") + " 안 시켰어요!";
+      }
       const have = {};
       st.scoops.forEach((f) => (have[f] = (have[f] || 0) + 1));
       const CNT = ["", "한", "두", "세", "네", "다섯"];
@@ -368,6 +404,7 @@ KP.game({
       animal.classList.remove("nom");
       ctx.score.add();
       ctx.round = (ctx.round || 0) + 1;
+      if (order.free) ctx._fewChoice = true; // 아무거나 드려도 되는 판 → 축하만, 열쇠 별 없음
       const big = ctx.round % 5 === 0;
       const ok = await ctx.win({ big, msg: big ? "최고의 아이스크림 가게!" : U.pick(["손님이 좋아해요!", "맛있대요!", "잘 만들었어요!"]) });
       if (!ok) return;

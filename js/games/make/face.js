@@ -66,6 +66,7 @@ KP.game({
       .fc-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;flex:0 0 auto}
       .fc-tab{height:clamp(54px,8vh,68px);border-radius:18px;background:rgba(255,255,255,.75);font-size:clamp(28px,4.4vh,38px);display:flex;align-items:center;justify-content:center;border-bottom:5px solid transparent;transition:transform .12s}
       .fc-tab.sel{background:#fff;border-bottom-color:var(--cat);box-shadow:var(--shadow);transform:translateY(-2px)}
+      .fc-tab.hc{display:none}
       .fc-opts{flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:8px;background:rgba(255,236,228,.6);border-radius:22px;padding:8px}
       .fc-opt{background:radial-gradient(circle at 45% 35%,#fffdf9,#f7e9e1);border-radius:16px;box-shadow:0 4px 0 rgba(140,80,70,.14);display:flex;align-items:center;justify-content:center;padding:2px;min-height:0;overflow:hidden;animation:itemIn .3s backwards;animation-delay:calc(var(--i) * 25ms)}
       .fc-opt svg{width:100%;height:100%;max-height:100%}
@@ -130,20 +131,24 @@ KP.game({
         .fc-pick{flex-direction:column}
         .fc-snap{width:min(56vw,300px)}
       }
+      /* 폰 세로(2026-11-08): 탭 9개(머리 색 탭 추가) 5칸씩 2줄 64px, 작은 머리색 점 줄은 숨김(머리 색 탭이 대신) */
       @media (orientation:portrait) and (max-width:480px){
-        .fc-tabs{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
-        .fc-tab{height:48px;font-size:28px}
-        .fc-act{font-size:20px;padding:6px 12px}
+        .fc-tabs{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+        .fc-tab{height:64px;font-size:30px}
+        .fc-tab.hc{display:flex}
+        .fc-colors{display:none}
+        .fc-opts{grid-auto-rows:clamp(64px,8.8vh,80px)}
+        .fc-act{font-size:20px;padding:6px 12px;min-height:64px;min-width:68px}
         .fc-act .t{display:none}
         .fc-act.primary .t{display:inline}
         .fc-obar .btn{font-size:19px;padding:6px 12px;min-height:56px}
       }
       @media (orientation:portrait) and (max-height:720px){
         .fc{grid-template-rows:minmax(136px,1fr) auto}
-        .fc-tab{height:44px;font-size:26px}
-        .fc-opts{grid-auto-rows:56px}
-        .fc-col{width:34px;height:34px}
-        .fc-act{min-height:52px}
+        .fc-tab{height:56px;font-size:26px}
+        .fc-opts{grid-auto-rows:58px}
+        .fc-col{width:40px;height:40px}
+        .fc-act{min-height:56px}
       }
       @media (orientation:landscape) and (max-height:500px){
         .fc-opts{grid-auto-rows:minmax(46px,1fr);overflow-y:auto}
@@ -311,6 +316,8 @@ KP.game({
     const PARTS = {
       skin: { em: "🙂", name: "얼굴색", list: SKINS.map((c, i) => [i, "", null]) },
       hair: { em: "💇", name: "머리", list: HAIRS },
+      // 폰 세로 전용 '머리 색' 칸: 좁은 화면에선 작은 색 점 줄 대신 큰 칸(머리 색이 다른 얼굴 그림)으로 고름
+      hairC: { em: "🎨", name: "머리", list: HAIRC.map((c, i) => [i, "", null]) },
       eyes: { em: "👀", name: "눈", list: EYES },
       brows: { em: "🤨", name: "눈썹", list: BROWS },
       nose: { em: "👃", name: "코", list: NOSES },
@@ -318,7 +325,7 @@ KP.game({
       hat: { em: "🎩", name: "모자", list: HATS },
       glasses: { em: "👓", name: "안경", list: GLASSES },
     };
-    const TAB_ORDER = ["skin", "hair", "eyes", "brows", "nose", "mouth", "hat", "glasses"];
+    const TAB_ORDER = ["skin", "hair", "hairC", "eyes", "brows", "nose", "mouth", "hat", "glasses"];
     const DEF = { skin: 0, hair: "short", hairC: 0, eyes: "big", brows: "normal", nose: "dot", mouth: "smile", hat: "none", glasses: "none", shirt: 0 };
     // 가족·친구 칸 (글자 대신 그림) — 앞 6개가 가족 칸
     const WHO = [["dad", "👨", "아빠"], ["mom", "👩", "엄마"], ["me", "🙋", "나"], ["baby", "👶", "아기"], ["grandma", "👵", "할머니"], ["grandpa", "👴", "할아버지"], ["friend", "🧒", "친구"]];
@@ -485,10 +492,14 @@ KP.game({
         badge.classList.add("on");
       } else badge.classList.remove("on");
     }
+    // 열쇠 별: 지난 사진 뒤로 3번 이상 꾸몄을 때만 (부위 하나 바꾸고 📸 반복 방지)
+    let editsSince = 0,
+      fewEdits = false;
     function saveCfg() {
       KP.store.set("face:cfg", cfg);
       unsaved = true;
       ver++;
+      editsSince++;
     }
     function setCur(id, who) {
       cur = id || null;
@@ -498,7 +509,7 @@ KP.game({
       renderBadge();
     }
     TAB_ORDER.forEach((k) => {
-      const b = U.btn(KP.E(PARTS[k].em), "fc-tab");
+      const b = U.btn(KP.E(PARTS[k].em), "fc-tab" + (k === "hairC" ? " hc" : ""));
       b.dataset.k = k;
       ctx.tap(b, () => {
         tab = k;
@@ -513,7 +524,7 @@ KP.game({
     function renderTabs() {
       U.$$(".fc-tab", tabs).forEach((b) => b.classList.toggle("sel", b.dataset.k === tab));
     }
-    const VB = { skin: "0 -14 300 384", hair: "20 -20 260 260", eyes: "60 130 180 110", brows: "70 110 160 80", nose: "100 180 100 80", mouth: "90 230 120 90", hat: "20 -20 260 200", glasses: "40 130 220 110" };
+    const VB = { skin: "0 -14 300 384", hair: "20 -20 260 260", hairC: "20 -20 260 260", eyes: "60 130 180 110", brows: "70 110 160 80", nose: "100 180 100 80", mouth: "90 230 120 90", hat: "20 -20 260 200", glasses: "40 130 220 110" };
     function renderOpts() {
       opts.innerHTML = "";
       colors.innerHTML = "";
@@ -1034,6 +1045,8 @@ KP.game({
       const old = cur && friendOf(cur);
       const shot = { cfg: Object.assign({}, cfg), fid: old ? old.id : KP.newId(), who: old ? old.who : whoOf(pendWho)[0], ver };
       const wasNew = !old && !pendWho;
+      fewEdits = editsSince < 3;
+      editsSince = 0;
       const unlock = () => {
         shooting = false;
         delete bPhoto.dataset.busy;
@@ -1074,6 +1087,7 @@ KP.game({
       delete bPhoto.dataset.busy;
       KP.toast("🖼️ 내 작품에 저장했어요!");
       await ctx.wait(500);
+      if (fewEdits) ctx._fewChoice = true;
       await ctx.win({ msg: "찰칵! 내 작품에 저장했어요!" });
     }
     /** 새 얼굴: 누구예요? (가족 칸 그림 고르기 — 아무거나 골라도 됨) */

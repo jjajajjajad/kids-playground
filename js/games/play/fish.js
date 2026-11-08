@@ -87,8 +87,10 @@ KP.game({
       el.style.setProperty("--s", s + "px");
       el.dataset.tap = "1";
       const dir = Math.random() < 0.5 ? 1 : -1;
-      const sp = [55, 80, 110][lv - 1] * U.randf(0.8, 1.2) * (W / 1000 + 0.5);
-      const f = { el, s, kind: k[2], face: k[3], name: k[1], dir, sp, ph: Math.random() * 6.28, amp: U.randf(10, 30), dead: false, t: 0 };
+      const sp = [55, 80, 125][lv - 1] * U.randf(0.8, 1.2) * (W / 1000 + 0.5);
+      // 3단계: 위아래로 더 크게 출렁이며 헤엄 (누르기 조금 더 어렵게)
+      const amp = lv === 3 ? U.randf(22, 42) : U.randf(10, 30);
+      const f = { el, s, kind: k[2], face: k[3], name: k[1], dir, sp, ph: Math.random() * 6.28, amp, dead: false, t: 0, boost: 0 };
       const top = 30,
         bottom = H - 70 - s;
       if (f.kind === "crab") {
@@ -103,6 +105,7 @@ KP.game({
       } else {
         f.x = fromInside ? U.randf(0, W - s) : dir > 0 ? -s : W;
         f.y0 = U.randf(top, Math.max(top, bottom - 40));
+        f.yT = f.y0;
         f.y = f.y0;
       }
       ctx.fast(el, (e) => {
@@ -122,6 +125,35 @@ KP.game({
 
     ctx.catchIt = (f) => {
       if (f.dead) return;
+      // 3단계: 헤엄치는 친구는 가끔(한 번만) 쌩~ 하고 살짝 도망 → 한 번 더 콕 (벌 없음, 다음 콕은 꼭 잡힘)
+      // 2단계도 아주 가끔 (2단계 0.15 / 3단계 0.4)
+      const dodge = [0, 0.15, 0.4][ctx.level - 1];
+      if (f.kind === "swim" && !f.dodged && Math.random() < dodge) {
+        f.dodged = true;
+        f.boost = 2.4; // 잠깐 빨라짐 (점점 원래 속도로)
+        const H = ctx.sea.clientHeight;
+        const top = 30,
+          bottom = Math.max(top, H - 70 - f.s - 40);
+        f.yT = U.clamp(f.y0 + (Math.random() < 0.5 ? -1 : 1) * U.randf(0.5, 0.9) * f.s, top, bottom);
+        U.replay(f.el.firstChild, "wig");
+        A.sfx("bubble");
+        A.tone(500, { to: 1300, dur: 0.18, vol: 0.1, type: "triangle" });
+        // 물방울 퐁퐁
+        const r = f.el.getBoundingClientRect(),
+          sr = ctx.sea.getBoundingClientRect();
+        for (let i = 0; i < 4; i++) {
+          const b = U.el("div", "fs-splash");
+          const a = (i / 4) * Math.PI * 2;
+          b.style.cssText = "left:" + (r.left - sr.left + r.width / 2) + "px;top:" + (r.top - sr.top + r.height / 2) + "px;--dx:" + Math.cos(a) * 30 + "px;--dy:" + Math.sin(a) * 30 + "px";
+          ctx.sea.appendChild(b);
+          ctx.after(520, () => b.remove());
+        }
+        if (!ctx.dodgeTalk || performance.now() - ctx.dodgeTalk > 4000) {
+          ctx.dodgeTalk = performance.now();
+          KP.voice.say(U.pick(["어? 한 번 더!", "한 번 더!"]));
+        }
+        return;
+      }
       f.dead = true;
       const net = U.el("div", "fs-net", '<div class="fs-stick"></div><div class="fs-hoop"></div>');
       f.el.appendChild(net);
@@ -174,9 +206,17 @@ KP.game({
       if (ctx.count % 10 === 0) {
         ctx.ms++;
         const big = ctx.ms % 3 === 0;
-        ctx.win({ big, msg: big ? "{부름} 낚시왕!" : ctx.count + "마리 잡았다!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 잡았다!" : "잡았다!" });
+        ctx.win({ big, msg: big ? "{부름} 낚시왕!" : ctx.count + "마리 잡았다!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 잡았다!" : "잡았다!" }).then((ok) => ok && ctx.setHint());
       }
     };
+
+    // 손가락 힌트: 축하(ctx.win)가 힌트를 지우므로 축하가 끝나면 다시 설정 (진행형 놀이)
+    ctx.setHint = () =>
+      ctx.hint(() => {
+        const W = ctx.sea.clientWidth;
+        const f = ctx.fish.find((f) => !f.dead && f.x > 20 && f.x < W - f.s - 20);
+        return f && f.el;
+      }, "헤엄치는 친구를 콕 눌러요!");
 
     ctx.frame = (dt, now) => {
       const t = now / 1000;
@@ -205,7 +245,9 @@ KP.game({
           if (f.x > W - f.s - 90) f.vx = -Math.abs(f.vx);
           if (f.t > 14) f.gone = true;
         } else {
-          f.x += f.dir * f.sp * dt;
+          f.x += f.dir * f.sp * (1 + f.boost) * dt;
+          f.boost *= Math.pow(0.15, dt);
+          f.y0 += (f.yT - f.y0) * Math.min(1, dt * 7);
           f.y = f.y0 + Math.sin(t * 1.6 + f.ph) * f.amp;
           if ((f.dir > 0 && f.x > W + 10) || (f.dir < 0 && f.x < -f.s - 10)) f.gone = true;
         }
@@ -231,12 +273,12 @@ KP.game({
     ctx.say("헤엄치는 친구를 콕! 뜰채로 잡아서 양동이에 쏙! 🪣");
     requestAnimationFrame(() => {
       for (let i = 0; i < 3; i++) ctx.spawn(true);
-      ctx.loop((dt, now) => ctx.frame(dt, now));
+      ctx.loop((dt, now) => {
+        // 안전망: 힌트가 어디서든 지워졌으면(축하 등) 다시 걸기
+        if (!ctx._hint && !KP.celebrating) ctx.setHint();
+        ctx.frame(dt, now);
+      });
     });
-    ctx.hint(() => {
-      const W = ctx.sea.clientWidth;
-      const f = ctx.fish.find((f) => !f.dead && f.x > 20 && f.x < W - f.s - 20);
-      return f && f.el;
-    }, "헤엄치는 친구를 콕 눌러요!");
+    ctx.setHint();
   },
 });

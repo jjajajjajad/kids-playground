@@ -99,7 +99,7 @@ KP.game({
       // 다른 과일과 너무 가깝지 않은 자리
       let x = U.randf(10, W - s - 10);
       for (let k = 0; k < 8 && ctx.fruits.some((f) => Math.abs(f.x - x) < s * 1.3); k++) x = U.randf(10, W - s - 10);
-      const f = { el, em, name, s, x, y: H * 0.1, vy: 0, hang: [0.9, 0.7, 0.55][ctx.level - 1], state: "hang", rot: 0, vr: 0 };
+      const f = { el, em, name, s, x, y: H * 0.1, vy: 0, hang: [0.7, 0.55, 0.45][ctx.level - 1], state: "hang", rot: 0, vr: 0 };
       field.insertBefore(el, basket);
       ctx.fruits.push(f);
       A.tone(700, { to: 900, dur: 0.06, vol: 0.05 });
@@ -133,13 +133,17 @@ KP.game({
       KP.voice.say(f.name + "!");
       ctx.count++;
       ctx.score.add();
+      // 5개마다 바구니에서 하트 뿅
+      if (ctx.count % 5 === 0 && KP.pfx) KP.pfx.hearts(field, ctx.bx, field.clientHeight - ctx.bw * 0.7, 4, ctx);
       if (ctx.count % 10 === 0) {
         ctx.ms++;
         const big = ctx.ms % 3 === 0;
         ctx.pause = 2.5;
         ctx.after(300, async () => {
-          const ok = await ctx.win({ big, msg: big ? "{부름} 과일 부자!" : ctx.count + "개 받았다!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 받았다!" : "받았다!" });
+          // 음성은 자연 음성 조각이 있는 말로 ("십! 바구니가 꽉 찼어요!") — "받았다!" 는 조각이 없어 기기 목소리였음
+          const ok = await ctx.win({ big, msg: big ? "{부름} 과일 부자!" : ctx.count + "개 받았다!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 바구니가 꽉 찼어요!" : "바구니가 꽉 찼어요!" });
           if (ok) {
+            ctx.setHint();
             // 바구니 비우기
             ctx.pile.innerHTML = "";
             ctx.pileN = 0;
@@ -148,6 +152,9 @@ KP.game({
         });
       }
     };
+
+    // 손가락 힌트: 축하(ctx.win)가 힌트를 지우므로 축하가 끝나면 다시 설정 (진행형 놀이)
+    ctx.setHint = () => ctx.hint(() => ctx.basket, "바구니를 끌어서 과일 밑으로 가요!");
 
     ctx.frame = (dt) => {
       const W = field.clientWidth,
@@ -161,9 +168,10 @@ KP.game({
       ctx.pause -= dt;
       ctx.spawnT -= dt;
       const active = ctx.fruits.filter((f) => f.state !== "ground").length;
-      if (!KP.celebrating && ctx.pause <= 0 && ctx.spawnT <= 0 && active < [1, 2, 3][lv - 1]) {
+      // 1단계도 기다림이 짧게: 간격 줄이고 한 번에 2개까지 (예전 1개·1.4초 → 과일 하나에 약 4초)
+      if (!KP.celebrating && ctx.pause <= 0 && ctx.spawnT <= 0 && active < [2, 2, 3][lv - 1]) {
         ctx.spawn();
-        ctx.spawnT = [1.4, 1.0, 0.7][lv - 1] * U.randf(0.8, 1.3);
+        ctx.spawnT = [0.9, 0.7, 0.55][lv - 1] * U.randf(0.8, 1.3);
       }
       const g = H / ([3.4, 2.4, 1.8][lv - 1] ** 2) * 1.3; // 떨어지는 데 걸리는 시간에 맞춘 중력
       for (const f of ctx.fruits) {
@@ -192,7 +200,7 @@ KP.game({
             f.vr = (Math.random() < 0.5 ? -1 : 1) * 260;
             f.t = 0;
             A.note("G3", { inst: "marimba", dur: 0.2, vol: 0.2 });
-            if (Math.random() < 0.35) KP.voice.say(U.pick(["톡! 괜찮아요", "아이쿠!", "다음 건 받아 보자!"]));
+            if (Math.random() < 0.35) KP.voice.say(U.pick(["괜찮아요!", "아이쿠!", "다음 건 받아 보자!"]));
           }
         } else if (f.state === "ground") {
           f.t += dt;
@@ -224,13 +232,17 @@ KP.game({
     ctx.count = 0;
     ctx.ms = 0;
     ctx.pause = 0;
-    ctx.spawnT = 1.6;
+    ctx.spawnT = 1.0;
     ctx.say("바구니를 끌어서 떨어지는 과일을 받아요! 🧺");
     requestAnimationFrame(() => {
       ctx.size();
       ctx.bx = ctx.tx = ctx.field.clientWidth / 2;
-      ctx.loop((dt) => ctx.frame(dt));
+      ctx.loop((dt) => {
+        // 안전망: 힌트가 어디서든 지워졌으면(축하 등) 다시 걸기
+        if (!ctx._hint && !KP.celebrating) ctx.setHint();
+        ctx.frame(dt);
+      });
     });
-    ctx.hint(() => ctx.basket, "바구니를 끌어서 과일 밑으로 가요!");
+    ctx.setHint();
   },
 });

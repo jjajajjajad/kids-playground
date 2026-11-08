@@ -172,7 +172,7 @@ KP.game({
       if (ctx.spawnT <= 0 && alive.length < maxN) {
         ctx.spawnT = [1.2, 0.95, 0.75][lv - 1] * U.randf(0.7, 1.3);
         const visibleTargets = alive.filter((b) => b.c === ctx.target && b.y > 30).length;
-        const useTarget = visibleTargets === 0 || Math.random() < 0.42;
+        const useTarget = visibleTargets === 0 || Math.random() < [0.42, 0.48, 0.55][lv - 1]; // 3단계는 풍선이 빨라 목표색을 조금 더 자주
         ctx.make(useTarget ? ctx.target : U.pick(ctx.pool.filter((c) => c !== ctx.target)));
       }
       for (const b of alive) {

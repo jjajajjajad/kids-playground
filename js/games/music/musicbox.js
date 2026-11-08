@@ -1,6 +1,8 @@
 /* 동요 오르골 — 노래 카드 6곡(반짝반짝 작은 별·비행기·나비야·학교종·곰 세 마리·생일 축하합니다)
    - 🎧 듣기: 오르골 손잡이가 돌고 음표가 톡톡 튀어나오며 동물 밴드가 춤춤
    - 👆 내가 연주: 화면 아무 데나 누를 때마다 다음 음이 나옴 → 리듬대로 눌러 한 곡 완성하면 축하
+     단계: 1단계 앞 두 소절 → 2단계 절반 → 3단계 끝까지. 한 소절 칠 때마다 밴드가 다 같이 춤추며 칭찬
+     (아무 데나 누르면 되는 놀이라 열쇠 별은 없음)
    - 가사는 넣지 않음(저작권) — 멜로디만 */
 "use strict";
 KP.game({
@@ -8,6 +10,7 @@ KP.game({
   icon: "🎶",
   name: "동요 오르골",
   cat: "music",
+  levels: 3,
   setup(ctx) {
     const U = KP.u,
       A = KP.audio;
@@ -42,6 +45,9 @@ KP.game({
       .mb-dot{height:12px;border-radius:6px;background:rgba(255,255,255,.85);box-shadow:inset 0 0 0 2px #d9cdf2}
       .mb-dot.done{background:var(--cat);box-shadow:none}
       .mb-dot.now{background:var(--sun);box-shadow:0 0 8px 2px rgba(255,197,49,.8)}
+      .mb-dot.ph{margin-left:10px}
+      .mb-cheer{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);font-size:clamp(26px,4.4vh,40px);background:#fff;border-radius:999px;padding:6px 18px;box-shadow:var(--shadow);pointer-events:none;z-index:4;white-space:nowrap;animation:mbCheer 1.1s ease-out forwards}
+      @keyframes mbCheer{0%{transform:translate(-50%,-50%) scale(.5);opacity:0}25%{transform:translate(-50%,-50%) scale(1.1);opacity:1}100%{transform:translate(-50%,-110%) scale(1);opacity:0}}
       .mb-tap{position:absolute;left:0;right:0;text-align:center;bottom:24%;font-size:clamp(50px,9vh,80px);pointer-events:none;animation:bob 1.2s ease-in-out infinite;display:none}
       .mb-stage.mine .mb-tap{display:block}
       @media (max-aspect-ratio:1/1){
@@ -52,9 +58,9 @@ KP.game({
         .mb-box{height:auto;width:72%}
       }
       @media (orientation: portrait) and (max-width: 480px){
-        .mb-songs{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-        .mb-card{min-height:48px;font-size:15px;padding:4px 8px}
-        .mb-card .e{font-size:28px}
+        .mb-songs{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+        .mb-card{min-height:66px;flex-direction:column;gap:0;font-size:13px;padding:4px 4px}
+        .mb-card .e{font-size:30px}
         .mb-band span{font-size:54px}
       }
     `);
@@ -98,7 +104,9 @@ KP.game({
       mode = "listen",
       gen = 0,
       idx = 0,
-      notes = [];
+      notes = [], // 듣기: 곡 전체
+      mine = [], // 내가 연주: 이번 단계만큼 (쉼표 뺌)
+      phEnd = new Set(); // 소절이 끝나는 자리(mine 기준)
     if (!A.SONGS[song]) song = "twinkle";
     const cards = SONGS.map(([key, em]) => {
       const c = U.btn(KP.E(em) + "<span>" + A.SONGS[key].name + "</span>", "mb-card");
@@ -128,15 +136,51 @@ KP.game({
         ctx.say(A.SONGS[key].name + "! 화면을 톡톡 눌러서 연주해 봐요.");
       }
     }
+    /** 소절 나누기(피아노 따라 치기와 같은 방식: 2박 이상 긴 음이나 쉼표에서 끊음) */
+    function phrasesOf(list) {
+      const out = [];
+      let cur = [];
+      list.forEach(([n, b]) => {
+        if (n !== "R") cur.push([n, b]);
+        if (b >= 2 || n === "R") {
+          if (cur.length) out.push(cur);
+          cur = [];
+        }
+      });
+      if (cur.length) out.push(cur);
+      return out;
+    }
+    function buildMine() {
+      const ph = phrasesOf(notes),
+        lv = ctx.level;
+      const take = lv === 1 ? Math.min(2, ph.length) : lv === 2 ? Math.max(2, Math.ceil(ph.length / 2)) : ph.length;
+      mine = [];
+      phEnd = new Set();
+      ph.slice(0, take).forEach((p) => {
+        mine.push(...p);
+        phEnd.add(mine.length);
+      });
+      mine.full = take >= ph.length;
+    }
     function renderDots() {
       dots.innerHTML = "";
+      if (mode === "mine") {
+        buildMine();
+        mine.forEach(([n, b], i) => {
+          const d = U.el("i", "mb-dot" + (i > 0 && phEnd.has(i) ? " ph" : ""));
+          d.style.width = 8 + b * 9 + "px";
+          dots.appendChild(d);
+        });
+        markDots(idx);
+        return;
+      }
       notes.forEach(([n, b]) => {
         const d = U.el("i", "mb-dot");
         d.style.width = 8 + b * 9 + "px";
         if (n === "R") d.style.opacity = ".35";
         dots.appendChild(d);
       });
-      markDots(mode === "mine" ? idx : -1);
+      markDots(-1);
     }
     function markDots(cur) {
       U.$$(".mb-dot", dots).forEach((d, i) => {
@@ -199,31 +243,44 @@ KP.game({
         U.replay(bandEls[U.rand(4)], "dance");
         return;
       }
-      if (KP.celebrating) return;
-      while (idx < notes.length && notes[idx][0] === "R") idx++;
-      if (idx >= notes.length) return;
-      const [n, b] = notes[idx];
+      if (KP.celebrating || idx >= mine.length) return;
+      const [n, b] = mine[idx];
       sound(n, b);
       burst(idx);
       stage.classList.add("play");
       ctx.cancel(lastTap);
       lastTap = ctx.after(Math.max(500, b * BEAT * 1000 + 200), () => stage.classList.remove("play"));
       idx++;
-      while (idx < notes.length && notes[idx][0] === "R") idx++;
       markDots(idx);
       ctx.hint(null);
-      if (idx >= notes.length) {
+      if (idx >= mine.length) {
         stage.classList.remove("play");
         await ctx.wait(700);
         const name = A.SONGS[song].name;
-        const ok = await ctx.win({ big: true, msg: name + " 완성!" });
+        ctx.noStar ? ctx.noStar() : (ctx._fewChoice = true); // 아무 데나 눌러도 되는 놀이 → 열쇠 별 제외
+        const ok = await ctx.win(mine.full ? { big: true, msg: name + " 완성!" } : { msg: "멋진 연주예요!" });
         if (!ok) return;
         idx = 0;
-        markDots(0);
+        renderDots(); // 단계가 올랐으면 더 길어짐
         ctx.say("한 번 더 연주해 볼까요? 다른 노래 카드도 골라 봐요!");
-      } else ctx.hint(() => box, "톡톡 눌러서 다음 음을 연주해요!");
+      } else {
+        if (phEnd.has(idx)) phraseCheer();
+        ctx.hint(() => box, "톡톡 눌러서 다음 음을 연주해요!");
+      }
     });
 
+    /** 한 소절 끝: 밴드가 다 같이 춤 + 짧은 칭찬 */
+    function phraseCheer() {
+      ctx.after(Math.max(250, BEAT * 1000), () => {
+        if (mode !== "mine" || KP.celebrating) return;
+        A.sfx("sparkle");
+        bandEls.forEach((e, k) => ctx.after(k * 90, () => U.replay(e, "dance")));
+        const c = U.el("div", "mb-cheer", KP.E(U.pick(["⭐", "🌟", "💖"])) + " " + KP.E("👏"));
+        stage.appendChild(c);
+        ctx.after(1150, () => c.remove());
+        KP.voice.say(U.pick(["좋아요!", "멋져요!", "잘했어요!"]));
+      });
+    }
     function setMode(m, speak) {
       mode = m;
       bListen.classList.toggle("sel", m === "listen");
@@ -231,7 +288,7 @@ KP.game({
       stage.classList.toggle("mine", m === "mine");
       stopPlay();
       idx = 0;
-      markDots(m === "mine" ? 0 : -1);
+      renderDots();
       if (!speak) return;
       if (m === "listen") {
         listen();

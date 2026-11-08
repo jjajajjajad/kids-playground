@@ -4,7 +4,7 @@
      → 문지른 이만 하얗게 밝아짐. 세균·얼룩 친구(점토 그림)는 문지르면 작아지다 '뿅'. 이 하나가 다 깨끗하면 반짝 광택 + 별
    - 구역 4곳: 위 앞니 · 아래 앞니 · 위 안쪽 이 · 아래 안쪽 이 (구역마다 85% 닦으면 반짝) — 문지른 거리로 지워짐(톡 누르기로는 안 지워짐)
    - 흐름: 치약 꾹(장면 속 치약을 누름) → 칫솔로 치카치카 → 컵을 누르면 물을 머금고 볼이 부풀었다(웃는 하마 그림 + 살짝 늘이기) '퉤!' → 웃는 하마
-   - 단계: 1 한 구역씩(안내) → 2 세 구역을 차례로(안내) → 3 네 구역 안내 없이 골고루(멈추면 덜 닦인 곳이 반짝). 시간 제한 없음
+   - 단계: 1 앞니 위·아래 두 구역(안내) → 2 세 구역을 차례로(안내) → 3 네 구역 안내 없이 골고루(멈추면 덜 닦인 곳이 반짝). 시간 제한 없음
    - 아이가 칠한 인형 친구(정면 그림)가 옆에서 작은 칫솔로 따라 하며 응원
    공통 도우미: js/games/play/_care.js (KP.care) */
 "use strict";
@@ -182,11 +182,12 @@ KP.game({
     const m = Math.max(6, s * 0.08);
     const kv = H / IH, kw = (0.97 * W) / 545, kl = H < 500 ? (0.8 * H) / 320 : 0;
     // 세로 화면: 위에 소품 선반 자리를 남김 (얼굴은 아래에 붙임)
-    let k = tall ? Math.min(kw, (H - s * 1.2 - m * 2) / IH) : Math.min(kw, Math.max(kv, kl));
+    const pad = tall ? Math.round(H * 0.025) : 0; // 세로 화면: 아래 어금니가 화면 끝에 걸리지 않게 조금 띄움
+    let k = tall ? Math.min(kw, (H - s * 1.2 - m * 2 - pad) / IH) : Math.min(kw, Math.max(kv, kl));
     const iw = IW * k, ih = IH * k;
     let ox = W / 2 - 670 * k;
     ox = iw > W ? U.clamp(ox, W - iw, 0) : (W - iw) / 2;
-    const oy = ih >= H ? U.clamp(H / 2 - 540 * k, H - ih, 0) : H - ih;
+    const oy = ih >= H ? U.clamp(H / 2 - 540 * k, H - ih, 0) : Math.max(0, H - ih - pad);
     ctx.view = { k, ox, oy, iw, ih, W, H };
     Object.assign(ctx.face.style, { left: ox + "px", top: oy + "px", width: iw + "px", height: ih + "px" });
     ctx.F = { x: ox + M.x * k, y: oy + M.y * k, w: M.w * k, h: M.h * k };
@@ -347,7 +348,8 @@ KP.game({
     const live = () => tok === ctx.token && ctx._active;
     const lv = ctx.level;
     const keys = Object.keys(ctx.ZONES);
-    const list = lv === 1 ? [U.pick(keys)] : lv === 2 ? U.sample(keys, 3) : U.shuffle(keys);
+    // 1단계: 앞니 위·아래 두 구역 (한 구역만이면 너무 금방 끝남) / 2단계: 세 구역 / 3단계: 네 구역
+    const list = lv === 1 ? U.shuffle(keys.filter((k) => k.endsWith("f"))) : lv === 2 ? U.sample(keys, 3) : U.shuffle(keys);
     ctx.glowZone = null;
     ctx.pasted = false;
     ctx.restOn = true;
@@ -624,7 +626,9 @@ KP.game({
       ctx.round++;
       const big = ctx.round % 4 === 0;
       const msg = big ? "이제 진짜로 치카치카 해 볼까?" : U.pick(["반짝반짝 깨끗한 이!", "치카치카 최고!", "{부름} 치카치카 박사!"]);
-      const ok = await ctx.win({ big, msg });
+      // 말은 자연 음성이 있는 문장으로 (화면 글자는 그대로)
+      const say = { "반짝반짝 깨끗한 이!": "반짝반짝! 깨끗해졌어요!", "치카치카 최고!": "최고예요!", "{부름} 치카치카 박사!": "{부름} 참 잘했어요!" }[msg] || msg;
+      const ok = await ctx.win({ big, msg, say });
       if (ok && live()) this.next(ctx);
     };
   },

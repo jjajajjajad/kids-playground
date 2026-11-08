@@ -774,7 +774,8 @@ KP.game({
       ctx.score.add();
       ctx.round++;
       const big = ctx.round % 4 === 0;
-      const ok = await ctx.win({ big, msg: big ? "{부름} 최고의 의사 선생님!" : "친구가 다 나았어요!" });
+      // 말은 자연 음성이 있는 문장으로 (화면 글자는 그대로)
+      const ok = await ctx.win({ big, msg: big ? "{부름} 최고의 의사 선생님!" : "친구가 다 나았어요!", say: big ? "{부름} 최고예요!" : "참 잘했어요!" });
       if (ok && live()) this.next(ctx);
     };
 

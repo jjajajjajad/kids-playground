@@ -3,7 +3,9 @@
    - 누르면 건반 위로 음표가 날아오르고 동물 합창단이 들썩
    - 손가락을 건반 위로 쓸면 주르륵(글리산도), 여러 손가락 동시에 OK
    - 🌟 따라 치기: 동요를 고르면 다음에 칠 건반이 반짝 → 누르면 다음 음 → 한 곡 완성 시 축하
-     (1단계: 앞 두 소절, 2단계: 절반, 3단계: 끝까지) */
+     (1단계: 앞 두 소절, 2단계: 절반, 3단계: 끝까지)
+     틀린 건반: 부드러운 '톡' + 칠 건반이 들썩 (벌 없음). 쓸기(글리산도)로 지나간 건반은 소리만 나고 진행엔 안 셈
+     (쓸어서 정답을 지나가는 것 방지) — 따라 치기는 콕 눌러야 다음으로. 틀린 횟수가 많으면 열쇠 별 없음 */
 "use strict";
 KP.game({
   id: "piano",
@@ -158,7 +160,7 @@ KP.game({
 
     /* ---------- 누르기 (여러 손가락 + 쓸기) ---------- */
     const held = new Map(); // pointerId → key element
-    function press(k) {
+    function press(k, slid) {
       const n = k.dataset.n;
       play(n);
       k.classList.add("down");
@@ -176,7 +178,7 @@ KP.game({
       const s = singers[i >= 0 ? i % singers.length : U.rand(singers.length)];
       U.replay(s, "sing");
       ctx.hint(null);
-      if (follow) followPress(i, n);
+      if (follow) followPress(i, n, slid);
     }
     function release(k) {
       if (k) k.classList.remove("down");
@@ -203,7 +205,7 @@ KP.game({
       if (k && k !== was) {
         release(was);
         held.set(e.pointerId, k);
-        press(k);
+        press(k, true);
       }
     });
     const up = (e) => {
@@ -265,13 +267,16 @@ KP.game({
         ctx.hint(() => k, "반짝이는 건반을 눌러요!");
       }
     }
-    async function followPress(i, n) {
+    async function followPress(i, n, slid) {
       const want = follow.notes[follow.idx];
       if (!want || KP.celebrating) return;
+      if (slid) return; // 쓸면서 지나간 건반은 소리만
       if (n !== want[0]) {
         follow.wrong++;
+        ctx._softMiss = (ctx._softMiss || 0) + 1; // 마구 눌러 끝내면 열쇠 별 없음 (1번은 봐줌)
         const k = keyEls.find((x) => x.dataset.n === want[0]);
-        if (k) U.replay(k, "jump");
+        A.sfx("tap2"); // "아니야, 이쪽" — 부드러운 신호만
+        if (k) U.replay(k, "bump");
         if (follow.wrong % 3 === 0) KP.voice.say("반짝이는 건반을 눌러요!");
         return;
       }
@@ -286,8 +291,16 @@ KP.game({
       ctx.hint(null);
       const song = A.SONGS[f.key];
       KP.voice.say("우와! " + song.name + " 완성!");
-      const len = A.melody(f.notes, { beat: 0.3, inst: "bell", octave: 1, vol: 0.2, when: 0.9 });
-      f.notes.forEach(([, b], k) => ctx.after(900 + k * 300, () => U.replay(singers[k % singers.length], "sing")));
+      // 친 노래를 들려주되 앞부분만(최대 약 2.5초) — 곡 전체를 다 들려주면 축하까지 너무 오래 기다림
+      const back = [];
+      let sum = 0;
+      for (const nb of f.notes) {
+        if (sum + nb[1] * 0.3 > 2.5 && back.length >= 5) break;
+        back.push(nb);
+        sum += nb[1] * 0.3;
+      }
+      const len = A.melody(back, { beat: 0.3, inst: "bell", octave: 1, vol: 0.2, when: 0.9 });
+      back.forEach(([, b], k) => ctx.after(900 + k * 300, () => U.replay(singers[k % singers.length], "sing")));
       await ctx.wait(900 + len * 1000);
       prog.classList.remove("on");
       const ok = await ctx.win({ big: true, msg: song.name + " 완성!" });

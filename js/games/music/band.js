@@ -169,7 +169,7 @@ KP.game({
        play(분위기, 칸, 마디, 시각, 칸 길이, 동작 hit(손, 세기, 음)) */
     const PLAYERS = [
       {
-        id: "drum", say: "드럼", img: "drum", at: "belly", dx: 0.02, dy: 0.08, k: 0.62, kit: ["drums"],
+        id: "drum", say: "북", img: "drum", at: "belly", dx: 0.02, dy: 0.08, k: 0.62, kit: ["drums"],
         play(mood, s, bar, w, sd, hit) {
           if (mood === "fun") {
             const fill = bar % 4 === 3;
@@ -272,7 +272,8 @@ KP.game({
     // 공연장 그림(1600×900): 지평선·화각·잘릴 때 남길 곳(무대 가운데)·조명(위)
     ctx.BG = { file: IMG + "bg.jpg", img: [1600, 900], vh: 0.5, near: 0.2, fov: 30, focus: [0.5, 0.56], focusP: [0.5, 0.6], sun: [0.1, 1, 0.9], sunCol: "#fff0d6" };
 
-    const MOODS = [["fun", "🎉", "신나게"], ["calm", "🌙", "잔잔하게"]];
+    // 셋째 칸: 말할 문장 ('신나게'는 녹음이 없어 녹음된 "신나게 놀아요!"로, '잔잔하게'는 녹음 대기 — tools/out/new-voice/band.txt)
+    const MOODS = [["fun", "🎉", "신나게 놀아요!"], ["calm", "🌙", "잔잔하게"]];
     const TEMPOS = [["🐢", 84, "느리게"], ["🚶", 104, "보통"], ["🐇", 126, "빠르게"]];
     let mood = KP.store.get("band:mood", "fun");
     if (!MOODS.some((m) => m[0] === mood)) mood = "fun";
@@ -327,9 +328,14 @@ KP.game({
       A.sfx("select");
       ctx.hint(null);
       setLevel(ctx.level, curLevel >= 3 || mode === "copy");
-      if (jam || ctx.level < 3) ctx.say(jam ? "마음대로 연주해요!" : "동물 친구를 무대에 올려 봐요!"); // 3단계로 돌아가면 문제 문구는 nextCopy 가 말함
+      if (jam || ctx.level < 3) sayStart(); // 3단계로 돌아가면 문제 문구는 nextCopy 가 말함
     });
     ctl.append(gMood, gTempo, gJam);
+    /** 첫 안내 — 말풍선 글자는 그대로, 말은 자연 음성이 있는 문장으로 (카드를 콕 누르면 무대에 올라감) */
+    function sayStart() {
+      if (jam) ctx.say("마음대로 연주해요!", "동물 친구들을 콕 눌러 보세요!");
+      else ctx.say("동물 친구를 무대에 올려 봐요!", "동물 친구를 눌러 봐요!");
+    }
     const bEar = U.btn(KP.E("👂"), "bnEar");
     paintSel();
 
@@ -431,6 +437,7 @@ KP.game({
       else {
         cards[id].classList.add("on");
         enterDoll(id, i);
+        if (T.on && !muted && !preview) tasteOf(id); // 다음 마디에 합류하기 전, 누르자마자 그 악기 소리 한 번
         startPlaying(id);
         A.sfx("snap");
         KP.voice.say(byId[id].say);
@@ -931,6 +938,12 @@ KP.game({
       bulbs.forEach((l) => l.classList.remove("on"));
       cones.forEach((l) => l.classList.remove("on"));
     }
+    /** 맛보기 소리: 그 연주자의 첫 박 하나만 바로 (움직임 없이) */
+    function tasteOf(id) {
+      try {
+        byId[id].play(mood, 0, 0, 0.02, sd(), () => {});
+      } catch (e) {}
+    }
     function startPlaying(id) {
       // 처음 연주자는 바로, 그다음부터는 다음 마디 첫 박에 들어옴
       if (!T.on) {
@@ -980,8 +993,8 @@ KP.game({
         soloBars++;
         if (soloBars === 4 && !nudged) {
           nudged = true;
-          ctx.tell("친구를 한 명 더 올려 볼까요?");
-          ctx.hint(() => benchFirst(), "친구를 한 명 더 올려 볼까요?");
+          ctx.tell("다른 친구도 눌러 봐요!");
+          ctx.hint(() => benchFirst(), "다른 친구도 눌러 봐요!");
         }
       }
       // 칭찬: 2명 이상이 함께 4마디(두 번째부터 8마디) + 45초 이상 지남 + 지난 칭찬 뒤 무언가 바꿈
@@ -995,7 +1008,7 @@ KP.game({
       muted = true;
       const sess = ctx._session;
       PLAYERS.forEach((p) => dolls[p.id] && dolls[p.id].act && dolls[p.id].act.happy());
-      const ok = await ctx.win({ msg: U.pick(["멋진 합주예요!", "{부름} 최고!"]) });
+      const ok = await ctx.win(U.pick([{ msg: "멋진 합주예요!", say: "멋진 연주예요!" }, { msg: "{부름} 최고!" }]));
       if (sess !== ctx._session) return;
       winning = false;
       muted = false;
@@ -1099,7 +1112,7 @@ KP.game({
       } else stopT();
       lockAll(false);
       bEar.classList.add("go");
-      ctx.say("똑같이 꾸며 봐요!");
+      ctx.say("똑같이 꾸며 봐요!", "이제 똑같이 눌러 봐요!");
       ctx.hint(() => bEar, "다시 들어 볼까요?");
       checkCopy();
     }
@@ -1160,8 +1173,7 @@ KP.game({
         if (!s || tok !== ctx.bandTok || !ctx._active) return;
         startLoop(s);
         setLevel(ctx.level, true);
-        if (jam) ctx.say("마음대로 연주해요!");
-        else if (ctx.level < 3) ctx.say("동물 친구를 무대에 올려 봐요!");
+        if (jam || ctx.level < 3) sayStart();
       },
       end() {
         ctx.bandTok++;

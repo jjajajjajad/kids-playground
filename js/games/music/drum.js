@@ -2,7 +2,9 @@
    - 그림(SVG)이 맞을 때마다 출렁, 물결 + 음표, 여러 손가락 동시에 OK
    - 🎵 반주 켜기: 동요 멜로디 + 화음 + 부드러운 박자 (빠르기 3단계), 박자 불빛과 춤추는 곰
      → 반주에 맞춰 치면 칭찬. 화면을 나가면 반주 자동 정지
-   - 50번 칠 때마다 축하 */
+   - 50번 칠 때마다 축하 (자유 연주라 열쇠 별은 없음)
+   - 반주에 맞춰 박자를 24번 맞히면 '박자 박사' 축하 (대부분 박자에 맞게 쳤을 때만 열쇠 별)
+   - 축하하는 동안엔 패드를 쳐도 소리·횟수 없음 (축하 소리 위에 북소리가 겹치지 않게) */
 "use strict";
 KP.game({
   id: "drum",
@@ -166,13 +168,15 @@ KP.game({
     ctx.body.appendChild(wrap);
 
     let hits = 0,
-      onBeat = 0;
+      onBeat = 0,
+      accHits = 0; // 반주 켜고 친 횟수 (박자 맞힌 비율 계산)
     const padEls = PADS.map((p) => {
       const el = U.el("div", "dr-pad", p.svg + "<span>" + p.name + "</span>");
       el.style.setProperty("--bg", p.bg);
       el.addEventListener("pointerdown", async (e) => {
         e.preventDefault();
         A.unlock();
+        if (KP.celebrating) return; // 축하 중엔 쉬기
         p.snd();
         el.classList.add("pr");
         setTimeout(() => el.classList.remove("pr"), 110);
@@ -190,8 +194,11 @@ KP.game({
         U.replay(dancer, "hop");
         ctx.hint(null);
         hits++;
-        checkBeat();
-        if (hits % 50 === 0) await ctx.win({ msg: "멋진 드러머!" });
+        if (checkBeat()) return;
+        if (hits % 50 === 0) {
+          ctx.noStar ? ctx.noStar() : (ctx._fewChoice = true); // 아무렇게나 50번 두드려도 되는 자유 연주 → 열쇠 별 제외
+          await ctx.win({ msg: "멋진 드러머!" });
+        }
       });
       grid.appendChild(el);
       return el;
@@ -212,6 +219,8 @@ KP.game({
       if (!c) return;
       const t = c.currentTime + 0.12;
       acc = { bpm: tempo, beatT: t, beat: 0, melT: t, songI: 0, noteI: 0, mel: [], times: [] };
+      onBeat = 0;
+      accHits = 0;
       bAcc.classList.add("on");
       bAcc.innerHTML = KP.E("⏹️") + " 반주 끄기";
       accT = ctx.every(40, tick);
@@ -270,12 +279,23 @@ KP.game({
       if (acc.mel.length > 64) acc.mel.splice(0, acc.mel.length - 64);
       if (acc.times.length > 16) acc.times.splice(0, acc.times.length - 16);
     }
+    /** 반주 박자에 맞았는지 — 24번 맞히면 축하(축하했으면 true) */
     function checkBeat() {
-      if (!acc) return;
+      if (!acc) return false;
+      accHits++;
       const now = A.ctx().currentTime;
       const near = acc.times.some((t) => Math.abs(t - now) < 0.11);
-      if (!near) return;
+      if (!near) return false;
       onBeat++;
+      if (onBeat % 24 === 0) {
+        // 마구 두드려도 몇 번은 박자에 걸림 → 친 것의 절반 이상이 박자에 맞았을 때만 열쇠 별
+        if (onBeat / Math.max(1, accHits) < 0.5) ctx.noStar ? ctx.noStar() : (ctx._fewChoice = true);
+        onBeat = 0;
+        accHits = 0;
+        hits = 0; // 바로 뒤 '50번' 축하와 겹치지 않게
+        ctx.win({ msg: "박자 박사!", say: "박자에 딱딱 맞아요!" });
+        return true;
+      }
       if (onBeat % 12 === 0) {
         KP.voice.say(U.pick(["박자에 딱딱 맞아요!", "쿵짝쿵짝 잘한다!", "우와, 진짜 드러머 같아요!"]));
         A.sfx("sparkle");

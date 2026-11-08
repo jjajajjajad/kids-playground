@@ -82,7 +82,8 @@ KP.game({
         ctx.say("다시 잘 보세요! 👀");
         await ctx.wait(1500);
       } else {
-        ctx.say(seq.length === 1 ? "잘 보세요! 누가 노래할까요? 👀" : "잘 보세요! " + seq.length + "번 노래해요 👀", seq.length === 1 ? true : "잘 보세요! " + KP.u.cntWord(seq.length) + " 번 노래해요!");
+        // 말은 자연 음성이 있는 고정 문장으로 (숫자 섞인 문장은 기기 목소리라) — 몇 번인지는 말풍선 글자와 위 점으로
+        ctx.say(seq.length === 1 ? "잘 보세요! 누가 노래할까요? 👀" : "잘 보세요! " + seq.length + "번 노래해요 👀", seq.length === 1 ? true : "잘 보세요!");
         await ctx.wait(seq.length === 1 ? 1600 : 1200);
       }
       if (g !== gen) return;
@@ -124,19 +125,26 @@ KP.game({
         ctx.round = (ctx.round || 0) + 1;
         await ctx.wait(400);
         const big = ctx.round % 4 === 0;
-        const ok = await ctx.win({ big, msg: big ? "기억력 대장!" : seq.length + "개 다 기억했어요!", say: big ? "" : KP.u.cntWord(seq.length) + " 개 다 기억했어요!" });
+        const ok = await ctx.win({ big, msg: big ? "기억력 대장!" : seq.length + "개 다 기억했어요!", say: big ? "" : "순서대로 척척!" });
         if (ok) newRound();
         return;
       }
       A.sfx("good");
       KP.voice.say(U.pick(["잘했어요! 하나 더!", "딩동댕! 이번엔 하나 더!", "좋아요! 더 길어져요!"]));
       await ctx.wait(1300);
-      seq.push(U.rand(4));
+      seq.push(nextPad());
       show(false);
+    }
+    /** 다음 패드: 1단계는 바로 앞과 다른 친구만 (같은 친구가 연달아 노래하면 3~4세는 한 번으로 봄) */
+    function nextPad() {
+      if (ctx.level > 1 || !seq.length) return U.rand(4);
+      const prev = seq[seq.length - 1];
+      return U.pick([0, 1, 2, 3].filter((i) => i !== prev));
     }
     function newRound() {
       target = [3, 5, 7][ctx.level - 1];
-      seq = [U.rand(4)];
+      seq = [];
+      seq.push(nextPad());
       show(false);
     }
     ctx.newRound = newRound;

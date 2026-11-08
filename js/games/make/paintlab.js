@@ -57,9 +57,9 @@ KP.game({
         .plJarsCell .psJars{flex-wrap:nowrap;gap:4px}
         .plJarsCell .psJar{width:clamp(52px,16vw,64px);height:86px;flex:0 0 auto}
         .plJarsCell .psJar .jn{left:-3px;right:-3px;font-size:13px}
-        .plActs{flex-wrap:nowrap;gap:5px;max-width:100%;width:100%}
-        .plB.main{flex:1.5 1 0}
-        .plB{min-width:0;flex:1 1 0;min-height:66px;padding:6px 2px;font-size:12px;word-break:keep-all;white-space:nowrap}
+        /* (2026-11-08) 한 줄 5개(59px) → 3칸씩 2줄, 모두 64px 이상 */
+        .plActs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;max-width:100%;width:100%}
+        .plB{min-width:0;min-height:66px;padding:6px 2px;font-size:12.5px;word-break:keep-all;white-space:nowrap}
         .plB .pi{width:32px;height:28px}
       }
       @media (orientation:landscape) and (max-height:500px){
@@ -127,7 +127,8 @@ KP.game({
     acts.append(bKeep, bGo, bDrain, bDex, bDecal);
     Object.assign(ctx, { bKeep, bGo });
 
-    bDrain.addEventListener("click", async () => {
+    // 비우기: 실수로 톡 쳐서 애써 섞은 물감이 사라지지 않게 '꾹(0.6초)' 눌러야 비워짐 (데칼코마니 새 종이와 같은 방식)
+    const drain = async () => {
       if (studio.bowl.volume() < 0.05) return KP.voice.say("그릇이 벌써 비어 있어요!");
       nameTag.classList.remove("on");
       KP.voice.say("쏴아! 그릇을 비웠어요.");
@@ -135,6 +136,13 @@ KP.game({
       ctx.lastName = null;
       ctx.changed = false;
       this.saveBowl(ctx);
+    };
+    KP.hold(bDrain, 600, drain, () => KP.audio.sfx("tick"));
+    let drainDownAt = 0;
+    bDrain.addEventListener("pointerdown", () => (drainDownAt = performance.now()));
+    bDrain.addEventListener("click", () => {
+      // 짧게 톡 누른 경우만 안내 (꾹 눌러 비운 뒤의 click 은 무시)
+      if (performance.now() - drainDownAt < 550 && studio.bowl.volume() >= 0.05) KP.voice.say("꾹 누르고 있어요");
     });
     bKeep.addEventListener("click", () => this.keep(ctx));
     bGo.addEventListener("click", () => this.goPaint(ctx));

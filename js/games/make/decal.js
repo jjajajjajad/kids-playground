@@ -315,7 +315,7 @@ KP.game({
         A.sfx("tap");
         if (!st.rightTold || Date.now() - st.rightTold > 6000) {
           st.rightTold = Date.now();
-          KP.voice.say(st.folds ? "왼쪽에 물감을 더 올리고 다시 접어 봐요!" : "물감은 왼쪽에 올려요! 오른쪽은 접으면 찍혀요.");
+          ctx.say(st.folds ? "왼쪽에 물감을 더 올리고 다시 접어 봐요!" : "물감은 왼쪽에 올려요! 오른쪽은 접으면 찍혀요.");
         }
         return;
       }
@@ -421,7 +421,7 @@ KP.game({
       layers.classList.add("half");
       paper.classList.add("folding");
       A.sfx("whoosh");
-      KP.voice.say("반으로 접어요!");
+      ctx.say("반으로 접어요!");
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       flap.classList.add("shut");
       shade.classList.add("on");
@@ -476,7 +476,7 @@ KP.game({
       const sess = ctx._session;
       ctx.hint(null);
       A.sfx("slide");
-      KP.voice.say("살살 펼쳐 볼까요?");
+      ctx.say("살살 펼쳐 볼까요?");
       flap.classList.remove("shut");
       shade.classList.remove("on");
       await ctx.wait(500);
@@ -493,9 +493,12 @@ KP.game({
       const msg = U.pick(["우와, 나비가 됐어요!", "와, 양쪽이 똑같아요!", "우와, 멋진 무늬가 찍혔어요!"]);
       ctx.say(msg);
       ctx.round = (ctx.round || 0) + 1;
+      // 열쇠 별: 지난 접기 뒤로 물감을 3번 이상 올렸을 때만 (방울 하나 + 접기 반복으로 별 모으기 방지)
+      if (st.blobs - (st.winBlobs || 0) < 3) ctx._fewChoice = true;
+      st.winBlobs = st.blobs;
       const ok = await ctx.win({ msg, big: ctx.round % 4 === 0 });
       if (!ok) return;
-      KP.voice.say(st.fly ? "저장 단추를 눌러 내 작품에 넣어요!" : "나비 만들기를 누르면 몸통이 생겨요! 저장도 할 수 있어요.");
+      ctx.say(st.fly ? "저장 단추를 눌러 내 작품에 넣어요!" : "나비 만들기를 누르면 몸통이 생겨요! 저장도 할 수 있어요.");
       ctx.hint(() => (st.fly ? bSave : bFly), st.fly ? "저장을 눌러 봐요!" : "나비 만들기를 눌러 봐요!");
     }
     function cleanupFlap(flap) {
@@ -644,7 +647,7 @@ KP.game({
       U.replay(paper, "flutter");
       A.sfx("sparkle");
       A.melody([["C5", 1], ["E5", 1], ["G5", 1], ["C6", 2]], { beat: 0.12, inst: "bell", vol: 0.18 });
-      KP.voice.say("나비 완성! 팔랑팔랑 날아요!");
+      ctx.say("나비 완성! 팔랑팔랑 날아요!");
       ctx.hint(() => bSave, "저장을 눌러 내 작품에 넣어요!");
     }
 
@@ -678,7 +681,7 @@ KP.game({
       flyAway(img);
       KP.toast("🖼️ 내 작품에 저장했어요!");
       A.sfx("sticker");
-      KP.voice.say("내 작품에 저장했어요! 새 종이에 또 해 볼까요?");
+      ctx.say("내 작품에 저장했어요! 새 종이에 또 해 볼까요?");
       ctx.hint(() => bNew, "새 종이를 꾹 눌러요!");
     }
     function flyAway(img) {
@@ -709,13 +712,13 @@ KP.game({
         g.setTransform(1, 0, 0, 1, 0, 0);
         g.clearRect(0, 0, g.canvas.width, g.canvas.height);
       });
-      Object.assign(st, { blobs: 0, folds: 0, unsaved: false, fly: false });
+      Object.assign(st, { blobs: 0, winBlobs: 0, folds: 0, unsaved: false, fly: false });
       here.classList.remove("off");
       bFly.classList.add("hide");
       if (!quiet) {
         A.sfx("whoosh");
         U.replay(paper, "jump");
-        KP.voice.say("새 종이예요! 왼쪽에 물감을 콕콕 올려요.");
+        ctx.say("새 종이예요! 왼쪽에 물감을 콕콕 올려요.");
         ctx.hint(() => leftPoint(), "왼쪽에 물감을 콕콕 올려요!");
       }
     }

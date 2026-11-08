@@ -133,8 +133,13 @@ KP.game({
     ctx.nums.classList.remove("off");
     ctx.nums.innerHTML = "";
     scene.querySelectorAll(".rk-puff").forEach((p) => p.remove());
-    ctx.say(down ? "카운트다운! 10부터 거꾸로 눌러요! 🚀" : "1부터 " + seq.length + "까지 차례대로 눌러서 로켓에 힘을 모아요! 🚀", down ? true : "하나부터 " + KP.u.numNative(seq.length) + "까지 차례대로 눌러서 로켓에 힘을 모아요!");
-    const say = (n) => (down ? ctx.SINO[n] : U.NAT[n]);
+    // 음성은 미리 만든 자연 음성으로: 1단계는 화면 문장 그대로, 2단계(10까지)는 같은 뜻의 있는 문장
+    // (새 문장 "1부터 10까지 차례대로 눌러서 로켓에 힘을 모아요!" 은 tools/out/new-voice/rocket.txt)
+    const intro = down ? "카운트다운! 10부터 거꾸로 눌러요!" : "1부터 " + seq.length + "까지 차례대로 눌러서 로켓에 힘을 모아요!";
+    ctx.say(intro + " 🚀", KP.voice._natUrls && !KP.voice._natUrls(intro) ? "작은 것부터 큰 것까지 차례로 눌러요!" : intro);
+    // 숫자 읽기: 카운트다운은 한자어(십·구·팔…), 나머지는 고유어(하나·둘…) — 안내·오답 문장도 같은 말로
+    const word = (n) => (down ? ctx.SINO[n] : U.NAT[n]) || String(n);
+    const say = word;
 
     const btns = seq.map((n, i) => {
       const b = U.el("button", "rk-n", String(n));
@@ -143,7 +148,8 @@ KP.game({
       ctx.fast(b, () => {
         if (busy || b.classList.contains("done")) return;
         if (n !== seq[idx]) {
-          ctx.miss(b, "다음은 " + KP.u.josa(KP.u.NAT[seq[idx]] || String(seq[idx]), "이에요/예요") + "!");
+          // "다음은 구예요/다섯이에요"는 자연 음성에 없는 것이 있어, 모든 숫자에 음성이 있는 "다음 숫자 ○를 눌러요!"로
+          ctx.miss(b, "다음 숫자 " + KP.u.josa(word(seq[idx]), "을/를") + " 눌러요!");
           return;
         }
         b.classList.add("done");
@@ -169,11 +175,13 @@ KP.game({
       return b;
     });
     btns[0].classList.add("next");
-    const hint = () => ctx.hint(() => btns[idx], "다음 숫자 " + KP.u.josa(KP.u.NAT[seq[idx]] || String(seq[idx]), "을/를") + " 눌러요!");
+    const hint = () => ctx.hint(() => btns[idx], "다음 숫자 " + KP.u.josa(word(seq[idx]), "을/를") + " 눌러요!");
     hint();
 
     const launch = async () => {
       busy = true;
+      // 발사 연출이 매 판 같아 길게 느껴지지 않게: 2·3단계는 날아가는·내려가는 기다림을 25% 줄임
+      const sp = lv >= 2 ? 0.75 : 1;
       ctx.hint(null);
       ctx.nums.classList.add("off");
       await ctx.wait(700);
@@ -190,16 +198,16 @@ KP.game({
       scene.classList.add("fly");
       A.sfx("whoosh");
       ctx.ship.style.setProperty("--a", 2);
-      await ctx.wait(1500);
+      await ctx.wait(sp * 1500);
       A.sfx("sparkle");
       KP.voice.say("우와! 우주다!");
-      await ctx.wait(1800);
+      await ctx.wait(sp * 1800);
       // 달 착륙
       scene.classList.remove("fly");
       scene.classList.add("land");
       KP.voice.say("달이 보여요! 살살 내려가요~");
       A.tone(700, { to: 300, dur: 1.8, vol: 0.06 });
-      await ctx.wait(2300);
+      await ctx.wait(sp * 2300);
       scene.classList.add("landed");
       ctx.ship.style.setProperty("--a", 0);
       A.noise({ dur: 0.4, vol: 0.12, lp: 600 });

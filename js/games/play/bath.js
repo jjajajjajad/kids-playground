@@ -4,7 +4,8 @@
      아이가 칠한 원본 그림(텍스처)은 건드리지 않음. 모양은 인형이 욕조에 앉은 뒤 화면에서 한 번 떠 냄(앞가림 부분은 뺌)
    - 비누로 문지르면 그 자리만 거품 + 진흙이 지워짐 → 샤워기로 헹구면 거품이 흘러내림 → 수건으로 물기 닦기 → 부르르(몸 흔들기 + 물방울)
    - 물 위에 점토 오리: 누르면 꽥!
-   - 단계: 1 진흙 조금(첫 친구는 강아지) → 2 여러 친구·진흙 더 → 3 진흙 많이 (모두 안내 있음, 시간 제한 없음)
+   - 단계: 1 진흙 조금(첫 친구는 강아지)·샤워·수건은 60%만 닦아도 됨 → 2 여러 친구·진흙 더·80% → 3 진흙 많이 + 오리 물장난(오리를 누르면 친구에게 첨벙! 친구가 깔깔)
+     (모두 안내 있음, 시간 제한 없음)
    공용: _shared/clay-stage.js · doll-actor.js · play-feedback.js · play/_care.js(문지르기 판·표면 마스크) */
 "use strict";
 KP.game({
@@ -61,6 +62,21 @@ KP.game({
       const r = ctx.duck.getBoundingClientRect(), hr = scene.getBoundingClientRect();
       KP.care.pop(ctx, scene, r.left - hr.left + r.width / 2, r.top - hr.top, "꽥!");
       KP.pfx.ring(scene, r.left - hr.left + r.width / 2, r.top - hr.top + r.height * 0.85, "#bfe6ff", ctx, r.width * 1.2);
+      // 3단계: 오리가 친구에게 물을 첨벙! 친구가 깔깔 웃어요 (씻는 중에만, 1.5초에 한 번)
+      const act = ctx.actor;
+      if (ctx.level >= 3 && act && ["soap", "shower", "towel"].includes(ctx.stage) && Date.now() - (ctx._splashAt || 0) > 1500) {
+        ctx._splashAt = Date.now();
+        const b = act.box();
+        ctx.after(180, () => {
+          if (ctx.actor !== act) return;
+          A.sfx("water");
+          ctx.S.burst(b.cx - b.w * 0.15, b.t + b.h * 0.35, 6, "drop", 1);
+          ctx.S.burst(b.cx + b.w * 0.15, b.t + b.h * 0.45, 6, "drop", 1);
+          KP.care.pop(ctx, scene, b.cx, Math.max(56, b.t + b.h * 0.1), "첨벙!");
+          act.mood("happy");
+          ctx.after(1000, () => ctx.actor === act && ctx.stage !== "soap" && act.mood("normal"));
+        });
+      }
     });
     // 욕실 배경 (1600×900): 욕조 가운데. 가로 화면은 조금 당겨서(zoom) 인형을 크게
     ctx.BG = {
@@ -239,6 +255,7 @@ KP.game({
     S.reset();
     S.dropSkin();
     ctx.track = null;
+    ctx.say("누가 나올까? 🛁"); // 지난 판 안내("수건으로…")가 말풍선에 남지 않게
     ctx.rest.classList.add("hide");
     ctx.stage = "enter";
     ctx.baState = null;
@@ -373,7 +390,7 @@ KP.game({
         S.add(body.map((p) => ({ zone: tool, x: p.x, y: p.y, need })));
         if (extra) S.add(extra);
         S.mode = mode;
-        S.need = 0.8;
+        S.need = lv === 1 && tool !== "soap" ? 0.6 : 0.8; // 1단계: 샤워·수건은 조금만 닦아도 다음으로
         ctx.stage = tool;
         setTool(tool);
         S.sound =
@@ -470,7 +487,9 @@ KP.game({
     ctx.round++;
     const big = ctx.round % 4 === 0;
     const msg = big ? "{부름} 목욕 최고!" : U.pick(["뽀송뽀송 깨끗해!", "깨끗해졌어요!", "{부름} 고마워요!"]);
-    const ok = await ctx.win({ big, msg });
+    // 말은 자연 음성이 있는 문장으로 ("목욕 최고!"·"뽀송뽀송 깨끗해!"는 녹음 전)
+    const say = msg === "{부름} 목욕 최고!" ? "{부름} 최고예요!" : msg === "뽀송뽀송 깨끗해!" ? "깨끗해졌어요!" : msg;
+    const ok = await ctx.win({ big, msg, say });
     if (ok && live()) this.next(ctx);
   },
 });

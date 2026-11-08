@@ -193,9 +193,21 @@ KP.game({
         ctx.ms++;
         const big = ctx.ms % 3 === 0;
         ctx.pause = 3;
-        ctx.after(700, () => ctx.win({ big, msg: big ? "{부름} 두더지 대장!" : ctx.count + "마리 콩콩!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 콩콩!" : "콩콩!" }));
+        ctx.after(700, () => ctx.win({ big, msg: big ? "{부름} 두더지 대장!" : ctx.count + "마리 콩콩!", say: big ? "" : ctx.cheer(ctx.count) }).then((ok) => ok && ctx.setHint()));
       }
     };
+
+    // 축하 음성: 자연 음성 조각이 있는 말로 ("열 마리 콩콩!" / 없는 수는 "십삼! 잡았다!") — 예전 "십! 콩콩!" 은 '콩콩!' 조각이 없어 기기 목소리
+    // ("스무 마리 콩콩!" 은 아직 음성이 없어 자연 음성이 있을 때만 — 목록 tools/out/new-voice/mole.txt)
+    const TENS = { 10: "열", 20: "스무", 30: "서른", 40: "마흔", 50: "쉰", 60: "예순", 70: "일흔", 80: "여든", 90: "아흔", 100: "백" };
+    const nat = (t) => !KP.voice._natUrls || !!KP.voice._natUrls(t);
+    ctx.cheer = (n) => (TENS[n] && nat(TENS[n] + " 마리 콩콩!") ? TENS[n] + " 마리 콩콩!" : n <= 100 ? U.numSino(n) + "! 잡았다!" : "잡았다!");
+    // 손가락 힌트: 축하(ctx.win)가 힌트를 지우므로 축하가 끝나면 다시 설정 (진행형 놀이)
+    ctx.setHint = () =>
+      ctx.hint(() => {
+        const h = ctx.holes.find((x) => x.state === "up");
+        return h && h.el;
+      }, "두더지가 나오면 콩 눌러요!");
 
     ctx.frame = (dt) => {
       if (KP.celebrating) return;
@@ -244,12 +256,11 @@ KP.game({
           ctx.build(want);
           KP.voice.say("구멍이 " + (want === 6 ? "여섯" : "아홉") + " 개가 되었어요!");
         }
+        // 안전망: 힌트가 어디서든 지워졌으면(축하 등) 다시 걸기
+        if (!ctx._hint && !KP.celebrating) ctx.setHint();
         ctx.frame(dt);
       });
     });
-    ctx.hint(() => {
-      const h = ctx.holes.find((x) => x.state === "up");
-      return h && h.el;
-    }, "두더지가 나오면 콩 눌러요!");
+    ctx.setHint();
   },
 });
