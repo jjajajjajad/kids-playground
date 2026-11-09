@@ -4,7 +4,10 @@
      아이가 칠한 원본 그림(텍스처)은 건드리지 않음. 모양은 인형이 욕조에 앉은 뒤 화면에서 한 번 떠 냄(앞가림 부분은 뺌)
    - 비누로 문지르면 그 자리만 거품 + 진흙이 지워짐 → 샤워기로 헹구면 거품이 흘러내림 → 수건으로 물기 닦기 → 부르르(몸 흔들기 + 물방울)
    - 물 위에 점토 오리: 누르면 꽥!
-   - 단계: 1 진흙 조금(첫 친구는 강아지)·샤워·수건은 60%만 닦아도 됨 → 2 여러 친구·진흙 더·80% → 3 진흙 많이 + 오리 물장난(오리를 누르면 친구에게 첨벙! 친구가 깔깔)
+   - 단계: 1 진흙 4곳(첫 친구는 강아지): 진흙만 비누칠 → 진흙 자리만 샤워 → 수건 없이 부르르 털기
+           2 진흙 6곳: 진흙만 비누칠 → 온몸 샤워 → 판마다 수건 / 부르르 털기 번갈아
+           3 진흙 8곳: 진흙만 비누칠 → 온몸 샤워 → 수건 + 오리 물장난(오리를 누르면 친구에게 첨벙! 친구가 깔깔)
+     비누는 늘 '진흙 묻은 곳 찾기'(온몸을 다 문지르지 않음) — 예전 매 판 비누·샤워·수건 온몸 3번(스크립트로도 42~89초)을 줄임
      (모두 안내 있음, 시간 제한 없음)
    공용: _shared/clay-stage.js · doll-actor.js · play-feedback.js · play/_care.js(문지르기 판·표면 마스크) */
 "use strict";
@@ -362,7 +365,11 @@ KP.game({
     const mudN = [4, 6, 8][lv - 1];
     const COLS = ["#8a5a2b", "#7a4e24", "#9b6a3a"];
     const cand = C.ptsIn(shape, 12, 0.06);
-    const mud = U.sample(cand.length >= mudN ? cand : body, mudN).map((p) => ({ zone: "a", x: p.x, y: p.y, r: U.randf(0.13, 0.18), need: 1.6, col: U.pick(COLS), seed: Math.random() }));
+    // 진흙 점 = 비누 구간의 문지를 곳 (zone soap) → 진흙을 다 찾아 문지르면 비누 끝
+    const mud = U.sample(cand.length >= mudN ? cand : body, mudN).map((p) => ({ zone: "soap", x: p.x, y: p.y, r: U.randf(0.13, 0.18), need: 1.6, col: U.pick(COLS), seed: Math.random() }));
+    const mudXY = mud.map((m) => ({ x: m.x, y: m.y }));
+    // 이번 판 순서: 1단계는 수건 없이 털기, 2단계는 판마다 수건/털기 번갈아, 3단계는 수건
+    const useTowel = lv === 3 || (lv === 2 && (ctx.round || 0) % 2 === 0);
     S.skinMud(mud);
     ctx.mud = mud;
     // 점검용
@@ -384,13 +391,15 @@ KP.game({
       S.setTool(ctx.TOOLS[tool], Math.max(70, ctx.F.w * 0.36));
     };
     let lastWater = 0;
-    const stage = (tool, mode, say, need, extra) =>
+    /** pts: 문지를 곳(없으면 온몸 격자) */
+    const stage = (tool, mode, say, need, pts) =>
       new Promise((res) => {
         S.reset(true);
-        S.add(body.map((p) => ({ zone: tool, x: p.x, y: p.y, need })));
-        if (extra) S.add(extra);
+        if (pts) S.add(pts);
+        else S.add(body.map((p) => ({ zone: tool, x: p.x, y: p.y, need })));
         S.mode = mode;
-        S.need = lv === 1 && tool !== "soap" ? 0.6 : 0.8; // 1단계: 샤워·수건은 조금만 닦아도 다음으로
+        // 진흙 찾기(비누)는 3/4 이상, 샤워·수건은 1단계 60%·그 위 70%
+        S.need = tool === "soap" ? 0.74 : lv === 1 ? 0.6 : 0.7;
         ctx.stage = tool;
         setTool(tool);
         S.sound =
@@ -410,7 +419,14 @@ KP.game({
           }
         };
         ctx.say(say);
-        ctx.hint(dollPt, say);
+        // 진흙 찾기 판은 아직 남은 진흙(문지를 곳)을 가리킴
+        const spotPt = () => {
+          const q = S.spots.find((z) => z.zone === tool && z.life > 0 && !z.fade);
+          if (!q) return dollPt();
+          const r = ctx.scene.getBoundingClientRect();
+          return { x: r.left + ctx.F.x + q.x * ctx.F.w, y: r.top + ctx.F.y + q.y * ctx.F.h };
+        };
+        ctx.hint(pts ? spotPt : dollPt, say);
         S.on = true;
         S.onZone = (k) => {
           if (k !== tool) return;
@@ -424,7 +440,6 @@ KP.game({
 
     await stage("soap", { foam: true }, "비누로 거품을 뽀글뽀글 문질러요! 🧼", 1.4, mud);
     if (!live()) return;
-    S.finishZone("a");
     S.skinFade("dirt"); // 남은 진흙은 스르륵
     act.mood("happy");
     A.sfx("bubble");
@@ -433,7 +448,8 @@ KP.game({
     if (!live()) return;
     act.mood("normal");
 
-    await stage("shower", { unfoam: true, drops: true }, "샤워기로 거품을 씻어요! 🚿", 1.2);
+    // 1단계: 거품 묻은 곳(진흙 자리)만 헹굼 / 2·3단계: 온몸
+    await stage("shower", { unfoam: true, drops: true }, "샤워기로 거품을 씻어요! 🚿", 1.2, lv === 1 ? mudXY.map((p) => ({ zone: "shower", x: p.x, y: p.y, r: 0.2, need: 1 })) : null);
     if (!live()) return;
     S.skinFade("foam");
     A.sfx("water");
@@ -441,11 +457,13 @@ KP.game({
     await ctx.wait(800);
     if (!live()) return;
 
-    // 물기가 아직 없는 곳도 촉촉하게 (수건으로 닦을 게 보이게)
-    S.skinFill("wet", 0.8);
-    await stage("towel", { dry: true, sparkle: true }, "수건으로 보송보송 닦아요!", 1.1);
-    if (!live()) return;
-    S.skinFade("wet");
+    if (useTowel) {
+      // 물기가 아직 없는 곳도 촉촉하게 (수건으로 닦을 게 보이게)
+      S.skinFill("wet", 0.8);
+      await stage("towel", { dry: true, sparkle: true }, "수건으로 보송보송 닦아요!", 1.0);
+      if (!live()) return;
+      S.skinFade("wet");
+    } else ctx.after(900, () => live() && S.skinFade("wet")); // 수건 없는 판: 부르르 털어서 마름
     ctx.stage = "shake";
     restTool = null;
     ctx.rest.classList.add("hide");

@@ -1,6 +1,8 @@
 /* 숫자 순서 놀이 — 흩어진 숫자 풍선을 1부터 차례로 눌러요. 누를 때마다 도레미가 올라가고 선이 이어져요.
    다 이으면 풍선들이 하늘로 날아가요.
-   1단계: 1~5 / 2단계: 1~8 / 3단계: 1~10 */
+   1단계: 1~5 / 2단계: 1~8 / 3단계: 1~10
+   풍선 자리: 앞 번호와 너무 멀지 않게, 이은 선이 서로 엇갈리지 않게 고름(선이 지저분해 보이던 판 줄이기)
+   그림 점잇기: 2단계 판 셋 중 하나는 하트, 3단계 판 둘 중 하나는 별 모양 자리 — 끝까지 이으면 선이 닫히며 그 그림이 '짠' */
 "use strict";
 KP.game({
   id: "dots",
@@ -35,6 +37,10 @@ KP.game({
       .dtB[data-done] .dtBody{box-shadow:inset -6px -8px 0 rgba(0,0,0,.12),0 0 0 6px #fff,0 0 0 11px var(--sun)}
       .dtB.pop{animation:dtPop .4s}
       @keyframes dtPop{40%{transform:scale(1.25)}}
+      .dtPic{position:absolute;left:var(--x);top:var(--y);width:var(--w);height:var(--w);margin:calc(var(--w) * -.5) 0 0 calc(var(--w) * -.5);z-index:3;pointer-events:none;animation:popBig .6s cubic-bezier(.2,1.6,.4,1)}
+      .dtPic .e{width:100%;height:100%}
+      .dtSvg polygon{fill:var(--pf);opacity:0;animation:dtFill .6s .2s forwards}
+      @keyframes dtFill{to{opacity:.35}}
       .dtB.away{transition:transform 1.4s cubic-bezier(.5,0,.7,1),opacity 1.4s;transform:translateY(-120vh) rotate(var(--r));opacity:.2}
     `);
     ctx.board = U.el("div", "dtBoard");
@@ -51,9 +57,15 @@ KP.game({
   nj(ctx, n, pair) {
     return KP.u.josa(ctx.SINO[n], pair);
   },
+  /** 선분 ab 와 cd 가 엇갈리나 (끝점 공유는 제외) */
+  cross(a, b, c, d) {
+    const o = (p, q, r) => Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x));
+    return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0;
+  },
   place(W, H, n, B) {
     const U = KP.u;
     const pad = 8;
+    const far = Math.hypot(W, H) * 0.45; // 앞 번호와 이만큼 안쪽이면 좋음
     for (let tries = 0; tries < 60; tries++) {
       const pts = [];
       let ok = true;
@@ -62,6 +74,15 @@ KP.game({
         for (let k = 0; k < 300; k++) {
           const x = U.randf(B / 2 + pad, W - B / 2 - pad),
             y = U.randf(B * 0.6 + pad, H - B * 0.75 - pad);
+          const prev = pts[i - 1];
+          // 처음 200번은 '가깝고 안 엇갈리는' 자리만, 그다음은 겹치지만 않으면
+          if (k < 200 && prev) {
+            if (U.dist(prev.x, prev.y, x, y) > far) continue;
+            const c = { x, y };
+            let bad = false;
+            for (let j = 0; j + 1 < i - 1 && !bad; j++) bad = this.cross(pts[j], pts[j + 1], prev, c);
+            if (bad) continue;
+          }
           if (pts.every((p) => U.dist(p.x, p.y, x, y) > B * 1.25)) {
             pts.push({ x, y });
             placed = true;
@@ -77,6 +98,32 @@ KP.game({
     const cols = Math.ceil(Math.sqrt((n * W) / H));
     const rows = Math.ceil(n / cols);
     return U.shuffle([...Array(cols * rows).keys()]).slice(0, n).map((i) => ({ x: ((i % cols) + 0.5) * (W / cols), y: (Math.floor(i / cols) + 0.5) * (H / rows) }));
+  },
+  /** 그림 점잇기 자리: 하트(8개) · 별(10개, 바깥·안쪽 번갈아) — 시작 꼭짓점은 매번 달라짐 */
+  shape(W, H, n, B, kind) {
+    const U = KP.u;
+    const R = Math.min(W / 2 - B * 0.6 - 8, (H - B * 1.4) / 2 - 8);
+    if (R < B * 1.6) return null; // 너무 좁으면 그냥 흩어진 풍선
+    const cx = W / 2,
+      cy = H / 2 + B * 0.05;
+    let pts = [];
+    if (kind === "star") {
+      for (let i = 0; i < 10; i++) {
+        const r = i % 2 ? R * 0.5 : R,
+          a = -Math.PI / 2 + (i * Math.PI) / 5;
+        pts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r * 0.96 });
+      }
+    } else {
+      // 하트: 매개변수 곡선에서 8점 (위 가운데 오목한 곳부터 시계 방향)
+      const T = [0, 0.98, 1.65, 2.22, Math.PI, 4.07, 4.63, 5.3]; // 둘레를 고르게 나눈 자리
+      pts = T.map((t) => {
+        const x = 16 * Math.pow(Math.sin(t), 3),
+          y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+        return { x: cx + (x / 17) * R, y: cy + (y / 17) * R - R * 0.08 };
+      });
+    }
+    const s = U.rand(n);
+    return pts.slice(s).concat(pts.slice(0, s));
   },
   refit(ctx) {
     const g = ctx.dt;
@@ -111,15 +158,31 @@ KP.game({
     const lv = ctx.level;
     const self = this;
     const n = [5, 8, 10][lv - 1];
+    // 그림 점잇기 판: 2단계 셋 중 하나 하트, 3단계 둘 중 하나 별
+    ctx.pn = (ctx.pn || 0) + 1;
+    const kind = lv === 2 && ctx.pn % 3 === 0 ? "heart" : lv === 3 && ctx.pn % 2 === 0 ? "star" : null;
     ctx.board.innerHTML = "";
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.setAttribute("class", "dtSvg");
     ctx.board.appendChild(svg);
     const W = ctx.board.clientWidth,
       H = ctx.board.clientHeight;
-    const B = Math.max(64, Math.min(116, Math.sqrt((W * H) / (n * 4.6))));
+    let B = Math.max(64, Math.min(116, Math.sqrt((W * H) / (n * 4.6))));
+    let pts = kind ? this.shape(W, H, n, B, kind) : null;
+    // 그림 판: 이웃 점 사이가 풍선보다 넉넉해야 함 → 모자라면 풍선을 조금 작게(64px 아래로는 안 줄임), 그래도 안 되면 흩어진 판
+    if (pts) {
+      // 모든 풍선 사이(이웃만이 아니라 별 안쪽 꼭짓점끼리도) 흩어진 판과 같은 간격(1.25배)
+      let gap = Infinity;
+      pts.forEach((p, i) => pts.forEach((q, j) => j > i && (gap = Math.min(gap, U.dist(p.x, p.y, q.x, q.y)))));
+      B = Math.min(B, gap / 1.25);
+      if (B < 64) {
+        pts = null;
+        B = Math.max(64, Math.min(116, Math.sqrt((W * H) / (n * 4.6))));
+      }
+    }
+    const pic = pts ? kind : null;
     ctx.board.style.setProperty("--b", B + "px");
-    const pts = this.place(W, H, n, B);
+    if (!pts) pts = this.place(W, H, n, B);
     const cols = U.shuffle([...ctx.COLORS]);
     let step = 1,
       busy = false;
@@ -158,6 +221,29 @@ KP.game({
           busy = true;
           ctx.score.add();
           ctx.round++;
+          if (pic) {
+            // 마지막 점 → 첫 점으로 선이 닫히고 안이 살짝 칠해짐 + 그 그림이 가운데에 '짠'
+            await ctx.wait(350);
+            const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            l.setAttribute("x1", p.x);
+            l.setAttribute("y1", p.y);
+            l.setAttribute("x2", pts[0].x);
+            l.setAttribute("y2", pts[0].y);
+            l.style.setProperty("--len", Math.ceil(U.dist(p.x, p.y, pts[0].x, pts[0].y)));
+            svg.appendChild(l);
+            const pg = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+            pg.setAttribute("points", pts.map((q) => q.x.toFixed(1) + "," + q.y.toFixed(1)).join(" "));
+            pg.style.setProperty("--pf", pic === "star" ? "#ffd23f" : "#ff7eb9");
+            svg.insertBefore(pg, svg.firstChild);
+            await ctx.wait(450);
+            const xs = pts.map((q) => q.x),
+              ys = pts.map((q) => q.y);
+            const pe = U.el("div", "dtPic", KP.E(pic === "star" ? "⭐" : "💖"));
+            pe.style.cssText = "--x:" + (Math.min(...xs) + Math.max(...xs)) / 2 + "px;--y:" + (Math.min(...ys) + Math.max(...ys)) / 2 + "px;--w:" + Math.round(B * 1.3) + "px";
+            ctx.board.appendChild(pe);
+            A.sfx("sparkle");
+            await Promise.race([KP.voice.say(pic === "star" ? "우와! 별이 됐어요!" : "와! 하트가 됐어요!"), ctx.wait(2600)]);
+          }
           await ctx.wait(500);
           A.melody(A.SCALE.slice(0, 8).map((x) => [x, 1]), { beat: 0.09, inst: "marimba", vol: 0.2 });
           A.sfx("whoosh");

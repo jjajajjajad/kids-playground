@@ -3,7 +3,10 @@
    - 🎵 반주 켜기: 동요 멜로디 + 화음 + 부드러운 박자 (빠르기 3단계), 박자 불빛과 춤추는 곰
      → 반주에 맞춰 치면 칭찬. 화면을 나가면 반주 자동 정지
    - 50번 칠 때마다 축하 (자유 연주라 열쇠 별은 없음)
-   - 반주에 맞춰 박자를 24번 맞히면 '박자 박사' 축하 (대부분 박자에 맞게 쳤을 때만 열쇠 별)
+   - 🎵 박자 놀이(반주 켜면, 3단계): 위 진행 점이 다 차면 '박자 박사' 축하 (친 것의 절반 이상이 박자에 맞았을 때만 열쇠 별)
+       1단계 반짝이는 큰북만 8번(판정 ±0.2초) → 2단계 큰북·작은북 번갈아 12번(±0.15초) → 3단계 아무 악기나 박자에 24번(±0.11초)
+       반짝임은 박자 반 박 앞부터 켜짐(보고 치면 늦지 않게). 한 박에 한 번만 셈(두 손가락 동시는 1번)
+   - 50번 축하는 자유 연주라 단계에도 안 넣음(noLevel)
    - 축하하는 동안엔 패드를 쳐도 소리·횟수 없음 (축하 소리 위에 북소리가 겹치지 않게) */
 "use strict";
 KP.game({
@@ -11,6 +14,7 @@ KP.game({
   icon: "🥁",
   name: "신나는 드럼",
   cat: "music",
+  levels: 3,
   setup(ctx) {
     const U = KP.u,
       A = KP.audio;
@@ -26,6 +30,16 @@ KP.game({
       .dr-light{width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 3px #d6dcef;transition:background .08s}
       .dr-light.on{background:#ffd23f;box-shadow:0 0 12px 3px rgba(255,210,63,.9)}
       .dr-light.on.one{background:#ff5d73;box-shadow:0 0 12px 3px rgba(255,93,115,.8)}
+      .dr-goal{flex:0 0 auto;display:none;gap:5px;flex-wrap:wrap;justify-content:center;align-items:center;min-height:20px;max-width:100%}
+      .dr-goal.on{display:flex}
+      .dr-goal i{width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:inset 0 0 0 3px #d6dcef;transition:transform .2s}
+      .dr-goal i.ok{background:#ffd23f;box-shadow:0 0 6px 1px rgba(255,190,40,.8);transform:scale(1.15)}
+      .dr-goal.many i{width:12px;height:12px}
+      .dr-goal b{font-weight:400;font-size:20px;line-height:1;margin-left:4px}
+      /* 박자 놀이 1·2단계: 칠 북이 박자 반 박 앞부터 반짝 (밝기 한 장만 바꿈 — 저가 태블릿) */
+      .dr-pad::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;box-shadow:inset 0 0 0 7px #ffd23f,inset 0 0 30px 8px rgba(255,230,120,.9);transition:opacity .12s}
+      .dr-pad.beat::after{opacity:1}
+      .dr-pad.goal{outline:4px dashed rgba(255,190,40,.7);outline-offset:-4px}
       .dr-dancer{font-size:clamp(46px,7vh,64px);line-height:1;transform-origin:bottom center}
       .dr-dancer.hop{animation:drHop .3s ease-out}
       @keyframes drHop{40%{transform:translateY(-16px) rotate(-8deg) scale(1.05,.95)}80%{transform:rotate(6deg)}}
@@ -163,14 +177,15 @@ KP.game({
     });
     const dancer = U.el("div", "dr-dancer", KP.E("🐻"));
     top.append(bAcc, ...tpBtns, lights, dancer);
+    const goalEl = U.el("div", "dr-goal");
     const grid = U.el("div", "dr-grid");
-    wrap.append(top, grid);
+    wrap.append(top, goalEl, grid);
     ctx.body.appendChild(wrap);
 
     let hits = 0,
       onBeat = 0,
       accHits = 0; // 반주 켜고 친 횟수 (박자 맞힌 비율 계산)
-    const padEls = PADS.map((p) => {
+    const padEls = PADS.map((p, pi) => {
       const el = U.el("div", "dr-pad", p.svg + "<span>" + p.name + "</span>");
       el.style.setProperty("--bg", p.bg);
       el.addEventListener("pointerdown", async (e) => {
@@ -193,11 +208,12 @@ KP.game({
         setTimeout(() => f.remove(), 900);
         U.replay(dancer, "hop");
         ctx.hint(null);
+        if (acc) beatHint();
         hits++;
-        if (checkBeat()) return;
+        if (checkBeat(pi)) return;
         if (hits % 50 === 0) {
           ctx.noStar ? ctx.noStar() : (ctx._fewChoice = true); // 아무렇게나 50번 두드려도 되는 자유 연주 → 열쇠 별 제외
-          await ctx.win({ msg: "멋진 드러머!" });
+          await ctx.win({ msg: "멋진 드러머!", noLevel: true }); // 박자 놀이 단계에도 안 넣음
         }
       });
       grid.appendChild(el);
@@ -221,6 +237,7 @@ KP.game({
       acc = { bpm: tempo, beatT: t, beat: 0, melT: t, songI: 0, noteI: 0, mel: [], times: [] };
       onBeat = 0;
       accHits = 0;
+      renderGoal();
       bAcc.classList.add("on");
       bAcc.innerHTML = KP.E("⏹️") + " 반주 끄기";
       accT = ctx.every(40, tick);
@@ -233,6 +250,36 @@ KP.game({
       bAcc.classList.remove("on");
       bAcc.innerHTML = KP.E("🎵") + " 반주 켜기";
       lightEls.forEach((l) => l.classList.remove("on"));
+      padEls.forEach((el) => el.classList.remove("beat", "goal"));
+      goalEl.classList.remove("on");
+      ctx.hint(null);
+    }
+    /* ---------- 박자 놀이 단계 ---------- */
+    const BEAT = {
+      win: [0.2, 0.15, 0.11],
+      goal: [8, 12, 24],
+    };
+    const lvI = () => Math.max(0, Math.min(2, (ctx.level || 1) - 1));
+    /** 이 박(0~3)에 칠 패드: 1단계 큰북(0)만, 2단계 큰북·작은북(1) 번갈아, 3단계 아무거나(-1) */
+    const padFor = (p) => (lvI() === 0 ? 0 : lvI() === 1 ? (p % 2 === 0 ? 0 : 1) : -1);
+    function renderGoal() {
+      const n = BEAT.goal[lvI()];
+      goalEl.innerHTML = "";
+      for (let k = 0; k < n; k++) goalEl.appendChild(U.el("i", k < onBeat ? "ok" : ""));
+      goalEl.appendChild(U.el("b", "", KP.E("🏆")));
+      goalEl.classList.toggle("many", n > 12);
+      goalEl.classList.add("on");
+      padEls.forEach((el, i) => el.classList.toggle("goal", lvI() === 0 ? i === 0 : lvI() === 1 ? i < 2 : false));
+      beatHint();
+    }
+    /** 1·2단계: 오래 안 치면 칠 북을 가리킴 (정답 패드라 그 판은 열쇠 별 없음). 칠 때마다 지워지므로 다시 검 */
+    function beatHint() {
+      if (acc && lvI() < 2) ctx.hint(() => padEls[0], "노래에 맞춰 눌러 봐요!", { answer: true });
+      else ctx.hint(null);
+    }
+    function goalHelp() {
+      const L = lvI();
+      ctx.say(L === 0 ? "반짝이는 큰북을 쿵! 쿵! 쳐요 🥁" : L === 1 ? "반짝이는 북을 쳐요! 큰북 쿵, 작은북 짝!" : "박자에 맞춰 아무 악기나 쳐요!", "반주에 맞춰 쿵짝쿵짝 쳐 봐요!");
     }
     function tick() {
       if (!acc) return;
@@ -283,8 +330,16 @@ KP.game({
           A.note(ch[0], { inst: "bass", dur: spb * 1.5, vol: 0.16, when: w });
           ch[1].forEach((n) => A.note(n, { inst: "pad", dur: spb * 1.8, vol: 0.03, when: w }));
         } else A.noise({ dur: 0.07, vol: 0.04, bp: 1600, q: 0.8, when: w });
-        acc.times.push(acc.beatT);
-        const p = pos;
+        acc.times.push({ t: acc.beatT, p: pos });
+        const p = pos,
+          want = padFor(pos);
+        if (want >= 0) {
+          // 칠 북은 반 박 앞부터 박자 조금 뒤까지 반짝 (보고 치면 딱 맞게)
+          const el = padEls[want],
+            me = acc;
+          ctx.after(Math.max(0, (w - spb * 0.5) * 1000), () => acc === me && !KP.celebrating && el.classList.add("beat"));
+          ctx.after(Math.max(0, (w + Math.min(0.18, spb * 0.3)) * 1000), () => el.classList.remove("beat"));
+        }
         ctx.after(Math.max(0, w * 1000), () => {
           lightEls.forEach((l, i) => l.classList.toggle("on", i === p));
           U.replay(dancer, "hop");
@@ -295,24 +350,40 @@ KP.game({
       if (acc.mel.length > 64) acc.mel.splice(0, acc.mel.length - 64);
       if (acc.times.length > 16) acc.times.splice(0, acc.times.length - 16);
     }
-    /** 반주 박자에 맞았는지 — 24번 맞히면 축하(축하했으면 true) */
-    function checkBeat() {
+    /** 반주 박자에 맞았는지(단계별 칠 북·판정 창) — 진행 점이 다 차면 축하(축하했으면 true) */
+    function checkBeat(pi) {
       if (!acc) return false;
       accHits++;
-      const now = A.ctx().currentTime;
-      const near = acc.times.some((t) => Math.abs(t - now) < 0.11);
+      const now = A.ctx().currentTime,
+        L = lvI(),
+        goal = BEAT.goal[L];
+      const near = acc.times.find((x) => !x.used && Math.abs(x.t - now) < BEAT.win[L]);
       if (!near) return false;
+      const want = padFor(near.p);
+      if (want >= 0 && pi !== want) return false; // 다른 악기는 소리만 (틀림 없음)
+      near.used = true; // 한 박에 한 번만
       onBeat++;
-      if (onBeat % 24 === 0) {
+      const d = goalEl.children[onBeat - 1];
+      if (d) {
+        d.classList.add("ok");
+        U.replay(d, "pop");
+      }
+      if (onBeat >= goal) {
         // 마구 두드려도 몇 번은 박자에 걸림 → 친 것의 절반 이상이 박자에 맞았을 때만 열쇠 별
         if (onBeat / Math.max(1, accHits) < 0.5) ctx.noStar ? ctx.noStar() : (ctx._fewChoice = true);
         onBeat = 0;
         accHits = 0;
         hits = 0; // 바로 뒤 '50번' 축하와 겹치지 않게
-        ctx.win({ msg: "박자 박사!", say: "박자에 딱딱 맞아요!" });
+        padEls.forEach((el) => el.classList.remove("beat"));
+        const was = ctx.level;
+        ctx.win({ msg: "박자 박사!", say: "박자에 딱딱 맞아요!" }).then((ok) => {
+          if (!ok || !acc) return;
+          renderGoal(); // 단계가 바뀌었으면 진행 점·칠 북도 새로
+          if (ctx.level !== was) goalHelp();
+        });
         return true;
       }
-      if (onBeat % 12 === 0) {
+      if (onBeat === Math.floor(goal / 2) && goal >= 12) {
         KP.voice.say(U.pick(["박자에 딱딱 맞아요!", "쿵짝쿵짝 잘한다!", "우와, 진짜 드러머 같아요!"]));
         A.sfx("sparkle");
       }
@@ -324,7 +395,7 @@ KP.game({
         KP.voice.say("반주를 껐어요");
       } else {
         startAcc();
-        KP.voice.say("반주에 맞춰 쿵짝쿵짝 쳐 봐요!");
+        goalHelp();
       }
     });
     ctx.stopAcc = stopAcc;

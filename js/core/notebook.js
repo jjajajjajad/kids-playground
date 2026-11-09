@@ -121,7 +121,7 @@
           .hwStars{font-size:clamp(34px,5vw,52px);letter-spacing:6px}
           .hwStars .off{filter:grayscale(1) opacity(.25)}
           .hwRes{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:0 8px}
-          @media (max-width:520px){.hwRes .btn.big{font-size:18px;padding:10px 16px}}
+          @media (max-width:520px){.hwRes .btn.big{font-size:18px;padding:10px 16px;min-height:64px}}
         `);
         ctx.book = cfg.book();
         ctx.items = ctx.book.flatMap((s) => s.items);
@@ -255,11 +255,13 @@
           const b = it.parts.map((s) => ({ strokes: cfg.partStrokes(s), mode: "faint", syl: sm, ch: s }));
           return a.concat(b);
         }
-        return [
+        const cells = [
           { strokes: it.strokes, mode: "dot", demo: true, syl: it.syl, ch: it.ch },
           { strokes: it.strokes, mode: "faint", syl: it.syl, ch: it.ch },
           { strokes: it.strokes, mode: "alone", syl: it.syl, ch: it.ch },
         ];
+        // it.cells === 2: '보고 따라 쓰기 → 혼자 쓰기' 2칸 (두 자리 수처럼 한 칸이 긴 항목 — 3칸이면 1분을 넘김)
+        return it.cells === 2 ? [cells[0], cells[2]] : cells;
       },
       openItem(ctx, idx, quiet) {
         const U = KP.u;
@@ -580,6 +582,15 @@
           },
         });
       },
+      /** 시범 멈추기 (시범 중 아이가 쓰는 칸을 누름): 연필 그림을 지우고 바로 쓸 수 있게 */
+      stopDemo(ctx) {
+        const T = ctx.T;
+        if (!T.demoing) return;
+        KP.voice.stop && KP.voice.stop();
+        this.cellReset(ctx); // demoing=false, dtok 올림 → 시범 루프·"이제 따라 써 봐요" 안내가 멈춤
+        T.demoStopped = (T.demoStopped || 0) + 1; // 점검용
+        ctx.hint(() => this.startPoint(ctx), "노란 동그라미에서 시작해요!");
+      },
       /** 혼자 쓰기 칸 [다시 보기]: 왼쪽 본보기 위에 작은 카드로 획순을 보여 주고 사라짐.
           쓰는 칸에는 아무 선도 안 그려서(위치를 알려 주지 않음) 아이가 쓴 글씨도 그대로 남음 */
       peek(ctx) {
@@ -732,6 +743,8 @@
           KP.audio.unlock();
           if (e.pointerType === "pen") T.penAt = Date.now();
           else if (e.pointerType === "touch" && Date.now() - (T.penAt || 0) < 3000) return; // 펜으로 쓰는 중 닿은 손바닥 (펜을 내려놓으면 손가락으로 쓸 수 있음)
+          // 시범 중에 아이가 먼저 쓰기 시작하면: 시범을 멈추고 바로 쓰게 (예전엔 시범이 끝날 때까지 무시돼 첫 획이 안 남음)
+          if (T.demoing && !T.done && ctx.cell && T.pid === null) this.stopDemo(ctx);
           if (T.done || T.demoing || T.pid !== null || !ctx.cell) return; // 쓰는 중(pointerup 유실 포함)의 다른 손가락은 무시 — 마무리는 1.1초 타이머가 맡음
           T.pid = e.pointerId;
           try {
@@ -910,7 +923,8 @@
           const { cov, gap } = this.strokeCover(P, closed);
           // 아주 짧은 획(점·짧은 꼭지)은 콕 찍어도 완성
           const short = !closed && P.length * 3 < R * 2;
-          if (short ? cov >= 0.5 : cov >= 0.85 && gap <= 0.15) {
+          // 획 끝까지 왔는지: 지나간 점 비율만 보면 판정 반지름 앞쪽 점·스스로 겹치는 획('8')때문에 65~75% 지점에서 '다 참'이 됨
+          if (short ? cov >= 0.5 : cov >= 0.85 && gap <= 0.15 && this.endReached(P, closed, R)) {
             T.sdone[si] = true;
             changed = true;
             if (c.mode !== "alone") KP.audio.note(KP.audio.SCALE[(si * 2) % 8], { inst: "marimba", dur: 0.22, vol: 0.2 });
@@ -921,8 +935,9 @@
         if (T.sdone.every(Boolean)) {
           if (T.pid === null) return this.finishCell(ctx, false);
           // 아직 쓰는 중: 손을 뗄 때 마무리 (그동안 선은 계속 그려짐).
-          // 손을 안 떼면 '손가락이 1.1초 동안 안 움직였을 때' 마무리 (움직이면 다시 기다림, 최대 4초)
-          // — 천천히 쓰는 아이도 획 끝까지 그린 뒤 마무리됨 (예전엔 다 찬 순간부터 1.1초라 끝이 끊김)
+          // 손을 안 떼면 '손가락이 1.1초 동안 안 움직였을 때' 마무리 (움직이는 동안은 다시 기다림, 최대 PEND_MAX)
+          // — 천천히 쓰는 아이도 획 끝까지 그린 뒤 마무리됨 (예전엔 다 찬 순간부터 1.1초라 끝이 끊김, 4초 상한도 짧았음)
+          const PEND_MAX = 10000;
           T.pend = true;
           T.pendAt = T.moveAt = Date.now();
           ctx.spot.classList.remove("on");
@@ -931,11 +946,20 @@
           const wait = () => {
             if (!T.pend || T.done || dt0 !== ctx.dtok || ctx.cell !== cell) return;
             const now = Date.now();
-            if (now - T.moveAt >= 1100 || now - T.pendAt >= 4000) this.finishCell(ctx, false);
-            else ctx.after(Math.max(50, Math.min(1100 - (now - T.moveAt), 4000 - (now - T.pendAt))), wait);
+            if (now - T.moveAt >= 1100 || now - T.pendAt >= PEND_MAX) this.finishCell(ctx, false);
+            else ctx.after(Math.max(50, Math.min(1100 - (now - T.moveAt), PEND_MAX - (now - T.pendAt))), wait);
           };
           ctx.after(1100, wait);
         }
+      },
+      /** 획 끝점 도달: 열린 획은 마지막 점, 닫힌 획(0·8·ㅇ)은 시작점 둘레(1.3R) 밖의 가장 끝 점을 지났는지
+          (닫힌 획의 마지막 점은 시작점과 같은 자리라 처음 누를 때 이미 지나간 걸로 쳐지므로) */
+      endReached(P, closed, R) {
+        if (!closed) return !!P[P.length - 1].hit;
+        const a = P[0],
+          r2 = (1.3 * R) ** 2;
+        for (let i = P.length - 1; i > 0; i--) if ((P[i].x - a.x) ** 2 + (P[i].y - a.y) ** 2 > r2) return !!P[i].hit;
+        return true;
       },
       /** 칸 채점: 따라간 정도(coverage) + 선 안에 쓴 정도(accuracy) → 별 1~3 */
       grade(ctx) {
@@ -1017,7 +1041,10 @@
         const it = ctx.it;
         const avg = ctx.cellStars.reduce((a, b) => a + b, 0) / ctx.cellStars.length;
         const stars = Math.max(1, Math.min(3, Math.round(avg)));
-        KP.earn && KP.earn.onNotebook(ctx, stars);
+        // 열쇠 별은 '혼자 쓰기 칸 ★★ 이상'일 때만 (따라 쓰기만 있는 선 긋기·낱말은 공책 별·도장만, 열쇠 별 없음)
+        const alone = ctx.cells.map((c, i) => (c.mode === "alone" ? ctx.cellStars[i] || 0 : -1)).filter((v) => v >= 0);
+        const aloneStars = alone.length ? Math.min.apply(null, alone) : 0;
+        KP.earn && KP.earn.onNotebook(ctx, aloneStars);
         const prev = ctx.stars[it.id] || 0;
         ctx.stars[it.id] = Math.max(prev, stars);
         KP.store.set(cfg.key, ctx.stars);

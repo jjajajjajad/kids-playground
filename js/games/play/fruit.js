@@ -2,7 +2,7 @@
    - 바구니를 손가락으로 좌우로 끌기 (화면 아무 데나 눌러도 그 자리로 이동)
    - 받으면 바구니가 들썩 + 소리, 받은 과일이 바구니에 소복이 쌓임
    - 놓쳐도 벌 없음 (풀밭에 톡 떨어져 데굴) / 10개마다 축하
-   1단계: 천천히 1개씩 / 2단계: 2개 / 3단계: 3개·빠르게 */
+   1단계: 천천히 1개씩 / 2단계: 2개 / 3단계: 3개·빠르게 + 가끔 🐛 애벌레가 떨어짐 → '피하기'(받으면 애벌레가 폴짝 나가고 가벼운 틀림, 피하면 👍) */
 "use strict";
 KP.game({
   id: "fruit",
@@ -37,6 +37,11 @@ KP.game({
       .fr-rim{position:absolute;left:-2%;right:-2%;top:6%;height:18%;border-radius:12px;background:linear-gradient(#e2a865,#b7793a);box-shadow:0 3px 0 rgba(0,0,0,.12)}
       .fr-bump{animation:fr-bump .35s}
       @keyframes fr-bump{30%{transform:translateY(8px) scale(1.06,.92)}60%{transform:translateY(-6px) scale(.97,1.04)}}
+      .fr-f.bug .e{animation:fr-wig .3s ease-in-out infinite alternate}
+      @keyframes fr-wig{from{transform:rotate(-14deg) scaleX(.92)}to{transform:rotate(14deg) scaleX(1.06)}}
+      .fr-out{position:absolute;width:var(--s);height:var(--s);font-size:var(--s);line-height:1;pointer-events:none;z-index:6;animation:fr-out .9s ease-out forwards}
+      .fr-out .e{width:100%;height:100%;display:block}
+      @keyframes fr-out{40%{transform:translate(calc(var(--dx)*.5),-90px) rotate(-30deg)}100%{transform:translate(var(--dx),40px) rotate(-60deg);opacity:0}}
       .fr-plus{position:absolute;font-size:clamp(26px,4vw,40px);color:#fff;-webkit-text-stroke:3px #f07a1a;paint-order:stroke;pointer-events:none;z-index:6;animation:fr-plus .8s ease-out forwards}
       @keyframes fr-plus{to{transform:translateY(-70px);opacity:0}}
     `);
@@ -89,17 +94,29 @@ KP.game({
     };
     addEventListener("resize", () => ctx._active && ctx.size());
 
+    // 3단계 애벌레 안내 (새 문장 new-voice/fruit.txt — 녹음 전에는 기기 목소리)
+    ctx.BUG_TXT = "애벌레는 피해요!";
     ctx.spawn = () => {
       const W = field.clientWidth,
         H = field.clientHeight;
-      const [em, name] = U.pick(ctx.FRUITS);
+      // 3단계: 다섯에 하나쯤 애벌레 (연달아 둘은 안 나오게)
+      const bug = ctx.level === 3 && !ctx.lastBug && Math.random() < 0.22;
+      ctx.lastBug = bug;
+      const [em, name] = bug ? ["🐛", "애벌레"] : U.pick(ctx.FRUITS);
       const s = ctx.fs;
-      const el = U.el("div", "fr-f hang", KP.E(em));
+      const el = U.el("div", "fr-f hang" + (bug ? " bug" : ""), KP.E(em));
+      if (bug) {
+        ctx.bugSeen++;
+        if (!ctx.bugTold) {
+          ctx.bugTold = true;
+          ctx.say("🐛 " + ctx.BUG_TXT, ctx.BUG_TXT);
+        }
+      }
       el.style.setProperty("--s", s + "px");
       // 다른 과일과 너무 가깝지 않은 자리
       let x = U.randf(10, W - s - 10);
       for (let k = 0; k < 8 && ctx.fruits.some((f) => Math.abs(f.x - x) < s * 1.3); k++) x = U.randf(10, W - s - 10);
-      const f = { el, em, name, s, x, y: H * 0.1, vy: 0, hang: [0.7, 0.55, 0.45][ctx.level - 1], state: "hang", rot: 0, vr: 0 };
+      const f = { el, em, name, s, x, y: H * 0.1, vy: 0, hang: [0.7, 0.55, 0.45][ctx.level - 1] + (bug ? 0.35 : 0), state: "hang", rot: 0, vr: 0, bug };
       field.insertBefore(el, basket);
       ctx.fruits.push(f);
       A.tone(700, { to: 900, dur: 0.06, vol: 0.05 });
@@ -121,6 +138,17 @@ KP.game({
     const NOTES = ["C5", "D5", "E5", "G5", "A5", "C6", "D6", "E6", "G6", "A6"];
     ctx.caught = (f) => {
       f.el.remove();
+      if (f.bug) {
+        // 애벌레를 받았어요: 바구니에서 폴짝 나감 — 가벼운 틀림(1번은 봐줌), 점수 그대로
+        const o = U.el("div", "fr-out", KP.E("🐛"));
+        o.style.cssText = "--s:" + f.s + "px;--dx:" + (ctx.bx > field.clientWidth / 2 ? -1 : 1) * 120 + "px;left:" + (ctx.bx - f.s / 2) + "px;top:" + (field.clientHeight - ctx.bw * 0.9) + "px";
+        field.appendChild(o);
+        ctx.after(950, () => o.remove());
+        U.replay(ctx.basket, "fr-bump");
+        A.sfx("boing");
+        ctx.miss(null, ctx.BUG_TXT, { soft: true });
+        return;
+      }
       ctx.addToPile(f.em);
       U.replay(ctx.basket, "fr-bump");
       A.note(NOTES[ctx.count % 10], { inst: "marimba", dur: 0.35, vol: 0.28 });
@@ -141,7 +169,9 @@ KP.game({
         ctx.pause = 2.5;
         ctx.after(300, async () => {
           // 음성은 자연 음성 조각이 있는 말로 ("십! 바구니가 꽉 찼어요!") — "받았다!" 는 조각이 없어 기기 목소리였음
-          ctx.noStar(); // 받기만 하는 진행형(틀림 없음) → 열쇠 별 없음
+          // 1·2단계: 받기만 하는 진행형(틀림 없음) → 열쇠 별 없음. 3단계는 애벌레가 2번 이상 나온 판만 별 대상(피하기를 한 판)
+          if (!(ctx.level === 3 && ctx.bugSeen >= 2)) ctx.noStar();
+          ctx.bugSeen = 0;
           const ok = await ctx.win({ big, msg: big ? "{부름} 과일 부자!" : ctx.count + "개 받았다!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 바구니가 꽉 찼어요!" : "바구니가 꽉 찼어요!" });
           if (ok) {
             ctx.setHint();
@@ -194,7 +224,17 @@ KP.game({
             continue;
           }
           if (f.y > H - 30 - f.s) {
-            // 풀밭에 톡 — 벌 없음
+            // 풀밭에 톡 — 벌 없음 (애벌레는 잘 피했어요 → 👍 하고 기어감)
+            if (f.bug) {
+              f.state = "done";
+              const o = U.el("div", "fr-plus", KP.E("👍"));
+              o.style.left = f.x + "px";
+              o.style.top = H - 40 - f.s + "px";
+              field.appendChild(o);
+              ctx.after(820, () => o.remove());
+              A.note("E6", { inst: "bell", dur: 0.25, vol: 0.12 });
+              continue;
+            }
             f.state = "ground";
             f.y = H - 30 - f.s;
             f.vy = -H * 0.35;
@@ -230,6 +270,9 @@ KP.game({
     ctx.pile.innerHTML = "";
     ctx.pileN = 0;
     ctx.fruits = [];
+    ctx.bugSeen = 0;
+    ctx.bugTold = false;
+    ctx.lastBug = false;
     ctx.count = 0;
     ctx.ms = 0;
     ctx.pause = 0;

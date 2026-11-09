@@ -1,6 +1,7 @@
 /* 색깔 찾기 — 말한 색을 찾아 눌러요. 맞히면 그 색 물감이 화면에 퍼져요.
    1단계: 웃는 색 동그라미 3개(빨강·노랑·파랑·초록 중) / 2단계: 6개(10색 중)
-   3단계: "파란 하트" 처럼 색+사물 (같은 사물 다른 색, 같은 색 다른 사물이 섞여 나옴) */
+   3단계: "파란 하트" 처럼 색+사물 (같은 사물 다른 색, 같은 색 다른 사물이 섞여 나옴)
+   아래 '물감 칸' 7개: 맞힌 색이 한 칸씩 채워지고, 7칸이 다 차면 큰 축하(무지개 완성) 후 다시 빈 칸 — 반복 판의 작은 목표 */
 "use strict";
 KP.game({
   id: "color",
@@ -37,10 +38,20 @@ KP.game({
       @keyframes clrHop{30%{transform:translateY(-26px) rotate(-8deg) scale(1.08)}60%{transform:translateY(0) scale(1.08,.92)}}
       .clrObj{font-size:var(--sz);border-radius:30px;padding:clamp(10px,1.4vw,16px);background:#e3e9f6}
       .clrObj.right{background:#d9ffe4}
+      .clrStrip{flex:0 0 auto;display:flex;justify-content:center;gap:clamp(5px,1vw,10px);padding:0 10px clamp(8px,1.4vh,14px);position:relative;z-index:1;pointer-events:none}
+      .clrStrip i{width:clamp(26px,min(4.6vw,5vh),42px);height:clamp(26px,min(4.6vw,5vh),42px);border-radius:50%;background:rgba(255,255,255,.5);box-shadow:inset 0 2px 0 rgba(47,58,102,.1);transition:background .3s}
+      .clrStrip i.on{background:var(--c);box-shadow:inset -3px -4px 0 rgba(0,0,0,.13),0 0 0 3px #fff;animation:popBig .45s cubic-bezier(.2,1.6,.4,1)}
+      .clrStrip.full i{animation:clrHop .55s 2;animation-delay:calc(var(--k)*60ms)}
     `);
     ctx.fx = U.el("div", "clrFx");
     ctx.grid = U.el("div", "clrGrid");
-    ctx.body.append(ctx.fx, ctx.grid);
+    ctx.strip = U.el("div", "clrStrip");
+    ctx.body.append(ctx.fx, ctx.grid, ctx.strip);
+    ctx.dots = Array.from({ length: 7 }, (_, k) => {
+      const i = ctx.strip.appendChild(U.el("i"));
+      i.style.setProperty("--k", k);
+      return i;
+    });
     ctx.COLORS = [
       { k: "red", n: "빨간색", a: "빨간", c: "#ff4d4d" },
       { k: "yellow", n: "노란색", a: "노란", c: "#ffd23f" },
@@ -73,7 +84,24 @@ KP.game({
   },
   start(ctx) {
     ctx.round = 0;
+    this.fill(ctx, 0);
     this.next(ctx);
+  },
+  /** 물감 칸: 앞에서 n칸까지 채움(색은 칸마다 기억) */
+  fill(ctx, n, c) {
+    ctx.filled = n;
+    ctx.strip.classList.remove("full");
+    ctx.dots.forEach((d, i) => {
+      if (i >= n) {
+        d.classList.remove("on");
+        d.style.removeProperty("--c");
+      }
+    });
+    if (n > 0 && c) {
+      const d = ctx.dots[n - 1];
+      d.style.setProperty("--c", c);
+      d.classList.add("on");
+    }
   },
   /** 물감 퍼지기 */
   splash(ctx, el, color) {
@@ -155,9 +183,16 @@ KP.game({
         KP.voice.say(sayRight);
         ctx.score.add();
         ctx.round++;
+        self.fill(ctx, ctx.filled + 1, colorOf(v));
         await ctx.wait(900);
-        const big = ctx.round % 5 === 0;
+        // 물감 칸 7개가 다 차면 큰 축하 → 다음 판은 빈 칸부터
+        const big = ctx.filled >= 7;
+        if (big) {
+          ctx.strip.classList.add("full");
+          KP.audio.melody([["C5", 1], ["D5", 1], ["E5", 1], ["G5", 1], ["A5", 1], ["C6", 2]], { beat: 0.1, inst: "marimba", vol: 0.2 });
+        }
         const ok = await ctx.win({ big, msg: big ? "{부름} 색깔 박사!" : nameOf(v) + "!", quiet: !big });
+        if (big) self.fill(ctx, 0);
         if (ok) self.next(ctx);
       },
     });

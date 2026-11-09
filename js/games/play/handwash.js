@@ -2,7 +2,9 @@
    - 장면 속 물건을 직접 눌러요: 꽃 수도꼭지(물 틀기·잠그기, 손잡이가 돌아감) → 물비누 펌프(꾹 → 거품 덩이) → 손 문지르기 → 헹구기 → 수건
    - 손 그림 3자세(손바닥 → 손등 → 깍지)로 바뀌며, 문지른 자리만 거품이 생김 (표면 마스크 KP.care setSkin — 손 모양 안에서만)
      3단계는 놀다 온 흙 묻은 손: 문지른 곳만 깨끗해짐. 헹굴 때는 물줄기 아래에서 비빈 자리만 거품이 흘러내림
-   - 단계: 1 순서 안내(할 물건이 반짝)·손바닥과 깍지 두 자세만·덜 문질러도 됨 → 2 '다음엔 뭘 할까요?' 순서 고르기(세 자세) → 3 흙 묻은 손을 혼자서 (시간 제한 없음)
+   - 단계: 1 순서 안내(할 물건이 반짝)·손바닥과 깍지 두 자세만·덜 문질러도 됨 → 2 '다음엔 뭘 할까요?' 순서 고르기(두 자세, 판마다 손등/깍지 번갈아)
+     → 3 흙·물감 묻은 손을 혼자서: 묻은 곳만 찾아 문지르기(두 자세, 판마다 번갈아) + 물은 아이가 직접 잠그기 (시간 제한 없음)
+   - 한 판 1~2분 안: 1·2단계는 물이 저절로 잠기고(쏴아→뚝), 헹굼·수건은 조금만 문질러도 됨 (예전 2단계 세 자세·잠그기 2번 = 스크립트로도 95초)
    - 자세가 바뀔 때 "휙!" 소리·글자로 알려 줌(손이 왜 바뀌었는지 알게)
    - 아이가 칠한 인형 친구(정면 그림)가 시작·끝에 옆에서 작게 응원
    공용: play/_care.js(문지르기 판·표면 마스크·순서) · _shared/clay-stage.js(배경 자르기만, 3D 없음) */
@@ -277,11 +279,14 @@ KP.game({
       const r = ctx.scene.getBoundingClientRect();
       return { x: r.left + F().x + F().w / 2, y: r.top + F().y + F().h * 0.4 };
     };
-    const COLS = ["#8a5a2b", "#7a4e24", "#9b6a3a"];
+    // 3단계 '묻은 것': 두 판마다 흙 / 물감 번갈아 (색만 다름) — 자세(판마다 번갈아)와 엇갈려 4판에 네 가지
+    const paint = muddy && Math.floor((ctx.round || 0) / 2) % 2 === 1;
+    const COLS = paint ? ["#ff5b6e", "#3aa0ff", "#ffc531", "#3fd17a", "#8a63ee"] : ["#8a5a2b", "#7a4e24", "#9b6a3a"];
     const addMud = () => {
       if (!muddy) return [];
       const shape = ctx.POSES[ctx.pose].shape;
-      const m = U.sample(C.ptsIn(shape, 10, 0.07), 5).map((p) => ({ zone: "mud", x: p.x, y: p.y, r: 0.1, need: 2.4, col: U.pick(COLS), seed: Math.random() }));
+      // 3단계는 묻은 곳만 문지르면 그 자세 끝 (zone "rub") — 손 전체를 다 문지르지 않고 '묻은 곳 찾기'
+      const m = U.sample(C.ptsIn(shape, 10, 0.07), 5).map((p) => ({ zone: "rub", x: p.x, y: p.y, r: 0.12, need: 1.8, col: U.pick(COLS), seed: Math.random() }));
       S.skinMud(m);
       return m;
     };
@@ -311,20 +316,24 @@ KP.game({
       }
     };
     const waitClose = () =>
-      new Promise((res) => {
-        ctx.say("물을 잠가요!");
-        ctx.hint(() => ctx.faucet, "물을 잠가요!");
-        ctx._closeTap = () => {
-          ctx._closeTap = null;
-          ctx.hint(null);
-          res();
-        };
-      });
+      autoTap
+        ? ctx.wait(500) // 1·2단계: 저절로 잠김 (뚝 소리는 faucet(false))
+        : new Promise((res) => {
+            ctx.say("물을 잠가요!");
+            ctx.hint(() => ctx.faucet, "물을 잠가요!");
+            ctx._closeTap = () => {
+              ctx._closeTap = null;
+              ctx.hint(null);
+              res();
+            };
+          });
     /** 손 문지르기 한 번 (구역 rub·rinse·dry 를 80% 이상) */
     const rubZone = (zone, mode, say, need, extra) =>
       new Promise((res) => {
         S.reset(true);
-        S.add(C.ptsIn(ctx.POSES[ctx.pose].shape, 9, 0.03).map((p) => ({ zone, x: p.x, y: p.y, need })));
+        // 3단계 문지르기: 묻은 곳(extra, zone rub)만 — 손 전체 격자는 넣지 않음
+        const onlyExtra = zone === "rub" && extra && extra.length;
+        if (!onlyExtra) S.add(C.ptsIn(ctx.POSES[ctx.pose].shape, 9, 0.03).map((p) => ({ zone, x: p.x, y: p.y, need })));
         if (extra && extra.length) S.add(extra);
         S.mode = mode;
         S.need = zone === "dry" ? 0.75 : 0.8;
@@ -337,7 +346,10 @@ KP.game({
         if (ctx.towelTool && zone === "dry") S.setTool(ctx.towelTool, Math.max(80, F().w * 0.34));
         else S.setTool("", 0);
         ctx.say(say + (zone === "rub" ? " 🫧" : ""));
-        ctx.hint(handPt, say);
+        ctx.hint(onlyExtra ? () => {
+          const r = ctx.scene.getBoundingClientRect(), s = S.spots.find((q) => q.zone === "rub" && q.life > 0 && !q.fade) || { x: 0.5, y: 0.4 };
+          return { x: r.left + F().x + s.x * F().w, y: r.top + F().y + s.y * F().h };
+        } : handPt, say);
         S.on = true;
         S.onZone = (k) => {
           if (k !== zone) return;
@@ -347,9 +359,10 @@ KP.game({
         };
       });
 
-    // 1단계는 손바닥·깍지 두 자세만, 문지르기도 조금 덜 (한 판이 너무 길지 않게)
-    const poseList = lv === 1 ? [0, 2] : ctx.POSES.map((_, i) => i);
-    const rubNeed = lv === 1 ? 1.4 : 1.8;
+    // 자세는 두 개만 (손바닥 + 판마다 손등/깍지 번갈아) — 1단계는 늘 손바닥·깍지. 손바닥이 늘 처음(비누가 손바닥에 떨어짐)
+    const poseList = lv === 1 ? [0, 2] : (ctx.round || 0) % 2 === 0 ? [0, 2] : [0, 1];
+    const rubNeed = lv === 1 ? 1.3 : 1.5;
+    const autoTap = lv < 3; // 1·2단계: 물은 저절로 잠김 (3단계 '혼자서'만 아이가 잠그기 — 물 아끼기)
     const rubAll = async () => {
       for (const i of poseList) {
         if (!alive()) return;
@@ -387,7 +400,7 @@ KP.game({
         act: async () => {
           faucet(true);
           // 물줄기 아래에서 손이 점점 촉촉
-          for (let i = 0; i < 4; i++) {
+          for (let i = 0; i < (autoTap ? 3 : 4); i++) {
             await ctx.wait(300);
             if (!alive()) return;
             S.skinFill("wet", 0.3);
@@ -432,7 +445,7 @@ KP.game({
           if (!alive()) return;
           S.skinFill("wet", 0.7);
           S.skinFill("foam", 1.1);
-          await rubZone("rinse", { unfoam: true, drops: true }, "싹싹 비벼서 헹궈요!", 1.2);
+          await rubZone("rinse", { unfoam: true, drops: true }, "싹싹 비벼서 헹궈요!", lv === 3 ? 0.9 : 0.8);
           if (!alive()) return;
           S.skinFade("foam");
           C.pop(ctx, ctx.scene, cx(), F().y + F().h * 0.1, "쏴아");
@@ -451,7 +464,7 @@ KP.game({
           A.sfx("slide");
           ctx.towel.classList.add("away");
           ctx.towelTool = '<img alt="" src="assets/play-clay/bath/towel.png">';
-          await rubZone("dry", { dry: true, sparkle: true }, "수건으로 보송보송 닦아요!", 1.0);
+          await rubZone("dry", { dry: true, sparkle: true }, "수건으로 보송보송 닦아요!", lv === 3 ? 0.8 : 0.7);
           if (!alive()) return;
           ctx.towelTool = null;
           S.setTool("", 0);
@@ -464,7 +477,9 @@ KP.game({
         },
       },
     ];
-    const ask = lv === 1 ? null : lv === 2 ? "손을 씻어요! 먼저 뭘 할까요?" : "밖에서 놀고 왔어요! 손에 흙이 묻었네. 혼자서 씻어 볼까요?";
+    // 3단계 물감 판 (새 문장 new-voice/handwash.txt — 녹음 전에는 기기 목소리)
+    const PAINT_ASK = "물감 놀이 하고 왔어요! 혼자서 씻어 볼까요?";
+    const ask = lv === 1 ? null : lv === 2 ? "손을 씻어요! 먼저 뭘 할까요?" : paint ? PAINT_ASK : "밖에서 놀고 왔어요! 손에 흙이 묻었네. 혼자서 씻어 볼까요?";
     const pal = (on) => {
       ctx.pal.classList.toggle("on", on);
       if (on) U.replay(ctx.pal, "hop");

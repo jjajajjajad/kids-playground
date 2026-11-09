@@ -1,8 +1,10 @@
 /* 가위바위보 — 곰돌이와 대결! 내 손을 고르면 "가위! 바위! 보!" 박자에 맞춰 손을 흔들다 짠!
    - 곰돌이 얼굴을 직접 그려서 결과마다 표정이 바뀜 (놀람·울상·웃음)
    - 누가 이겼는지 이유도 말해 줌 ("바위가 가위를 이겨요!")
-   - 이기면 점수, 3번 이길 때마다 큰 축하. 비기거나 져도 즐겁게!
-   1단계: 아이가 더 자주 이김 / 2단계: 조금 덜 / 3단계: 공평하게 */
+   - 비기거나 져도 즐겁게!
+   1단계: 진짜 가위바위보(운) — 아이가 더 자주 이기게, 2번 이길 때마다 축하(운이라 열쇠 별 없음)
+   2단계: '곰돌이를 이겨라' — 곰돌이가 먼저 손을 보여 주면 이기는 손을 골라요(정답 있음 → 틀리면 miss, 이유 문장으로 알려 줌)
+   3단계: 같은 문제인데 곰돌이 손을 잠깐(2초)만 보여 주고 ❓로 가림 — 기억해서 이기는 손 고르기 */
 "use strict";
 KP.game({
   id: "rps",
@@ -42,6 +44,7 @@ KP.game({
       .rp-hand.mine.shake{animation:rp-shm .36s ease-in-out 3}
       @keyframes rp-shb{50%{transform:rotate(180deg) translateY(25%)}}
       @keyframes rp-shm{50%{transform:translateY(25%)}}
+      .rp-arena .rp-hand.bear.hid{transform:none}
       .rp-hand.reveal .e{animation:popBig .4s cubic-bezier(.2,1.6,.4,1)}
       .rp-mid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:clamp(70px,14vh,130px);text-align:center}
       .rp-vs{font-size:clamp(30px,5vw,54px);color:#ff7452;-webkit-text-stroke:2px #fff;paint-order:stroke}
@@ -139,6 +142,7 @@ KP.game({
   },
   reset(ctx, first) {
     ctx.busy = false;
+    ctx.wrongN = 0;
     ctx.bearFace.className = "rp-face bear";
     ctx.bearFace.innerHTML = ctx.bearSVG("normal");
     ctx.bh.innerHTML = KP.E("✊");
@@ -151,21 +155,128 @@ KP.game({
     ctx.res.textContent = "";
     ctx.btnsEl.classList.remove("off");
     ctx.choiceBtns.forEach((b) => b.classList.remove("sel"));
+    if (ctx.level >= 2) return this.quizSet(ctx, first);
     ctx.say(first ? "곰돌이랑 가위바위보! 내 손을 골라요 ✊✌️✋" : "또 해 볼까? 골라 봐요! ✊✌️✋", true);
     ctx.hint(() => KP.u.pick(ctx.choiceBtns), "가위, 바위, 보 중에 하나를 콕!");
+  },
+  /* ---------- 2·3단계: 곰돌이를 이기는 손 고르기 ---------- */
+  quizSet(ctx, first) {
+    const U = KP.u;
+    const lv = ctx.level;
+    // 곰돌이 손: 바로 앞 판과 다르게
+    const bear = U.pick(ctx.HANDS.filter((h) => h !== ctx.quizBear));
+    ctx.quizBear = bear;
+    ctx.quizWin = ctx.HANDS.find((h) => h.beats === bear.k);
+    ctx.vs.style.display = "none";
+    ctx.bh.innerHTML = KP.E(bear.em);
+    U.replay(ctx.bh, "reveal");
+    ctx.word.textContent = bear.name + "!";
+    U.replay(ctx.word, "show");
+    KP.audio.sfx("pop");
+    // 말: "곰돌이 바위!"(자연 음성 조각) + "무엇을 내야 이길까요?"(새 문장 new-voice/rps.txt — 녹음 전에는 기기 목소리)
+    const Q = "무엇을 내야 이길까요?";
+    ctx.say((first ? "곰돌이를 이겨라! " : "") + "곰돌이는 " + bear.em + " " + bear.name + "! " + Q, "곰돌이 " + bear.name + "! " + Q);
+    if (lv >= 3) {
+      // 3단계: 2초 뒤 곰돌이 손을 가림 → 기억해서 고르기
+      const tok = (ctx.quizTok = (ctx.quizTok || 0) + 1);
+      ctx.after(2000, () => {
+        if (ctx.quizTok !== tok || ctx.busy || !ctx._active) return;
+        ctx.bh.innerHTML = KP.E("❓");
+        ctx.bh.classList.add("hid"); // 물음표는 돌리지 않게
+        U.replay(ctx.bh, "reveal");
+        ctx.word.textContent = "";
+        ctx.say("곰돌이 손은 뭐였지? 무엇을 내야 이길까요? 🤔", false); // 말풍선 글자만 (답이 보이지 않게)
+        KP.audio.sfx("whoosh");
+      });
+    }
+    // 이기는 손(정답)을 가리킴 → 가리킨 판은 열쇠 별 없음
+    ctx.hint(() => ctx.choiceBtns[ctx.HANDS.indexOf(ctx.quizWin)], U.josa(ctx.quizWin.name, "이/가") + " " + U.josa(bear.name, "을/를") + " 이겨요!", { answer: true });
+  },
+  async quiz(ctx, mine, btn) {
+    const U = KP.u,
+      A = KP.audio;
+    if (ctx.busy) return;
+    ctx.busy = true;
+    ctx.quizTok = (ctx.quizTok || 0) + 1; // 가리기 예약 취소
+    ctx.hint(null);
+    const bear = ctx.quizBear,
+      right = ctx.quizWin;
+    const why = (a, b) => U.josa(a.name, "이/가") + " " + U.josa(b.name, "을/를") + " 이겨요!";
+    btn.classList.add("sel");
+    ctx.btnsEl.classList.add("off");
+    A.sfx("select");
+    // 짠! 둘 다 보여 주기
+    ctx.bh.classList.remove("hid");
+    ctx.bh.innerHTML = KP.E(bear.em);
+    ctx.mh.innerHTML = KP.E(mine.em);
+    U.replay(ctx.bh, "reveal");
+    U.replay(ctx.mh, "reveal");
+    await ctx.wait(450);
+    if (!ctx._active) return;
+    if (mine === right) {
+      ctx.bearFace.innerHTML = ctx.bearSVG("wow");
+      ctx.word.textContent = "이겼다!";
+      U.replay(ctx.word, "show");
+      ctx.res.textContent = why(mine, bear);
+      ctx.myPts++;
+      ctx.mp.textContent = ctx.myPts;
+      U.replay(ctx.mp, "bump");
+      U.replay(ctx.meFace, "jump");
+      ctx.score.add();
+      A.sfx("good");
+      KP.voice.say("이겼다! " + why(mine, bear));
+      await ctx.wait(1500);
+      if (!ctx._active) return;
+      ctx.bearFace.innerHTML = ctx.bearSVG("sad");
+      U.replay(ctx.bearFace, "sad");
+      await ctx.wait(500);
+      if (!ctx._active) return;
+      ctx.round = (ctx.round || 0) + 1;
+      const big = ctx.round % 4 === 0;
+      const ok = await ctx.win({ big, msg: big ? "가위바위보 챔피언!" : "곰돌이를 이겼어요!", say: big ? "" : "{부름} 최고!" });
+      if (ok && ctx._active) this.reset(ctx);
+      return;
+    }
+    // 틀림: 곰돌이가 깔깔 + 이기는 까닭을 말해 줌 (곰돌이 손은 그대로, 다시 고르기)
+    ctx.wrongN++;
+    ctx.bearFace.innerHTML = ctx.bearSVG("happy");
+    U.replay(ctx.bearFace, "laugh");
+    ctx.word.textContent = mine === bear ? "비겼다!" : "곰돌이 승!";
+    U.replay(ctx.word, "show");
+    ctx.res.textContent = why(right, bear);
+    ctx.miss(btn, (mine === bear ? "똑같네! " : "") + why(right, bear));
+    await ctx.wait(2300);
+    if (!ctx._active) return;
+    ctx.bearFace.innerHTML = ctx.bearSVG("normal");
+    ctx.mh.innerHTML = KP.E("✊");
+    ctx.word.textContent = bear.name + "!";
+    ctx.res.textContent = "";
+    ctx.btnsEl.classList.remove("off");
+    ctx.choiceBtns.forEach((b) => b.classList.remove("sel"));
+    const rb = ctx.choiceBtns[ctx.HANDS.indexOf(right)];
+    if (ctx.wrongN >= 2) {
+      // 두 번 헷갈리면 이기는 손을 살짝 반짝 (이번 판 열쇠 별 없음)
+      ctx._hinted = true;
+      rb.classList.add("hintGlow");
+      ctx.after(3000, () => rb.classList.remove("hintGlow"));
+    }
+    ctx.busy = false;
+    ctx.say("곰돌이는 " + bear.em + " " + bear.name + "! 무엇을 내야 이길까요?", "곰돌이 " + bear.name + "! 무엇을 내야 이길까요?");
+    ctx.hint(() => rb, why(right, bear), { answer: true });
   },
   async play(ctx, mine, btn) {
     const U = KP.u,
       A = KP.audio;
+    if (ctx.level >= 2) return this.quiz(ctx, mine, btn);
     if (ctx.busy) return;
     ctx.busy = true;
     ctx.hint(null);
     btn.classList.add("sel");
     ctx.btnsEl.classList.add("off");
     A.sfx("select");
-    // 곰돌이 손 정하기 (단계별로 아이가 이길 확률 조절)
+    // 곰돌이 손 정하기 (1단계: 아이가 더 자주 이김) (단계별로 아이가 이길 확률 조절)
     const lv = ctx.level;
-    const [pw, pd] = [[0.55, 0.25], [0.45, 0.28], [0.34, 0.33]][lv - 1];
+    const [pw, pd] = [[0.55, 0.25], [0.45, 0.28], [0.34, 0.33]][lv - 1]; // (2·3단계는 quiz 로 감 — 1단계 값만 씀)
     const r = Math.random();
     const want = r < pw ? "win" : r < pw + pd ? "draw" : "lose";
     const bear =
@@ -217,7 +328,8 @@ KP.game({
       ctx.wins++;
       await ctx.wait(1400);
       if (!ctx._active) return;
-      if (ctx.wins % 3 === 0) {
+      if (ctx.wins % 2 === 0) {
+        // 2번 이길 때마다 축하 (예전 3번 → 1단계 한 판 35~44초)
         const big = ctx.wins % 6 === 0;
         ctx.noStar(); // 가위바위보 결과는 운 → 열쇠 별 없음 (축하·단계는 그대로)
         const ok = await ctx.win({ big, msg: big ? "가위바위보 챔피언!" : "곰돌이를 이겼어요!" });

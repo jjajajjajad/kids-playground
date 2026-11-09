@@ -1,5 +1,5 @@
 /* 규칙 찾기 — 줄의 다음에 올 것을 끌어서 빈칸에 쏙!
-   1단계: AB AB (보기 3개 — 줄에 없는 그림 1개를 섞어 찍어 맞히기 방지)
+   1단계: AB AB (보기 3개 — 세 번째 보기는 줄에 있는 그림과 닮은 것(🍎→🍏)이라 '줄에 없는 것 빼기'로 2택이 되지 않음)
    2단계: AAB · ABC (보기 3개)
    3단계: ABB · AABB · 두 가지 속성(모양은 번갈아, 색은 두 개씩) (보기 3~4개)
    - 판이 시작되면 줄이 순서대로 통통 튀며 리듬으로 들려줌
@@ -30,6 +30,8 @@ KP.game({
       .ptOpt{width:clamp(92px,13vw,136px);height:clamp(92px,13vw,136px);border-radius:28px;background:#fff;box-shadow:0 8px 0 rgba(47,58,102,.14);display:flex;align-items:center;justify-content:center;font-size:clamp(64px,9.4vw,100px);line-height:1;animation:itemIn .35s backwards cubic-bezier(.2,1.4,.4,1);animation-delay:calc(var(--i,0)*70ms + .2s)}
       @media (orientation:landscape) and (max-height:500px){.ptOpt{width:clamp(72px,21vh,136px);height:clamp(72px,21vh,136px);font-size:clamp(50px,15vh,100px)}.ptWrap{gap:6px;padding-bottom:8px}}
       .ptCell.slot .ptOpt{position:absolute;inset:-4px;width:auto;height:auto;font-size:inherit;box-shadow:none;background:transparent;animation:popIn .3s}
+      /* 하늘 묶음(☁️ 구름이 흰 칸에서 안 보였음): 칸·보기를 연한 하늘색으로 */
+      .ptSky .ptCell:not(.slot),.ptSky .ptOpt{background:#dcefff}
     `);
     ctx.wrap = U.el("div", "ptWrap");
     ctx.row = U.el("div", "ptRow");
@@ -51,6 +53,8 @@ KP.game({
       heart: { name: "하트", r: "❤️", b: "💙", y: "💛", g: "💚" },
     };
     ctx.COLORN = { r: "빨간", b: "파란", y: "노란", g: "초록" };
+    // 1단계 닮은 보기 (그림이 비슷한 것 — 이름은 같게 불러 줌)
+    ctx.LOOK = { "🍎": "🍏", "🍓": "🍒", "🍉": "🍈", "🐶": "🐕", "🐱": "🐈", "🐰": "🐇", "🐻": "🐼", "🚗": "🚙", "🚌": "🚎", "🚒": "🚑", "☀️": "🌞", "🌙": "🌛", "⭐": "🌟", "🔴": "🟠", "🔵": "🟦", "🟡": "🟨", "🟢": "🟩", "🟣": "🟪" };
     ctx.NOTES = ["C5", "E5", "G5", "A5"];
 
     // 줄 크기: 한 줄에 다 들어가면 한 줄, 아니면 두 줄
@@ -112,6 +116,11 @@ KP.game({
     const answer = symItem[rule[shown % P]];
     let options = syms.map((s) => symItem[s]);
     const nOpt = 3; // 1단계도 보기 3개 (2개면 찍어도 반은 맞음 — 열쇠 별 규칙)
+    if (lv === 1) {
+      // 줄의 두 그림 중 닮은 그림이 있는 것 하나를 골라 그 닮은 것을 세 번째 보기로
+      const lk = U.shuffle(options.filter((o) => ctx.LOOK[o.em]));
+      if (lk.length) options.push({ em: ctx.LOOK[lk[0].em], name: lk[0].name, sym: 9 });
+    }
     if (options.length < nOpt) options.push(items[syms.length]);
     options = U.shuffle(options.slice(0, Math.max(nOpt, options.length)));
     return { seq, answer, options, rule };
@@ -123,6 +132,7 @@ KP.game({
     ctx.g = g;
     ctx.row.innerHTML = "";
     ctx.opts.innerHTML = "";
+    ctx.wrap.classList.toggle("ptSky", g.seq.concat(g.options).some((it) => it.em === "☁️"));
     const cells = g.seq.map((it, k) => {
       const c = U.el("div", "ptCell", KP.E(it.em));
       c.style.setProperty("--i", k);

@@ -1,5 +1,6 @@
 /* 모양 끼우기 — 모양 조각을 끌어다 같은 모양 구멍에 쏙!
    1단계: 3개 / 2단계: 4개 / 3단계: 5개 (구멍 위치도 섞임)
+   - 2·3단계는 세모·별·하트·달 구멍이 살짝 돌아가 있음(20~35도) → '모양은 같고 방향만 다름'. 넣으면 조각도 그 방향으로 쏙
    - 구멍은 조각보다 1개 많음(빈 구멍) → 마지막 조각도 생각해서 넣어야 함
    - 3단계에 같은 모양이 색만 달리 둘(🔴·🟣, 🟦·🟩) 나오면 구멍에 연한 본래 색을 보여 줌(실루엣만으로는 똑같아서) */
 "use strict";
@@ -27,6 +28,7 @@ KP.game({
       .srtTray{display:flex;gap:clamp(12px,2.6vw,30px);flex-wrap:wrap;justify-content:center;min-height:clamp(96px,14vw,150px);align-items:center}
       .srtPiece{font-size:clamp(60px,9.5vw,104px);line-height:1;padding:8px;filter:drop-shadow(0 6px 0 rgba(0,0,0,.15))}
       .srtHole .srtPiece{position:absolute;padding:0;filter:none;animation:popIn .3s}
+      .srtHole .ghost{display:inline-block;transform:rotate(var(--rot,0deg))}
       /* 폰 가로처럼 낮은 화면: 빈 구멍까지 6개가 한 줄에 들어가게 */
       @media (max-height:520px) and (orientation:landscape){.srtHole{width:min(12vw,23vh);height:min(12vw,23vh);font-size:min(8.6vw,16vh)}.srtPiece{font-size:min(8.6vw,16vh)}.srtTray{min-height:0}}
     `);
@@ -75,6 +77,12 @@ KP.game({
     const holes = U.shuffle(decoy ? [...pick, decoy] : [...pick]).map(([em]) => {
       const h = U.el("div", "srtHole", '<span class="ghost">' + KP.E(em) + "</span>");
       h.dataset.k = em;
+      // 방향 바꾼 구멍 (2·3단계, 판마다 0~2개)
+      if (lv >= 2 && "🔺⭐❤️🌙".includes(em) && Math.random() < 0.6) {
+        const r = (U.pick([-1, 1]) * (20 + U.rand(16))).toFixed(0) + "deg";
+        h.style.setProperty("--rot", r);
+        h.dataset.rot = r;
+      }
       ctx.box.appendChild(h);
       return h;
     });
@@ -91,7 +99,7 @@ KP.game({
         onDrop: (t) => {
           if (!t) return;
           d.lock();
-          p.style.transform = "";
+          p.style.transform = t.dataset.rot ? "rotate(" + t.dataset.rot + ")" : "";
           t.appendChild(p);
           t.classList.add("filled");
           A.sfx("snap");

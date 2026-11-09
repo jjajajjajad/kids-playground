@@ -188,6 +188,8 @@
   const ORDER = ["dino", "lion", "elephant", "rabbit", "bear", "pig", "dog", "fish", "bird", "butterfly", "turtle"];
   /** 동물 정보 {name, cry, move}: 도안 동물(T) 또는 🧸 3D 인형 친구(tid "doll" + species, doll.js) — 모르는 것은 null */
   const DOLL = () => (KP.DOLL && KP.DOLL.ok ? KP.DOLL : null);
+  // 찾기 놀이 카드 그림 (이름 → 이모지)
+  const FIND_EM = { 공룡: "🦖", 강아지: "🐶", 거북이: "🐢", 곰: "🐻", 나비: "🦋", 돼지: "🐷", 물고기: "🐟", 사자: "🦁", 새: "🐦", 코끼리: "🐘", 토끼: "🐰", 고양이: "🐱", 판다: "🐼", 여우: "🦊", 펭귄: "🐧", 오리: "🦆", 병아리: "🐥", 원숭이: "🐵", 호랑이: "🐯", 개구리: "🐸", 양: "🐑", 소: "🐮", 말: "🐴", 기린: "🦒", 다람쥐: "🐿️", 부엉이: "🦉", 고래: "🐳", 문어: "🐙", 햄스터: "🐹", 코알라: "🐨" };
   const tOf = (it) => (!it ? null : it.tid === "doll" ? (DOLL() && DOLL().ok(it.species) ? DOLL().tOf(it.species) : null) : T[it.tid] || null);
   KP.zooT = tOf;
 
@@ -498,13 +500,14 @@
         /* 가로 화면(태블릿): 색은 왼쪽, 버튼은 오른쪽 세로줄 → 그림판이 높이를 다 씀 */
         @media (orientation:landscape) and (min-height:500px){
           .zpWork{grid-template-areas:"pal paper act";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);padding:2px 14px 14px;gap:14px}
-          .zpPal{display:grid;grid-template-columns:repeat(2,auto);gap:10px 10px;align-content:center;overflow-y:auto;padding:4px}
+          /* (2026-11-09 2라운드) 색 44 → 64px: 2칸 → 3칸 줄 (줄 수가 줄어 높이 안에 들어감), 도구·굵기도 64px */
+          .zpPal{display:grid;grid-template-columns:repeat(3,auto);gap:10px 10px;align-content:center;overflow-y:auto;padding:4px}
           .zpPal.mine3{grid-template-columns:repeat(3,auto)}
           .zpSep{grid-column:1/-1;height:3px}
-          .zpSp{width:clamp(44px,5.2vh,58px);height:clamp(44px,5.2vh,58px);font-size:26px}
+          .zpSp{width:clamp(56px,7.8vh,64px);height:clamp(56px,7.8vh,64px);font-size:26px}
           .zpTools{display:grid;grid-template-columns:repeat(3,auto);justify-content:center}
-          .zpTool{min-width:54px;min-height:58px;justify-content:center;padding:4px 6px}
-          .zpSize{width:50px;height:50px}
+          .zpTool{min-width:64px;min-height:64px;justify-content:center;padding:4px 6px}
+          .zpSize{width:64px;height:64px}
           .zpAct{flex-direction:column;flex-wrap:nowrap;justify-content:center}
           .zpB{min-width:96px;padding:8px 10px;font-size:15px}
           .zpB .e{font-size:34px}
@@ -516,14 +519,15 @@
           .zpWork{grid-template-areas:"pal paper act";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);padding:0 10px 8px;gap:10px}
           .zpPal{display:grid;grid-template-columns:repeat(6,auto);gap:6px;align-content:start;justify-content:center;overflow-y:auto;overscroll-behavior:contain;padding:4px 4px 8px}
           .zpSep{grid-column:1/-1;height:3px}
-          .zpSp{width:min(12.8vh,52px);height:min(12.8vh,52px);font-size:22px;border-width:3px}
-          .zpSp.sel{transform:scale(1.08)}
-          .zpTools{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:0}
-          .zpTool{min-width:0;min-height:64px;justify-content:center;padding:3px 4px;font-size:11px}
-          .zpTool .e{font-size:26px}
-          .zpSize{width:auto;height:64px;border-radius:18px}
-          .zpAct{display:grid;grid-template-columns:repeat(2,minmax(68px,auto));grid-auto-rows:minmax(64px,1fr);align-content:center;gap:8px}
-          .zpB{min-width:68px;padding:4px 6px;font-size:12px}
+          .zpSp{width:64px;height:64px;font-size:24px;border-width:3px}
+          .zpSp.sel{transform:scale(1.06)}
+          /* (2026-11-09 2라운드) 색 50 → 64px: 도구 3개 + 굵기 3개를 한 줄(6칸)로 모아 색 3줄과 같은 폭으로 → 높이 안에 다 들어감 */
+          .zpTools{display:grid;grid-template-columns:repeat(6,64px);gap:6px;margin-bottom:0}
+          .zpTool{min-width:0;min-height:64px;justify-content:center;padding:3px 2px;font-size:10.5px}
+          .zpTool .e{font-size:24px}
+          .zpSize{width:64px;height:64px;border-radius:18px}
+          .zpAct{display:grid;grid-template-columns:repeat(2,minmax(64px,auto));grid-auto-rows:minmax(64px,1fr);align-content:center;gap:6px}
+          .zpB{min-width:64px;padding:4px 4px;font-size:12px}
           .zpB span{word-break:keep-all;text-align:center}
           .zpB .e{font-size:28px}
           .zpB.send{grid-column:1/-1;min-width:0}
@@ -531,7 +535,8 @@
         @media (orientation:landscape) and (max-height:500px) and (max-width:720px){
           .zpPal{grid-template-columns:repeat(4,auto)}
           .zpSp{width:min(14vh,48px);height:min(14vh,48px)}
-          .zpTool,.zpSize{min-height:56px;height:56px}
+          .zpTools{grid-template-columns:repeat(3,1fr)}
+          .zpTool,.zpSize{min-height:56px;height:56px;width:auto}
         }
         /* 태블릿 세로(큰 세로 화면): 폰 크기 그대로라 작던 색·도구·단추를 크게 */
         @media (orientation:portrait) and (min-width:700px){
@@ -555,11 +560,14 @@
           .zpTool .e{font-size:24px}
           .zpSize{width:clamp(44px,min(6.2vh,calc((100vw - 80px) / 6)),52px);height:clamp(44px,min(6.2vh,calc((100vw - 80px) / 6)),52px)}
           .zpPal{gap:6px 5px}
-          .zpB{min-width:0;flex:1;min-height:clamp(56px,7.6vh,66px);padding:5px 3px;font-size:12.5px}
+          .zpAct{gap:5px}
+          .zpB{min-width:64px;flex:1 1 0;min-height:clamp(64px,7.6vh,66px);padding:5px 2px;font-size:12.5px}
           .zpB span{word-break:keep-all}
           .zpB .e{font-size:26px}
-          .zpB.send{min-width:0;flex:1.3}
+          .zpB.send{min-width:64px;flex:1.3 1 0}
         }
+        /* 아주 좁은 폰(360px): 아래 단추 5개(64px)가 한 줄에 들어가게 양옆 여백·간격만 줄임 */
+        @media (max-width:370px){ .zpWork{padding-left:1px;padding-right:1px} .zpAct{gap:3px} }
       `);
       const choose = U.el("div", "zpChoose");
       const work = U.el("div", "zpWork");
@@ -1525,6 +1533,8 @@
         .zBar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:0 10px 12px;flex:0 0 auto}
         .zBar .btn{min-height:64px}
         @media (max-width:500px){.zBar{gap:8px}.zBar .btn{min-height:64px;padding-top:6px;padding-bottom:6px}}
+        /* 단추 5개(🔍 찾기 놀이 추가, 2026-11-09 2라운드): 폰 세로는 3칸 2줄로 — 3줄이 되어 동물원이 작아지지 않게 */
+        @media (max-width:500px) and (orientation:portrait){.zBar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.zBar .btn{padding-left:4px;padding-right:4px;font-size:clamp(13px,3.9vw,16px);line-height:1.15;word-break:keep-all;white-space:normal;text-align:center;gap:4px;min-width:0}}
         .zEmpty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;z-index:9700;font-size:clamp(20px,3vw,30px);color:#2f3a66;text-shadow:0 2px 0 #fff}
         .zDel{position:absolute;z-index:9999;background:#fff;border-radius:999px;padding:8px 14px;font-size:18px;box-shadow:0 4px 0 rgba(0,0,0,.15);color:#c62828}
         .z3Canvas{position:absolute;inset:0;width:100%;height:100%;display:none;touch-action:none;z-index:1}
@@ -1562,6 +1572,13 @@
         .zhFav.on{opacity:1;background:#ffe27a}
         .zhCard.busy{pointer-events:none;opacity:.6}
         .zEmpty .btn{min-height:64px} /* (2026-11-09) 터치 64px 이상 */
+        /* 🔍 찾기 놀이 카드 (2026-11-09 2라운드): 위 가운데 — 찾을 친구 그림·이름·진행 점 */
+        .zFind{position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:9650;background:#fff;border:4px solid #b9773a;border-radius:999px;padding:4px 16px 4px 10px;min-height:64px;display:flex;align-items:center;gap:8px;font-size:clamp(18px,2.4vw,24px);color:#5a3a1a;box-shadow:0 4px 0 #8a5528;white-space:nowrap}
+        .zFind .e{font-size:1.9em}
+        .zFind i{font-style:normal;font-size:.75em;letter-spacing:2px;color:#e0a040}
+        .zFind.ok{animation:popBig .5s}
+        @media (max-width:560px){.zFind{top:80px}}
+        .zBar .btn.on{background:#ffe27a}
       `);
       if (!document.querySelector(".zDefs")) document.body.insertAdjacentHTML("beforeend", SHADE_DEFS);
       const W = U.el("div", "zooW");
@@ -1586,7 +1603,9 @@
       const bTreat = U.btn(KP.E("🍎") + " 간식 주기", "btn");
       const bCall = U.btn(KP.E("📣") + " 모두 모여라", "btn");
       const bMode = U.btn("", "btn");
-      bar.append(bPaint, bTreat, bCall, bMode);
+      const bFind = U.btn(KP.E("🔍") + " 찾기 놀이", "btn");
+      bar.append(bPaint, bTreat, bCall, bFind, bMode);
+      ctx.bFind = bFind;
       ctx.bPaint = bPaint;
       ctx.bMode = bMode;
       bMode.addEventListener("click", () => {
@@ -1598,6 +1617,7 @@
       const houseOpen = () => !!U.$(".zHouse", W);
       bTreat.addEventListener("click", () => !houseOpen() && this.treats(ctx));
       bCall.addEventListener("click", () => !houseOpen() && this.callAll(ctx));
+      bFind.addEventListener("click", () => !houseOpen() && (ctx.find ? this.findEnd(ctx, false) : this.findStart(ctx)));
       // 🏞️ 배경 바꾸기 (3D 동물원 — 날마다 바뀌고, 고른 배경은 그날 하루 기억)
       const bgB = U.btn(KP.E("🏞️"), "z3BgBtn");
       W.appendChild(bgB);
@@ -1795,7 +1815,9 @@
       W.classList.toggle("night", night);
       U.$(".zSun", W).innerHTML = KP.E(night ? "🌙" : "☀️");
       U.$$(".zStar", W).forEach((e) => (e.style.display = night ? "" : "none"));
-      U.$$(".zA,.zTreat,.zEmpty,.zDel,.zHeart,.z3Tip,.zHouse", W).forEach((e) => e.remove());
+      U.$$(".zA,.zTreat,.zEmpty,.zDel,.zHeart,.z3Tip,.zHouse,.zFind", W).forEach((e) => e.remove());
+      ctx.find = null;
+      ctx.bFind.classList.remove("on");
       ctx.animals = [];
       ctx.treatsArr = [];
       // 진짜 3D (WebGL) — 안 되면 2.5D
@@ -1814,6 +1836,7 @@
             if (ctx.z3) ctx.z3.dispose(); // 화면이 끊긴 옛 세계 정리 후 새로
             ctx.z3 = KP.zoo3d.create(ctx, W, T);
             ctx.z3.onDelete = (a) => this.askDelete3(ctx, a);
+            ctx.z3.onPoke = (a) => !!ctx.find && this.findTap(ctx, a); // 찾기 놀이 중이면 누른 친구를 맞는지 봄
             // 3D 화면이 끊기면(iPad 백그라운드·메모리 부족) 새로 만들어 다시 보여 줌
             const me = ctx.z3; // 이 3D 화면이 지금 쓰는 것일 때만 (나갔다 빨리 다시 들어와도 엉뚱하게 재시작 안 하게)
             me.onLost = () => ctx._active && ctx.use3d && ctx.z3 === me && this.start(ctx);
@@ -2241,7 +2264,99 @@
         this.place(ctx, a);
       }
     },
+    /* ---------- 🔍 찾기 놀이: "토끼! 어디 있을까?" → 그 친구를 콕 (3번 찾으면 끝) ----------
+       동물원 안의 친구 이름(서로 다른 것)이 2가지 이상일 때. 2가지뿐이면 찍어도 맞는 판이라 열쇠 별 없음 */
+    findList(ctx) {
+      return ctx.use3d ? (ctx.z3 ? ctx.z3.animals : []) : ctx.animals || [];
+    },
+    findStart(ctx) {
+      const names = [...new Set(this.findList(ctx).map((a) => a.t && a.t.name).filter(Boolean))];
+      if (names.length < 2) {
+        U.replay(ctx.bPaint, "jump");
+        KP.voice.say("색칠 공방에서 동물을 색칠해서 보내 주세요!");
+        return;
+      }
+      U.$$(".zDel,.z3Tip", ctx.W).forEach((e) => e.remove());
+      ctx.find = { n: 0, target: null, last: null, busy: false, card: U.btn("", "zFind") };
+      ctx.W.appendChild(ctx.find.card);
+      ctx.find.card.addEventListener("click", () => ctx.find && KP.voice.say(ctx.find.target + "! 어디 있을까?"));
+      ctx.bFind.classList.add("on");
+      KP.audio.sfx("open");
+      this.findNext(ctx);
+    },
+    findNext(ctx) {
+      const f = ctx.find;
+      if (!f) return;
+      const list = this.findList(ctx);
+      const names = [...new Set(list.map((a) => a.t && a.t.name).filter(Boolean))];
+      if (names.length < 2) return this.findEnd(ctx, false);
+      // 직전 친구는 빼고, 자연 음성이 있는 이름을 먼저
+      let pool = names.filter((n) => n !== f.last);
+      const nat = pool.filter((n) => !KP.voice._natUrls || KP.voice._natUrls(n + "! 어디 있을까?"));
+      if (nat.length) pool = nat;
+      f.target = U.pick(pool);
+      f.last = f.target;
+      f.busy = false;
+      f.card.classList.remove("ok");
+      f.card.innerHTML = KP.E(FIND_EM[f.target] || "🐾") + "<span>" + f.target + "</span><i>" + "●".repeat(f.n) + "○".repeat(3 - f.n) + "</i>";
+      if (names.length < 3) ctx.fewChoice(); // 보기 2가지 → 찍어도 맞음
+      KP.voice.say(f.target + "! 어디 있을까?");
+      // 힌트: 그 친구 자리를 가리킴 → 그 판은 열쇠 별 없음
+      ctx.hint(
+        () => {
+          if (!ctx.find) return null;
+          const a = this.findList(ctx).find((q) => q.t && q.t.name === ctx.find.target);
+          if (!a) return null;
+          if (!ctx.use3d) return a.el;
+          const p = ctx.z3.toScreen(a, 0.5),
+            r = ctx.W.getBoundingClientRect();
+          return { x: r.left + p.x, y: r.top + p.y };
+        },
+        f.target + "! 어디 있을까?",
+        { answer: true }
+      );
+    },
+    /** 찾기 놀이 중 친구를 눌렀을 때 — true 면 원래 인사(이름·울음)는 하지 않음 */
+    findTap(ctx, a) {
+      const f = ctx.find;
+      if (!f || !f.target) return false;
+      if (f.busy) return true;
+      if (a.t.name !== f.target) {
+        ctx.miss(null, "다시 찾아봐요!");
+        return true;
+      }
+      f.busy = true;
+      f.n++;
+      f.card.innerHTML = f.card.innerHTML.replace(/<i>.*<\/i>/, "<i>" + "●".repeat(f.n) + "○".repeat(3 - f.n) + "</i>");
+      U.replay(f.card, "ok");
+      if (ctx.use3d) ctx.z3.hearts(a, 4);
+      else this.hearts(ctx, a, 4);
+      KP.audio.sfx("sparkle");
+      KP.voice.say(f.target + "! 찾았다!");
+      (async () => {
+        await ctx.wait(900);
+        if (ctx.find !== f) return;
+        const last = f.n >= 3;
+        const ok = await ctx.win({ msg: last ? "모두 찾았다!" : "찾았다!", big: last });
+        if (ok === false || ctx.find !== f) return;
+        if (last) this.findEnd(ctx, true);
+        else this.findNext(ctx);
+      })();
+      return true;
+    },
+    findEnd(ctx, done) {
+      if (!ctx.find) return;
+      ctx.find.card.remove();
+      ctx.find = null;
+      ctx.bFind.classList.remove("on");
+      ctx.hint(null);
+      if (!done) KP.audio.sfx("back");
+    },
     poke(ctx, a) {
+      if (ctx.find && this.findTap(ctx, a)) {
+        U.replay(a.el, "jump");
+        return;
+      }
       U.replay(a.el, "jump");
       const nm = a.t.name;
       KP.voice.say(nm + "! " + a.t.cry + " 내가 색칠한 " + U.josa(nm, "이에요/예요") + "!");

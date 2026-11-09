@@ -1,7 +1,8 @@
 /* 까꿍 놀이 — 알록달록 작은 집의 문을 열면 동물 친구가 까꿍!
    1단계: 문 3개를 마음대로 열기 (까꿍! + 이름 + 울음소리)
    2단계: 처음에 모두 잠깐 보여 준 뒤 닫고 "강아지는 어디 있을까?" 찾기 (2마리)
-   3단계: 문 4개, 3마리 찾기
+   3단계: 문 4개, 3마리 찾기 + 문을 닫은 뒤 "잘 보세요!" 두 집이 슝 자리를 바꿈(한 번) — 집을 눈으로 따라가야 함
+   - 2·3단계 처음 보여 줄 때 이름을 말로도 ("곰!") — 글 못 읽는 아이도 이름을 들음
    - 틀리면 문 속 친구가 "나 아니야~" 하고 다시 닫힘 */
 "use strict";
 KP.game({
@@ -44,6 +45,7 @@ KP.game({
         box-shadow:0 5px 0 rgba(47,58,102,.12);font-size:clamp(22px,3.4vw,32px);z-index:6;white-space:nowrap}
       .pk-ask .e{font-size:1.6em}
       .pk-ask.hide{display:none}
+      .pk-house.swap{transition:translate .75s cubic-bezier(.45,0,.3,1);z-index:4}
       .pk-house.found::before{content:"";position:absolute;inset:-8%;border-radius:20px;box-shadow:0 0 0 5px #ffc531,0 0 26px 8px rgba(255,200,60,.6);z-index:-1}
     `);
     const stage = U.el("div", "pk-stage");
@@ -211,18 +213,50 @@ KP.game({
       // 정답 집을 가리키는 힌트 → 가리킨 판은 열쇠 별 없음(answer)
       ctx.hint(() => houses.find((h) => h.a === t), U.josa(t[1], "은/는") + " 어느 집에 있었지?", { answer: true });
     };
-    // 처음에 모두 보여 주기
+    /** 3단계: 두 집 자리 바꾸기 (FLIP — 바꾼 뒤 옛 자리에서 새 자리로 미끄러지듯) */
+    const swap = () => {
+      const [a, b] = U.sample(houses, 2);
+      const r0 = new Map(houses.map((h) => [h, h.getBoundingClientRect()]));
+      const mark = document.createComment("");
+      a.replaceWith(mark);
+      b.replaceWith(a);
+      mark.replaceWith(b);
+      for (const h of [a, b]) {
+        const p = r0.get(h),
+          q = h.getBoundingClientRect();
+        h.classList.remove("swap");
+        h.style.translate = p.left - q.left + "px " + (p.top - q.top) + "px";
+      }
+      void ctx.row.offsetWidth;
+      for (const h of [a, b]) {
+        h.classList.add("swap");
+        h.style.translate = "0px 0px";
+      }
+      A.sfx("whoosh");
+      ctx.after(800, () => [a, b].forEach((h) => (h.classList.remove("swap"), (h.style.translate = ""))));
+    };
+    // 처음에 모두 보여 주기 (이름은 말로도)
+    const showMs = lv === 3 ? 3000 : 2500;
     ctx.after(500, () => {
       houses.forEach((h, i) =>
-        ctx.after(i * 350, () => {
+        ctx.after(i * 650, () => {
           open(h);
-          bubble(h, h.a[1], lv === 3 ? 3000 : 2500);
+          bubble(h, h.a[1], showMs);
+          KP.voice.say(h.a[1] + "!");
         })
       );
-      ctx.after(n * 350 + (lv === 3 ? 3000 : 2500), () => {
+      ctx.after((n - 1) * 650 + showMs, () => {
         houses.forEach(close);
         KP.voice.say("문을 닫았어요!");
-        ctx.after(1100, askNext);
+        if (lv < 3) return ctx.after(1100, askNext);
+        // 3단계: 잘 보세요! → 두 집이 자리를 바꿈
+        ctx.after(1200, () => {
+          KP.voice.say("잘 보세요!");
+          ctx.after(700, () => {
+            swap();
+            ctx.after(1300, askNext);
+          });
+        });
       });
     });
   },

@@ -1,5 +1,6 @@
 /* 동물 먹이 주기 — 배고픈 동물에게 맞는 먹이를 끌어다 입에 쏙! 먹으면 냠냠·하트.
    1단계: 동물 1마리, 먹이 3개 / 2단계: 동물 1마리, 먹이 4개 / 3단계: 동물 2마리, 먹이 5개(둘 다 먹여야 끝)
+   2단계 판 셋 중 하나는 '두 개 먹이기': 좋아하는 것이 둘인 동물(강아지 뼈다귀+고기 등) — 하나 먹으면 생각 풍선에 남은 먹이, 말 '하나 더!'
    (예전 1단계 먹이 2개는 틀려도 남은 하나가 정답이라 찍어도 열쇠 별이 나왔음 → 보기 3개 이상으로)
    음성: 동물×먹이 조합 문장은 녹음이 없어서 이미 있는 조각("냠냠!" "당근!" "토끼가" "좋아해요!")으로 이어 말함 */
 "use strict";
@@ -41,6 +42,8 @@ KP.game({
     ctx.wrap.append(ctx.ani, ctx.tray);
     ctx.body.appendChild(ctx.wrap);
     // [동물, 이름, 먹이, 먹이 이름, 함께 먹는 것(보기에서 빼기)]
+    // 2단계 '두 개 먹이기': 동물 이름 → [둘째 먹이 그림, 이름] (이름은 자연 음성 조각이 있는 것만)
+    ctx.MORE = { 원숭이: ["🥜", "땅콩"], 강아지: ["🍖", "고기"], 판다: ["🍃", "나뭇잎"], 다람쥐: ["🥜", "땅콩"], 꿀벌: ["🍯", "꿀"], 닭: ["🌾", "풀"], 사자: ["🦴", "뼈다귀"], 코알라: ["🎋", "대나무"] };
     ctx.FEED = [
       ["🐰", "토끼", "🥕", "당근", "🥬"], ["🐵", "원숭이", "🍌", "바나나", "🥜"], ["🐶", "강아지", "🦴", "뼈다귀", "🍖"],
       ["🐱", "고양이", "🐟", "생선", ""], ["🐼", "판다", "🎋", "대나무", "🍃"], ["🐿️", "다람쥐", "🌰", "도토리", "🥜"],
@@ -59,13 +62,18 @@ KP.game({
     const self = this;
     const nAni = lv === 3 ? 2 : 1;
     const nFood = [3, 4, 5][lv - 1];
-    let pool = ctx.FEED.filter((f) => f !== ctx.last);
+    // 2단계: 판 셋 중 하나는 한 동물에게 좋아하는 것 두 개
+    if (lv === 2) ctx.l2 = (ctx.l2 || 0) + 1;
+    const two = lv === 2 && ctx.l2 % 3 === 0;
+    let pool = ctx.FEED.filter((f) => f !== ctx.last && (!two || ctx.MORE[f[1]]));
     const ani = U.sample(pool, nAni);
     ctx.last = ani[0];
+    // 두 번째 먹이: [동물 그림, 동물 이름, 먹이 그림, 먹이 이름, ""] 모양으로 만들어 같은 길로 끌기
+    const extra = two ? [ani[0][0], ani[0][1], ctx.MORE[ani[0][1]][0], ctx.MORE[ani[0][1]][1], ""] : null;
     // 보기 먹이: 이번 동물들이 (함께) 먹는 것은 빼기 → 헷갈리는 정답 없음
-    const ok = (f) => !ani.some((a) => a[2] === f[2] || a[4].includes(f[2]));
-    const distract = U.sample(ctx.FEED.filter((f) => !ani.includes(f) && ok(f)), nFood - nAni);
-    const foods = U.shuffle([...ani, ...distract]);
+    const ok = (f) => !ani.some((a) => a[2] === f[2] || a[4].includes(f[2])) && (!extra || f[2] !== extra[2]);
+    const distract = U.sample(ctx.FEED.filter((f) => !ani.includes(f) && ok(f)), nFood - nAni - (extra ? 1 : 0));
+    const foods = U.shuffle([...ani, ...(extra ? [extra] : []), ...distract]);
 
     ctx.wrap.style.setProperty("--asz", nAni === 1 ? "clamp(120px,min(28vw,28vh),230px)" : "clamp(96px,min(22vw,22vh),190px)");
     ctx.wrap.style.setProperty("--fsz", nFood <= 3 ? "clamp(70px,min(14vw,12vh),110px)" : "clamp(58px,min(12vw,10vh),96px)");
@@ -81,18 +89,19 @@ KP.game({
       return el;
     });
     const who = ani.map((a, i) => (i < ani.length - 1 ? U.josa(a[1], "이랑/랑") : a[1])).join(" "); // 곰이랑 토끼
-    const ask = nAni === 1 ? U.josa(ani[0][1], "이/가") + " 배고파요! 맛있는 걸 끌어서 입에 쏙 넣어 줘요!" : U.josa(who, "이/가") + " 배고파요! 좋아하는 걸 하나씩 먹여 줘요!";
+    const ask = nAni === 1 && !extra ? U.josa(ani[0][1], "이/가") + " 배고파요! 맛있는 걸 끌어서 입에 쏙 넣어 줘요!" : nAni === 1 ? U.josa(ani[0][1], "이/가") + " 배고파요! 좋아하는 걸 하나씩 먹여 줘요!" : U.josa(who, "이/가") + " 배고파요! 좋아하는 걸 하나씩 먹여 줘요!";
     // 음성: "곰이랑" 녹음이 없어 "곰 하고 토끼가"(이미 있는 조각)로
-    const tail = nAni === 1 ? " 배고파요! 맛있는 걸 끌어서 입에 쏙 넣어 줘요!" : " 배고파요! 좋아하는 걸 하나씩 먹여 줘요!";
+    const tail = nAni === 1 && !extra ? " 배고파요! 맛있는 걸 끌어서 입에 쏙 넣어 줘요!" : " 배고파요! 좋아하는 걸 하나씩 먹여 줘요!"; // 두 개 먹이기 판은 '하나씩'
     const askV = nAni === 1 ? [ask, ani[0][1] + "!" + tail] : [ask, ani[0][1] + " 하고 " + U.josa(ani[1][1], "이/가") + tail, ani[0][1] + " 하고 " + ani[1][1] + "!" + tail];
     ctx.say("🍽️ " + ask, self.nat(...askV));
     KP.audio.tone(160, { to: 90, dur: 0.35, type: "triangle", vol: 0.18, when: 0.2 });
 
-    let left = nAni;
+    let left = nAni + (extra ? 1 : 0);
+    const need = new Map(aniEls.map((el) => [el, extra ? 2 : 1])); // 동물마다 먹어야 할 수
     const foodEls = foods.map((f, i) => {
       const el = U.el("div", "fdFood item", KP.E(f[2]));
       el.style.setProperty("--i", i + 2);
-      if (ani.includes(f)) el.dataset.go = f[1];
+      if (ani.includes(f) || f === extra) el.dataset.go = f[1];
       ctx.tray.appendChild(el);
       const d = KP.drag(el, {
         targets: () => aniEls.filter((a) => !a.classList.contains("full")),
@@ -110,7 +119,8 @@ KP.game({
           el.dataset.done = "1";
           el.classList.add("eaten");
           el.style.transform += " scale(.15)";
-          self.eat(ctx, t, f);
+          need.set(t, need.get(t) - 1);
+          self.eat(ctx, t, f, need.get(t) > 0);
           left--;
           if (left === 0) done();
           else hint();
@@ -135,10 +145,20 @@ KP.game({
     const N = KP.voice._natUrls;
     return (N && list.find((t) => N(t))) || list[0];
   },
-  eat(ctx, t, f) {
+  eat(ctx, t, f, more) {
     const U = KP.u,
       A = KP.audio;
-    t.classList.add("full");
+    if (!more) t.classList.add("full");
+    else {
+      // 아직 하나 더: 생각 풍선이 남은 먹이 그림으로 (두 개 먹이기 판)
+      const th = t.querySelector(".fdThink");
+      const m2 = ctx.MORE[f[1]];
+      const main = ctx.FEED.find((x) => x[1] === f[1]);
+      if (th && m2 && main) {
+        th.innerHTML = KP.E(f[2] === main[2] ? m2[0] : main[2]);
+        U.replay(th, "pop");
+      }
+    }
     U.replay(t, "fdChomp");
     t.querySelectorAll(".fdYum").forEach((x) => x.remove());
     t.appendChild(U.el("span", "fdYum", "냠냠!"));
@@ -152,6 +172,7 @@ KP.game({
       ctx.after(1800, () => h.remove());
     }
     const m = "냠냠! " + U.josa(f[1], "은/는") + " " + U.josa(f[3], "을/를") + " 좋아해요!";
-    KP.voice.say(this.nat(m, "냠냠! " + f[3] + "! " + U.josa(f[1], "이/가") + " 좋아해요!", "냠냠! " + f[3] + "! " + f[1] + "! 좋아해요!"));
+    const said = KP.voice.say(this.nat(m, "냠냠! " + f[3] + "! " + U.josa(f[1], "이/가") + " 좋아해요!", "냠냠! " + f[3] + "! " + f[1] + "! 좋아해요!"));
+    if (more) Promise.resolve(said).then(() => ctx._active && KP.voice.say("하나 더!"));
   },
 });

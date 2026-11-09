@@ -1476,7 +1476,10 @@
           tiltOn = true;
           pose({ tilt: 0.12 });
         }
-        const btns = ctx.choices(ask, [0, 1, 2, 3], {
+        // 보기는 늘 봄·여름·가을·겨울 순서(순서 익히기) — 다만 판 넷 중 하나는 섞어서 '지금 바로 오른쪽' 자리로 맞히지 않게(3단계 전 연습)
+        let seq = [0, 1, 2, 3];
+        if (round2 % 4 === 3) while (seq.every((v, i) => v === i)) seq = U.shuffle(seq);
+        const btns = ctx.choices(ask, seq, {
           cls: "ssCh",
           render: (v) => '<img alt="" src="' + th[v] + '"><span>' + SEA[v].name + "</span>",
           right: (v) => v === nx,

@@ -2,7 +2,8 @@
    - 맞으면 '콩!' + 눈이 빙글빙글 + 별이 빙글빙글 돌며 쏙 들어감
    - 가끔 보너스 친구(토끼·개구리·병아리)가 나옴 → +3
    - 빈 구멍을 눌러도 벌 없음(흙만 폴폴) / 10마리마다 축하
-   1단계: 구멍 4개·느리게 / 2단계: 6개 / 3단계: 9개·빠르게 */
+   1단계: 구멍 4개·느리게 / 2단계: 6개 / 3단계: 9개·빠르게 + '모자 쓴 두더지는 쉿!'(누르면 모자가 날아가고 가벼운 틀림, 그냥 두면 👍)
+   - 모자는 3단계에만 나옴(예전엔 꾸밈으로 1·2단계에도 30%) → 3단계 '골라 누르기' 규칙과 헷갈리지 않게 */
 "use strict";
 KP.game({
   id: "mole",
@@ -41,8 +42,12 @@ KP.game({
       .ml-teeth{position:absolute;left:44%;right:44%;top:53%;height:8%;background:#fff;border-radius:0 0 4px 4px;box-shadow:0 0 0 1px rgba(0,0,0,.08)}
       .ml-paw{position:absolute;bottom:22%;width:20%;height:13%;border-radius:50%;background:#f0b8a0;box-shadow:inset 0 -3px 0 rgba(0,0,0,.08)}
       .ml-paw.l{left:4%}.ml-paw.r{right:4%}
-      .ml-hat{position:absolute;left:22%;right:22%;top:-6%;height:20%;border-radius:50% 50% 10% 10%;background:linear-gradient(#ffd84a,#f2b400);box-shadow:inset 0 -4px 0 rgba(0,0,0,.12);display:none}
+      .ml-hat{position:absolute;left:14%;right:14%;top:-14%;height:30%;border-radius:50% 50% 12% 12%;background:linear-gradient(#ff7a8a,#e2405a);box-shadow:inset 0 -6px 0 rgba(0,0,0,.14);display:none;transition:transform .5s ease-out,opacity .5s}
+      .ml-hat::before{content:"";position:absolute;left:-16%;right:-16%;bottom:-8%;height:26%;border-radius:999px;background:#c92c48}
+      .ml-hat::after{content:"";position:absolute;left:0;right:0;bottom:22%;height:20%;background:#fff;opacity:.9}
       .ml-cell.hat .ml-hat{display:block}
+      .ml-cell.hatoff .ml-hat{transform:translate(70%,-160%) rotate(50deg);opacity:0}
+      .ml-ok{position:absolute;left:50%;top:-6%;font-size:calc(var(--cs)*.26);line-height:1;pointer-events:none;z-index:6;animation:ml-kong 1s forwards}
       .ml-cell.dizzy .ml-eye{display:none}.ml-cell.dizzy .ml-x{display:block}
       .ml-cell.dizzy .ml-body{animation:ml-squash .4s}
       @keyframes ml-squash{30%{transform:scale(1.15,.8)}}
@@ -121,13 +126,23 @@ KP.game({
     ctx.popUp = (h) => {
       const lv = ctx.level;
       const r = Math.random();
-      h.kind = r < 0.13 ? "friend" : "mole";
-      h.el.classList.remove("hit", "dizzy", "friend", "hat");
+      // 3단계: 모자 쓴 두더지(누르지 않기) 약 28% — 바로 앞도 모자였으면 보통 두더지로 (연달아 '참기'만 나오지 않게)
+      const hatOk = lv === 3 && ctx.lastKind !== "hat";
+      h.kind = r < 0.13 ? "friend" : hatOk && r < 0.41 ? "hat" : "mole";
+      ctx.lastKind = h.kind;
+      h.el.classList.remove("hit", "dizzy", "friend", "hat", "hatoff");
       if (h.kind === "friend") {
         h.friend = U.pick(ctx.FRIENDS);
         U.$(".ml-friend", h.el).innerHTML = KP.E(h.friend[0]);
         h.el.classList.add("friend");
-      } else if (Math.random() < 0.3) h.el.classList.add("hat");
+      } else if (h.kind === "hat") {
+        h.el.classList.add("hat");
+        ctx.hatSeen++;
+        if (!ctx.hatTold) {
+          ctx.hatTold = true;
+          ctx.say("모자 쓴 두더지는 쉿! 누르지 마요 🤫", ctx.HAT_TXT);
+        }
+      }
       h.state = "up";
       h.t = [2.1, 1.55, 1.15][lv - 1] * U.randf(0.9, 1.2);
       void h.el.offsetWidth;
@@ -135,10 +150,19 @@ KP.game({
       A.tone(320, { to: 760, dur: 0.12, vol: 0.12, type: "triangle" });
     };
     ctx.goDown = (h) => {
+      // 모자 두더지를 끝까지 참았어요 → 👍 (점수는 그대로)
+      if (h.kind === "hat" && h.state === "up") {
+        const ok = U.el("div", "ml-ok", KP.E("👍"));
+        h.el.appendChild(ok);
+        ctx.after(1000, () => ok.remove());
+        A.note("E6", { inst: "bell", dur: 0.25, vol: 0.12 });
+      }
       h.state = "down";
       h.el.classList.remove("up");
       h.t = 0.45; // 다시 나오기 전 쉬는 시간
     };
+    // 모자 두더지 안내 (새 문장 new-voice/mole.txt — 녹음 전에는 기기 목소리)
+    ctx.HAT_TXT = "모자 쓴 두더지는 누르지 마요!";
 
     ctx.whack = (h) => {
       const c = h.el;
@@ -156,6 +180,16 @@ KP.game({
           c.appendChild(d);
           ctx.after(520, () => d.remove());
         }
+        return;
+      }
+      if (h.kind === "hat") {
+        // 모자 두더지를 눌렀어요: 모자가 휙 날아가고 쏙 들어감 — 가벼운 틀림(1번은 봐줌)
+        h.state = "hit";
+        c.classList.add("hatoff");
+        ctx.after(60, () => c.classList.remove("up"));
+        A.sfx("boing");
+        ctx.miss(null, ctx.HAT_TXT, { soft: true });
+        h.t = 0.9;
         return;
       }
       h.state = "hit";
@@ -193,7 +227,10 @@ KP.game({
         ctx.ms++;
         const big = ctx.ms % 3 === 0;
         ctx.pause = 3;
-        ctx.after(700, () => (ctx.noStar(), ctx.win({ big, msg: big ? "{부름} 두더지 대장!" : ctx.count + "마리 콩콩!", say: big ? "" : ctx.cheer(ctx.count) })).then((ok) => ok && ctx.setHint()));
+        // 열쇠 별: 1·2단계는 누르기만 하는 판 → 없음. 3단계는 모자 두더지가 2번 이상 나온 판만 (골라 누르기를 한 판)
+        const judged = ctx.level === 3 && ctx.hatSeen >= 2;
+        ctx.hatSeen = 0;
+        ctx.after(700, () => (judged || ctx.noStar(), ctx.win({ big, msg: big ? "{부름} 두더지 대장!" : ctx.count + "마리 콩콩!", say: big ? "" : ctx.cheer(ctx.count) })).then((ok) => ok && ctx.setHint()));
       }
     };
 
@@ -205,7 +242,7 @@ KP.game({
     // 손가락 힌트: 축하(ctx.win)가 힌트를 지우므로 축하가 끝나면 다시 설정 (진행형 놀이)
     ctx.setHint = () =>
       ctx.hint(() => {
-        const h = ctx.holes.find((x) => x.state === "up");
+        const h = ctx.holes.find((x) => x.state === "up" && x.kind !== "hat");
         return h && h.el;
       }, "두더지가 나오면 콩 눌러요!");
 
@@ -217,7 +254,7 @@ KP.game({
         h.t -= dt;
         if (h.state === "up" && h.t <= 0) ctx.goDown(h);
         else if (h.state === "hit" && h.t <= 0) {
-          h.el.classList.remove("hit", "dizzy");
+          h.el.classList.remove("hit", "dizzy", "hat", "hatoff");
           h.state = "down";
           h.t = 0.4;
         }
@@ -243,6 +280,9 @@ KP.game({
     ctx.pause = 0;
     ctx.spawnT = 1.2;
     ctx.lastHole = null;
+    ctx.hatSeen = 0;
+    ctx.hatTold = false;
+    ctx.lastKind = null;
     ctx.build(n);
     ctx.curN = n;
     ctx.say("두더지가 쏙 나오면 콩! 눌러요 🔨");

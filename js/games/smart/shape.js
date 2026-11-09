@@ -1,6 +1,6 @@
 /* 모양 찾기 — 말한 모양을 찾아 눌러요. 모양 친구들은 맞히면 웃으며 폴짝!
    1단계: 동그라미·네모·세모 3개 (색이 모두 다름)
-   2단계: 6가지 모양 중 4개 (모두 같은 색 → 모양만 보고 찾기)
+   2단계: 6가지 모양 중 4개 (모두 같은 색 → 모양만 보고 찾기, 크기도 제각각 → '크기와 상관없이 모양')
    3단계: 생활 물건에서 모양 찾기 (🍕 세모, ⚽ 동그라미, 📺 네모, 🪁 마름모, ⭐ 별, 💝 하트 — 6가지 모양 모두 정답이 될 수 있음)
    음성: "도넛은 동그라미 모양이에요."처럼 녹음 없는 조합은 "이건 도넛! 동그라미 모양이에요."(이미 있는 조각)로 */
 "use strict";
@@ -22,6 +22,8 @@ KP.game({
       @media (max-aspect-ratio:1/1){.shpGrid{--sz:var(--szp);grid-template-columns:repeat(var(--cp),auto)}}
       .shpBtn{padding:clamp(8px,1.4vw,16px);border-radius:30px}
       .shpBtn svg{display:block;width:var(--sz);height:var(--sz);overflow:visible}
+      .shpBtn .shpIn{display:flex;align-items:center;justify-content:center;width:var(--sz);height:var(--sz)}
+      .shpBtn .shpIn svg{width:calc(var(--sz) * var(--k,1));height:calc(var(--sz) * var(--k,1))}
       .shpObj{font-size:var(--sz);border-radius:30px;padding:clamp(10px,1.4vw,16px)}
       .shpHappy{animation:shpHop .55s 2}
       @keyframes shpHop{30%{transform:translateY(-26px) rotate(8deg) scale(1.08)}60%{transform:translateY(0) scale(1.08,.92)}}
@@ -60,6 +62,9 @@ KP.game({
       ["📺", "텔레비전", "square"], ["🎁", "선물 상자", "square"], ["🖼️", "액자", "square"], ["🚪", "문", "square"],
       ["🍊", "귤", "circle"], ["🌕", "달", "circle"],
       ["🪁", "연", "diamond"], ["⭐", "별", "star"], ["🌟", "반짝별", "star"], ["❤️", "하트", "heart"], ["💝", "하트 상자", "heart"],
+      // 2차 보강: 모양마다 물건 더 (이름은 모두 자연 음성 조각이 있는 것)
+      ["🌍", "지구", "circle"], ["🍉", "수박", "triangle"], ["🍰", "케이크", "triangle"], ["📦", "상자", "square"], ["📘", "책", "square"],
+      ["💎", "보석", "diamond"], ["💖", "반짝 하트", "heart"],
     ];
     ctx.round = 0;
   },
@@ -94,11 +99,13 @@ KP.game({
       const keys = lv === 1 ? ["circle", "square", "triangle"] : U.sample(Object.keys(S), 4);
       const one = U.pick(ctx.COLORS);
       const cols = U.shuffle([...ctx.COLORS]);
-      list = U.shuffle(keys.map((k, i) => ({ k, c: lv === 1 ? cols[i] : one })));
+      // 2단계: 크기를 제각각(0.62~1) — 큰 세모·작은 동그라미도 같은 모양
+      const ks = U.shuffle([0.62, 0.74, 0.88, 1]);
+      list = U.shuffle(keys.map((k, i) => ({ k, c: lv === 1 ? cols[i] : one, s: lv === 2 ? ks[i] : 1 })));
       target = U.pick(list);
       if (target.k === ctx.lastK) target = list.find((x) => x !== target);
       ctx.lastK = target.k;
-      render = (v) => self.svg(ctx, v.k, v.c);
+      render = (v) => '<span class="shpIn" style="--k:' + v.s + '">' + self.svg(ctx, v.k, v.c) + "</span>";
       nameOf = (v) => S[v.k][0];
       ask = U.josa(S[target.k][0], "을/를") + " 찾아요!";
       ctx.grid.style.setProperty("--cl", list.length);

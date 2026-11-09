@@ -1,5 +1,7 @@
 /* 깜짝 달걀 — 둥지 속 달걀을 톡톡톡! 금이 점점 커지다가 쩍! 아기 동물이 나와 울음소리를 내요
-   1단계: 달걀 3개 / 2단계: 4개 + 가끔 반짝 황금알(특별한 친구) / 3단계: 5개 + 황금알 + 단단한 알 1개(다섯 번 톡톡)
+   1단계: 달걀 3개 (아무 알이나) / 2단계: 4개 + 가끔 반짝 황금알(특별한 친구) / 3단계: 5개 + 황금알 + 단단한 알 1개(다섯 번 톡톡)
+   - 2·3단계 '움직이는 알부터': 한 번에 한 알만 꿈틀꿈틀(깨어남) — 그 알을 깨면 다른 알이 깨어남.
+     자는 알을 두드리면 💤 "쿨쿨 잠을 자요"(가벼운 틀림, 1번은 봐줌) → 지켜보고 고르는 판이라 열쇠 별 대상
    - 좁은 폰 세로는 두 줄(2+1, 2+2, 3+2)로 달걀을 키우고, 풀밭(초록)이 맨 윗줄 둥지 높이부터 깔림
    - 다 깨면 성공, 다음 판엔 다른 친구들 */
 "use strict";
@@ -34,14 +36,18 @@ KP.game({
       .eg-baby .e{width:100%;height:100%;display:block}
       .eg-egg.open .eg-baby{transform:translateY(-34%) scale(1);opacity:1}
       .eg-egg.open .eg-top{transform:translate(30%,-95%) rotate(38deg);opacity:0}
+      .eg-egg.open .eg-top{pointer-events:none} /* 날아간(투명한) 윗껍데기가 옆·윗줄 달걀 누르기를 가로막지 않게 (좁은 화면 360×640 에서 확인) */
       .eg-egg.open .eg-crack{display:none}
       .eg-egg.open{cursor:default}
       .eg-egg.open .eg-baby{animation:eg-happy .9s ease-in-out .8s infinite alternate}
       @keyframes eg-happy{from{transform:translateY(-34%) rotate(-6deg)}to{transform:translateY(-40%) rotate(6deg)}}
+      .eg-awake{animation:eg-awk .9s ease-in-out infinite}
+      @keyframes eg-awk{0%,50%,100%{transform:rotate(0)}10%{transform:rotate(-9deg)}20%{transform:rotate(9deg)}30%{transform:rotate(-7deg)}40%{transform:rotate(5deg)}}
       .eg-tok{animation:eg-tok .3s}
       @keyframes eg-tok{25%{transform:rotate(-9deg) scale(1.03,.97)}60%{transform:rotate(7deg)}}
       .eg-wobble{animation:eg-wob 2.6s ease-in-out infinite}
       @keyframes eg-wob{0%,80%,100%{transform:rotate(0)}85%{transform:rotate(-5deg)}90%{transform:rotate(5deg)}95%{transform:rotate(-3deg)}}
+      .eg-zz{position:absolute;left:62%;top:6%;font-size:calc(var(--es)*.3);line-height:1;z-index:6;pointer-events:none;animation:eg-tapT 1s ease-out forwards}
       .eg-say{position:absolute;left:50%;bottom:calc(100% + 4px);transform:translateX(-50%);white-space:nowrap;z-index:6;background:#fff;color:var(--ink);font-size:clamp(17px,2.4vw,24px);
         padding:4px 12px;border-radius:16px;box-shadow:0 4px 0 rgba(0,0,0,.1);animation:popBig .4s cubic-bezier(.2,1.6,.4,1);pointer-events:none}
       .eg-shell{position:absolute;width:var(--s);height:var(--s);background:var(--bg);clip-path:polygon(50% 0,100% 60%,30% 100%,0 40%);z-index:5;pointer-events:none;animation:eg-shell .8s ease-out forwards}
@@ -133,13 +139,19 @@ KP.game({
     ctx.row.innerHTML = "";
     let left = n,
       busy = false;
-    if (hardAt < 0) ctx.say("달걀을 톡톡톡! 세 번 두드려 봐요. 누가 나올까? 🥚");
+    // 2·3단계: 움직이는(깨어난) 알 하나만 깰 수 있음
+    const order = lv >= 2;
+    let awake = -1;
+    const AWK_TXT = "움직이는 알을 톡톡!"; // 새 문장 new-voice/egg.txt — 녹음 전에는 "어? 움직여요!"
+    const awkSay = KP.voice._natUrls && KP.voice._natUrls(AWK_TXT) ? AWK_TXT : "어? 움직여요!";
+    if (order && hardAt < 0) ctx.say("달걀을 톡톡톡! 세 번 두드려 봐요. " + AWK_TXT + " 🥚", "달걀을 톡톡톡! 세 번 두드려 봐요. " + awkSay);
+    else if (hardAt < 0) ctx.say("달걀을 톡톡톡! 세 번 두드려 봐요. 누가 나올까? 🥚");
     else {
       // 단단한 알(다섯 번)이 있는 판: 횟수 안내를 맞춤. "단단한 알은 다섯 번!" 자연 음성은 new-voice/egg.txt —
       // 녹음 전에는 그 문장만 말하지 않음(화면 글자로만), 톡톡할 때 "조금 더!"·"딱 한 번만 더!"로 이어서 안내
       const HARD_TXT = "단단한 알은 다섯 번!";
       const nat = KP.voice._natUrls && KP.voice._natUrls(HARD_TXT);
-      ctx.say("달걀을 톡톡톡! 세 번 두드려 봐요. " + HARD_TXT + " 🥚", "달걀을 톡톡톡! 세 번 두드려 봐요. " + (nat ? HARD_TXT : "누가 나올까?"));
+      ctx.say("달걀을 톡톡톡! " + AWK_TXT + " " + HARD_TXT + " 🥚", "달걀을 톡톡톡! 세 번 두드려 봐요. " + awkSay + (nat ? " " + HARD_TXT : ""));
     }
     const eggs = babies.map((bb, i) => {
       const gold = i === goldAt,
@@ -165,6 +177,18 @@ KP.game({
         open = false;
       ctx.fast(egg, () => {
         if (open || busy) return;
+        if (order && i !== awake) {
+          // 자는 알: 쿨쿨 (가벼운 틀림) — 깨어난 알을 한 번 더 꿈틀
+          egg.classList.remove("eg-wobble");
+          U.replay(egg, "eg-tok");
+          const z = U.el("div", "eg-zz", KP.E("💤"));
+          cell.appendChild(z);
+          ctx.after(1000, () => z.remove());
+          A.note("C4", { inst: "soft", dur: 0.2, vol: 0.12 });
+          ctx.miss(null, "쿨쿨 잠을 자요", { soft: true });
+          if (eggs[awake]) U.replay(eggs[awake], "eg-tok");
+          return;
+        }
         k++;
         egg.classList.remove("eg-wobble");
         U.replay(egg, "eg-tok");
@@ -209,12 +233,13 @@ KP.game({
         });
         left--;
         ctx.score.add();
+        if (order && left > 0) ctx.after(900, () => wake(i));
         if (left === 0) {
           busy = true;
           ctx.after(2600, async () => {
             ctx.round++;
             const big = ctx.round % 4 === 0;
-            ctx.noStar(); // 두드리기만 하면 깨지는 판(틀릴 수 없음) → 열쇠 별 없음
+            if (!order) ctx.noStar(); // 1단계: 두드리기만 하면 깨지는 판(틀릴 수 없음) → 열쇠 별 없음 (2·3단계는 '움직이는 알' 고르기)
             const ok = await ctx.win({ big, msg: big ? "아기 동물 친구 부자!" : "모두 태어났어요!" });
             if (ok) this.next(ctx);
           });
@@ -223,10 +248,25 @@ KP.game({
       return egg;
     });
     ctx.size();
-    const hint = () => {
-      const e = eggs.find((x) => !x.classList.contains("open"));
-      ctx.hint(() => e, "달걀을 톡톡톡 두드려 봐요!");
+    /** 다음에 깨어날 알 고르기 (방금 깬 알 말고, 안 깬 것 중) */
+    const wake = (justOpened) => {
+      if (!ctx._active || busy) return;
+      const cand = eggs.map((e, k) => k).filter((k) => !eggs[k].classList.contains("open") && k !== justOpened);
+      if (!cand.length) return;
+      awake = U.pick(cand);
+      eggs.forEach((e, k) => {
+        e.classList.toggle("eg-wobble", false);
+        e.classList.toggle("eg-awake", k === awake);
+      });
+      A.tone(500, { to: 800, dur: 0.12, vol: 0.08, type: "triangle" });
+      hint();
     };
-    hint();
+    // 2·3단계: 정답(깨어난 알)을 가리키는 힌트 → 가리킨 판은 열쇠 별 없음(answer)
+    const hint = () => {
+      const e = order ? eggs[awake] : eggs.find((x) => !x.classList.contains("open"));
+      ctx.hint(() => e, order ? AWK_TXT : "달걀을 톡톡톡 두드려 봐요!", order ? { answer: true } : undefined);
+    };
+    if (order) wake(-1);
+    else hint();
   },
 });

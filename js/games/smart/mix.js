@@ -6,7 +6,9 @@
      · 가까우면: 그 색이 인형에게 날아가 몸이 그 색으로 물듦 + 폴짝·하트 → 도감·내 물감에 저장
      · 멀면: "조금 더 노랗게?" 처럼 가장 가까워지는 물감을 알려 줌(KP.paint.advise, 색 주문 맞추기와 같은 계산)
      · 되돌릴 수 없으면 "비우고 다시" (그릇을 억지로 비우지 않음)
-   - 단계: 1) 두 색 1:1 (빨·노·파 중 둘)  2) 양 조절·세 색 (2:1, 셋 다)  3) 하양으로 연하게·검정으로 진하게
+   - 단계: 1) 두 색 1:1 (빨·노·파 중 둘, 빨+하양 분홍·파+하양 하늘색 — 주문 5가지)  2) 양 조절·세 색 (2:1, 셋 다)  3) 하양으로 연하게·검정으로 진하게
+   - 엉뚱한 물감이 들어간 채 도움말을 2번 들으면 '비우기' 단추가 반짝이며 먼저 권함(긴 판 줄이기)
+   - 기기가 느려 그림으로 바꿀 때: 무대·인형만 다시 만들고 지금 주문·그릇 속 물감은 그대로(예전엔 판이 처음부터)
    - 열쇠 별: 도움말(색이 달라요)을 2번 이상 들으면 그 판은 별 없음 (가벼운 실수 1번까지 봐줌 — ui.js win 규칙)
    - 3D 가 안 되거나 느리면 인형 그림(create2D)으로
 ===================================================================== */
@@ -47,6 +49,8 @@ KP.game({
       .mxB img{width:60%;height:50%;object-fit:contain}
       .mxB:active{transform:translateY(4px)}
       .mxFly{position:fixed;z-index:80;width:64px;height:64px;border-radius:50%;border:5px solid #fff;pointer-events:none;box-shadow:0 6px 14px rgba(0,0,0,.2);transition:transform .75s cubic-bezier(.5,-0.2,.5,1),opacity .75s}
+      .mxB.mxBlink{animation:mxBlink 1s ease-in-out infinite;box-shadow:0 0 0 5px #ffc531,0 6px 0 rgba(110,70,30,.2)}
+      @keyframes mxBlink{50%{transform:scale(1.12)}}
       .mxLoad{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);font-size:22px;background:rgba(255,251,242,.9);border-radius:999px;padding:8px 18px;z-index:9}
     `);
     ctx.wrap = U.el("div", "mxWrap");
@@ -84,11 +88,11 @@ KP.game({
 
   /* ---------- 단계별 주문 (물감 양 [빨,노,파,하,검] — 튜브 한 번 = 한 방울) ---------- */
   ORDERS: {
-    1: [[1, 1, 0, 0, 0], [0, 1, 1, 0, 0], [1, 0, 1, 0, 0]],
+    1: [[1, 1, 0, 0, 0], [0, 1, 1, 0, 0], [1, 0, 1, 0, 0], [1, 0, 0, 1, 0], [0, 0, 1, 1, 0]],
     2: [[2, 1, 0, 0, 0], [1, 2, 0, 0, 0], [0, 2, 1, 0, 0], [1, 1, 1, 0, 0]],
     3: [[1, 0, 0, 2, 0], [0, 0, 1, 2, 0], [1, 0, 1, 2, 0], [1, 1, 0, 3, 0], [0, 0, 0, 2, 1], [0, 0, 2, 0, 1], [0, 1, 1, 0, 1]],
   },
-  JARS: { 1: [0, 1, 2], 2: [0, 1, 2], 3: [0, 1, 2, 3, 4] },
+  JARS: { 1: [0, 1, 2, 3], 2: [0, 1, 2], 3: [0, 1, 2, 3, 4] },
   /* 허용 거리 (Lab): 각 물감 양을 ±s 바꿨을 때의 평균 색 차이 → 단계별 범위로 자름 (colororder 와 같은 방식, 더 너그럽게) */
   TOL: { 1: [0.35, 12, 22], 2: [0.3, 10, 18], 3: [0.25, 9, 16] },
   tolFor(v, lv) {
@@ -130,13 +134,13 @@ KP.game({
       qKey: "play3d:q",
       onLost: () => {
         if (!ctx._active || ctx.st !== st) return;
-        this.start(ctx, true);
+        this.swap(ctx);
       },
       onSlow: () => {
         if (!ctx._active || ctx.st !== st) return;
         KP.store.set("mix:flat", { t: Date.now() });
         KP.toast("기기가 바빠서 그림으로 바꿨어요");
-        this.start(ctx, true);
+        this.swap(ctx);
       },
     };
     let st;
@@ -287,6 +291,11 @@ KP.game({
     wait.remove();
     if (!st || tok !== ctx.token || !ctx._active) return;
     ctx.studio.bowl.clear();
+    this.run(ctx, st);
+    return this.next(ctx, !again);
+  },
+  /** 장면 돌리기(무대마다 하나) */
+  run(ctx, st) {
     let acc = 0,
       stirTold = 0;
     ctx.loop((dt, now) => {
@@ -308,7 +317,69 @@ KP.game({
       }
       this.check(ctx, now);
     });
-    return this.next(ctx, !again);
+  },
+  /** 그림 모드로 바꾸기: 손님이 주문을 기다리는 중이면 주문·그릇 속 물감·도움말 횟수를 그대로 두고 무대·같은 인형만 새로.
+      손님이 오가는 중(축하·떠남·등장)이면 예전처럼 새 손님부터(그때는 아이가 하던 것이 없음) */
+  async swap(ctx) {
+    ctx.mxSwaps = (ctx.mxSwaps || 0) + 1;
+    for (let w = 0; w < 40 && ctx.draining; w++) await ctx.wait(100); // 비우는 중이면 끝날 때까지
+    const o = ctx.order;
+    if (!o || ctx.busy || ctx.leaving || !ctx.curPick) return this.start(ctx, true);
+    const tok = ++ctx.token;
+    ctx.busy = true;
+    ctx.track = null;
+    ctx.studio.setEnabled(false);
+    const st = await this.makeStage(ctx);
+    if (!st || tok !== ctx.token || !ctx._active) return;
+    const live = () => tok === ctx.token && ctx._active && ctx.st === st && !st.dead;
+    this.run(ctx, st);
+    this.layout(ctx);
+    let act;
+    try {
+      act = st.gl ? await KP.dollActor.create(st, ctx.curPick) : await KP.dollActor.create2D(st, ctx.curPick);
+    } catch (e) {
+      if (!live()) return;
+      act = await KP.dollActor.create2D(st, { species: "bear" }).catch(() => null);
+    }
+    if (!live()) return act && act.dispose();
+    ctx.actor = act;
+    ctx.leaving = false;
+    if (act) {
+      const g = ctx.spot;
+      act.setH(st.fitH(g[0], g[1], ctx.guestFrac));
+      act.place(g[0], g[1]);
+      ctx.track = this.tracker(ctx, act, st);
+    }
+    ctx.bub.style.display = "";
+    ctx.busy = false;
+    ctx.studio.setEnabled(true);
+    const firstId = o.v.findIndex((x) => x > 0);
+    ctx.hint(() => ctx.studio.jar(firstId), "물감 통을 눌러 그릇에 넣어요!");
+  },
+  /** 말풍선이 손님 머리 위를 따라다니게 */
+  tracker(ctx, act, st) {
+    const U = KP.u,
+      B = ctx.bub;
+    return () => {
+      const bx = act.box(),
+        hp = act.anchor("headTop");
+      const dh = Math.max(80, bx.h);
+      B.style.setProperty("--dh", Math.min(dh, 320) + "px");
+      const bsz = U.sizeOf(B), // 매 장면 재지 않고 바뀔 때만
+        bw = bsz.w,
+        bh = bsz.h;
+      // 머리 위 (자리가 없으면 옆) — 그릇과 겹치지 않게
+      let x = hp.x - bw * 0.2,
+        y = hp.y - bh - dh * 0.1;
+      if (y < 6) {
+        y = 6;
+        x = bx.r + 8;
+        if (x + bw > st.w - 6) x = bx.l - bw - 8;
+      }
+      x = U.clamp(x, 6, st.w - bw - 6);
+      B.style.setProperty("--tx", U.clamp(hp.x - x - 8, 10, bw - 24) + "px");
+      B.style.transform = "translate(" + Math.round(x) + "px," + Math.round(y) + "px)";
+    };
   },
   stop(ctx) {
     ctx.token++;
@@ -352,6 +423,8 @@ KP.game({
     if (ctx.actor) ctx.actor.dispose();
     ctx.actor = null;
     const pick = this.pickDoll(ctx);
+    ctx.curPick = pick; // 그림 모드로 바꿀 때 같은 손님
+    ctx.bDrain.classList.remove("mxBlink");
     let act;
     try {
       act = st.gl ? await KP.dollActor.create(st, pick) : await KP.dollActor.create2D(st, pick);
@@ -392,26 +465,7 @@ KP.game({
     B.innerHTML = '<span class="mxSw" style="--t:' + P.hex(target) + '"></span><span class="mxRec"><b>' + name + '</b><span class="mxDrops">' + drops + "</span></span>";
     B.style.display = "";
     U.replay(B, "in");
-    ctx.track = () => {
-      const bx = act.box(),
-        hp = act.anchor("headTop");
-      const dh = Math.max(80, bx.h);
-      B.style.setProperty("--dh", Math.min(dh, 320) + "px");
-      const bsz = U.sizeOf(B), // 매 장면 재지 않고 바뀔 때만
-        bw = bsz.w,
-        bh = bsz.h;
-      // 머리 위 (자리가 없으면 옆) — 그릇과 겹치지 않게
-      let x = hp.x - bw * 0.2,
-        y = hp.y - bh - dh * 0.1;
-      if (y < 6) {
-        y = 6;
-        x = bx.r + 8;
-        if (x + bw > st.w - 6) x = bx.l - bw - 8;
-      }
-      x = U.clamp(x, 6, st.w - bw - 6);
-      B.style.setProperty("--tx", U.clamp(hp.x - x - 8, 10, bw - 24) + "px");
-      B.style.transform = "translate(" + Math.round(x) + "px," + Math.round(y) + "px)";
-    };
+    ctx.track = this.tracker(ctx, act, st);
 
     ctx.order = { v, target, name, hex: P.hex(target), tol: this.tolFor(v, lv), lv, advN: 0, asked: 0, stirTold: false };
     ctx.poured = false;
@@ -471,15 +525,17 @@ KP.game({
     }
     const best = P.advise(tot, o.v, o.target, o.tol, bowl.capacity);
     ctx.miss(null, null, { soft: true });
-    if (best) {
-      const p = P.BASE[best.id];
-      const tip = U.josa(p.n, "을/를") + (best.lot ? " 많이 넣어 봐요!" : " 조금 더 넣어 봐요!");
-      KP.voice.say("음, 조금 달라요. " + (best.lot ? "훨씬 더 " : "조금 더 ") + this.MORE[best.id] + " 해 볼까요? " + tip);
-      ctx.hint(() => studio.jar(best.id), tip);
-    } else {
+    // 되돌릴 수 없거나, 엉뚱한 물감이 든 채 도움말 2번째부터: 비우기 단추를 반짝여 먼저 권함 (넣어서 맞추기보다 빠름)
+    if ((foreign && o.advN >= 2) || !best) {
+      ctx.bDrain.classList.add("mxBlink");
       KP.voice.say("앗, 물감이 너무 많이 들어갔어요. 비우고 다시 해 볼까요?");
       ctx.hint(() => ctx.bDrain, "비우기를 누르고 다시 해 봐요!");
+      return;
     }
+    const p = P.BASE[best.id];
+    const tip = U.josa(p.n, "을/를") + (best.lot ? " 많이 넣어 봐요!" : " 조금 더 넣어 봐요!");
+    KP.voice.say("음, 조금 달라요. " + (best.lot ? "훨씬 더 " : "조금 더 ") + this.MORE[best.id] + " 해 볼까요? " + tip);
+    ctx.hint(() => studio.jar(best.id), tip);
   },
 
   async drain(ctx) {
@@ -487,8 +543,11 @@ KP.game({
     const studio = ctx.studio;
     if (studio.bowl.volume() < 0.05) return KP.voice.say("그릇이 벌써 비어 있어요!");
     ctx.busy = true;
+    ctx.draining = true;
+    ctx.bDrain.classList.remove("mxBlink");
     KP.voice.say("쏴아! 비웠어요. 다시 섞어 봐요.");
     await studio.drain();
+    ctx.draining = false;
     ctx.busy = false;
     ctx.dirty = false;
     ctx.poured = false;

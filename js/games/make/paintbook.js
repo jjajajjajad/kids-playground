@@ -668,7 +668,7 @@ KP.game({
     function openPicker() {
       picker.innerHTML = "<h3>" + KP.E("🖼️") + " 어떤 그림을 칠할까요?</h3>";
       const bPrint = U.btn(KP.E("🖨️") + " 지금 그림 빈 도안 출력", "btn");
-      bPrint.style.cssText = "position:absolute;right:14px;top:10px;font-size:clamp(14px,1.8vw,18px)";
+      bPrint.style.cssText = "position:absolute;right:14px;top:10px;font-size:clamp(14px,1.8vw,18px);min-height:64px"; // 어른용 보조 단추도 64px (2026-11-09 2라운드)
       ctx.tap(bPrint, async () => {
         const sc = SCENES.find((s) => s.id === sceneId);
         const tmp = U.el("div");
@@ -763,13 +763,11 @@ KP.game({
         A.sfx("whoosh");
         await ctx.wait(330);
         if (gen !== loadGen) return;
-        regions.forEach((t) => {
-          t.setAttribute("fill", "#ffffff");
-          const lay = layOf(t);
-          if (lay) lay.remove();
-        });
-        saving = false;
-        ctx.say("새 종이가 준비됐어요. 새 종이에 또 해 볼까요?");
+        // 다음 그림으로 저절로 넘김 (2026-11-09 2라운드: 저장 뒤 같은 그림이 하얗게 다시 나와 다른 그림으로 가려면 🖼️ 를 알아야 했음)
+        //   쉬운 순서대로, 아직 칠하지 않은(저장된 칠이 없는) 다음 그림 — 모두 칠하던 중이면 그냥 다음 그림
+        const nextId = nextScene(sceneId);
+        load(nextId); // saving 도 풀림
+        ctx.say("새 종이가 준비됐어요. " + U.josa(ctx.sceneName(), "을/를") + " 칠해 볼까요?");
         ctx.hint(() => regions[Math.min(regions.length - 1, 2)], "그림을 톡 눌러 칠해 봐요!");
         await ctx.wait(500);
         board.classList.remove("wipe");
@@ -778,6 +776,14 @@ KP.game({
         KP.toast("저장하지 못했어요. 저장공간을 확인해 주세요");
       }
     });
+    function nextScene(id) {
+      const i = SCENES.findIndex((s) => s.id === id);
+      for (let k = 1; k <= SCENES.length; k++) {
+        const sc = SCENES[(i + k) % SCENES.length];
+        if (sc.id !== id && !(fills[sc.id] || []).some((c) => c && c !== "#ffffff") && !(strokes[sc.id] || []).length) return sc.id;
+      }
+      return SCENES[(i + 1) % SCENES.length].id;
+    }
     /** 저장한 그림을 액자처럼 가운데 크게 1.6초 → 홈 단추(내 작품) 쪽으로 날아감 (화면을 나가도 저절로 사라짐) */
     function showSaved(img) {
       const f = U.el("div", "pb-polar", '<img alt="" draggable="false"><b>' + KP.E("🖼️") + " 내 작품</b>");

@@ -1,7 +1,7 @@
 /* 진짜 피아노 — 집에 있는 진짜 피아노(키보드·실로폰)를 치면 아이패드가 마이크로 듣고 알아채요
    - 🎵 마음대로 쳐요: 친 음이 화면 건반에 무지개로 켜짐 (마이크가 잘 듣는지 확인하는 놀이 겸)
    - ✋ 손 자리 따라 치기: 오른손 엄지(1)를 도에 — 반짝이는 건반과 손가락 번호를 보고 동요 따라 치기
-   - 🦜 메아리 놀이: 앱이 들려준 음을 따라 치기 (1단계 1음 → 3단계 3음)
+   - 🦜 메아리 놀이: 앱이 들려준 음을 따라 치기 (1단계 1음 → 3단계 3음). 칠 때는 반짝임 없이 들은 대로 — 1단계만 틀리면 칠 건반이 반짝
    소리 알아채기: McLeod(MPM) 음높이 찾기 · 100~1100Hz만(여러 건반을 쾅 치면 생기는 낮은 허상음 제외)
      · 같은 음 3번 연속(약 50ms)일 때만 인정 · 옥타브는 따지지 않고 음이름(도·레·미)만 맞으면 정답
      · 피아노 음정이 조금 어긋나 있어도 맞추도록 평균 어긋남을 천천히 학습
@@ -9,7 +9,8 @@
    마이크를 못 쓰면 화면 건반을 눌러서 똑같이 놀 수 있음
    단계는 놀이마다 따로 셈(KP.store "rp:lvl:<놀이>") — 쉬운 놀이에서 오른 단계로 메아리가 갑자기 어려워지지 않게
    틀린 건반: 부드러운 '톡' + 칠 건반이 들썩(따라 치기·노래 게임), 메아리는 살짝 흔들림. 오래 멈추면 손가락이 칠 건반을 가리킴
-   폰 세로: 칠 음이 도~솔 안에만 있으면 건반 5개만 크게 (손 자리 1~5번 손가락) */
+   폰 세로: 칠 음이 도~솔 안이면 건반 5개, 라까지면 6개, 시까지면 7개만 크게
+   마이크 없이(화면 건반) 고르면 놀이 고르기에서 노래 게임·메아리를 앞에 두고 '화면 건반 추천' 표시 (피아노 놀이와 다른 재미) */
 "use strict";
 (function () {
   /** 단계를 따로 세는 놀이 4가지 (rp:lvl:<놀이>) */
@@ -257,7 +258,16 @@
   ];
   const FINGER = ["엄지", "검지", "가운데 손가락", "약지", "새끼손가락"];
   const SONGS = [
-    { id: "steps", em: "🪜", name: "도레미 계단", notes: ["C4", "D4", "E4", "F4", "G4", "F4", "E4", "D4", "C4"] },
+    // 도레미 계단은 단계마다 따로: 1단계 올라가기(5) → 2단계 올라갔다 내려오기(9) → 3단계 + 건너뛰기 미솔미도(13)
+    {
+      id: "steps", em: "🪜", name: "도레미 계단",
+      notes: ["C4", "D4", "E4", "F4", "G4", "F4", "E4", "D4", "C4"],
+      lv: [
+        ["C4", "D4", "E4", "F4", "G4"],
+        ["C4", "D4", "E4", "F4", "G4", "F4", "E4", "D4", "C4"],
+        ["C4", "D4", "E4", "F4", "G4", "F4", "E4", "D4", "C4", "E4", "G4", "E4", "C4"],
+      ],
+    },
     { id: "airplane", em: "✈️", name: "비행기", song: "airplane" },
     { id: "butterfly", em: "🦋", name: "나비야", song: "butterfly" },
     { id: "bears", em: "🐻", name: "곰 세 마리", song: "bears" },
@@ -320,6 +330,13 @@
         .rp-card:active{transform:scale(.96)}
         .rp-cards.songs{grid-template-columns:repeat(3,minmax(0,1fr))}
         .rp-cards.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+        /* 마이크 없이: 화면 건반으로 더 재미있는 노래 게임·메아리를 앞에 + 노란 테두리·추천 표시 */
+        .rp-card .tag{display:none;white-space:nowrap;font-size:.62em;background:#ffd23f;color:#5a4300;border-radius:999px;padding:2px 10px}
+        .rp-cards.nomic .rp-card.rec{order:-1;box-shadow:0 0 0 4px #ffd23f,var(--shadow)}
+        .rp-cards.nomic .rp-card.rec .tag{display:block}
+        .rp-cards.nomic .rp-card:not(.rec){opacity:.85}
+        .rp-ov .rp-tip{display:none}
+        .rp-ov.nomic .rp-tip{display:block}
         .rp-diag{font-size:13px;color:#9aa0bb;min-height:1.2em}
         .rp.game .rp-mid{display:none}
         .rp.game .rp-kb{grid-template-rows:0 1fr;height:clamp(110px,22vh,200px);row-gap:0}
@@ -352,8 +369,18 @@
         @keyframes rpCheer{0%{transform:translate(-50%,-50%) scale(.5);opacity:0}25%{transform:translate(-50%,-50%) scale(1.1);opacity:1}100%{transform:translate(-50%,-90%) scale(1);opacity:0}}
         .rp-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
         .rp-mini{position:absolute;left:12px;top:0;z-index:5;font-size:clamp(14px,1.8vw,17px);padding:6px 12px;min-height:44px}
-        .rp.k5 .rp-kb,.rp.k5 .rp-field{grid-template-columns:repeat(5,1fr)}
-        .rp.k5 .rp-x{display:none}
+        /* 폰 세로: 칠 음이 도~라(6)·시(7)까지면 그만큼만 보여 건반을 넓게 (5건반·6건반·7건반) */
+        .rp.kn .rp-kb,.rp.kn .rp-field{grid-template-columns:repeat(var(--kn),1fr)}
+        .rp.kn .rp-x{display:none}
+        /* 폰 가로(키 낮은 가로 화면) 노래 게임: 위 '마이크 꺼짐' 줄을 빼고 놀이 고르기를 진행 막대 줄 왼쪽에, 건반은 조금 낮게 → 떨어지는 칸을 높게 */
+        @media (max-height:500px) and (min-aspect-ratio:1/1){
+          .rp.game.nomic .rp-top{height:0;overflow:visible}
+          .rp.game.nomic .rp-ear{display:none}
+          .rp.game.nomic .rp-gbar{padding-left:clamp(118px,16vw,150px)}
+          .rp.game .rp-kb{height:max(80px,21vh)}
+          .rp.game .rp-lanes{gap:4px}
+          .rp.game{gap:6px}
+        }
         @media (max-aspect-ratio:1/1){
           .rp-cards,.rp-cards.songs,.rp-cards.four{grid-template-columns:repeat(2,minmax(0,1fr))}
           .rp-field{column-gap:4px}
@@ -383,7 +410,7 @@
       const score = U.el("div", "rp-score", KP.E("⭐") + " 0");
       gbar.append(bListen, track, U.el("span", "rp-goal", KP.E("🥕")), score);
       const field = U.el("div", "rp-field");
-      const laneEls = KEYS.map((_, i) => field.appendChild(U.el("div", "rp-lane" + (i >= 5 ? " rp-x" : ""))));
+      const laneEls = KEYS.map((_, i) => field.appendChild(U.el("div", "rp-lane")));
       lanes.append(gbar, field);
       const kb = U.el("div", "rp-kb");
       kb.appendChild(U.el("div", "rp-palm"));
@@ -396,7 +423,7 @@
         return f;
       });
       const keyEls = KEYS.map(([n, sol, col], i) => {
-        const k = U.btn("<span>" + sol + "</span>", "rp-key" + (i >= 5 ? " rp-x" : ""));
+        const k = U.btn("<span>" + sol + "</span>", "rp-key");
         k.style.gridColumn = String(i + 1);
         k.style.setProperty("--c", col);
         kb.appendChild(k);
@@ -556,15 +583,16 @@
       });
 
       /* ---------- 놀이 고르기 ---------- */
-      ovMenu.innerHTML = "<h3>" + KP.E("🎼") + " 무엇을 할까요?</h3>";
-      const cards = U.el("div", "rp-cards four");
+      ovMenu.innerHTML = "<h3>" + KP.E("🎼") + " 무엇을 할까요?</h3><p class='rp-tip'>화면 건반으로는 " + KP.E("🎮") + " 노래 게임과 " + KP.E("🦜") + " 메아리 놀이가 특히 재미있어요. 진짜 피아노가 있으면 마이크를 켜 보세요!</p>";
+      const cards = (ctx.menuCards = U.el("div", "rp-cards four"));
       [
         ["free", "🎵", "마음대로 쳐요", "친 음이 화면에 반짝"],
         ["follow", "✋", "손 자리 따라 치기", "반짝이는 건반을 쳐요"],
         ["game", "🎮", "노래 게임", "내려오는 음표를 쳐요"],
         ["echo", "🦜", "메아리 놀이", "들은 음을 똑같이"],
       ].forEach(([id, em, name, d], i) => {
-        const c = U.btn('<span class="e">' + KP.E(em) + "</span>" + name + "<small>" + d + "</small>", "rp-card");
+        const rec = id === "game" || id === "echo";
+        const c = U.btn('<span class="e">' + KP.E(em) + "</span>" + name + "<small>" + d + "</small>" + (rec ? '<span class="tag">화면 건반 추천</span>' : ""), "rp-card" + (rec ? " rec" : ""));
         c.style.setProperty("--i", i);
         ctx.tap(c, () => {
           A.sfx("select");
@@ -616,11 +644,13 @@
       ctx.mode = null;
       ctx.tok = (ctx.tok || 0) + 1;
       ctx.busy = false;
-      ctx.wrap.classList.remove("game", "k5");
+      ctx.wrap.classList.remove("game", "kn");
       ctx.wantIdx = -1;
       ctx.hint(null);
       this.clearMarks(ctx);
       ctx.ovSong.classList.remove("show");
+      ctx.menuCards.classList.toggle("nomic", !ctx.mic.on);
+      ctx.ovMenu.classList.toggle("nomic", !ctx.mic.on);
       ctx.ovMenu.classList.add("show");
       ctx.talk("무엇을 할까요? 골라 보세요!");
     },
@@ -662,14 +692,19 @@
       KP.store.set("rp:lvMode", mode);
       ctx._updateLevel();
     },
-    /** 폰 세로에서 칠 음이 모두 도~솔(0~4)이면 건반 5개만 (넓게) */
+    /** 폰 세로에서 칠 음이 도~솔(0~4)이면 건반 5개, 라까지면 6개, 시까지면 7개만 (넓게) */
     fitKeys(ctx) {
       const narrow = matchMedia("(max-aspect-ratio:1/1) and (max-width:560px)").matches;
       let max = 7;
       if (ctx.mode === "echo") max = 4;
       else if (ctx.mode === "follow" && ctx.seq) max = Math.max(...ctx.seq);
       else if (ctx.mode === "game" && ctx.g) max = Math.max(...ctx.g.list.map((n) => n.k));
-      ctx.wrap.classList.toggle("k5", narrow && max <= 4);
+      const n = Math.max(5, max + 1),
+        on = narrow && n < 8;
+      ctx.wrap.classList.toggle("kn", on);
+      ctx.wrap.style.setProperty("--kn", n);
+      ctx.keyEls.forEach((k, i) => k.classList.toggle("rp-x", on && i >= n));
+      ctx.laneEls.forEach((l, i) => l.classList.toggle("rp-x", on && i >= n));
     },
     /** 틀린 건반: "아니야, 이쪽" — 부드러운 톡 + 칠 건반 들썩 (byTap: 화면 건반 → 열쇠 별 계산에 넣음) */
     nudge(ctx, i, want, byTap) {
@@ -688,6 +723,7 @@
       ctx.dots.innerHTML = "";
       ctx.kb.classList.toggle("nohand", mode === "free" || mode === "game");
       ctx.wrap.classList.toggle("game", mode === "game");
+      ctx.wrap.classList.toggle("nomic", !ctx.mic.on);
       ctx.diag.textContent = "";
       ctx.busy = false;
       const how = ctx.mic.on ? "진짜 피아노로" : "화면 건반을 눌러서";
@@ -727,10 +763,17 @@
     /* ---------- ✋ 손 자리 따라 치기 ---------- */
     songStart(ctx) {
       const s = ctx.song || SONGS[0];
+      if (s.lv) {
+        ctx.seq = s.lv[ctx.level - 1].map((n) => KEYS.findIndex((k) => k[0] === n));
+        return this.songSeqReady(ctx, s);
+      }
       const all = s.notes || KP.audio.SONGS[s.song].notes.filter((n) => n[0] !== "R").map((n) => n[0]);
       const len1 = Math.min(all.length, s.notes ? all.length : 7); // 짧은 연습곡(도레미 계단)은 1단계부터 전체
       const len = ctx.level === 1 ? len1 : ctx.level === 2 ? Math.max(len1, Math.ceil(all.length / 2)) : all.length; // 2단계가 1단계보다 짧아지지 않게
       ctx.seq = all.slice(0, len).map((n) => KEYS.findIndex((k) => k[0] === n));
+      this.songSeqReady(ctx, s);
+    },
+    songSeqReady(ctx, s) {
       ctx.pos = 0;
       this.fitKeys(ctx);
       ctx.dots.innerHTML = "";
@@ -802,10 +845,11 @@
        다 치면 앱이 방금 친 노래를 이어서 들려주고 축하. 👂 들어 보기로 먼저 들어 볼 수도 있음 */
     gameNotes(ctx) {
       const s = ctx.song || SONGS[0];
-      const raw = s.notes ? s.notes.map((n) => [n, 1]) : KP.audio.SONGS[s.song].notes;
+      const lvNotes = s.lv && s.lv[ctx.level - 1];
+      const raw = lvNotes ? lvNotes.map((n, k) => [n, k === lvNotes.length - 1 ? 2 : 1]) : s.notes ? s.notes.map((n) => [n, 1]) : KP.audio.SONGS[s.song].notes;
       const playable = raw.filter((n) => n[0] !== "R").length;
       const want1 = Math.min(playable, s.notes ? playable : 8);
-      const want = ctx.level === 1 ? want1 : ctx.level === 2 ? Math.max(want1, Math.ceil(playable / 2)) : playable; // 2단계 ≥ 1단계
+      const want = lvNotes ? playable : ctx.level === 1 ? want1 : ctx.level === 2 ? Math.max(want1, Math.ceil(playable / 2)) : playable; // 2단계 ≥ 1단계
       const list = [];
       let beat = 0;
       for (const [n, b] of raw) {
@@ -1006,6 +1050,8 @@
       const tok = ctx.tok;
       ctx.busy = true;
       ctx.pos = 0;
+      ctx.hint(null);
+      this.mark(ctx, -1); // 다시 들려줄 때는 반짝이던 힌트 건반도 끄고 '듣기'부터
       [...ctx.dots.children].forEach((d) => d.classList.remove("ok", "now"));
       ctx.deafFor(60000);
       for (const i of ctx.seq) {
@@ -1021,11 +1067,8 @@
       ctx.mic.deafUntil = performance.now() + 900; // 남은 울림이 사라질 때까지
       ctx.busy = false;
       ctx.sub.textContent = ctx.mic.on ? "이제 피아노로 따라 쳐요!" : "이제 건반을 눌러요!";
-      if (ctx.level === 1) {
-        this.mark(ctx, ctx.seq[0]); // 1단계는 칠 건반을 알려 줌
-        ctx.noStar(); // 칠 건반이 반짝여 기억할 것이 없음 → 열쇠 별 없음 (축하·단계는 그대로)
-        ctx.hint(() => ctx.keyEls[ctx.seq[ctx.pos]], "반짝이는 건반을 쳐요!");
-      } else this.idle(ctx); // 2·3단계는 답을 가리키지 않고 12초 뒤 다시 들려줌
+      // 모든 단계: 칠 때는 반짝임 없이 '들은 소리'만으로 (진짜 듣고 따라 치기). 1단계는 틀리면 칠 건반이 반짝(echoHit)
+      this.idle(ctx); // 답을 가리키지 않고 12초 뒤 다시 들려줌
     },
     async echoHit(ctx, i, byTap) {
       if (ctx.busy) return;
@@ -1036,7 +1079,12 @@
         ctx.after(400, () => ctx.keyEls[i].classList.remove("heard"));
         ctx.deafFor(400);
         ctx.miss(ctx.keyEls[i], null, byTap ? {} : { soft: true });
-        if (ctx.level === 1) KP.u.replay(ctx.keyEls[want], "bump");
+        if (ctx.level === 1) {
+          // 1단계 힌트: 틀리면 칠 건반이 반짝 + 오래 멈추면 손가락 (정답을 가리키므로 열쇠 별 없음 — answer)
+          this.mark(ctx, want);
+          KP.u.replay(ctx.keyEls[want], "bump");
+          ctx.hint(() => ctx.keyEls[ctx.seq[ctx.pos]], "반짝이는 건반을 쳐요!", { answer: true });
+        }
         ctx.wrong++;
         if (ctx.wrong >= 3) {
           ctx.wrong = 0;
@@ -1054,10 +1102,10 @@
       KP.audio.sfx("tap");
       ctx.deafFor(120);
       if (ctx.pos < ctx.seq.length) {
-        if (ctx.level === 1) {
-          this.mark(ctx, ctx.seq[ctx.pos]);
-          ctx.hint(() => ctx.keyEls[ctx.seq[ctx.pos]], "반짝이는 건반을 쳐요!");
-        }
+        if (ctx.wantIdx >= 0) {
+          this.mark(ctx, -1);
+          ctx.hint(null);
+        } // 힌트로 반짝이던 건반은 맞히면 끔 (다음 음은 다시 들은 대로)
         return;
       }
       ctx.busy = true;

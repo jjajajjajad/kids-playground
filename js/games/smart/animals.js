@@ -196,6 +196,22 @@ KP.game({
       this.counts(ctx);
     }
     ctx.hint(() => this.nextHint(ctx), "다른 친구도 눌러 봐요!");
+    // 다 만난 곳(이번 누름 전에 이미 다 만남)에서는 작은 보너스: 같은 곳 친구 하나가 따라 울어요(합창)
+    if (ctx.done.has(hab) && ctx.cards && ctx.cards.length > 1) {
+      const buddies = ctx.cards.filter((x) => x !== c);
+      const bc = U.pick(buddies);
+      const ba = Z.LIST.find((x) => bc.textContent.trim() === x[1]);
+      if (ba) {
+        if (ctx.choirT) ctx.cancel(ctx.choirT);
+        ctx.choirT = ctx.after(700, () => {
+          if (!bc.isConnected) return;
+          U.replay(bc, "anGo-" + ba[2]);
+          bc.querySelectorAll(".anSay").forEach((x) => x.remove());
+          bc.appendChild(U.el("span", "anSay", ba[3].split("!")[0] + "!"));
+          Z.cry(ba[4]);
+        });
+      }
+    }
     // 한 곳의 친구를 모두 만나면 큰 축하 ('모두' 탭에서 만나도 그 동물이 사는 곳으로 셈), 모두 만나면 마지막 큰 축하
     const habDone = !ctx.done.has(hab) && Z.LIST.filter((x) => x[2] === hab).every((x) => ctx.met.has(x[1]));
     if (habDone) ctx.done.add(hab);

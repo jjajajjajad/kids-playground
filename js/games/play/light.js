@@ -1,7 +1,9 @@
 /* 초록불 빨간불 — 신호등을 보고 토끼를 당근까지 데려다줘요
    - 초록불일 때 누르면 토끼가 깡총 앞으로 / 빨간불일 때 누르면 깜짝 멈칫 ("빨간불엔 멈춰요!")
    - 뒤로 가는 벌칙은 2단계부터 아주 조금만
-   1단계: 신호가 천천히 바뀜 / 2단계: 조금 빨리 / 3단계: 노란불 추가 */
+   1단계: 신호가 천천히 바뀜 / 2단계: 조금 빨리 / 3단계: 노란불 추가
+   - 세로로 긴 화면(폰 세로·태블릿 세로)은 길을 세로로 놓고 아래→위(당근은 맨 위)로 깡총 (.vert)
+     — 가로 길은 폰 세로에서 토끼 60px·한 칸 25px 로 움직임이 작게 보였음 */
 "use strict";
 KP.game({
   id: "light",
@@ -55,6 +57,13 @@ KP.game({
       .lt-go:active{transform:translateY(5px);box-shadow:0 2px 0 rgba(0,0,0,.2)}
       .lt-go.r{background:#ff5b5b;box-shadow:0 7px 0 #c93a3a}.lt-go.y{background:#ffb020;box-shadow:0 7px 0 #c98600}
       .lt-go .e{font-size:1.2em}
+      /* 세로 길 (아래 → 위) */
+      .lt-scene.vert{background:linear-gradient(180deg,#bfe8ff 0%,#e6f7ff 9%,#9ddc86 9%,#74c262 100%)}
+      .lt-scene.vert .lt-hill{display:none}
+      .lt-scene.vert .lt-path{right:auto;box-shadow:inset 5px 0 0 rgba(255,255,255,.35),inset -5px 0 0 rgba(0,0,0,.08);border-radius:18px}
+      .lt-scene.vert .lt-path::after{left:calc(50% - 3px);right:auto;top:0;bottom:0;width:6px;height:auto;background:repeating-linear-gradient(180deg,rgba(255,255,255,.7) 0 26px,transparent 26px 52px)}
+      .lt-scene.vert .lt-signal{left:27%;top:12%}
+      .lt-scene.vert .lt-rab{transition:top .45s cubic-bezier(.3,.9,.5,1)}
     `);
     const scene = U.el("div", "lt-scene");
     scene.dataset.tap = "1";
@@ -76,6 +85,35 @@ KP.game({
     ctx.size = () => {
       const W = scene.clientWidth,
         H = scene.clientHeight;
+      const vert = (ctx.vert = H > W * 1.15);
+      scene.classList.toggle("vert", vert);
+      const path = U.$(".lt-path", scene);
+      if (vert) {
+        const rs = Math.round(U.clamp(Math.min(W * 0.24, H * 0.14), 60, 130));
+        scene.style.setProperty("--rs", rs + "px");
+        scene.style.setProperty("--ls", Math.round(U.clamp(Math.min(H * (ctx.yellow ? 0.09 : 0.11), W * 0.2), 40, 90)) + "px");
+        ctx.rs = rs;
+        // 길: 오른쪽 세로 띠 (신호등은 왼쪽 위)
+        const pw = Math.round(U.clamp(W * 0.22, 54, 110)),
+          pcx = W * 0.7;
+        path.style.cssText = "left:" + (pcx - pw / 2) + "px;width:" + pw + "px;top:" + Math.round(rs * 0.5) + "px;height:" + Math.round(H - rs * 0.5 - 6) + "px";
+        ctx.y0 = H - rs - 10; // 출발(맨 아래) 토끼 top
+        ctx.y1 = rs * 1.2; // 도착(당근 바로 아래)
+        rab.style.left = pcx - rs / 2 + "px";
+        carrot.style.left = pcx - rs * 0.45 + "px";
+        carrot.style.top = "4px";
+        ctx.placeRab();
+        scene.querySelectorAll(".lt-dot").forEach((d) => d.remove());
+        for (let i = 1; i <= ctx.steps; i++) {
+          const d = U.el("div", "lt-dot" + (i <= ctx.pos ? " done" : ""));
+          d.style.left = pcx + "px";
+          d.style.top = ctx.y0 + rs / 2 + ((ctx.y1 - ctx.y0) * i) / ctx.steps + "px";
+          scene.insertBefore(d, carrot);
+        }
+        return;
+      }
+      path.style.cssText = "";
+      rab.style.top = "";
       const rs = Math.round(U.clamp(Math.min(W / (ctx.steps + 3), H * 0.2), 60, 130));
       scene.style.setProperty("--rs", rs + "px");
       scene.style.setProperty("--ls", Math.round(U.clamp(H * (ctx.yellow ? 0.1 : 0.13), 36, 84)) + "px");
@@ -99,7 +137,8 @@ KP.game({
       }
     };
     ctx.placeRab = () => {
-      rab.style.left = ctx.x0 + ((ctx.x1 - ctx.x0) * Math.max(0, ctx.pos)) / ctx.steps + "px";
+      if (ctx.vert) rab.style.top = ctx.y0 + ((ctx.y1 - ctx.y0) * Math.max(0, ctx.pos)) / ctx.steps + "px";
+      else rab.style.left = ctx.x0 + ((ctx.x1 - ctx.x0) * Math.max(0, ctx.pos)) / ctx.steps + "px";
       U.$$(".lt-dot", scene).forEach((d, i) => d.classList.toggle("done", i < Math.floor(ctx.pos)));
     };
     addEventListener("resize", () => ctx._active && ctx.size());

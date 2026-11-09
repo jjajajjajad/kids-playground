@@ -1,5 +1,7 @@
 /* 소리 듣고 찾기 — 울음소리를 듣고 어떤 동물인지 골라요. 🔊 버튼으로 다시 듣기.
    1단계: 보기 3개(사는 곳이 모두 다른 동물) / 2단계: 3개(같은 곳 1마리 섞임) / 3단계: 4개(같은 곳에 사는 동물 2마리 섞임, 모자라면 다른 곳에서 채움)
+   3단계는 판 둘 중 하나가 '숨은 친구': 보기가 까만 그림자(이름 없음)라 모습 대신 소리만 믿고 고르기 → 맞히면 색이 돌아옴
+   좁은 세로 화면(폰) 보기 3개는 2+1 (셋째는 가운데) — 한 줄 세로 나열보다 그림이 큼
    동물 목록·울음소리는 animals.js 의 KP.smartAnimals 사용 */
 "use strict";
 KP.game({
@@ -24,7 +26,12 @@ KP.game({
       .lsSpk.on .e{animation:wig .3s 4}
       @keyframes lsRing{from{transform:scale(1);opacity:.9}to{transform:scale(1.7);opacity:0}}
       .lsGrid{--sz:var(--szl);flex:1;min-height:0;display:grid;grid-template-columns:repeat(var(--cl),auto);justify-content:center;align-content:center;gap:clamp(14px,2.6vw,30px);padding:30px 12px 20px}
-      @media (max-aspect-ratio:1/1){.lsGrid{--sz:var(--szp);grid-template-columns:repeat(var(--cp),auto)}}
+      @media (max-aspect-ratio:1/1){.lsGrid{--sz:var(--szp);grid-template-columns:repeat(var(--cp),auto)}
+        .lsGrid.three>.lsCh:nth-child(3){grid-column:1/-1;justify-self:center}}
+      .lsGrid.hide .lsCh .e{filter:brightness(0) opacity(.78);transition:filter .5s}
+      .lsGrid.hide .lsCh span{visibility:hidden}
+      .lsGrid.hide .lsCh.lsYay .e{filter:none}
+      .lsGrid.hide .lsCh.lsYay span{visibility:visible}
       .lsCh{flex-direction:column;gap:4px;border-radius:30px;padding:clamp(10px,1.4vw,16px) clamp(12px,1.6vw,20px) 8px}
       .lsCh .e{font-size:var(--sz)}
       .lsCh span{font-size:clamp(18px,2.4vw,24px)}
@@ -77,9 +84,14 @@ KP.game({
     ctx.target = target;
     const list = U.shuffle([target, ...others]);
     ctx.grid.style.setProperty("--cl", list.length);
-    ctx.grid.style.setProperty("--cp", list.length === 3 ? 1 : 2);
+    ctx.grid.style.setProperty("--cp", 2);
+    ctx.grid.classList.toggle("three", list.length === 3);
+    // 3단계 판 둘 중 하나: 숨은 친구(그림자 보기)
+    if (lv === 3) ctx.l3 = (ctx.l3 || 0) + 1;
+    const hide = lv === 3 && ctx.l3 % 2 === 0;
+    ctx.grid.classList.toggle("hide", hide);
     ctx.grid.style.setProperty("--szl", ["", "", "clamp(80px,min(16vw,26vh),170px)", "clamp(80px,min(14vw,24vh),150px)", "clamp(70px,min(12vw,20vh),130px)"][list.length]);
-    ctx.grid.style.setProperty("--szp", ["", "", "clamp(80px,min(34vw,17vh),150px)", "clamp(70px,min(30vw,11vh),130px)", "clamp(70px,min(28vw,14vh),130px)"][list.length]);
+    ctx.grid.style.setProperty("--szp", ["", "", "clamp(80px,min(34vw,17vh),150px)", "clamp(80px,min(32vw,15vh),140px)", "clamp(70px,min(28vw,14vh),130px)"][list.length]);
     const ask = "누구 소리일까요? 잘 들어 봐요!";
     const nat = (...l) => (KP.voice._natUrls && l.find((t) => KP.voice._natUrls(t))) || l[0]; // 같은 뜻 중 자연 음성(이미 있는 조각)이 있는 문장
     ctx.say("👂 " + ask, false);

@@ -34,7 +34,14 @@ KP.game({
       .plMine{grid-area:mine;display:flex;align-items:center;gap:8px;max-width:100%;overflow-x:auto;padding:4px 10px;scrollbar-width:none;background:rgba(255,251,242,.85);border-radius:999px}
       .plMine::-webkit-scrollbar{display:none}
       .plMine .lb{font-size:15px;color:var(--ink2);white-space:nowrap}
-      .plSw{flex:0 0 auto;width:44px;height:44px;border-radius:50%;border:4px solid #fff;box-shadow:0 4px 0 rgba(0,0,0,.13);position:relative}
+      .plSw{flex:0 0 auto;width:64px;height:64px;border-radius:50%;border:4px solid #fff;box-shadow:0 4px 0 rgba(0,0,0,.13);position:relative} /* 44 → 64px (2026-11-09 2라운드) */
+      /* 오늘의 색: 아직 못 찾은 색 하나를 목표로 (레시피 방울 = 어떤 물감을 몇 번) */
+      .plGoal{position:absolute;left:1%;top:1%;z-index:3;background:rgba(255,250,240,.96);border-radius:22px;box-shadow:0 5px 0 rgba(110,70,30,.18);padding:6px 12px 6px 8px;display:flex;align-items:center;gap:8px;min-height:64px;color:var(--ink)}
+      .plGoal .gb{width:48px;height:48px;flex:0 0 auto;border-radius:46% 54% 50% 50%/52% 46% 54% 48%;background:var(--c);box-shadow:inset -5px -6px 0 rgba(0,0,0,.12),0 0 0 3px #fff}
+      .plGoal .gt{display:flex;flex-direction:column;align-items:flex-start;gap:3px;font-size:13px;line-height:1}
+      .plGoal .dxRec i{width:15px;height:19px}
+      .plGoal.done{animation:popBig .6s}
+      .plGoal.done .gb::after{content:"✓";display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#fff;font-size:28px;text-shadow:0 2px 0 rgba(0,0,0,.25)}
       .plSw.new{animation:popBig .5s}
       .plName{position:absolute;left:50%;top:2%;transform:translateX(-50%);background:#fffaf0;border-radius:999px;padding:6px 18px;font-size:clamp(20px,2.8vw,28px);box-shadow:0 5px 0 rgba(110,70,30,.18);display:none;align-items:center;gap:8px;white-space:nowrap;z-index:4}
       .plName.on{display:flex;animation:popIn .35s}
@@ -44,7 +51,7 @@ KP.game({
       @media (orientation:landscape) and (min-height:500px){
         .plW{grid-template-areas:"jars bowl acts" "mine mine mine";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr) auto;padding:10px 16px 10px;gap:12px}
         .plJarsCell .psJars{display:grid;grid-template-columns:repeat(2,auto);gap:4px 6px}
-        .plJarsCell .psJar{width:clamp(60px,7.5vh,82px);height:clamp(84px,12vh,112px)}
+        .plJarsCell .psJar{width:clamp(64px,7.8vh,82px);height:clamp(84px,12vh,112px)} /* 64px 이상 (2026-11-09 2라운드) */
         .plActs{display:grid;grid-template-columns:repeat(2,auto)}
         .plB{min-width:92px;min-height:76px;font-size:15px}
         .plB .e{font-size:34px}
@@ -55,7 +62,7 @@ KP.game({
         .plW{padding:6px 6px 8px;gap:6px}
         .plJarsCell{max-width:100%}
         .plJarsCell .psJars{flex-wrap:nowrap;gap:4px}
-        .plJarsCell .psJar{width:clamp(52px,16vw,64px);height:86px;flex:0 0 auto}
+        .plJarsCell .psJar{width:clamp(52px,16.5vw,64px);height:86px;flex:0 0 auto} /* 390px 폰에서 64px */
         .plJarsCell .psJar .jn{left:-3px;right:-3px;font-size:13px}
         /* (2026-11-08) 한 줄 5개(59px) → 3칸씩 2줄, 모두 64px 이상 */
         .plActs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;max-width:100%;width:100%}
@@ -80,6 +87,7 @@ KP.game({
       .dxPanel.on{display:flex;animation:enter .3s}
       .dxHead{display:flex;align-items:center;gap:12px;font-size:clamp(20px,2.8vw,28px);padding:4px 4px 10px}
       .dxHead .sp{flex:1}
+      .dxHead .btn{min-height:64px} /* '실험실로' 50 → 64px */
       .dxGrid{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:12px;align-content:start}
       .dxC{background:#fff;border-radius:22px;padding:10px 6px 8px;display:flex;flex-direction:column;align-items:center;gap:4px;box-shadow:0 5px 0 rgba(110,70,30,.1);border:3px dashed #eadfcd}
       .dxC.got{border:3px solid #fff}
@@ -115,7 +123,14 @@ KP.game({
     });
     ctx.studio = studio;
     jarsCell.appendChild(studio.jarsEl);
-    bowlCell.append(studio.bowlEl, nameTag);
+    const goalEl = U.el("button", "plGoal");
+    bowlCell.append(studio.bowlEl, nameTag, goalEl);
+    ctx.goalEl = goalEl;
+    goalEl.addEventListener("click", () => {
+      KP.audio.sfx("tap2");
+      U.replay(goalEl, "jump");
+      if (ctx.goal) KP.voice.say(ctx.goal + " 만들어 봐요!");
+    });
 
     const img = (f) => '<img class="pi" alt="" draggable="false" src="' + P.ART + f + '">';
     const mk = (icon, label, cls = "") => U.btn(icon + "<span>" + label + "</span>", "plB " + cls);
@@ -185,6 +200,7 @@ KP.game({
     ctx.lastName = KP.store.get("lab:lastName", null);
     ctx.changed = false;
     this.renderMine(ctx);
+    this.setGoal(ctx, KP.store.get("lab:goal", null));
     requestAnimationFrame(() => {
       ctx.fitBowl();
       let checkT = 0,
@@ -218,7 +234,8 @@ KP.game({
       });
     });
     ctx.say(
-      ctx.studio.bowl.volume() > 0.5 ? "만들던 물감이 그대로 있어요! 더 넣거나 저어 봐요." : "물감 통을 눌러서 그릇에 넣고, 손가락으로 빙글빙글 저어 봐요!"
+      (ctx.studio.bowl.volume() > 0.5 ? "만들던 물감이 그대로 있어요! 더 넣거나 저어 봐요." : "물감 통을 눌러서 그릇에 넣고, 손가락으로 빙글빙글 저어 봐요!") +
+        " " + ctx.goal + " 만들어 봐요!"
     );
     ctx.hint(() => ctx.studio.jar(1), "물감 통을 눌러 봐요!");
   },
@@ -229,6 +246,30 @@ KP.game({
     const b = ctx.studio.bowl;
     KP.store.set("lab:bowl", b.volume() > 0.01 ? b.save() : null);
     KP.store.set("lab:lastName", ctx.lastName || null);
+  },
+
+  /** 오늘의 색(목표) 정하기: 아직 못 찾은 도감 색 중 레시피가 쉬운 것부터. 다 찾았으면 아무 색이나(직전 것 빼고) */
+  setGoal(ctx, name) {
+    const P = KP.paint;
+    const all = P.NAMES.filter((x) => x.dex);
+    let g = all.find((x) => x.n === name);
+    if (!g) {
+      const dex = P.dex();
+      const cost = (x) => x.v.reduce((a, b) => a + b, 0) + x.v.filter((b) => b > 0).length * 2;
+      const left = all.filter((x) => !dex[x.n]).sort((a, b) => cost(a) - cost(b));
+      g = left[0] || KP.u.pick(all.filter((x) => x.n !== name && x.n !== ctx.goal));
+    }
+    ctx.goal = g.n;
+    KP.store.set("lab:goal", g.n);
+    const m = Math.min(...g.v.filter((x) => x > 0));
+    let h = "";
+    g.v.forEach((x, i) => {
+      const n = Math.min(4, Math.round(x / m));
+      for (let k = 0; k < n; k++) h += '<i style="--c:' + P.BASE[i].hex + '"></i>';
+    });
+    ctx.goalEl.classList.remove("done");
+    ctx.goalEl.style.setProperty("--c", g.hex);
+    ctx.goalEl.innerHTML = '<span class="gb"></span><span class="gt"><span>' + KP.E("🎯") + " " + g.n + '</span><span class="dxRec">' + h + "</span></span>";
   },
 
   /** 다 섞였을 때 */
@@ -243,6 +284,21 @@ KP.game({
     ctx.nameTag.classList.add("on");
     const isNew = P.discover(nm.n);
     ctx.hint(() => ctx.bKeep, "마음에 들면 내 물감에 담아요!");
+    if (nm.n === ctx.goal) {
+      // 🎯 오늘의 색을 만들었음 → 축하, 다음 목표
+      ctx.goalEl.classList.add("done");
+      KP.audio.sfx("levelup");
+      ctx.lastName = nm.n;
+      const ok = await ctx.win({ msg: "와, 똑같아요! " + nm.n + "! 됐어요!", big: true });
+      if (!ok || !ctx._active) return;
+      if (isNew) KP.voice.say(nm.n + "! 도감에 생겼어요! 마음에 들면 내 물감에 담아요.");
+      ctx.after(isNew ? 4200 : 1200, () => {
+        this.setGoal(ctx, null);
+        KP.u.replay(ctx.goalEl, "pop");
+        KP.voice.say(ctx.goal + " 만들어 봐요!");
+      });
+      return;
+    }
     if (isNew) {
       KP.audio.sfx("levelup");
       await ctx.win({ msg: "새 색깔 발견! " + nm.n + "!", big: true });

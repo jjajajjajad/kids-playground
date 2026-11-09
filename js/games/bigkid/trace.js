@@ -1,7 +1,7 @@
 /* 선 따라 그리기 — 점선 길을 손가락으로 따라가요 (깃발 → 도착)
-   1단계: 직선·세로선·내리막·지그재그·번개 (길이 넓음)
-   2단계: 무지개·물결·동그라미·언덕·S자 곡선
-   3단계: 숫자 1~5, 한글 ㄱ ㄴ ㄷ ㅅ (두 획짜리는 획 순서대로)
+   1단계: 직선·세로선·내리막·지그재그·번개·계단·산·네모 (길이 넓음)
+   2단계: 무지개·물결·동그라미·언덕·S자 곡선·하트·달팽이·별
+   3단계: 숫자 1~5, 한글 ㄱ ㄴ ㄷ ㅅ (두 획짜리는 획 순서대로) — 지난번에 멈춘 곳부터 이어서(trace:pos)
    - 길에서 너무 벗어나면 선이 그려지지 않고, 이어 갈 곳이 반짝 (벌칙 없음)
    - 끝까지 따라가면 그림이 살아나 길을 따라 달려요 */
 "use strict";
@@ -40,6 +40,9 @@ KP.game({
         { name: "미끄럼틀", box: [100, 70], d: ["M8 8 L92 62"], rider: "🐧", face: null },
         { name: "지그재그 길", box: [100, 50], d: ["M5 42 L27 8 L50 42 L73 8 L95 42"], rider: "🐰", face: null, hop: true, rot: {} },
         { name: "번개 길", box: [60, 100], d: ["M42 5 L14 50 L46 50 L18 95"], rider: "⚡", face: null },
+        { name: "계단 길", box: [100, 80], d: ["M6 74 L28 74 L28 52 L50 52 L50 30 L72 30 L72 8 L94 8"], rider: "🐱", face: null, hop: true },
+        { name: "산 길", box: [100, 60], d: ["M6 54 L50 6 L94 54"], rider: "🚲", face: "left" },
+        { name: "네모 길", box: [80, 80], d: ["M8 8 L72 8 L72 72 L8 72 L8 22"], rider: "🐞", face: null },
       ],
       [
         { name: "무지개 길", box: [100, 55], d: ["M8 50 A42 42 0 0 1 92 50"], rider: "🐞", face: null },
@@ -47,6 +50,9 @@ KP.game({
         { name: "동그라미", box: [100, 100], d: ["M50 8 A42 42 0 1 0 50.01 8"], rider: "🐞", face: null },
         { name: "언덕 길", box: [100, 50], d: ["M5 45 Q 27.5 -15 50 45 Q 72.5 -15 95 45"], rider: "🚲", face: "left", rot: { rider: "🐞", face: null } },
         { name: "꼬불꼬불 길", box: [70, 100], d: ["M60 8 C 0 8, 0 50, 35 50 C 70 50, 70 92, 10 92"], rider: "🐝", face: null },
+        { name: "하트 길", box: [100, 90], d: ["M50 26 C 50 14, 60 4, 74 10 C 98 20, 90 56, 50 84 C 10 56, 2 20, 26 10 C 40 4, 50 14, 50 24"], rider: "🐝", face: null },
+        { name: "달팽이 길", box: [100, 100], d: ["M50 46 C 52 32, 72 34, 72 52 C 72 76, 30 78, 26 50 C 22 14, 86 8, 92 50 C 98 94, 18 100, 6 66"], rider: "🐌", face: "left" },
+        { name: "별 길", box: [100, 96], d: ["M50 6 L61 38 L95 38 L68 58 L78 92 L50 72 L22 92 L32 58 L5 38 L39 38 L48 12"], rider: "⭐", face: null },
       ],
       [
         { name: "숫자 1", say: "숫자 일", box: [70, 100], d: ["M20 25 L40 8 L40 92"], rider: "⭐", face: null },
@@ -60,7 +66,7 @@ KP.game({
         { name: "ㅅ", say: "시옷", box: [80, 100], d: ["M42 12 C40 50, 28 74, 8 90", "M42 46 C52 66, 62 80, 74 90"], rider: "⭐", face: null },
       ],
     ];
-    KP.loadE(["🚩", "🏁", "✨", "🚗", "🚀", "🐧", "🐰", "⚡", "🐞", "🐟", "🚲", "🐝", "⭐"]);
+    KP.loadE(["🚩", "🏁", "✨", "🚗", "🚀", "🐧", "🐰", "⚡", "🐞", "🐟", "🚲", "🐝", "⭐", "🐱", "🐌"]);
     const INK = ["#ff5d8f", "#2f95f5", "#ff8a1f", "#2fb466", "#8a63ee"];
 
     /** SVG 경로 → 단위 좌표 점 목록 (약 1.2단위 간격) */
@@ -100,8 +106,9 @@ KP.game({
       st.u = Math.min((W - 2 * m) / bw, (H - 2 * m) / bh);
       st.ox = (W - bw * st.u) / 2;
       st.oy = (H - bh * st.u) / 2;
-      const laneU = [9, 7.5, 6.5][st.lv - 1];
-      st.hw = Math.max(24, laneU * st.u);
+      // 폰(짧은 쪽 500px 미만)은 2·3단계 길을 조금 넓게 — 길 폭 48px 은 손가락 굵기와 비슷했음
+      const laneU = (Math.min(W, H) < 500 ? [9, 8.5, 7.5] : [9, 7.5, 6.5])[st.lv - 1];
+      st.hw = Math.max(Math.min(W, H) < 500 ? 28 : 24, laneU * st.u); // 폰은 길 폭 최소 56px (48px 은 손가락 굵기와 비슷했음)
       st.tolU = (st.hw * 1.25 + 8) / st.u;
     }
     const X = (x) => st.ox + x * st.u,
@@ -385,6 +392,8 @@ KP.game({
       ctx.hint(null);
       A.sfx("sparkle");
       const sh = st.shape;
+      const i3 = ctx.SHAPES[2].findIndex((x) => x.name === sh.name);
+      if (st.lv === 3 && i3 >= 0) KP.store.set("trace:pos", (i3 + 1) % ctx.SHAPES[2].length); // 다 그렸으면 다음 모양부터
       KP.voice.say(sh.say ? sh.say + "! 멋지게 그렸어요!" : "끝까지 왔어요! 우와, 달려간다!");
       const pts = st.strokes.flatMap((s) => s.pts);
       st.ride = { pts, t0: performance.now() + 200, dur: 2300, sp: [] };
@@ -439,12 +448,16 @@ KP.game({
     const lv = ctx.level;
     // 같은 단계 안에서는 모양이 골고루 나오도록 주머니에서 뽑기
     if (!ctx.bag[lv] || !ctx.bag[lv].length) {
-      ctx.bag[lv] = lv === 3 ? [...ctx.SHAPES[2]] : U.shuffle([...ctx.SHAPES[lv - 1]]);
+      // 3단계는 차례(숫자 1 → … → ㅅ)대로지만, 지난번에 멈춘 곳부터 이어서 (매일 '숫자 1'부터 하지 않게)
+      const S3 = ctx.SHAPES[2],
+        p0 = ((+KP.store.get("trace:pos", 0) || 0) % S3.length + S3.length) % S3.length;
+      ctx.bag[lv] = lv === 3 ? S3.slice(p0).concat(S3.slice(0, p0)) : U.shuffle([...ctx.SHAPES[lv - 1]]);
       // 다시 채운 주머니의 첫 모양이 바로 앞 판과 같으면 뒤로 (같은 모양 연달아 방지)
       if (ctx.bag[lv].length > 1 && ctx.bag[lv][0] === ctx.lastShape) ctx.bag[lv].push(ctx.bag[lv].shift());
     }
     const shape = ctx.bag[lv].shift();
     ctx.lastShape = shape;
+    if (lv === 3) KP.store.set("trace:pos", ctx.SHAPES[2].indexOf(shape)); // 다 그리지 않고 나가도 이 모양부터 다시
     ctx.trBuild(shape, lv);
     if (shape.say) {
       // 화면은 "ㄱ 따라 그려요!", 말(말풍선 다시 듣기·힌트 포함)은 "기역을 따라 그려요!"
@@ -452,8 +465,9 @@ KP.game({
     } else {
       // "무지개 길을" 처럼 자연 음성이 없는 이름은 "무지개 길! 깃발에서 시작해서 따라 그려요!"(조각마다 자연 음성)
       const full = "깃발에서 시작해서 " + U.josa(shape.name, "을/를") + " 따라 그려요!";
-      const nat = !KP.voice._natUrls || KP.voice._natUrls(full);
-      ctx.say("🚩 " + full, nat ? full : shape.name + "! 깃발에서 시작해서 따라 그려요!");
+      const has = (t) => !KP.voice._natUrls || !!KP.voice._natUrls(t);
+      // 이름 음성도 없으면(새로 넣은 길) 이름을 빼고 말함 — 기기 목소리 섞이지 않게
+      ctx.say("🚩 " + full, has(full) ? full : has(shape.name + "!") ? shape.name + "! 깃발에서 시작해서 따라 그려요!" : "깃발에서 시작해서 따라 그려요!");
     }
   },
 });

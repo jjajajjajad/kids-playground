@@ -47,6 +47,8 @@ KP.game({
       .dw-act.off{opacity:.4}
       .dw-paperIco{width:62%;height:62%;border-radius:6px;border:3px solid #fff;box-shadow:0 0 0 2px #c9d2e6}
       .dw-shake{animation:wobble .4s}
+      /* 태블릿 가로: 색 51 → 64px (2줄 → 3줄 칸, 2026-11-09 2라운드) */
+      @media (orientation:landscape) and (min-height:500px){ .dw{--sw:clamp(52px,7.8vh,64px)} .dw-pal,.dw-pal.mine3{grid-template-columns:repeat(3,var(--sw))} }
       @media (max-aspect-ratio:1/1){
         .dw{gap:8px;padding:2px 10px 10px;--tb:min(calc((100vw - 70px) / 6),64px);--sw:min(calc((100vw - 74px) / 7),50px);--ab:min(calc((100vw - 90px) / 7),56px);
           grid-template-columns:auto 1fr;grid-template-rows:auto auto minmax(0,1fr) auto;
@@ -75,8 +77,9 @@ KP.game({
         .dw-pal,.dw-pal.mine3{grid-column:1 / -1;grid-row:5;grid-template-columns:repeat(5,var(--sw));gap:6px 8px}
       }
       @media (orientation:landscape) and (max-height:500px){
-        /* (2026-11-09) 단추 44px → 도구 64px·색·굵기·단추 56px (키 작은 폰은 조금 작게). 내 물감이 많으면 색 칸만 위아래로 밀기 */
-        .dw{gap:6px 8px;padding:0 10px 8px;--tb:min(16.4vh,64px);--sw:min(14.4vh,56px);--ab:min(14.4vh,56px)}
+        /* (2026-11-09) 단추 44px → 도구 64px·색·굵기·단추 56px (키 작은 폰은 조금 작게). 내 물감이 많으면 색 칸만 위아래로 밀기
+           (2026-11-09 2라운드) 색·굵기·단추도 64px (844×390 기준) */
+        .dw{gap:6px 8px;padding:0 10px 8px;--tb:min(16.5vh,64px);--sw:min(16.5vh,64px);--ab:min(16.5vh,64px)}
         .dw-tools{display:grid;grid-template-columns:repeat(3,var(--tb));gap:8px;align-content:center;justify-content:center}
         .dw-tool{border-radius:16px}
         .dw-tool.sel{transform:scale(1.04)}
@@ -110,13 +113,26 @@ KP.game({
       { id: "sky", name: "하늘 종이", css: "linear-gradient(#9fd8ff,#e6f6ff 70%,#a5df8c 71%)" },
       { id: "grid", name: "모눈 종이", css: "repeating-linear-gradient(0deg,#cfe0f7 0 2px,#fff 2px 9px),#fff" },
       { id: "night", name: "밤하늘 종이", css: "linear-gradient(#1c2350,#3b4a96)" },
+      // 따라 그리기 종이 (2026-11-09 2라운드): 점선 그림(별·하트·집·물고기·해님)을 따라 그리면 "잘 따라 그렸어요!" — 올 때마다 다른 그림
+      { id: "trace", name: "선 따라 그리기", css: "repeating-linear-gradient(90deg,#8d9bc4 0 5px,#fffdf8 5px 10px)" },
+    ];
+    /* 따라 그리기 그림: 가운데 기준 -0.5~0.5 좌표의 선 목록 */
+    const ring = (cx, cy, rx, ry, a0 = 0, a1 = 6.2832, n = 40) => Array.from({ length: n + 1 }, (_, k) => [cx + Math.cos(a0 + ((a1 - a0) * k) / n) * rx, cy + Math.sin(a0 + ((a1 - a0) * k) / n) * ry]);
+    const TRACES = [
+      { n: "별", lines: [Array.from({ length: 11 }, (_, k) => { const a = ((-90 + k * 36) * Math.PI) / 180, r = k % 2 ? 0.2 : 0.47; return [Math.cos(a) * r, Math.sin(a) * r + 0.03]; })] },
+      { n: "하트", lines: [Array.from({ length: 49 }, (_, k) => { const t = (k / 48) * 6.2832; return [(16 * Math.sin(t) ** 3) / 34, -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) / 34 - 0.04]; })] },
+      { n: "집", lines: [[[-0.36, 0.44], [-0.36, -0.04], [0, -0.42], [0.36, -0.04], [0.36, 0.44], [-0.36, 0.44]], [[-0.09, 0.44], [-0.09, 0.18], [0.09, 0.18], [0.09, 0.44]]] },
+      { n: "물고기", lines: [ring(-0.1, 0, 0.32, 0.21, 0.35, 5.93), [[0.19, -0.07], [0.46, -0.22], [0.46, 0.22], [0.19, 0.07]]] },
+      { n: "해님", lines: [ring(0, 0, 0.21, 0.21)].concat(Array.from({ length: 8 }, (_, k) => { const a = (k * 45 * Math.PI) / 180; return [[Math.cos(a) * 0.3, Math.sin(a) * 0.3], [Math.cos(a) * 0.45, Math.sin(a) * 0.45]]; })) },
     ];
     const SIZES = { crayon: [9, 18, 34], marker: [6, 13, 26], rainbow: [8, 16, 30], glitter: [8, 16, 30], eraser: [20, 40, 72], stamp: [56, 90, 136] };
     const SIZE_NAMES = ["가늘게", "보통", "굵게"];
     KP.loadE(STAMPS.map((s) => s[0]));
 
     /* ---------- 상태 ---------- */
-    const pref = Object.assign({ tool: "crayon", color: "#ff3b30", size: 1, stamp: "⭐", paper: "white", lastPen: "crayon" }, KP.store.get("draw:prefs", {}));
+    const pref = Object.assign({ tool: "crayon", color: "#ff3b30", size: 1, stamp: "⭐", paper: "white", lastPen: "crayon", traceK: 0 }, KP.store.get("draw:prefs", {}));
+    let traceDone = false, // 이번 따라 그리기 종이를 다 따라 그렸는지
+      traceFresh = false; // 다 따라 그린 뒤 아직 저장 안 함
     const savePref = () => KP.store.set("draw:prefs", pref);
 
     /* ---------- 화면 ---------- */
@@ -323,6 +339,27 @@ KP.game({
           g.lineTo(W, y + 0.5);
           g.stroke();
         }
+      } else if (p === "trace") {
+        g.fillStyle = "#fffdf8";
+        g.fillRect(0, 0, W, H);
+        const tr = TRACES[(pref.traceK || 0) % TRACES.length];
+        const { cx, cy, S } = traceBox();
+        g.lineCap = g.lineJoin = "round";
+        g.lineWidth = Math.max(5, S * 0.018);
+        g.setLineDash(traceDone ? [] : [g.lineWidth * 1.6, g.lineWidth * 1.8]);
+        g.strokeStyle = traceDone ? "rgba(255,196,40,.9)" : "#a9b4d6";
+        tr.lines.forEach((ln) => {
+          g.beginPath();
+          ln.forEach(([x, y], k) => (k ? g.lineTo(cx + x * S, cy + y * S) : g.moveTo(cx + x * S, cy + y * S)));
+          g.stroke();
+        });
+        g.setLineDash([]);
+        // 시작점: 초록 점
+        const [x0, y0] = tr.lines[0][0];
+        g.fillStyle = "#3ccf6e";
+        g.beginPath();
+        g.arc(cx + x0 * S, cy + y0 * S, g.lineWidth * 1.4, 0, 6.28);
+        g.fill();
       } else {
         const gr = g.createLinearGradient(0, 0, 0, H);
         gr.addColorStop(0, "#161d48");
@@ -338,6 +375,60 @@ KP.game({
         }
       }
     }
+
+    function traceBox() {
+      return { cx: W / 2, cy: H / 2, S: Math.min(W, H) * 0.82 };
+    }
+    /** 따라 그리기: 점선 위 점들 중 75% 이상에 그림이 닿았으면 '잘 따라 그렸어요!' (선은 금색으로) */
+    let traceCv = null;
+    function checkTrace() {
+      if (pref.paper !== "trace" || traceDone || !W) return;
+      const tr = TRACES[(pref.traceK || 0) % TRACES.length];
+      const { cx, cy, S } = traceBox();
+      const k = 160 / W;
+      const tw = 160,
+        th = Math.max(1, Math.round(H * k));
+      if (!traceCv) traceCv = document.createElement("canvas");
+      traceCv.width = tw;
+      traceCv.height = th;
+      const x = traceCv.getContext("2d", { willReadFrequently: true });
+      x.clearRect(0, 0, tw, th);
+      x.drawImage(inkCv, 0, 0, tw, th);
+      const d = x.getImageData(0, 0, tw, th).data;
+      const hit = (px, py) => {
+        for (let yy = Math.max(0, py - 3); yy <= Math.min(th - 1, py + 3); yy++)
+          for (let xx = Math.max(0, px - 3); xx <= Math.min(tw - 1, px + 3); xx++) if (d[(yy * tw + xx) * 4 + 3] > 20) return true;
+        return false;
+      };
+      let n = 0,
+        ok = 0;
+      const step = S * 0.035;
+      tr.lines.forEach((ln) => {
+        for (let i = 1; i < ln.length; i++) {
+          const ax = cx + ln[i - 1][0] * S,
+            ay = cy + ln[i - 1][1] * S,
+            bx = cx + ln[i][0] * S,
+            by = cy + ln[i][1] * S;
+          const m = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay) / step));
+          for (let j = 0; j < m; j++) {
+            n++;
+            if (hit(Math.round((ax + ((bx - ax) * j) / m) * k), Math.round((ay + ((by - ay) * j) / m) * k))) ok++;
+          }
+        }
+      });
+      ctx.traceRatio = n ? ok / n : 0; // 점검용
+      if (!n || ok / n < 0.75) return;
+      traceDone = true;
+      traceFresh = true; // 이번 저장은 획 수가 적어도 열쇠 별 (따라 그리기를 끝낸 그림)
+      drawPaper();
+      A.sfx("sparkle");
+      ["C5", "E5", "G5", "C6"].forEach((nt, i) => A.note(nt, { inst: "bell", dur: 0.5, vol: 0.16, when: i * 0.08 }));
+      U.replay(bSave, "jump");
+      KP.voice.say("잘 따라 그렸어요! 저장을 눌러 봐요!");
+      ctx.hint(() => bSave, "저장을 눌러 봐요!");
+    }
+    ctx.checkTrace = checkTrace; // 점검용
+    ctx.traceInfo = () => ({ paper: pref.paper, k: pref.traceK, done: traceDone, box: traceBox(), lines: TRACES[(pref.traceK || 0) % TRACES.length].lines, n: TRACES[(pref.traceK || 0) % TRACES.length].n }); // 점검용
 
     /* ---------- 붓 ---------- */
     function rng(seed) {
@@ -531,6 +622,7 @@ KP.game({
         replay(ops.shift(), bg);
       }
       changed();
+      if (pref.paper === "trace" && !traceDone && op.tool !== "clear" && op.tool !== "eraser") ctx.after(60, checkTrace);
     }
     function updateUndo() {
       bUndo.classList.toggle("off", !ops.length);
@@ -718,6 +810,10 @@ KP.game({
       () => {
         commit({ tool: "clear" });
         renderInk();
+        if (traceDone) {
+          traceDone = false; // 다 지우면 따라 그리기도 처음부터 (금색 선 → 점선)
+          drawPaper();
+        }
         A.sfx("whoosh");
         U.replay(board, "dw-shake");
         KP.voice.say("깨끗해졌어요! 새로 그려 봐요");
@@ -731,6 +827,8 @@ KP.game({
       const i = PAPERS.findIndex((p) => p.id === pref.paper);
       const p = PAPERS[(i + 1) % PAPERS.length];
       pref.paper = p.id;
+      if (p.id === "trace") pref.traceK = ((pref.traceK || 0) + 1) % TRACES.length; // 올 때마다 다른 그림
+      traceDone = false;
       savePref();
       drawPaper();
       refresh();
@@ -740,7 +838,10 @@ KP.game({
       draftT = ctx.after(1500, saveDraft);
       U.replay(bPaper, "jump");
       A.sfx("slide");
-      KP.voice.say(p.name);
+      if (p.id === "trace") {
+        KP.voice.say(TRACES[pref.traceK].n + "! 따라 그려요!");
+        ctx.after(200, checkTrace); // 이미 그려 둔 그림이 선을 다 덮고 있으면 바로
+      } else KP.voice.say(p.name);
     });
     ctx.tap(bSave, async () => {
       if (bSave.dataset.busy || active) return;
@@ -763,7 +864,8 @@ KP.game({
         A.sfx("sticker");
         delete bSave.dataset.busy; // 기다리는 중에 나가도 버튼이 잠기지 않게
         // 열쇠 별: 지난 저장 뒤로 6획 이상 그렸을 때만 (점 하나 + 💾 반복 방지)
-        const few = strokesSince < 6;
+        const few = strokesSince < 6 && !traceFresh; // 따라 그리기를 끝낸 그림은 획이 적어도 별
+        traceFresh = false;
         strokesSince = 0;
         ctx.after(900, async () => {
           if (few) ctx._fewChoice = true;
@@ -804,6 +906,7 @@ KP.game({
     ctx.refresh = refresh;
     ctx.setPaper = (p) => {
       pref.paper = p;
+      traceDone = false;
       savePref();
       drawPaper();
       refresh();

@@ -1,7 +1,9 @@
 /* 큰 것 작은 것 — 같은 그림이 크기만 달라요.
    1단계: 3개 중 하나만 크기가 달라요 — 큰 것 하나+작은 것 둘(큰 것 찾기) 또는 그 반대 (크기 두 가지만, 보기 3개라 열쇠 별 가능)
    2단계: 크기가 모두 다른 3개 중 제일 큰 것/제일 작은 것
-   3단계: 3~4개를 작은 것부터 큰 것까지 차례로 누르기 (누를 때마다 번호와 올라가는 소리) */
+   3단계: 3~4개를 작은 것부터 큰 것까지 차례로 누르기 (누를 때마다 번호와 올라가는 소리)
+          판 셋 중 하나쯤은 거꾸로 '큰 것부터 작은 것까지' (연달아 X, 3단계 첫 판은 늘 작은 것부터)
+   좁은 세로 화면(폰): 3개 판은 선반 두 단(2+1), 4개 판은 두 단(2+2) — 한 줄이면 가장 작은 그림이 46~48px(4개 판 32px)로 작음 */
 "use strict";
 KP.game({
   id: "size",
@@ -58,19 +60,20 @@ KP.game({
     // 1단계: 크기 두 가지(하나만 다름) / 2·3단계: 모두 다른 크기
     const ks = lv === 1 ? (big ? [0.46, 0.46, 1] : [0.46, 1, 1]) : { 3: [0.42, 0.7, 1], 4: [0.4, 0.6, 0.8, 1] }[n];
     let order = U.shuffle(ks.map((k, i) => ({ k, rank: i })));
-    if (lv === 3) while (order.every((o, i) => o.rank === i)) order = U.shuffle(order);
+    if (lv === 3) while (order.every((o, i) => o.rank === i) || order.every((o, i) => o.rank === n - 1 - i)) order = U.shuffle(order);
     ctx.shelf.style.setProperty("--szl", { 3: "clamp(90px,min(22vw,40vh),240px)", 4: "clamp(80px,min(19vw,36vh),210px)" }[n]);
     // 세로: 칸 폭 합(그림 크기 합 + 칸 여백 16px·간격 8px·선반 여백) 이 화면 폭에 맞게
-    const two = n === 4 && innerWidth < innerHeight && innerWidth <= 600; // 폰 세로 4개 판: 선반 두 단
+    const two = innerWidth < innerHeight && innerWidth <= 600; // 폰 세로: 선반 두 단 (3개 2+1, 4개 2+2)
     const per = two ? 2 : n; // 한 단의 칸 수
     const kk = (o) => Math.max(o.k, 0.56); // 작은 칸도 최소 84px(.choice) → 작은 그림은 0.56 으로 셈
-    const sumK = two ? Math.max(kk(order[0]) + kk(order[1]), kk(order[2]) + kk(order[3])) : ks.reduce((a, b) => a + Math.max(b, 0.56), 0);
+    const sumK = two ? Math.max(kk(order[0]) + kk(order[1]), n === 4 ? kk(order[2]) + kk(order[3]) : kk(order[2])) : ks.reduce((a, b) => a + Math.max(b, 0.56), 0);
     // 세로 화면 상한: 폰은 폭 계산이 먼저 걸리고, 세로 태블릿은 상한까지 크게 (예전 170/150px·32vh → 220/200px·36vh)
-    const cap = two ? "min(170px,26vh)" : "min(" + (n === 3 ? 220 : 200) + "px,36vh)";
+    const cap = two ? (n === 3 ? "min(190px,28vh)" : "min(170px,26vh)") : "min(" + (n === 3 ? 220 : 200) + "px,36vh)";
     ctx.shelf.style.setProperty("--szp", "clamp(64px,calc((100vw - " + (16 * per + 8 * (per - 1) + 68) + "px) / " + sumK.toFixed(2) + ")," + cap + ")");
     ctx.shelf.innerHTML = "";
     ctx.shelf.classList.toggle("szTwo", two);
-    const rows = two ? [0, 1].map(() => ctx.shelf.appendChild(U.el("div", "szShelf szSub"))) : null;
+    const mkRows = () => (two ? [0, 1].map(() => ctx.shelf.appendChild(U.el("div", "szShelf szSub"))) : null);
+    const rows = lv === 3 ? mkRows() : null;
     const render = (o) => KP.E(em);
 
     if (lv < 3) {
@@ -100,13 +103,20 @@ KP.game({
         },
       });
       btns.forEach((b, i) => b.style.setProperty("--k", order[i].k));
+      // 두 단: choices 가 선반을 비운 뒤 단을 만들어 보기를 옮김 (2+1)
+      const rw = mkRows();
+      if (rw) btns.forEach((b, i) => rw[i < 2 ? 0 : 1].appendChild(b));
       ctx.hint(() => btns.find((b) => b.dataset.right), askV);
       return;
     }
 
-    // 3단계: 작은 것부터 차례로
-    const say = "작은 것부터 큰 것까지 차례로 눌러요!";
-    ctx.say("🐭➡️🐘 " + say);
+    // 3단계: 작은 것부터 차례로 — 가끔 거꾸로(큰 것부터)
+    ctx.l3 = (ctx.l3 || 0) + 1;
+    const rev = ctx.l3 > 1 && !ctx.lastRev && U.rand(3) === 0;
+    ctx.lastRev = rev;
+    const rankAt = (st) => (rev ? n - 1 - st : st); // step 번째로 눌러야 할 크기 순위
+    const say = rev ? "큰 것부터 작은 것까지 차례로 눌러요!" : "작은 것부터 큰 것까지 차례로 눌러요!";
+    ctx.say(rev ? "🐘➡️🐭 " + say : "🐭➡️🐘 " + say);
     let step = 0,
       busy = false;
     const btns = order.map((o, i) => {
@@ -116,7 +126,7 @@ KP.game({
       b.dataset.seq = o.rank;
       ctx.fast(b, async () => {
         if (busy || b.dataset.done) return;
-        if (o.rank === step) {
+        if (o.rank === rankAt(step)) {
           b.dataset.done = "1";
           b.appendChild(U.el("span", "szNum", step + 1));
           U.replay(b, "szYay");
@@ -135,15 +145,17 @@ KP.game({
             if (ok) self.next(ctx);
           } else hint();
         } else {
-          ctx.miss(b, o.rank > step ? "이것보다 더 작은 " + U.josa(name, "이/가") + " 있어요!" : "다시 해 봐요!");
+          const more = rev ? o.rank < rankAt(step) : o.rank > rankAt(step); // 아직 더 작은(거꾸로: 큰) 것이 남음
+          ctx.miss(b, more ? "이것보다 더 " + (rev ? "큰 " : "작은 ") + U.josa(name, "이/가") + " 있어요!" : "다시 해 봐요!");
         }
       });
       (rows ? rows[i < 2 ? 0 : 1] : ctx.shelf).appendChild(b);
       return b;
     });
-    const hint = () => ctx.hint(() => btns.find((b) => +b.dataset.seq === step), step === 0 ? first : "그다음 큰 걸 눌러요!");
+    const hint = () => ctx.hint(() => btns.find((b) => +b.dataset.seq === rankAt(step)), step === 0 ? first : rev ? "그다음 작은 걸 눌러요!" : "그다음 큰 걸 눌러요!");
     // "제일 작은 OO부터" 녹음이 없는 그림은 이미 있는 문장으로
-    const first = KP.voice._natUrls && !KP.voice._natUrls("제일 작은 " + name + "부터 눌러요!") ? say : "제일 작은 " + name + "부터 눌러요!";
+    const f0 = "제일 " + (rev ? "큰 " : "작은 ") + name + "부터 눌러요!";
+    const first = KP.voice._natUrls && !KP.voice._natUrls(f0) ? say : f0;
     hint();
   },
 });

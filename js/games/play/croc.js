@@ -217,7 +217,9 @@ KP.game({
     const GEMS = [["⭐", "별 찾았다!"], ["🍬", "사탕 찾았다!"], ["💎", "보석 찾았다!"]];
     U.sample(U.shuffle([...Array(n).keys()].filter((k) => k !== sore)), lv === 3 ? 1 : 2).forEach((k) => gems.set(k, U.pick(GEMS)));
     // 힐끔 보기(추리 힌트): 단계가 오를수록 짧게·가끔
-    const GLANCE = { ms: [1300, 800, 450][lv - 1], p: [1, 0.85, 0.6][lv - 1] };
+    // 1단계: 늘 힐끔 + 아픈 이빨 덜덜 / 2단계: 절반쯤 눈만 힐끔(덜덜 없음) / 3단계: 가끔·짧게 눈만
+    // (예전 2단계는 누를 때마다 85% 덜덜 → 아픈 이빨이 거의 늘 보여 4화면 모두 첫 판에 성공)
+    const GLANCE = { ms: [1300, 700, 450][lv - 1], p: [1, 0.5, 0.35][lv - 1] };
     let busy = false,
       pressed = 0;
     if (ctx.round === 0) ctx.say("악어 이빨을 하나씩 콕! 아픈 이빨을 누르면… 앙! 🐊");
@@ -276,11 +278,11 @@ KP.game({
       glanceT = ctx.after(280, () => {
         if (busy) return;
         look(teeth[sore]);
-        // 1·2단계: 아픈 이빨이 덜덜 (2단계는 짧게)
+        // 1단계만 아픈 이빨이 덜덜 (2·3단계는 눈만 힐끔)
         // 1단계는 누를 때마다 덜덜이 보여 정답을 알려 주는 셈 → 덜덜을 본 판은 열쇠 별 없음(축하·단계는 그대로)
         if (lv === 1) ctx.noStar();
-        if (lv < 3) {
-          teeth[sore].classList.toggle("lite", lv === 2);
+        if (lv === 1) {
+          teeth[sore].classList.remove("lite");
           U.replay(teeth[sore], "sore");
         }
         glanceT = ctx.after(GLANCE.ms, () => !busy && lookFront());

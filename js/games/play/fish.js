@@ -1,6 +1,8 @@
 /* 물고기 잡기 — 바닷속 친구들이 물결 따라 헤엄친다. 콕 누르면 뜰채로 쏙! 양동이로 휘익~
    - 물고기·열대어·복어·거북이·돌고래는 가는 방향을 바라보고 헤엄, 문어는 둥실, 꽃게는 모래 위 옆걸음
-   - 10마리마다 축하 / 단계: 마릿수·속도 */
+   - 10마리마다 축하 / 단계: 마릿수·속도
+   - 3단계: '부르는 친구만 잡기' — 왼쪽 위 팻말의 친구(예: 🐢 거북이)만 양동이에(5마리마다 다른 친구로 바뀜).
+     다른 친구를 누르면 뽀글 하고 도망 + 가벼운 틀림 + "복어! 거북이를 찾아요!" (자연 음성 조각) */
 "use strict";
 KP.game({
   id: "fish",
@@ -49,6 +51,12 @@ KP.game({
       .fs-peek{position:absolute;left:14%;right:14%;top:-6%;height:44%;display:flex;justify-content:center;z-index:1}
       .fs-peek .e{width:45%;height:auto;margin:0 -8%;animation:fs-swim .6s ease-in-out infinite alternate}
       .fs-cnt{position:absolute;left:50%;top:58%;transform:translate(-50%,-50%);z-index:3;font-size:clamp(26px,3.8vw,40px);color:#fff;-webkit-text-stroke:3px #1f6fd0;paint-order:stroke}
+      .fs-want{position:absolute;left:10px;top:10px;z-index:5;display:flex;align-items:center;gap:6px;background:#fff;border-radius:999px;padding:4px 16px 4px 6px;
+        box-shadow:0 5px 0 rgba(15,94,168,.35);font-size:clamp(20px,3vw,28px);color:var(--ink);pointer-events:none}
+      .fs-want .e{width:clamp(44px,6vw,60px);height:clamp(44px,6vw,60px)}
+      .fs-want.pop{animation:popBig .4s cubic-bezier(.2,1.6,.4,1)}
+      .fs-c.flee .fs-i{animation:fs-flee .5s ease-out}
+      @keyframes fs-flee{30%{transform:scale(.85) rotate(-12deg)}60%{transform:scale(1.05) rotate(10deg)}}
       .fs-splash{position:absolute;width:10px;height:10px;border-radius:50%;background:#bfe9ff;z-index:5;pointer-events:none;animation:fs-splash .5s ease-out forwards}
       @keyframes fs-splash{to{transform:translate(var(--dx),var(--dy));opacity:0}}
     `);
@@ -65,6 +73,10 @@ KP.game({
     sea.innerHTML = html;
     const bucket = U.el("div", "fs-bucket", '<div class="fs-peek"></div>' + KP.E("🪣") + '<div class="fs-cnt">0</div>');
     sea.appendChild(bucket);
+    const want = U.el("div", "fs-want");
+    want.hidden = true;
+    sea.appendChild(want);
+    ctx.wantEl = want;
     ctx.body.appendChild(sea);
     ctx.sea = sea;
     ctx.bucket = bucket;
@@ -80,7 +92,10 @@ KP.game({
         H = sea.clientHeight;
       const lv = ctx.level;
       let k = U.pick(ctx.KINDS);
-      if (k[2] === "crab" && ctx.fish.some((f) => f.kind === "crab")) k = ctx.KINDS[0];
+      // 3단계: 부르는 친구가 절반쯤 나오게 (화면에 하나도 없으면 꼭)
+      const tg = ctx.target;
+      if (tg && (Math.random() < 0.5 || !ctx.fish.some((f) => !f.dead && f.name === tg[1]))) k = tg;
+      if (k[2] === "crab" && ctx.fish.some((f) => f.kind === "crab")) k = ctx.KINDS[0]; // 꽃게는 한 마리씩
       const base = U.clamp(Math.min(W, H) * 0.17, 80, 130); // 최소 80 → 0.9배여도 72px
       const s = Math.round(base * (k[0] === "🐬" || k[0] === "🐢" ? 1.25 : U.randf(0.9, 1.1)));
       const el = U.el("div", "fs-c " + k[2], '<div class="fs-i">' + KP.E(k[0]) + "</div>");
@@ -125,6 +140,16 @@ KP.game({
 
     ctx.catchIt = (f) => {
       if (f.dead) return;
+      // 3단계: 부르는 친구가 아니면 뽀글 하고 쌩 도망 (가벼운 틀림, 1번은 봐줌)
+      if (ctx.target && f.name !== ctx.target[1]) {
+        if (f.fled) return;
+        f.fled = true;
+        f.boost = 2.6;
+        U.replay(f.el, "flee");
+        A.sfx("bubble");
+        ctx.miss(null, f.name + "! " + U.josa(ctx.target[1], "을/를") + " 찾아요!", { soft: true });
+        return;
+      }
       // 3단계: 헤엄치는 친구는 가끔(한 번만) 쌩~ 하고 살짝 도망 → 한 번 더 콕 (벌 없음, 다음 콕은 꼭 잡힘)
       // 2단계도 아주 가끔 (2단계 0.15 / 3단계 0.4)
       const dodge = [0, 0.15, 0.4][ctx.level - 1];
@@ -203,21 +228,47 @@ KP.game({
       const peek = U.$(".fs-peek", ctx.bucket);
       ctx.peekList.push(U.$(".fs-i", f.el) ? f.el.querySelector(".e").outerHTML : "");
       peek.innerHTML = ctx.peekList.slice(-3).join("");
+      // 3단계: 5마리마다 부르는 친구 바꾸기 (10마리 축하 때는 축하 뒤에)
+      if (ctx.target && ctx.count % 5 === 0 && ctx.count % 10 !== 0) ctx.pickTarget();
       if (ctx.count % 10 === 0) {
         ctx.ms++;
         const big = ctx.ms % 3 === 0;
-        ctx.noStar(); // 누르면 잡히는 진행형(틀림 없음) → 열쇠 별 없음
+        // 1·2단계: 누르면 잡히는 진행형(틀림 없음) → 열쇠 별 없음. 3단계는 '골라 잡기' 판이라 별 대상(가벼운 틀림 2번부터 별 없음)
+        if (!ctx.target) ctx.noStar();
+        ctx.after(1, () => ctx.pickTarget()); // 축하 뒤 다른 친구로
         ctx.win({ big, msg: big ? "{부름} 낚시왕!" : ctx.count + "마리 잡았다!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 잡았다!" : "잡았다!" }).then((ok) => ok && ctx.setHint());
       }
     };
 
+    /** 3단계 부르는 친구 정하기 (1·2단계는 없음) — 바로 앞과 다른 친구, 같은 그림 두 번 든 것(물고기·열대어)은 한 번만 */
+    ctx.pickTarget = () => {
+      if (!ctx._active) return;
+      if (ctx.level < 3) {
+        ctx.target = null;
+        ctx.wantEl.hidden = true;
+        return;
+      }
+      const kinds = ctx.KINDS.filter((k, i) => ctx.KINDS.findIndex((q) => q[1] === k[1]) === i && (!ctx.target || k[1] !== ctx.target[1]));
+      const t = (ctx.target = U.pick(kinds));
+      ctx.wantEl.innerHTML = KP.E(t[0]) + "<span>" + t[1] + "</span>";
+      ctx.wantEl.hidden = false;
+      U.replay(ctx.wantEl, "pop");
+      if (!KP.celebrating) ctx.setHint();
+      if (!KP.celebrating) ctx.say(t[0] + " " + U.josa(t[1], "을/를") + " 찾아요!");
+      else ctx.after(2600, () => ctx._active && ctx.target === t && ctx.say(t[0] + " " + U.josa(t[1], "을/를") + " 찾아요!"));
+    };
     // 손가락 힌트: 축하(ctx.win)가 힌트를 지우므로 축하가 끝나면 다시 설정 (진행형 놀이)
+    // 3단계는 부르는 친구(정답)를 가리킴 → 가리킨 판은 열쇠 별 없음(answer)
     ctx.setHint = () =>
-      ctx.hint(() => {
-        const W = ctx.sea.clientWidth;
-        const f = ctx.fish.find((f) => !f.dead && f.x > 20 && f.x < W - f.s - 20);
-        return f && f.el;
-      }, "헤엄치는 친구를 콕 눌러요!");
+      ctx.hint(
+        () => {
+          const W = ctx.sea.clientWidth;
+          const f = ctx.fish.find((f) => !f.dead && f.x > 20 && f.x < W - f.s - 20 && (!ctx.target || f.name === ctx.target[1]));
+          return f && f.el;
+        },
+        ctx.target ? U.josa(ctx.target[1], "을/를") + " 찾아요!" : "헤엄치는 친구를 콕 눌러요!",
+        ctx.target ? { answer: true } : undefined
+      );
 
     ctx.frame = (dt, now) => {
       const t = now / 1000;
@@ -271,7 +322,10 @@ KP.game({
     ctx.spawnT = 0.5;
     KP.u.$(".fs-cnt", ctx.bucket).textContent = "0";
     KP.u.$(".fs-peek", ctx.bucket).innerHTML = "";
+    ctx.target = null;
+    ctx.wantEl.hidden = true;
     ctx.say("헤엄치는 친구를 콕! 뜰채로 잡아서 양동이에 쏙! 🪣");
+    if (ctx.level === 3) ctx.after(2600, () => ctx.pickTarget());
     requestAnimationFrame(() => {
       for (let i = 0; i < 3; i++) ctx.spawn(true);
       ctx.loop((dt, now) => {

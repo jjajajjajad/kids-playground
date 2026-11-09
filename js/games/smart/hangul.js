@@ -137,6 +137,11 @@ KP.game({
       .hgBtns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
       @media (max-aspect-ratio:1/1){.hgSpotRow{flex-direction:column;gap:4px}}
       /* 퀴즈 */
+      .hgProg{position:absolute;top:6px;left:10px;display:flex;gap:clamp(5px,.8vw,8px);pointer-events:none;z-index:2}
+      .hgProg i{display:block;width:clamp(14px,1.9vw,20px);aspect-ratio:1;border-radius:50%;background:rgba(255,255,255,.8);box-shadow:inset 0 0 0 3px rgba(47,58,102,.16)}
+      .hgProg i.on{background:#ffc83d;box-shadow:0 2px 0 rgba(47,58,102,.18)}
+      .hgProg i.pop{animation:popIn .4s}
+      @media (max-width:420px){.hgProg{top:2px;left:6px;gap:5px}.hgProg i{width:12px}}
       .hgQ{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(12px,3vh,30px);padding:4px 12px 18px}
       .hgBig{font-size:clamp(90px,min(30vw,17vh),160px);line-height:1;background:#fff;border-radius:34px;padding:6px 36px 14px;box-shadow:var(--shadow);color:var(--c);display:flex;align-items:center;gap:12px}
       .hgBig .e{font-size:.9em}
@@ -209,6 +214,9 @@ KP.game({
     ctx.vQuiz = U.el("div", "hgView");
     ctx.q = U.el("div", "hgQ");
     ctx.vQuiz.appendChild(ctx.q);
+    // 5문제 진행 표시 (동그라미 5개가 하나씩 차고 5번째에 큰 축하)
+    ctx.prog = U.el("div", "hgProg", "<i></i><i></i><i></i><i></i><i></i>");
+    ctx.vQuiz.appendChild(ctx.prog);
 
     ctx.body.append(modes, ctx.vCons, ctx.vVow, ctx.vQuiz, ctx.spot);
   },
@@ -319,11 +327,21 @@ KP.game({
     const cfg = this["q_" + t](ctx, n);
     this.ask(ctx, cfg);
   },
+  /** 진행 표시: n 개 채움 (pop = 방금 찬 칸 통통) */
+  prog(ctx, n, pop) {
+    if (!ctx.prog) return;
+    [...ctx.prog.children].forEach((d, i) => {
+      d.classList.toggle("on", i < n);
+      d.classList.remove("pop");
+      if (pop && i === n - 1) KP.u.replay(d, "pop");
+    });
+  },
   /** 공통 묻기: cfg = {big, bigCls, color, list, right, render, cls, ask, speak, wrongMsg, sayRight, cl, cp, szl, szp} */
   ask(ctx, cfg) {
     const U = KP.u;
     const self = this;
     const tk = ctx.qToken;
+    this.prog(ctx, ctx.round % 5);
     const big = U.el("div", "hgBig " + (cfg.bigCls || ""));
     big.style.setProperty("--c", cfg.color || "var(--ink)");
     big.innerHTML = cfg.big;
@@ -331,7 +349,9 @@ KP.game({
     ans.style.setProperty("--cl", cfg.cl || cfg.list.length);
     ans.style.setProperty("--cp", cfg.cp || (cfg.list.length === 4 ? 2 : Math.min(cfg.list.length, 3)));
     ans.style.setProperty("--szl", cfg.szl || "clamp(70px,min(12vw,22vh),130px)");
-    ans.style.setProperty("--szp", cfg.szp || "clamp(64px,22vw,110px)");
+    // 세로 화면 4지선다(2×2)는 가운데 작게 모여 아래가 비었음 → 보기를 키움
+    const four = cfg.list.length === 4 && (cfg.cp || 2) === 2;
+    ans.style.setProperty("--szp", four ? "clamp(80px,27vw,124px)" : cfg.szp || "clamp(64px,22vw,110px)");
     ctx.q.append(big, ans);
     if (cfg.bigCls === "ear") ctx.tap(big, () => KP.voice.say(cfg.speak));
     ctx.say(cfg.bubble || cfg.ask, false);
@@ -350,6 +370,7 @@ KP.game({
         if (cfg.after) cfg.after(big, v);
         ctx.score.add();
         ctx.round++;
+        self.prog(ctx, ((ctx.round - 1) % 5) + 1, true);
         await ctx.wait(1300);
         if (tk !== ctx.qToken) return; // 그새 모드를 바꿨으면 지난 판 축하 안 함
         const bg = ctx.round % 5 === 0;

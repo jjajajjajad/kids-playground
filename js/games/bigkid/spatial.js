@@ -114,9 +114,10 @@ KP.game({
     const lv = ctx.level;
     const tok = ++ctx.token;
     // 소품마다 할 수 있는 자리: 상자(위·안·옆) / 책상·침대(위·아래·옆) / 상자 앞뒤(앞·뒤·옆)
-    const levelRels = lv === 1 ? ["위", "안"] : lv === 2 ? ["위", "안", "아래", "옆"] : ["위", "안", "아래", "옆", "앞", "뒤"];
+    // 1단계도 '옆'을 넣어 상자 위·안·옆 3가지 (예전엔 위·안 둘뿐이라 첫 친구는 찍어도 반)
+    const levelRels = lv === 1 ? ["위", "안", "옆"] : lv === 2 ? ["위", "안", "아래", "옆"] : ["위", "안", "아래", "옆", "앞", "뒤"];
     const KINDS = { crate: ["위", "안", "옆"], table: ["위", "아래", "옆"], bed: ["위", "아래", "옆"], crateFB: ["앞", "뒤", "옆"] };
-    let kinds = Object.keys(KINDS).filter((k) => KINDS[k].filter((r) => levelRels.includes(r)).length >= 2);
+    let kinds = Object.keys(KINDS).filter((k) => KINDS[k].filter((r) => levelRels.includes(r)).length >= (lv === 1 ? 3 : 2)); // 1단계는 상자만(위·안·옆 3가지가 다 되는 소품)
     // 같은 소품이 연달아 나오지 않게, 3단계는 앞·뒤(새로 배우는 말)가 자주 나오게
     if (kinds.length > 1) kinds = kinds.filter((k) => k !== ctx.lastKind);
     if (lv === 3 && ctx.lastKind !== "crateFB" && Math.random() < 0.45) kinds = ["crateFB"];
@@ -202,8 +203,11 @@ KP.game({
             d.home();
             // "거기는 상자 안이에요!" 에 자연 음성이 없으면 "거기는 상자 안!" (조각마다 자연 음성) + 다시 질문
             if (r.rel && supports.includes(r.rel)) {
+              // 오답 말은 짧게 "거기는 상자 안!" 한 마디 → 1.6초 뒤 물음을 다시 (조각 5~7개를 한 번에 이어 붙이면 끊겨 들림)
               const full = "거기는 " + pName + " " + U.josa(r.rel, "이에요/예요") + "!";
-              ctx.miss(ch, (nat(full) ? full : "거기는 " + pName + " " + r.rel + "!") + " " + ask);
+              ctx.miss(ch, nat(full) ? full : "거기는 " + pName + " " + r.rel + "!");
+              const k0 = ctx.spCur;
+              ctx.after(1600, () => tok === ctx.token && ctx.spCur === k0 && ch.isConnected && ch.style.visibility !== "hidden" && KP.voice.say(ask, { queue: true }));
             } else if (!r.rel) ctx.miss(ch, ask, { soft: true }); // 하늘·풀밭 같은 빈 곳: 자리를 잘못 고른 게 아니라 단계·열쇠 별엔 안 셈
             else ctx.miss(ch, ask);
           }

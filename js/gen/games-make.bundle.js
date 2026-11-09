@@ -76,10 +76,15 @@ KP.game({
         .dcEmpty > .e,.dcEmpty > span{display:none}
         .dcSw.base{--s:clamp(50px,6.6vh,56px)}
         .dcEmpty button{flex-direction:column;min-width:64px;font-size:12px;padding:6px 8px;gap:0}
+        /* 기본 물감 8색 + 실험실 단추: 한 줄로 밀면 실험실 단추가 화면 밖 → 내 물감이 없을 땐 두 줄로 감싸 다 보이게 */
+        .dcPal.wrap{flex-wrap:wrap;justify-content:center;overflow-x:hidden;gap:6px 4px;padding:8px 2px}
+        .dcPal.wrap .dcSw.base{--s:min(64px,calc((100vw - 70px) / 5))}
+        .dcPal.wrap .dcEmpty button{min-height:min(64px,calc((100vw - 70px) / 5))}
       }
+      @media (orientation:portrait) and (min-width:700px){ .dcSw.base{--s:64px} .dcPal.wrap .dcSw.base{--s:64px} }
       @media (orientation:landscape) and (min-height:500px){
         .dcW{grid-template-areas:"pal board acts";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);gap:14px;padding:2px 14px 14px}
-        .dcPal{display:grid;grid-template-columns:repeat(2,auto);justify-content:center;align-content:center;justify-items:center;
+        .dcPal{display:grid;grid-template-columns:repeat(2,auto);justify-content:center;align-content:safe center;justify-items:center;
           overflow-x:hidden;overflow-y:auto;max-height:100%;padding:10px 8px;gap:12px;width:clamp(160px,15vw,180px)}
         .dcSep{width:auto;height:3px;margin:2px 8px;grid-column:1/-1;background:repeating-linear-gradient(90deg,#c9d2e6 0 6px,transparent 6px 11px)}
         .dcEmpty{grid-column:1/-1;flex-direction:column;text-align:center;padding:10px 8px;max-width:none}
@@ -93,8 +98,9 @@ KP.game({
          → 물감은 왼쪽 2칸 줄, 단추는 오른쪽 세로줄, 종이가 높이를 다 씀 */
       @media (orientation:landscape) and (max-height:500px){
         .dcW{grid-template-areas:"pal board acts";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);gap:10px;padding:0 10px 8px}
-        .dcPal{display:grid;grid-template-columns:repeat(2,auto);justify-content:center;align-content:center;justify-items:center;
-          overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;max-height:100%;padding:8px 10px;gap:10px}
+        /* 기본 물감 8색(2026-11-09 2라운드) → 3칸 줄, 넘치면 위부터 보이게(safe center) */
+        .dcPal{display:grid;grid-template-columns:repeat(3,auto);justify-content:center;align-content:safe center;justify-items:center;
+          overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;max-height:100%;padding:8px 8px;gap:8px}
         .dcSw.base,.dcSw.mine{--s:min(16.5vh,64px)}
         .dcSep{width:auto;height:3px;margin:2px 6px;grid-column:1/-1;background:repeating-linear-gradient(90deg,#c9d2e6 0 6px,transparent 6px 11px)}
         .dcEmpty{grid-column:1/-1;padding:0;background:none;box-shadow:none;max-width:none;justify-content:center}
@@ -772,7 +778,9 @@ KP.game({
     ctx.renderPal = () => {
       pal.innerHTML = "";
       const mine = P.mine();
-      const base = [0, 1, 2, 4].map((i) => P.BASE[i]);
+      pal.classList.toggle("wrap", !mine.length);
+      // 기본 물감 8색 (2026-11-09 2라운드: 4색뿐이라 무늬가 단조롭던 것 → 분홍·주황·초록·보라 추가, 검정은 맨 뒤)
+      const base = [P.BASE[0], { n: "분홍", hex: "#ff7eb6" }, { n: "주황", hex: "#ff8a1f" }, P.BASE[1], { n: "초록", hex: "#22b04b" }, P.BASE[2], { n: "보라", hex: "#8a4fe0" }, P.BASE[4]];
       const all = [];
       if (!mine.length) {
         const box = U.el("div", "dcEmpty", KP.E("🧪") + "<span>물감 실험실에서 색을 만들어 담아 오세요</span>");
@@ -2137,6 +2145,8 @@ KP.game({
       .dw-act.off{opacity:.4}
       .dw-paperIco{width:62%;height:62%;border-radius:6px;border:3px solid #fff;box-shadow:0 0 0 2px #c9d2e6}
       .dw-shake{animation:wobble .4s}
+      /* 태블릿 가로: 색 51 → 64px (2줄 → 3줄 칸, 2026-11-09 2라운드) */
+      @media (orientation:landscape) and (min-height:500px){ .dw{--sw:clamp(52px,7.8vh,64px)} .dw-pal,.dw-pal.mine3{grid-template-columns:repeat(3,var(--sw))} }
       @media (max-aspect-ratio:1/1){
         .dw{gap:8px;padding:2px 10px 10px;--tb:min(calc((100vw - 70px) / 6),64px);--sw:min(calc((100vw - 74px) / 7),50px);--ab:min(calc((100vw - 90px) / 7),56px);
           grid-template-columns:auto 1fr;grid-template-rows:auto auto minmax(0,1fr) auto;
@@ -2165,8 +2175,9 @@ KP.game({
         .dw-pal,.dw-pal.mine3{grid-column:1 / -1;grid-row:5;grid-template-columns:repeat(5,var(--sw));gap:6px 8px}
       }
       @media (orientation:landscape) and (max-height:500px){
-        /* (2026-11-09) 단추 44px → 도구 64px·색·굵기·단추 56px (키 작은 폰은 조금 작게). 내 물감이 많으면 색 칸만 위아래로 밀기 */
-        .dw{gap:6px 8px;padding:0 10px 8px;--tb:min(16.4vh,64px);--sw:min(14.4vh,56px);--ab:min(14.4vh,56px)}
+        /* (2026-11-09) 단추 44px → 도구 64px·색·굵기·단추 56px (키 작은 폰은 조금 작게). 내 물감이 많으면 색 칸만 위아래로 밀기
+           (2026-11-09 2라운드) 색·굵기·단추도 64px (844×390 기준) */
+        .dw{gap:6px 8px;padding:0 10px 8px;--tb:min(16.5vh,64px);--sw:min(16.5vh,64px);--ab:min(16.5vh,64px)}
         .dw-tools{display:grid;grid-template-columns:repeat(3,var(--tb));gap:8px;align-content:center;justify-content:center}
         .dw-tool{border-radius:16px}
         .dw-tool.sel{transform:scale(1.04)}
@@ -2200,13 +2211,26 @@ KP.game({
       { id: "sky", name: "하늘 종이", css: "linear-gradient(#9fd8ff,#e6f6ff 70%,#a5df8c 71%)" },
       { id: "grid", name: "모눈 종이", css: "repeating-linear-gradient(0deg,#cfe0f7 0 2px,#fff 2px 9px),#fff" },
       { id: "night", name: "밤하늘 종이", css: "linear-gradient(#1c2350,#3b4a96)" },
+      // 따라 그리기 종이 (2026-11-09 2라운드): 점선 그림(별·하트·집·물고기·해님)을 따라 그리면 "잘 따라 그렸어요!" — 올 때마다 다른 그림
+      { id: "trace", name: "선 따라 그리기", css: "repeating-linear-gradient(90deg,#8d9bc4 0 5px,#fffdf8 5px 10px)" },
+    ];
+    /* 따라 그리기 그림: 가운데 기준 -0.5~0.5 좌표의 선 목록 */
+    const ring = (cx, cy, rx, ry, a0 = 0, a1 = 6.2832, n = 40) => Array.from({ length: n + 1 }, (_, k) => [cx + Math.cos(a0 + ((a1 - a0) * k) / n) * rx, cy + Math.sin(a0 + ((a1 - a0) * k) / n) * ry]);
+    const TRACES = [
+      { n: "별", lines: [Array.from({ length: 11 }, (_, k) => { const a = ((-90 + k * 36) * Math.PI) / 180, r = k % 2 ? 0.2 : 0.47; return [Math.cos(a) * r, Math.sin(a) * r + 0.03]; })] },
+      { n: "하트", lines: [Array.from({ length: 49 }, (_, k) => { const t = (k / 48) * 6.2832; return [(16 * Math.sin(t) ** 3) / 34, -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) / 34 - 0.04]; })] },
+      { n: "집", lines: [[[-0.36, 0.44], [-0.36, -0.04], [0, -0.42], [0.36, -0.04], [0.36, 0.44], [-0.36, 0.44]], [[-0.09, 0.44], [-0.09, 0.18], [0.09, 0.18], [0.09, 0.44]]] },
+      { n: "물고기", lines: [ring(-0.1, 0, 0.32, 0.21, 0.35, 5.93), [[0.19, -0.07], [0.46, -0.22], [0.46, 0.22], [0.19, 0.07]]] },
+      { n: "해님", lines: [ring(0, 0, 0.21, 0.21)].concat(Array.from({ length: 8 }, (_, k) => { const a = (k * 45 * Math.PI) / 180; return [[Math.cos(a) * 0.3, Math.sin(a) * 0.3], [Math.cos(a) * 0.45, Math.sin(a) * 0.45]]; })) },
     ];
     const SIZES = { crayon: [9, 18, 34], marker: [6, 13, 26], rainbow: [8, 16, 30], glitter: [8, 16, 30], eraser: [20, 40, 72], stamp: [56, 90, 136] };
     const SIZE_NAMES = ["가늘게", "보통", "굵게"];
     KP.loadE(STAMPS.map((s) => s[0]));
 
     /* ---------- 상태 ---------- */
-    const pref = Object.assign({ tool: "crayon", color: "#ff3b30", size: 1, stamp: "⭐", paper: "white", lastPen: "crayon" }, KP.store.get("draw:prefs", {}));
+    const pref = Object.assign({ tool: "crayon", color: "#ff3b30", size: 1, stamp: "⭐", paper: "white", lastPen: "crayon", traceK: 0 }, KP.store.get("draw:prefs", {}));
+    let traceDone = false, // 이번 따라 그리기 종이를 다 따라 그렸는지
+      traceFresh = false; // 다 따라 그린 뒤 아직 저장 안 함
     const savePref = () => KP.store.set("draw:prefs", pref);
 
     /* ---------- 화면 ---------- */
@@ -2413,6 +2437,27 @@ KP.game({
           g.lineTo(W, y + 0.5);
           g.stroke();
         }
+      } else if (p === "trace") {
+        g.fillStyle = "#fffdf8";
+        g.fillRect(0, 0, W, H);
+        const tr = TRACES[(pref.traceK || 0) % TRACES.length];
+        const { cx, cy, S } = traceBox();
+        g.lineCap = g.lineJoin = "round";
+        g.lineWidth = Math.max(5, S * 0.018);
+        g.setLineDash(traceDone ? [] : [g.lineWidth * 1.6, g.lineWidth * 1.8]);
+        g.strokeStyle = traceDone ? "rgba(255,196,40,.9)" : "#a9b4d6";
+        tr.lines.forEach((ln) => {
+          g.beginPath();
+          ln.forEach(([x, y], k) => (k ? g.lineTo(cx + x * S, cy + y * S) : g.moveTo(cx + x * S, cy + y * S)));
+          g.stroke();
+        });
+        g.setLineDash([]);
+        // 시작점: 초록 점
+        const [x0, y0] = tr.lines[0][0];
+        g.fillStyle = "#3ccf6e";
+        g.beginPath();
+        g.arc(cx + x0 * S, cy + y0 * S, g.lineWidth * 1.4, 0, 6.28);
+        g.fill();
       } else {
         const gr = g.createLinearGradient(0, 0, 0, H);
         gr.addColorStop(0, "#161d48");
@@ -2428,6 +2473,60 @@ KP.game({
         }
       }
     }
+
+    function traceBox() {
+      return { cx: W / 2, cy: H / 2, S: Math.min(W, H) * 0.82 };
+    }
+    /** 따라 그리기: 점선 위 점들 중 75% 이상에 그림이 닿았으면 '잘 따라 그렸어요!' (선은 금색으로) */
+    let traceCv = null;
+    function checkTrace() {
+      if (pref.paper !== "trace" || traceDone || !W) return;
+      const tr = TRACES[(pref.traceK || 0) % TRACES.length];
+      const { cx, cy, S } = traceBox();
+      const k = 160 / W;
+      const tw = 160,
+        th = Math.max(1, Math.round(H * k));
+      if (!traceCv) traceCv = document.createElement("canvas");
+      traceCv.width = tw;
+      traceCv.height = th;
+      const x = traceCv.getContext("2d", { willReadFrequently: true });
+      x.clearRect(0, 0, tw, th);
+      x.drawImage(inkCv, 0, 0, tw, th);
+      const d = x.getImageData(0, 0, tw, th).data;
+      const hit = (px, py) => {
+        for (let yy = Math.max(0, py - 3); yy <= Math.min(th - 1, py + 3); yy++)
+          for (let xx = Math.max(0, px - 3); xx <= Math.min(tw - 1, px + 3); xx++) if (d[(yy * tw + xx) * 4 + 3] > 20) return true;
+        return false;
+      };
+      let n = 0,
+        ok = 0;
+      const step = S * 0.035;
+      tr.lines.forEach((ln) => {
+        for (let i = 1; i < ln.length; i++) {
+          const ax = cx + ln[i - 1][0] * S,
+            ay = cy + ln[i - 1][1] * S,
+            bx = cx + ln[i][0] * S,
+            by = cy + ln[i][1] * S;
+          const m = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay) / step));
+          for (let j = 0; j < m; j++) {
+            n++;
+            if (hit(Math.round((ax + ((bx - ax) * j) / m) * k), Math.round((ay + ((by - ay) * j) / m) * k))) ok++;
+          }
+        }
+      });
+      ctx.traceRatio = n ? ok / n : 0; // 점검용
+      if (!n || ok / n < 0.75) return;
+      traceDone = true;
+      traceFresh = true; // 이번 저장은 획 수가 적어도 열쇠 별 (따라 그리기를 끝낸 그림)
+      drawPaper();
+      A.sfx("sparkle");
+      ["C5", "E5", "G5", "C6"].forEach((nt, i) => A.note(nt, { inst: "bell", dur: 0.5, vol: 0.16, when: i * 0.08 }));
+      U.replay(bSave, "jump");
+      KP.voice.say("잘 따라 그렸어요! 저장을 눌러 봐요!");
+      ctx.hint(() => bSave, "저장을 눌러 봐요!");
+    }
+    ctx.checkTrace = checkTrace; // 점검용
+    ctx.traceInfo = () => ({ paper: pref.paper, k: pref.traceK, done: traceDone, box: traceBox(), lines: TRACES[(pref.traceK || 0) % TRACES.length].lines, n: TRACES[(pref.traceK || 0) % TRACES.length].n }); // 점검용
 
     /* ---------- 붓 ---------- */
     function rng(seed) {
@@ -2621,6 +2720,7 @@ KP.game({
         replay(ops.shift(), bg);
       }
       changed();
+      if (pref.paper === "trace" && !traceDone && op.tool !== "clear" && op.tool !== "eraser") ctx.after(60, checkTrace);
     }
     function updateUndo() {
       bUndo.classList.toggle("off", !ops.length);
@@ -2808,6 +2908,10 @@ KP.game({
       () => {
         commit({ tool: "clear" });
         renderInk();
+        if (traceDone) {
+          traceDone = false; // 다 지우면 따라 그리기도 처음부터 (금색 선 → 점선)
+          drawPaper();
+        }
         A.sfx("whoosh");
         U.replay(board, "dw-shake");
         KP.voice.say("깨끗해졌어요! 새로 그려 봐요");
@@ -2821,6 +2925,8 @@ KP.game({
       const i = PAPERS.findIndex((p) => p.id === pref.paper);
       const p = PAPERS[(i + 1) % PAPERS.length];
       pref.paper = p.id;
+      if (p.id === "trace") pref.traceK = ((pref.traceK || 0) + 1) % TRACES.length; // 올 때마다 다른 그림
+      traceDone = false;
       savePref();
       drawPaper();
       refresh();
@@ -2830,7 +2936,10 @@ KP.game({
       draftT = ctx.after(1500, saveDraft);
       U.replay(bPaper, "jump");
       A.sfx("slide");
-      KP.voice.say(p.name);
+      if (p.id === "trace") {
+        KP.voice.say(TRACES[pref.traceK].n + "! 따라 그려요!");
+        ctx.after(200, checkTrace); // 이미 그려 둔 그림이 선을 다 덮고 있으면 바로
+      } else KP.voice.say(p.name);
     });
     ctx.tap(bSave, async () => {
       if (bSave.dataset.busy || active) return;
@@ -2853,7 +2962,8 @@ KP.game({
         A.sfx("sticker");
         delete bSave.dataset.busy; // 기다리는 중에 나가도 버튼이 잠기지 않게
         // 열쇠 별: 지난 저장 뒤로 6획 이상 그렸을 때만 (점 하나 + 💾 반복 방지)
-        const few = strokesSince < 6;
+        const few = strokesSince < 6 && !traceFresh; // 따라 그리기를 끝낸 그림은 획이 적어도 별
+        traceFresh = false;
         strokesSince = 0;
         ctx.after(900, async () => {
           if (few) ctx._fewChoice = true;
@@ -2894,6 +3004,7 @@ KP.game({
     ctx.refresh = refresh;
     ctx.setPaper = (p) => {
       pref.paper = p;
+      traceDone = false;
       savePref();
       drawPaper();
       refresh();
@@ -3001,6 +3112,13 @@ KP.game({
       .fc-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:6}
       .fc-flash.on{animation:fcFlash .5s ease-out}
       @keyframes fcFlash{from{opacity:1}to{opacity:0}}
+      /* 표정 주문 카드 (2026-11-09 2라운드): 오른쪽 위 — 표정 그림 + 바꿀 부위 그림 2개(레시피) */
+      .fc-order{position:absolute;right:8px;top:8px;z-index:5;display:flex;align-items:center;gap:4px;padding:4px 8px 4px 6px;min-height:64px;border-radius:22px;background:rgba(255,250,244,.94);box-shadow:0 4px 0 rgba(120,70,60,.18)}
+      .fc-order .em{font-size:clamp(36px,6vmin,48px);line-height:1}
+      .fc-order .pl{font-size:20px;color:#b48a6a}
+      .fc-order svg{width:clamp(40px,6.4vmin,54px);height:clamp(40px,6.4vmin,54px);background:#fff;border-radius:12px;box-shadow:inset 0 0 0 2px #f1dccb}
+      .fc-order.done{animation:popBig .6s}
+      .fc-order.done::after{content:"✓";position:absolute;right:-6px;top:-8px;width:28px;height:28px;border-radius:50%;background:#3ccf6e;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 0 rgba(0,0,0,.2)}
       .fc-badge{position:absolute;left:10px;top:10px;z-index:5;width:clamp(52px,9vmin,72px);height:clamp(52px,9vmin,72px);border-radius:50%;background:rgba(255,250,244,.92);box-shadow:0 4px 0 rgba(120,70,60,.18);display:none;align-items:center;justify-content:center;font-size:clamp(30px,5.4vmin,44px)}
       .fc-badge.on{display:flex;animation:popIn .35s backwards}
       .fc-note{font-size:clamp(26px,4.4vmin,40px)}
@@ -3384,7 +3502,8 @@ KP.game({
     const glass = U.el("div", "fc-glass");
     const flash = U.el("div", "fc-flash");
     const badge = U.el("div", "fc-badge");
-    stage.append(mirror, flash, badge);
+    const order = U.btn("", "fc-order");
+    stage.append(mirror, flash, badge, order);
     const panel = U.el("div", "fc-panel");
     const line = U.el("div", "fc-line", '<svg class="rope" viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M0 8 Q50 30 100 8" fill="none" stroke="#c9955f" stroke-width="2.4" vector-effect="non-scaling-stroke"/></svg>');
     const pols = U.el("div", "fc-pols");
@@ -3509,7 +3628,7 @@ KP.game({
           U.replay(b, "pop");
           A.note(A.SCALE[i % 8], { inst: "marimba", dur: 0.25, vol: 0.24 });
           if (tab === "mouth" || tab === "eyes") A.sfx("boing");
-          if (name) KP.voice.say(name);
+          if (!checkOrder(tab) && name) KP.voice.say(name);
         });
         opts.appendChild(b);
       });
@@ -3530,6 +3649,61 @@ KP.game({
         });
       }
     }
+
+    /* ---------- 표정 주문: "웃는 얼굴이에요. 만들어 봐요!" — 카드의 두 부위를 골라 그 표정을 만들면 축하 ----------
+       (보기 단추를 직접 눌러 맞췄을 때만 — 🎲 랜덤으로 우연히 맞은 건 세지 않음) */
+    const ORDERS = [
+      { k: "happy", em: "😄", w: "웃는", need: { eyes: ["happy"], mouth: ["smile", "grin", "laugh"] }, show: { eyes: "happy", mouth: "laugh" } },
+      { k: "sad", em: "😢", w: "슬픈", need: { brows: ["sad"], mouth: ["sad"] }, show: { brows: "sad", mouth: "sad" } },
+      { k: "angry", em: "😠", w: "화난", need: { brows: ["angry"], mouth: ["sad"] }, show: { brows: "angry", mouth: "sad" } },
+      { k: "wow", em: "😮", w: "놀란", need: { brows: ["up"], mouth: ["o"] }, show: { brows: "up", mouth: "o" } },
+      { k: "sleepy", em: "😴", w: "졸린", need: { eyes: ["sleepy"], mouth: ["o"] }, show: { eyes: "sleepy", mouth: "o" } },
+    ];
+    let ord = null,
+      ordBusy = false;
+    const ordOk = (o) => Object.entries(o.need).every(([p, ids]) => ids.includes(cfg[p]));
+    const ordLine = () => ord.w + " 얼굴이에요. 만들어 봐요!";
+    function pickOrder() {
+      const left = ORDERS.filter((o) => (!ord || o.k !== ord.k) && !ordOk(o));
+      ord = U.pick(left.length ? left : ORDERS);
+      KP.store.set("face:order", ord.k);
+      renderOrder();
+    }
+    function renderOrder() {
+      if (!ord) return;
+      order.classList.remove("done");
+      order.innerHTML =
+        '<span class="em">' + KP.E(ord.em) + "</span>" +
+        Object.entries(ord.show)
+          .map(([p, id]) => '<span class="pl">+</span>' + faceSVG(Object.assign({}, DEF, { skin: cfg.skin, hairC: cfg.hairC }, { [p]: id }), { vb: VB[p] }))
+          .join("")
+          .replace(/^<span class="pl">\+<\/span>/, "");
+    }
+    ctx.tap(order, () => {
+      if (!ord) return;
+      A.sfx("tap2");
+      U.replay(order, "jump");
+      ctx.orderSaid = true;
+      KP.voice.say(ordLine());
+    });
+    /** 보기를 고른 뒤: 주문한 표정이 됐으면 축하하고 다음 주문 (true 를 돌려주면 부위 이름은 말하지 않음) */
+    function checkOrder(part) {
+      if (!ord || ordBusy || !(part in ord.need) || !ordOk(ord)) return false; // 주문한 부위를 직접 골라 맞췄을 때만
+      ordBusy = true;
+      order.classList.add("done");
+      A.sfx("levelup");
+      ctx.hint(null);
+      (async () => {
+        const ok = await ctx.win({ msg: "와, 똑같아요!" });
+        ordBusy = false;
+        if (ok === false || !ctx._active) return;
+        pickOrder();
+        U.replay(order, "pop");
+        ctx.after(400, () => KP.voice.say(ordLine()));
+      })();
+      return true;
+    }
+    ctx.order = () => ord; // 점검용
 
     /* ---------- 부위마다 다른 반응 ---------- */
     const LINES = ["안녕! 나는 멋쟁이야!", "히히, 간지러워!", "까꿍!", "나랑 같이 놀자!", "우와, 멋지게 꾸며 줘서 고마워!", "하하하! 재밌다!", "나 예뻐?"];
@@ -4194,12 +4368,25 @@ KP.game({
       renderTabs();
       renderOpts();
       layout();
+      // 표정 주문: 지난 주문을 이어서(이미 그 표정이면 새 주문)
+      ordBusy = false;
+      ord = ORDERS.find((o) => o.k === KP.store.get("face:order", "")) || null;
+      if (!ord || ordOk(ord)) pickOrder();
+      else renderOrder();
+      ctx.orderSaid = false;
     };
   },
   start(ctx) {
     ctx.init();
     ctx.say("얼굴을 꾸며 봐요! 코, 볼, 입을 콕 눌러 봐요."); // 뒤 문장은 새 음성(tools/out/new-voice/face.txt)
     ctx.every(3600, () => ctx.blink());
+    // 시작 안내가 끝날 즈음 표정 주문을 한 번 말해 줌 (카드를 누르면 다시)
+    ctx.after(5200, () => {
+      if (ctx.orderSaid || !ctx.order()) return;
+      ctx.orderSaid = true;
+      KP.u.replay(ctx.body.querySelector(".fc-order"), "jump");
+      KP.voice.say(ctx.order().w + " 얼굴이에요. 만들어 봐요!");
+    });
     ctx.hint(() => ctx.body.querySelector(".fc-opt:not(.sel)"), "그림을 눌러서 바꿔 봐요!");
   },
   stop(ctx) {
@@ -4217,7 +4404,9 @@ KP.game({
    - 가만히 있으면 반투명 물뿌리개가 목마른 화분까지 날아가 '끌기'를 보여 줌
    - 핀 꽃은 "내 정원"(KP.store "grow:garden")에 영구 저장 → 정원이 날마다 커짐, 🌼 단추로 정원 보기
    - 화분 상태도 저장(KP.store "grow:pots") → 껐다 켜도 이어서 키우기
-   - 나비·벌이 날아다님 (꽃이 많을수록 더 많이) */
+   - 나비·벌이 날아다님 (꽃이 많을수록 더 많이)
+   - (2026-11-09 2라운드) '물→해님' 반복만 하던 것 → 물이 옆 화분으로 퍼져 여러 화분이 함께 자라고,
+     꽃 한 번 피울 때마다 돌봄 일이 하나씩 끼어듦(번갈아): ☁️ 구름이 해님을 가림 → 쓱쓱 치우기 / 🐛 봉오리에 애벌레 → 콕 누르면 나비가 되어 날아감 */
 "use strict";
 KP.game({
   id: "grow",
@@ -4258,6 +4447,17 @@ KP.game({
       .gr-can.drag{cursor:grabbing}
       .gr-fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4}
       .gr-bug{position:absolute;left:0;top:0;font-size:clamp(34px,5vh,50px);z-index:3;pointer-events:none}
+      /* 돌봄 일: 해님을 가리는 구름, 봉오리의 애벌레 */
+      .gr-shade{position:absolute;right:-1%;top:-4%;width:clamp(160px,28vh,250px);height:clamp(160px,28vh,250px);z-index:4;touch-action:none;display:flex;align-items:center;justify-content:center;transition:transform .5s cubic-bezier(.3,1.2,.5,1),opacity .5s}
+      .gr-shade .e{width:100%;height:100%;filter:grayscale(.55) brightness(.92) drop-shadow(0 6px 6px rgba(40,60,90,.25));pointer-events:none}
+      .gr-shade.in{animation:grShadeIn .9s cubic-bezier(.3,1.2,.5,1)}
+      @keyframes grShadeIn{from{transform:translateX(-45vw);opacity:0}}
+      .gr-shade.away{transform:translateX(60vw) !important;opacity:0}
+      .gr-cat{position:absolute;z-index:4;width:72px;height:72px;display:flex;align-items:center;justify-content:center;font-size:46px;animation:grCrawl 1.1s ease-in-out infinite}
+      @keyframes grCrawl{50%{transform:translateX(6px) rotate(8deg)}}
+      .gr-cat.fly{animation:grFlyOff 1.5s ease-in forwards;pointer-events:none}
+      @keyframes grFlyOff{30%{transform:translateY(-30px) scale(1.2)}100%{transform:translate(30vw,-60vh) scale(.8) rotate(20deg);opacity:0}}
+      @media (orientation:landscape) and (max-height:500px){ .gr-shade{width:clamp(110px,38vh,160px);height:clamp(110px,38vh,160px)} }
       .gr-view{position:absolute;inset:0;z-index:8;display:none;flex-direction:column;background:linear-gradient(#bfe8ff,#e9f8ff 30%,#b8e79a 30%,#8fd56d)}
       .gr-view.show{display:flex;animation:enter .3s}
       .gr-vtop{display:flex;align-items:center;gap:10px;padding:12px 14px;font-size:clamp(20px,3vw,30px)}
@@ -4492,22 +4692,20 @@ KP.game({
           sndAcc = 0;
           A.sfx("water");
         }
-        const p = pots[i];
-        if (p.stage < 4 && p.water < 1) {
-          p.water = Math.min(1, p.water + dt * 0.9);
-          if (p.water >= 1) {
-            savePots();
-            renderPot(i);
-            A.note("C6", { inst: "bell", dur: 0.4, vol: 0.15 });
-            A.note("G6", { inst: "bell", dur: 0.5, vol: 0.12, when: 0.1 });
-            // 말풍선도 바꿈 (소리를 못 들어도 다음 할 일이 보이게)
-            if (pots.some((q) => q.stage < 4 && q.water < 1)) ctx.say(saidSun ? "꿀꺽꿀꺽! 촉촉해졌어요!" : "꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
-            else ctx.say("꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
-            saidSun = true;
-            setHint();
+        // 물은 옆 화분에도 퍼짐(반 빠르기) → 가운데 화분에 주면 셋이, 끝 화분에 주면 둘이 함께 자람
+        for (let k = 0; k < 3; k++) {
+          const near = k === i ? 1 : Math.abs(k - i) === 1 ? 0.5 : 0;
+          if (!near) continue;
+          if (k !== i && Math.random() < 0.5) {
+            const r2 = potEls[k].getBoundingClientRect(),
+              s2 = scene.getBoundingClientRect();
+            drops.push({ x: r2.left - s2.left + r2.width * (0.3 + Math.random() * 0.4), y: r2.top - s2.top + r2.height * 0.2, vx: (Math.random() - 0.5) * 30, vy: 60, life: 0.8 });
           }
-        } else if (p.stage === 4) {
-          pourAcc += dt;
+          const p = pots[k];
+          if (p.stage < 4 && p.water < 1) {
+            p.water = Math.min(1, p.water + dt * 0.9 * near);
+            if (p.water >= 1) wetDone(k);
+          } else if (p.stage === 4 && k === i) pourAcc += dt;
         }
       }
       // 물방울 · 꽃가루 그리기
@@ -4552,6 +4750,129 @@ KP.game({
         b.el.style.transform = "translate(" + x + "px," + y + "px) scaleX(" + (Math.cos(b.t * 0.7 + b.ph) > 0 ? -1 : 1) + ") rotate(" + Math.sin(b.t * 9) * 8 + "deg)";
       });
     }
+    /** 화분 k 가 물을 다 먹음 */
+    function wetDone(k) {
+      savePots();
+      renderPot(k);
+      A.note("C6", { inst: "bell", dur: 0.4, vol: 0.15 });
+      A.note("G6", { inst: "bell", dur: 0.5, vol: 0.12, when: 0.1 });
+      // 돌봄 일 ☁️: 이번 꽃의 정해진 차례면 구름이 해님을 가림
+      if (plan.cloud && !plan.cloudDone && !shade && pots[k].stage >= plan.cloudAt) {
+        showShade();
+        ctx.say("꿀꺽꿀꺽! 구름이 몰려와요! 쓱쓱 치워 봐요!");
+        saidSun = true;
+        setHint();
+        return;
+      }
+      if (shade || catEl) return setHint(); // 돌봄 일이 먼저
+      // 말풍선도 바꿈 (소리를 못 들어도 다음 할 일이 보이게)
+      if (pots.some((q) => q.stage < 4 && q.water < 1)) ctx.say(saidSun ? "꿀꺽꿀꺽! 촉촉해졌어요!" : "꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
+      else ctx.say("꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
+      saidSun = true;
+      setHint();
+    }
+
+    /* ---------- 돌봄 일 (꽃 한 송이마다 하나 이상: 구름 / 애벌레 / 둘 다 — 직전과 다르게) ---------- */
+    let plan = {},
+      lastPlan = "",
+      shade = null,
+      catEl = null;
+    function newPlan() {
+      const kinds = ["cloud", "bug", "both"].filter((k) => k !== lastPlan);
+      const k = U.pick(kinds);
+      lastPlan = k;
+      plan = { kind: k, cloud: k !== "bug", bug: k !== "cloud", cloudAt: U.pick([0, 1]), cloudDone: false, bugDone: false };
+    }
+    newPlan();
+    function showShade() {
+      if (shade) return;
+      shade = U.el("div", "gr-shade in", KP.E("☁️"));
+      scene.insertBefore(shade, can);
+      A.sfx("whoosh");
+
+      let rub = 0,
+        last = null,
+        taps = 0;
+      const push = (d) => {
+        rub += d;
+        shade.style.transform = "translateX(" + Math.min(70, rub * 0.35) + "px)";
+        if (rub > 150 || taps >= 3) clearShade();
+      };
+      shade.addEventListener("pointerdown", (e) => {
+        e.preventDefault();
+        A.unlock();
+        idle = 0;
+        last = [e.clientX, e.clientY];
+        taps++;
+        A.sfx("rub");
+        try {
+          shade.setPointerCapture(e.pointerId);
+        } catch (_) {}
+        push(40);
+      });
+      shade.addEventListener("pointermove", (e) => {
+        if (!last || !shade) return;
+        const d = Math.hypot(e.clientX - last[0], e.clientY - last[1]);
+        last = [e.clientX, e.clientY];
+        if (d > 2) {
+          if (Math.random() < 0.15) A.sfx("rub");
+          push(d);
+        }
+      });
+      const up = () => (last = null);
+      shade.addEventListener("pointerup", up);
+      shade.addEventListener("pointercancel", up);
+    }
+    function clearShade() {
+      if (!shade) return;
+      const s = shade;
+      shade = null;
+      plan.cloudDone = true;
+      s.classList.add("away");
+      setTimeout(() => s.remove(), 600);
+      A.sfx("whoosh");
+      ["G5", "C6"].forEach((n, i) => A.note(n, { inst: "bell", dur: 0.4, vol: 0.14, when: i * 0.1 }));
+      U.replay(sun, "shine");
+      ctx.say(pots.some((p) => p.stage < 4 && p.water >= 1) ? "해님이 반짝! 이제 해님을 눌러 주세요!" : "해님이 반짝! 또 물을 주세요!");
+      setHint();
+    }
+    function showCat(i) {
+      if (catEl) return;
+      catEl = U.btn(KP.E("🐛"), "gr-cat");
+      const s = scene.getBoundingClientRect(),
+        r = potEls[i].getBoundingClientRect();
+      catEl.style.left = r.left - s.left + r.width * 0.5 + "px";
+      catEl.style.top = r.top - s.top + r.height * 0.08 + "px";
+      scene.insertBefore(catEl, can);
+      ctx.fast(catEl, () => {
+        if (!catEl || catEl.classList.contains("fly")) return;
+        const c = catEl;
+        c.innerHTML = KP.E("🦋");
+        c.classList.add("fly");
+        plan.bugDone = true;
+        A.sfx("sparkle");
+        A.note("E6", { inst: "bell", dur: 0.5, vol: 0.15 });
+        KP.voice.say("우와, 나비가 됐어요! 팔랑팔랑 날아요!");
+        setTimeout(() => c.remove(), 1500);
+        catEl = null;
+        idle = 0;
+        ctx.after(2600, () => {
+          if (busy || catEl || shade) return;
+          if (pots.some((p) => p.stage < 4 && p.water >= 1)) ctx.say("이제 해님을 눌러 주세요!");
+          else ctx.say("또 물을 주세요!");
+        });
+        setHint();
+      });
+    }
+    function clearCare() {
+      if (shade) shade.remove();
+      if (catEl) catEl.remove();
+      shade = catEl = null;
+
+    }
+    ctx.growDbg = () => ({ plan, shade: !!shade, cat: !!catEl, pots: pots.map((p) => [p.stage, Math.floor(p.water * 100) / 100]) }); // 점검용
+    ctx.clearShade = clearShade; // 점검용
+
     let idle = 0;
     const ghost = U.el("div", "gr-ghost", can.innerHTML);
     function ghostTo(k) {
@@ -4601,6 +4922,17 @@ KP.game({
     /* ---------- 해님 ---------- */
     ctx.fast(sun, async () => {
       if (busy) return;
+      // 돌봄 일이 남았으면 해님이 아직 못 비춤
+      if (shade) {
+        U.replay(shade, "wig");
+        ctx.say("구름이 몰려와요! 쓱쓱 치워 봐요!");
+        return;
+      }
+      if (catEl) {
+        U.replay(catEl, "wig");
+        ctx.say("애벌레를 콕 눌러 봐요!");
+        return;
+      }
       U.replay(sun, "shine");
       ["C5", "E5", "G5", "C6"].forEach((n, i) => A.note(n, { inst: "bell", dur: 0.6, vol: 0.14, when: i * 0.07 }));
       const ready = pots.map((p, i) => (p.stage < 4 && p.water >= 1 ? i : -1)).filter((i) => i >= 0);
@@ -4641,6 +4973,19 @@ KP.game({
       makeBugs();
       if (!bloomed.length) {
         const st = pots[ready[0]].stage;
+        // 돌봄 일 🐛: 봉오리가 생기면 애벌레가 기어 옴
+        const bud = pots.findIndex((p) => p.stage === 3);
+        if (plan.bug && !plan.bugDone && bud >= 0) {
+          busy = false;
+          ctx.after(900, () => {
+            if (!ctx._active || catEl) return;
+            showCat(bud);
+            ctx.say("봉오리가 생겼어요! 애벌레를 콕 눌러 봐요!");
+            setHint();
+          });
+          ctx.say("봉오리가 생겼어요! 곧 꽃이 필 거예요!");
+          return;
+        }
         ctx.say(["", "싹이 났어요!", "잎이 쑥쑥 자랐어요!", "봉오리가 생겼어요! 곧 꽃이 필 거예요!"][st] + " 또 물을 주세요!");
         busy = false;
         setHint();
@@ -4680,6 +5025,9 @@ KP.game({
       }
       savePots();
       A.sfx("whoosh");
+      // 다음 꽃은 다른 돌봄 일 (남은 돌봄 일은 정리)
+      clearCare();
+      newPlan();
       ctx.say("새 씨앗을 심었어요! 물을 주세요!");
       busy = false;
       setHint();
@@ -4730,7 +5078,9 @@ KP.game({
     });
 
     function setHint() {
-      if (pots.some((p) => p.stage < 4 && p.water >= 1)) ctx.hint(() => sun, "해님을 눌러요!");
+      if (catEl) ctx.hint(() => catEl, "애벌레를 콕 눌러 봐요!");
+      else if (shade) ctx.hint(() => shade, "쓱쓱 치워 봐요!");
+      else if (pots.some((p) => p.stage < 4 && p.water >= 1)) ctx.hint(() => sun, "해님을 눌러요!");
       else ctx.hint(() => can, "물뿌리개를 화분으로 끌어 와요!");
     }
     ctx.begin = () => {
@@ -4742,6 +5092,10 @@ KP.game({
       }
       view.classList.remove("show");
       potEls.forEach((el) => el.classList.remove("bloom"));
+      clearCare();
+      newPlan();
+      // 이미 봉오리까지 자란 화분이 있으면 애벌레 차례는 지나간 것으로
+      if (pots.some((p) => p.stage >= 3)) plan.bugDone = true;
       idle = 0;
       if (!ghost.parentNode) scene.insertBefore(ghost, fx);
       renderAll();
@@ -5981,7 +6335,7 @@ KP.game({
     function openPicker() {
       picker.innerHTML = "<h3>" + KP.E("🖼️") + " 어떤 그림을 칠할까요?</h3>";
       const bPrint = U.btn(KP.E("🖨️") + " 지금 그림 빈 도안 출력", "btn");
-      bPrint.style.cssText = "position:absolute;right:14px;top:10px;font-size:clamp(14px,1.8vw,18px)";
+      bPrint.style.cssText = "position:absolute;right:14px;top:10px;font-size:clamp(14px,1.8vw,18px);min-height:64px"; // 어른용 보조 단추도 64px (2026-11-09 2라운드)
       ctx.tap(bPrint, async () => {
         const sc = SCENES.find((s) => s.id === sceneId);
         const tmp = U.el("div");
@@ -6076,13 +6430,11 @@ KP.game({
         A.sfx("whoosh");
         await ctx.wait(330);
         if (gen !== loadGen) return;
-        regions.forEach((t) => {
-          t.setAttribute("fill", "#ffffff");
-          const lay = layOf(t);
-          if (lay) lay.remove();
-        });
-        saving = false;
-        ctx.say("새 종이가 준비됐어요. 새 종이에 또 해 볼까요?");
+        // 다음 그림으로 저절로 넘김 (2026-11-09 2라운드: 저장 뒤 같은 그림이 하얗게 다시 나와 다른 그림으로 가려면 🖼️ 를 알아야 했음)
+        //   쉬운 순서대로, 아직 칠하지 않은(저장된 칠이 없는) 다음 그림 — 모두 칠하던 중이면 그냥 다음 그림
+        const nextId = nextScene(sceneId);
+        load(nextId); // saving 도 풀림
+        ctx.say("새 종이가 준비됐어요. " + U.josa(ctx.sceneName(), "을/를") + " 칠해 볼까요?");
         ctx.hint(() => regions[Math.min(regions.length - 1, 2)], "그림을 톡 눌러 칠해 봐요!");
         await ctx.wait(500);
         board.classList.remove("wipe");
@@ -6091,6 +6443,14 @@ KP.game({
         KP.toast("저장하지 못했어요. 저장공간을 확인해 주세요");
       }
     });
+    function nextScene(id) {
+      const i = SCENES.findIndex((s) => s.id === id);
+      for (let k = 1; k <= SCENES.length; k++) {
+        const sc = SCENES[(i + k) % SCENES.length];
+        if (sc.id !== id && !(fills[sc.id] || []).some((c) => c && c !== "#ffffff") && !(strokes[sc.id] || []).length) return sc.id;
+      }
+      return SCENES[(i + 1) % SCENES.length].id;
+    }
     /** 저장한 그림을 액자처럼 가운데 크게 1.6초 → 홈 단추(내 작품) 쪽으로 날아감 (화면을 나가도 저절로 사라짐) */
     function showSaved(img) {
       const f = U.el("div", "pb-polar", '<img alt="" draggable="false"><b>' + KP.E("🖼️") + " 내 작품</b>");
@@ -6193,7 +6553,14 @@ KP.game({
       .plMine{grid-area:mine;display:flex;align-items:center;gap:8px;max-width:100%;overflow-x:auto;padding:4px 10px;scrollbar-width:none;background:rgba(255,251,242,.85);border-radius:999px}
       .plMine::-webkit-scrollbar{display:none}
       .plMine .lb{font-size:15px;color:var(--ink2);white-space:nowrap}
-      .plSw{flex:0 0 auto;width:44px;height:44px;border-radius:50%;border:4px solid #fff;box-shadow:0 4px 0 rgba(0,0,0,.13);position:relative}
+      .plSw{flex:0 0 auto;width:64px;height:64px;border-radius:50%;border:4px solid #fff;box-shadow:0 4px 0 rgba(0,0,0,.13);position:relative} /* 44 → 64px (2026-11-09 2라운드) */
+      /* 오늘의 색: 아직 못 찾은 색 하나를 목표로 (레시피 방울 = 어떤 물감을 몇 번) */
+      .plGoal{position:absolute;left:1%;top:1%;z-index:3;background:rgba(255,250,240,.96);border-radius:22px;box-shadow:0 5px 0 rgba(110,70,30,.18);padding:6px 12px 6px 8px;display:flex;align-items:center;gap:8px;min-height:64px;color:var(--ink)}
+      .plGoal .gb{width:48px;height:48px;flex:0 0 auto;border-radius:46% 54% 50% 50%/52% 46% 54% 48%;background:var(--c);box-shadow:inset -5px -6px 0 rgba(0,0,0,.12),0 0 0 3px #fff}
+      .plGoal .gt{display:flex;flex-direction:column;align-items:flex-start;gap:3px;font-size:13px;line-height:1}
+      .plGoal .dxRec i{width:15px;height:19px}
+      .plGoal.done{animation:popBig .6s}
+      .plGoal.done .gb::after{content:"✓";display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:#fff;font-size:28px;text-shadow:0 2px 0 rgba(0,0,0,.25)}
       .plSw.new{animation:popBig .5s}
       .plName{position:absolute;left:50%;top:2%;transform:translateX(-50%);background:#fffaf0;border-radius:999px;padding:6px 18px;font-size:clamp(20px,2.8vw,28px);box-shadow:0 5px 0 rgba(110,70,30,.18);display:none;align-items:center;gap:8px;white-space:nowrap;z-index:4}
       .plName.on{display:flex;animation:popIn .35s}
@@ -6203,7 +6570,7 @@ KP.game({
       @media (orientation:landscape) and (min-height:500px){
         .plW{grid-template-areas:"jars bowl acts" "mine mine mine";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr) auto;padding:10px 16px 10px;gap:12px}
         .plJarsCell .psJars{display:grid;grid-template-columns:repeat(2,auto);gap:4px 6px}
-        .plJarsCell .psJar{width:clamp(60px,7.5vh,82px);height:clamp(84px,12vh,112px)}
+        .plJarsCell .psJar{width:clamp(64px,7.8vh,82px);height:clamp(84px,12vh,112px)} /* 64px 이상 (2026-11-09 2라운드) */
         .plActs{display:grid;grid-template-columns:repeat(2,auto)}
         .plB{min-width:92px;min-height:76px;font-size:15px}
         .plB .e{font-size:34px}
@@ -6214,7 +6581,7 @@ KP.game({
         .plW{padding:6px 6px 8px;gap:6px}
         .plJarsCell{max-width:100%}
         .plJarsCell .psJars{flex-wrap:nowrap;gap:4px}
-        .plJarsCell .psJar{width:clamp(52px,16vw,64px);height:86px;flex:0 0 auto}
+        .plJarsCell .psJar{width:clamp(52px,16.5vw,64px);height:86px;flex:0 0 auto} /* 390px 폰에서 64px */
         .plJarsCell .psJar .jn{left:-3px;right:-3px;font-size:13px}
         /* (2026-11-08) 한 줄 5개(59px) → 3칸씩 2줄, 모두 64px 이상 */
         .plActs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;max-width:100%;width:100%}
@@ -6239,6 +6606,7 @@ KP.game({
       .dxPanel.on{display:flex;animation:enter .3s}
       .dxHead{display:flex;align-items:center;gap:12px;font-size:clamp(20px,2.8vw,28px);padding:4px 4px 10px}
       .dxHead .sp{flex:1}
+      .dxHead .btn{min-height:64px} /* '실험실로' 50 → 64px */
       .dxGrid{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:12px;align-content:start}
       .dxC{background:#fff;border-radius:22px;padding:10px 6px 8px;display:flex;flex-direction:column;align-items:center;gap:4px;box-shadow:0 5px 0 rgba(110,70,30,.1);border:3px dashed #eadfcd}
       .dxC.got{border:3px solid #fff}
@@ -6274,7 +6642,14 @@ KP.game({
     });
     ctx.studio = studio;
     jarsCell.appendChild(studio.jarsEl);
-    bowlCell.append(studio.bowlEl, nameTag);
+    const goalEl = U.el("button", "plGoal");
+    bowlCell.append(studio.bowlEl, nameTag, goalEl);
+    ctx.goalEl = goalEl;
+    goalEl.addEventListener("click", () => {
+      KP.audio.sfx("tap2");
+      U.replay(goalEl, "jump");
+      if (ctx.goal) KP.voice.say(ctx.goal + " 만들어 봐요!");
+    });
 
     const img = (f) => '<img class="pi" alt="" draggable="false" src="' + P.ART + f + '">';
     const mk = (icon, label, cls = "") => U.btn(icon + "<span>" + label + "</span>", "plB " + cls);
@@ -6344,6 +6719,7 @@ KP.game({
     ctx.lastName = KP.store.get("lab:lastName", null);
     ctx.changed = false;
     this.renderMine(ctx);
+    this.setGoal(ctx, KP.store.get("lab:goal", null));
     requestAnimationFrame(() => {
       ctx.fitBowl();
       let checkT = 0,
@@ -6377,7 +6753,8 @@ KP.game({
       });
     });
     ctx.say(
-      ctx.studio.bowl.volume() > 0.5 ? "만들던 물감이 그대로 있어요! 더 넣거나 저어 봐요." : "물감 통을 눌러서 그릇에 넣고, 손가락으로 빙글빙글 저어 봐요!"
+      (ctx.studio.bowl.volume() > 0.5 ? "만들던 물감이 그대로 있어요! 더 넣거나 저어 봐요." : "물감 통을 눌러서 그릇에 넣고, 손가락으로 빙글빙글 저어 봐요!") +
+        " " + ctx.goal + " 만들어 봐요!"
     );
     ctx.hint(() => ctx.studio.jar(1), "물감 통을 눌러 봐요!");
   },
@@ -6388,6 +6765,30 @@ KP.game({
     const b = ctx.studio.bowl;
     KP.store.set("lab:bowl", b.volume() > 0.01 ? b.save() : null);
     KP.store.set("lab:lastName", ctx.lastName || null);
+  },
+
+  /** 오늘의 색(목표) 정하기: 아직 못 찾은 도감 색 중 레시피가 쉬운 것부터. 다 찾았으면 아무 색이나(직전 것 빼고) */
+  setGoal(ctx, name) {
+    const P = KP.paint;
+    const all = P.NAMES.filter((x) => x.dex);
+    let g = all.find((x) => x.n === name);
+    if (!g) {
+      const dex = P.dex();
+      const cost = (x) => x.v.reduce((a, b) => a + b, 0) + x.v.filter((b) => b > 0).length * 2;
+      const left = all.filter((x) => !dex[x.n]).sort((a, b) => cost(a) - cost(b));
+      g = left[0] || KP.u.pick(all.filter((x) => x.n !== name && x.n !== ctx.goal));
+    }
+    ctx.goal = g.n;
+    KP.store.set("lab:goal", g.n);
+    const m = Math.min(...g.v.filter((x) => x > 0));
+    let h = "";
+    g.v.forEach((x, i) => {
+      const n = Math.min(4, Math.round(x / m));
+      for (let k = 0; k < n; k++) h += '<i style="--c:' + P.BASE[i].hex + '"></i>';
+    });
+    ctx.goalEl.classList.remove("done");
+    ctx.goalEl.style.setProperty("--c", g.hex);
+    ctx.goalEl.innerHTML = '<span class="gb"></span><span class="gt"><span>' + KP.E("🎯") + " " + g.n + '</span><span class="dxRec">' + h + "</span></span>";
   },
 
   /** 다 섞였을 때 */
@@ -6402,6 +6803,21 @@ KP.game({
     ctx.nameTag.classList.add("on");
     const isNew = P.discover(nm.n);
     ctx.hint(() => ctx.bKeep, "마음에 들면 내 물감에 담아요!");
+    if (nm.n === ctx.goal) {
+      // 🎯 오늘의 색을 만들었음 → 축하, 다음 목표
+      ctx.goalEl.classList.add("done");
+      KP.audio.sfx("levelup");
+      ctx.lastName = nm.n;
+      const ok = await ctx.win({ msg: "와, 똑같아요! " + nm.n + "! 됐어요!", big: true });
+      if (!ok || !ctx._active) return;
+      if (isNew) KP.voice.say(nm.n + "! 도감에 생겼어요! 마음에 들면 내 물감에 담아요.");
+      ctx.after(isNew ? 4200 : 1200, () => {
+        this.setGoal(ctx, null);
+        KP.u.replay(ctx.goalEl, "pop");
+        KP.voice.say(ctx.goal + " 만들어 봐요!");
+      });
+      return;
+    }
     if (isNew) {
       KP.audio.sfx("levelup");
       await ctx.win({ msg: "새 색깔 발견! " + nm.n + "!", big: true });
@@ -6543,7 +6959,8 @@ KP.game({
      (등록 직후엔 그 사진부터 숨고, 이후 기본 친구와 섞여 나옴)
    - 썸네일 줄: 개수·저장 상태 표시, 누르면 바로 그 친구가 숨음, ✖ 꾹 누르면 삭제
    - 예전 버전 localStorage "kidsWipePhotos" 가 있으면 db 로 옮기고 지움
-   - 단계: 1 큰 친구 → 3 작은 친구 */
+   - 단계: 1 큰 친구 → 3 작은 친구
+   - 3단계: 친구 둘이 함께 숨음 (하나 찾으면 "하나 더!" → 둘 다 찾아야 성공, 2026-11-09 2라운드) */
 "use strict";
 KP.game({
   id: "wipe",
@@ -6782,11 +7199,13 @@ KP.game({
     const board = U.el("div", "board wp-board");
     const scene = U.el("div", "wp-scene");
     const charEl = U.el("div", "wp-char");
+    const charEl2 = U.el("div", "wp-char"); // 3단계 두 번째 친구
     const cover = U.el("canvas", "wp-cover");
     const fx = U.el("canvas", "wp-fx");
     const sponge = U.el("div", "wp-sponge", KP.E("🧽"));
     const spot = U.el("div", "wp-spot"); // 힌트 손가락이 가리킬 자리(덮개 위, 투명)
-    board.append(scene, charEl, cover, fx, spot, sponge);
+    const spot2 = U.el("div", "wp-spot");
+    board.append(scene, charEl, charEl2, cover, fx, spot, spot2, sponge);
     ctx.body.append(top, board);
     const cg = cover.getContext("2d");
     const fg = fx.getContext("2d");
@@ -6908,6 +7327,7 @@ KP.game({
       lastPos = null,
       samples = [],
       cleared = 0,
+      tgs = [], // 숨은 친구들 [{el, spot, name, samples, cleared, done}] — 3단계는 2명
       done = false,
       theme = THEMES[0],
       R = 40,
@@ -6940,6 +7360,23 @@ KP.game({
       const f = U.pick(pool);
       return { em: f[0], name: f[1] };
     }
+    /** 친구 하나 자리 잡기 (다른 친구와 겹치지 않게) */
+    function place(el, sp, S, avoid) {
+      const m = 12;
+      let x = 0,
+        y = 0;
+      for (let k = 0; k < 30; k++) {
+        x = m + Math.random() * Math.max(1, W - S - 2 * m);
+        y = m + Math.random() * Math.max(1, H - S - 2 * m);
+        const farLast = !lastPos || Math.hypot(x - lastPos[0], y - lastPos[1]) > Math.min(W, H) * 0.3;
+        const farOther = !avoid || Math.hypot(x - avoid[0], y - avoid[1]) > S * 1.15;
+        if (farOther && (farLast || k > 14)) break;
+      }
+      Object.assign(el.style, { display: "", left: x + "px", top: y + "px", width: S + "px", height: S + "px", fontSize: S + "px" });
+      Object.assign(sp.style, { display: "", left: x + S * 0.2 + "px", top: y + S * 0.2 + "px", width: S * 0.6 + "px", height: S * 0.6 + "px" });
+      el.classList.remove("found");
+      return [x, y];
+    }
     async function newRound(force) {
       if (!ctx._active) return;
       busy = false;
@@ -6956,24 +7393,25 @@ KP.game({
       const lv = ctx.level;
       const S = Math.max(84, Math.min(W, H) * [0.46, 0.34, 0.25][lv - 1]);
       R = Math.max(24, Math.min(W, H) * [0.085, 0.075, 0.066][lv - 1]);
-      const m = 12;
-      let x = 0,
-        y = 0;
-      for (let k = 0; k < 14; k++) {
-        x = m + Math.random() * Math.max(1, W - S - 2 * m);
-        y = m + Math.random() * Math.max(1, H - S - 2 * m);
-        if (!lastPos || Math.hypot(x - lastPos[0], y - lastPos[1]) > Math.min(W, H) * 0.3) break;
+      const [x, y] = place(charEl, spot, S, null);
+      // 3단계: 두 번째 친구 (그림 친구, 첫 친구와 다른 것)
+      let two = null;
+      if (lv >= 3) {
+        const f = U.pick(FRIENDS.filter((q) => q[0] !== cur.em));
+        two = { em: f[0], name: f[1], xy: place(charEl2, spot2, S, [x, y]) };
+        charEl2.innerHTML = KP.E(two.em);
+      } else {
+        charEl2.style.display = "none";
+        spot2.style.display = "none";
+        charEl2.innerHTML = "";
       }
       lastPos = [x, y];
-      Object.assign(charEl.style, { left: x + "px", top: y + "px", width: S + "px", height: S + "px", fontSize: S + "px" });
-      Object.assign(spot.style, { left: x + S * 0.2 + "px", top: y + S * 0.2 + "px", width: S * 0.6 + "px", height: S * 0.6 + "px" });
-      charEl.classList.remove("found");
       charEl.innerHTML = cur.photo ? '<img class="ph" src="' + KP.safeImg(cur.photo.img) + '" alt="">' : KP.E(cur.em);
       scene.style.background = theme.scene;
       U.$$(".wp-th", strip).forEach((t) => t.classList.toggle("now", !!(cur.photo && t.dataset.id === cur.photo.id)));
       // 덮개
       cover.classList.remove("gone");
-      await KP.loadE(cur.em ? [cur.em] : []);
+      await KP.loadE((cur.em ? [cur.em] : []).concat(two ? [two.em] : []));
       if (!ctx._active) return;
       const seed = (Math.random() * 1e9) | 0;
       let a = seed;
@@ -6985,19 +7423,24 @@ KP.game({
       cg.clearRect(0, 0, W, H);
       theme.draw(cg, W, H, r);
       // 친구 영역 표본점 (그림이면 실제 윤곽, 사진이면 둥근 네모)
-      samples = makeSamples(x, y, S);
+      tgs = [{ el: charEl, spot, name: cur.photo ? "우리 친구" : cur.name, samples: makeSamples(x, y, S, cur.em), cleared: 0, done: false }];
+      if (two) tgs.push({ el: charEl2, spot: spot2, name: two.name, samples: makeSamples(two.xy[0], two.xy[1], S, two.em), cleared: 0, done: false });
+      samples = tgs[0].samples.concat(two ? tgs[1].samples : []);
+      tgs.forEach((t) => t.samples.forEach((s) => (s.t = t)));
       ctx.say(cur.photo && Math.random() < 0.5 ? "우리 캐릭터가 숨었어요! 어디 있을까요?" : theme.say);
-      ctx.hint(() => spot, "여기를 문질문질 해 봐요!", { answer: true }); // 친구 자리를 알려 주는 힌트 → 그 판은 열쇠 별 없음
+      setHint();
     }
-    function makeSamples(x, y, S) {
+    // 친구 자리를 알려 주는 힌트 → 그 판은 열쇠 별 없음 (3단계는 아직 못 찾은 친구 자리)
+    const setHint = () => ctx.hint(() => (tgs.find((t) => !t.done) || tgs[0]).spot, "여기를 문질문질 해 봐요!", { answer: true });
+    function makeSamples(x, y, S, em) {
       const N = 44,
         out = [];
       let mask = null;
-      if (cur.em) {
+      if (em) {
         const c = document.createElement("canvas");
         c.width = c.height = N;
         const g = c.getContext("2d");
-        KP.drawE(g, cur.em, N / 2, N / 2, N);
+        KP.drawE(g, em, N / 2, N / 2, N);
         try {
           mask = g.getImageData(0, 0, N, N).data;
         } catch (e) {
@@ -7060,6 +7503,7 @@ KP.game({
         if (ex * ex + ey * ey <= R2) {
           s.c = true;
           cleared++;
+          if (s.t) s.t.cleared++;
         }
       }
       // 반짝이
@@ -7075,8 +7519,18 @@ KP.game({
     }
     function progress() {
       if (done || !samples.length) return;
-      const ratio = cleared / samples.length;
-      if (ratio >= 0.93) return found();
+      // 친구마다 93% 이상이면 찾음 — 남은 친구가 있으면 "하나 더!", 다 찾으면 성공
+      for (const t of tgs) {
+        if (t.done || t.cleared / t.samples.length < 0.93) continue;
+        t.done = true;
+        if (tgs.some((q) => !q.done)) {
+          foundOne(t);
+          return;
+        }
+        return found(t);
+      }
+      const rest = tgs.filter((t) => !t.done);
+      const ratio = rest.length ? Math.max(...rest.map((t) => t.cleared / t.samples.length)) : cleared / samples.length;
       if (ratio > 0.45 && said < 1) {
         said = 1;
         KP.voice.say(U.pick(["와, 조금 보여요! 누구일까?", "어? 뭔가 보여요!", "누구지? 조금 더!"]));
@@ -7085,27 +7539,53 @@ KP.game({
         KP.voice.say("거의 다 찾았어요!");
       }
     }
-    async function found() {
-      done = true;
-      busy = true;
-      sponge.classList.remove("on");
-      ctx.hint(null);
-      cover.classList.add("gone"); // 나머지 덮개는 스르륵
-      const cx = parseFloat(charEl.style.left) + charEl.offsetWidth / 2,
-        cy = parseFloat(charEl.style.top) + charEl.offsetHeight / 2;
+    function burst(el) {
+      const cx = parseFloat(el.style.left) + el.offsetWidth / 2,
+        cy = parseFloat(el.style.top) + el.offsetHeight / 2;
       for (let i = 0; i < 46; i++) {
         const a = Math.random() * 6.28,
           sp = 80 + Math.random() * 260;
         parts.push({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, life: 1.3, s: 4 + Math.random() * 6, c: U.pick(["#ffd54a", "#ff7ac6", "#7ad7ff", "#ffffff", "#9cff8a"]), star: true });
       }
+      return [cx, cy];
+    }
+    function nameTag(el, name) {
+      el.classList.add("found");
+      A.sfx("boing");
+      el.appendChild(U.el("div", "wp-name" + (parseFloat(el.style.top) + el.offsetHeight + 60 > H ? " up" : ""), KP.E(name + "!")));
+    }
+    /** 3단계: 둘 중 하나를 찾음 → 그 자리 덮개만 걷고 "하나 더!" */
+    function foundOne(t) {
+      const [cx, cy] = burst(t.el);
+      const rr = t.el.offsetWidth;
+      cg.save();
+      cg.globalCompositeOperation = "destination-out";
+      cg.beginPath();
+      const up = parseFloat(t.el.style.top) + t.el.offsetHeight + 60 > H; // 이름표가 위에 붙는 자리(nameTag 와 같은 기준)
+      cg.ellipse(cx, cy + rr * (up ? -0.14 : 0.14), rr * 0.68, rr * 0.76, 0, 0, 6.28); // 이름표까지 보이게
+      cg.fill();
+      cg.restore();
       A.sfx("sparkle");
       ctx.after(250, () => {
-        charEl.classList.add("found");
-        A.sfx("boing");
-        const name = cur.photo ? "우리 친구" : cur.name;
-        const tag = U.el("div", "wp-name" + (parseFloat(charEl.style.top) + charEl.offsetHeight + 60 > H ? " up" : ""), KP.E(name + "!"));
-        charEl.appendChild(tag);
-        KP.voice.say(name + "! 찾았다!");
+        if (done) return;
+        nameTag(t.el, t.name);
+        KP.voice.say(t.name + "! 찾았다! 하나 더!");
+      });
+      said = 0;
+      setHint();
+    }
+    async function found(t) {
+      done = true;
+      busy = true;
+      sponge.classList.remove("on");
+      ctx.hint(null);
+      cover.classList.add("gone"); // 나머지 덮개는 스르륵
+      const lastT = t || tgs[0];
+      burst(lastT.el);
+      A.sfx("sparkle");
+      ctx.after(250, () => {
+        nameTag(lastT.el, lastT.name);
+        KP.voice.say(lastT.name + "! 찾았다!");
       });
       await ctx.wait(1700);
       ctx.score.add();
@@ -7203,7 +7683,7 @@ KP.game({
       const cx = parseFloat(charEl.style.left) || 0,
         cy = parseFloat(charEl.style.top) || 0,
         cs = parseFloat(charEl.style.width) || 0;
-      const cut = cx + cs > r.width || cy + cs > r.height;
+      const cut = cx + cs > r.width || cy + cs > r.height || tgs.length > 1; // 두 친구 판은 그냥 새 판
       if (flip || big || cut || nd !== oD || !samples.length) return newRound(cur && cur.photo ? { photo: cur.photo } : cur);
       const keep = document.createElement("canvas");
       keep.width = cover.width;
@@ -8718,6 +9198,8 @@ KP.game({
   const ORDER = ["dino", "lion", "elephant", "rabbit", "bear", "pig", "dog", "fish", "bird", "butterfly", "turtle"];
   /** 동물 정보 {name, cry, move}: 도안 동물(T) 또는 🧸 3D 인형 친구(tid "doll" + species, doll.js) — 모르는 것은 null */
   const DOLL = () => (KP.DOLL && KP.DOLL.ok ? KP.DOLL : null);
+  // 찾기 놀이 카드 그림 (이름 → 이모지)
+  const FIND_EM = { 공룡: "🦖", 강아지: "🐶", 거북이: "🐢", 곰: "🐻", 나비: "🦋", 돼지: "🐷", 물고기: "🐟", 사자: "🦁", 새: "🐦", 코끼리: "🐘", 토끼: "🐰", 고양이: "🐱", 판다: "🐼", 여우: "🦊", 펭귄: "🐧", 오리: "🦆", 병아리: "🐥", 원숭이: "🐵", 호랑이: "🐯", 개구리: "🐸", 양: "🐑", 소: "🐮", 말: "🐴", 기린: "🦒", 다람쥐: "🐿️", 부엉이: "🦉", 고래: "🐳", 문어: "🐙", 햄스터: "🐹", 코알라: "🐨" };
   const tOf = (it) => (!it ? null : it.tid === "doll" ? (DOLL() && DOLL().ok(it.species) ? DOLL().tOf(it.species) : null) : T[it.tid] || null);
   KP.zooT = tOf;
 
@@ -9028,13 +9510,14 @@ KP.game({
         /* 가로 화면(태블릿): 색은 왼쪽, 버튼은 오른쪽 세로줄 → 그림판이 높이를 다 씀 */
         @media (orientation:landscape) and (min-height:500px){
           .zpWork{grid-template-areas:"pal paper act";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);padding:2px 14px 14px;gap:14px}
-          .zpPal{display:grid;grid-template-columns:repeat(2,auto);gap:10px 10px;align-content:center;overflow-y:auto;padding:4px}
+          /* (2026-11-09 2라운드) 색 44 → 64px: 2칸 → 3칸 줄 (줄 수가 줄어 높이 안에 들어감), 도구·굵기도 64px */
+          .zpPal{display:grid;grid-template-columns:repeat(3,auto);gap:10px 10px;align-content:center;overflow-y:auto;padding:4px}
           .zpPal.mine3{grid-template-columns:repeat(3,auto)}
           .zpSep{grid-column:1/-1;height:3px}
-          .zpSp{width:clamp(44px,5.2vh,58px);height:clamp(44px,5.2vh,58px);font-size:26px}
+          .zpSp{width:clamp(56px,7.8vh,64px);height:clamp(56px,7.8vh,64px);font-size:26px}
           .zpTools{display:grid;grid-template-columns:repeat(3,auto);justify-content:center}
-          .zpTool{min-width:54px;min-height:58px;justify-content:center;padding:4px 6px}
-          .zpSize{width:50px;height:50px}
+          .zpTool{min-width:64px;min-height:64px;justify-content:center;padding:4px 6px}
+          .zpSize{width:64px;height:64px}
           .zpAct{flex-direction:column;flex-wrap:nowrap;justify-content:center}
           .zpB{min-width:96px;padding:8px 10px;font-size:15px}
           .zpB .e{font-size:34px}
@@ -9046,14 +9529,15 @@ KP.game({
           .zpWork{grid-template-areas:"pal paper act";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);padding:0 10px 8px;gap:10px}
           .zpPal{display:grid;grid-template-columns:repeat(6,auto);gap:6px;align-content:start;justify-content:center;overflow-y:auto;overscroll-behavior:contain;padding:4px 4px 8px}
           .zpSep{grid-column:1/-1;height:3px}
-          .zpSp{width:min(12.8vh,52px);height:min(12.8vh,52px);font-size:22px;border-width:3px}
-          .zpSp.sel{transform:scale(1.08)}
-          .zpTools{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:0}
-          .zpTool{min-width:0;min-height:64px;justify-content:center;padding:3px 4px;font-size:11px}
-          .zpTool .e{font-size:26px}
-          .zpSize{width:auto;height:64px;border-radius:18px}
-          .zpAct{display:grid;grid-template-columns:repeat(2,minmax(68px,auto));grid-auto-rows:minmax(64px,1fr);align-content:center;gap:8px}
-          .zpB{min-width:68px;padding:4px 6px;font-size:12px}
+          .zpSp{width:64px;height:64px;font-size:24px;border-width:3px}
+          .zpSp.sel{transform:scale(1.06)}
+          /* (2026-11-09 2라운드) 색 50 → 64px: 도구 3개 + 굵기 3개를 한 줄(6칸)로 모아 색 3줄과 같은 폭으로 → 높이 안에 다 들어감 */
+          .zpTools{display:grid;grid-template-columns:repeat(6,64px);gap:6px;margin-bottom:0}
+          .zpTool{min-width:0;min-height:64px;justify-content:center;padding:3px 2px;font-size:10.5px}
+          .zpTool .e{font-size:24px}
+          .zpSize{width:64px;height:64px;border-radius:18px}
+          .zpAct{display:grid;grid-template-columns:repeat(2,minmax(64px,auto));grid-auto-rows:minmax(64px,1fr);align-content:center;gap:6px}
+          .zpB{min-width:64px;padding:4px 4px;font-size:12px}
           .zpB span{word-break:keep-all;text-align:center}
           .zpB .e{font-size:28px}
           .zpB.send{grid-column:1/-1;min-width:0}
@@ -9061,7 +9545,8 @@ KP.game({
         @media (orientation:landscape) and (max-height:500px) and (max-width:720px){
           .zpPal{grid-template-columns:repeat(4,auto)}
           .zpSp{width:min(14vh,48px);height:min(14vh,48px)}
-          .zpTool,.zpSize{min-height:56px;height:56px}
+          .zpTools{grid-template-columns:repeat(3,1fr)}
+          .zpTool,.zpSize{min-height:56px;height:56px;width:auto}
         }
         /* 태블릿 세로(큰 세로 화면): 폰 크기 그대로라 작던 색·도구·단추를 크게 */
         @media (orientation:portrait) and (min-width:700px){
@@ -9085,11 +9570,14 @@ KP.game({
           .zpTool .e{font-size:24px}
           .zpSize{width:clamp(44px,min(6.2vh,calc((100vw - 80px) / 6)),52px);height:clamp(44px,min(6.2vh,calc((100vw - 80px) / 6)),52px)}
           .zpPal{gap:6px 5px}
-          .zpB{min-width:0;flex:1;min-height:clamp(56px,7.6vh,66px);padding:5px 3px;font-size:12.5px}
+          .zpAct{gap:5px}
+          .zpB{min-width:64px;flex:1 1 0;min-height:clamp(64px,7.6vh,66px);padding:5px 2px;font-size:12.5px}
           .zpB span{word-break:keep-all}
           .zpB .e{font-size:26px}
-          .zpB.send{min-width:0;flex:1.3}
+          .zpB.send{min-width:64px;flex:1.3 1 0}
         }
+        /* 아주 좁은 폰(360px): 아래 단추 5개(64px)가 한 줄에 들어가게 양옆 여백·간격만 줄임 */
+        @media (max-width:370px){ .zpWork{padding-left:1px;padding-right:1px} .zpAct{gap:3px} }
       `);
       const choose = U.el("div", "zpChoose");
       const work = U.el("div", "zpWork");
@@ -10055,6 +10543,8 @@ KP.game({
         .zBar{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:0 10px 12px;flex:0 0 auto}
         .zBar .btn{min-height:64px}
         @media (max-width:500px){.zBar{gap:8px}.zBar .btn{min-height:64px;padding-top:6px;padding-bottom:6px}}
+        /* 단추 5개(🔍 찾기 놀이 추가, 2026-11-09 2라운드): 폰 세로는 3칸 2줄로 — 3줄이 되어 동물원이 작아지지 않게 */
+        @media (max-width:500px) and (orientation:portrait){.zBar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.zBar .btn{padding-left:4px;padding-right:4px;font-size:clamp(13px,3.9vw,16px);line-height:1.15;word-break:keep-all;white-space:normal;text-align:center;gap:4px;min-width:0}}
         .zEmpty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;z-index:9700;font-size:clamp(20px,3vw,30px);color:#2f3a66;text-shadow:0 2px 0 #fff}
         .zDel{position:absolute;z-index:9999;background:#fff;border-radius:999px;padding:8px 14px;font-size:18px;box-shadow:0 4px 0 rgba(0,0,0,.15);color:#c62828}
         .z3Canvas{position:absolute;inset:0;width:100%;height:100%;display:none;touch-action:none;z-index:1}
@@ -10092,6 +10582,13 @@ KP.game({
         .zhFav.on{opacity:1;background:#ffe27a}
         .zhCard.busy{pointer-events:none;opacity:.6}
         .zEmpty .btn{min-height:64px} /* (2026-11-09) 터치 64px 이상 */
+        /* 🔍 찾기 놀이 카드 (2026-11-09 2라운드): 위 가운데 — 찾을 친구 그림·이름·진행 점 */
+        .zFind{position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:9650;background:#fff;border:4px solid #b9773a;border-radius:999px;padding:4px 16px 4px 10px;min-height:64px;display:flex;align-items:center;gap:8px;font-size:clamp(18px,2.4vw,24px);color:#5a3a1a;box-shadow:0 4px 0 #8a5528;white-space:nowrap}
+        .zFind .e{font-size:1.9em}
+        .zFind i{font-style:normal;font-size:.75em;letter-spacing:2px;color:#e0a040}
+        .zFind.ok{animation:popBig .5s}
+        @media (max-width:560px){.zFind{top:80px}}
+        .zBar .btn.on{background:#ffe27a}
       `);
       if (!document.querySelector(".zDefs")) document.body.insertAdjacentHTML("beforeend", SHADE_DEFS);
       const W = U.el("div", "zooW");
@@ -10116,7 +10613,9 @@ KP.game({
       const bTreat = U.btn(KP.E("🍎") + " 간식 주기", "btn");
       const bCall = U.btn(KP.E("📣") + " 모두 모여라", "btn");
       const bMode = U.btn("", "btn");
-      bar.append(bPaint, bTreat, bCall, bMode);
+      const bFind = U.btn(KP.E("🔍") + " 찾기 놀이", "btn");
+      bar.append(bPaint, bTreat, bCall, bFind, bMode);
+      ctx.bFind = bFind;
       ctx.bPaint = bPaint;
       ctx.bMode = bMode;
       bMode.addEventListener("click", () => {
@@ -10128,6 +10627,7 @@ KP.game({
       const houseOpen = () => !!U.$(".zHouse", W);
       bTreat.addEventListener("click", () => !houseOpen() && this.treats(ctx));
       bCall.addEventListener("click", () => !houseOpen() && this.callAll(ctx));
+      bFind.addEventListener("click", () => !houseOpen() && (ctx.find ? this.findEnd(ctx, false) : this.findStart(ctx)));
       // 🏞️ 배경 바꾸기 (3D 동물원 — 날마다 바뀌고, 고른 배경은 그날 하루 기억)
       const bgB = U.btn(KP.E("🏞️"), "z3BgBtn");
       W.appendChild(bgB);
@@ -10325,7 +10825,9 @@ KP.game({
       W.classList.toggle("night", night);
       U.$(".zSun", W).innerHTML = KP.E(night ? "🌙" : "☀️");
       U.$$(".zStar", W).forEach((e) => (e.style.display = night ? "" : "none"));
-      U.$$(".zA,.zTreat,.zEmpty,.zDel,.zHeart,.z3Tip,.zHouse", W).forEach((e) => e.remove());
+      U.$$(".zA,.zTreat,.zEmpty,.zDel,.zHeart,.z3Tip,.zHouse,.zFind", W).forEach((e) => e.remove());
+      ctx.find = null;
+      ctx.bFind.classList.remove("on");
       ctx.animals = [];
       ctx.treatsArr = [];
       // 진짜 3D (WebGL) — 안 되면 2.5D
@@ -10344,6 +10846,7 @@ KP.game({
             if (ctx.z3) ctx.z3.dispose(); // 화면이 끊긴 옛 세계 정리 후 새로
             ctx.z3 = KP.zoo3d.create(ctx, W, T);
             ctx.z3.onDelete = (a) => this.askDelete3(ctx, a);
+            ctx.z3.onPoke = (a) => !!ctx.find && this.findTap(ctx, a); // 찾기 놀이 중이면 누른 친구를 맞는지 봄
             // 3D 화면이 끊기면(iPad 백그라운드·메모리 부족) 새로 만들어 다시 보여 줌
             const me = ctx.z3; // 이 3D 화면이 지금 쓰는 것일 때만 (나갔다 빨리 다시 들어와도 엉뚱하게 재시작 안 하게)
             me.onLost = () => ctx._active && ctx.use3d && ctx.z3 === me && this.start(ctx);
@@ -10771,7 +11274,99 @@ KP.game({
         this.place(ctx, a);
       }
     },
+    /* ---------- 🔍 찾기 놀이: "토끼! 어디 있을까?" → 그 친구를 콕 (3번 찾으면 끝) ----------
+       동물원 안의 친구 이름(서로 다른 것)이 2가지 이상일 때. 2가지뿐이면 찍어도 맞는 판이라 열쇠 별 없음 */
+    findList(ctx) {
+      return ctx.use3d ? (ctx.z3 ? ctx.z3.animals : []) : ctx.animals || [];
+    },
+    findStart(ctx) {
+      const names = [...new Set(this.findList(ctx).map((a) => a.t && a.t.name).filter(Boolean))];
+      if (names.length < 2) {
+        U.replay(ctx.bPaint, "jump");
+        KP.voice.say("색칠 공방에서 동물을 색칠해서 보내 주세요!");
+        return;
+      }
+      U.$$(".zDel,.z3Tip", ctx.W).forEach((e) => e.remove());
+      ctx.find = { n: 0, target: null, last: null, busy: false, card: U.btn("", "zFind") };
+      ctx.W.appendChild(ctx.find.card);
+      ctx.find.card.addEventListener("click", () => ctx.find && KP.voice.say(ctx.find.target + "! 어디 있을까?"));
+      ctx.bFind.classList.add("on");
+      KP.audio.sfx("open");
+      this.findNext(ctx);
+    },
+    findNext(ctx) {
+      const f = ctx.find;
+      if (!f) return;
+      const list = this.findList(ctx);
+      const names = [...new Set(list.map((a) => a.t && a.t.name).filter(Boolean))];
+      if (names.length < 2) return this.findEnd(ctx, false);
+      // 직전 친구는 빼고, 자연 음성이 있는 이름을 먼저
+      let pool = names.filter((n) => n !== f.last);
+      const nat = pool.filter((n) => !KP.voice._natUrls || KP.voice._natUrls(n + "! 어디 있을까?"));
+      if (nat.length) pool = nat;
+      f.target = U.pick(pool);
+      f.last = f.target;
+      f.busy = false;
+      f.card.classList.remove("ok");
+      f.card.innerHTML = KP.E(FIND_EM[f.target] || "🐾") + "<span>" + f.target + "</span><i>" + "●".repeat(f.n) + "○".repeat(3 - f.n) + "</i>";
+      if (names.length < 3) ctx.fewChoice(); // 보기 2가지 → 찍어도 맞음
+      KP.voice.say(f.target + "! 어디 있을까?");
+      // 힌트: 그 친구 자리를 가리킴 → 그 판은 열쇠 별 없음
+      ctx.hint(
+        () => {
+          if (!ctx.find) return null;
+          const a = this.findList(ctx).find((q) => q.t && q.t.name === ctx.find.target);
+          if (!a) return null;
+          if (!ctx.use3d) return a.el;
+          const p = ctx.z3.toScreen(a, 0.5),
+            r = ctx.W.getBoundingClientRect();
+          return { x: r.left + p.x, y: r.top + p.y };
+        },
+        f.target + "! 어디 있을까?",
+        { answer: true }
+      );
+    },
+    /** 찾기 놀이 중 친구를 눌렀을 때 — true 면 원래 인사(이름·울음)는 하지 않음 */
+    findTap(ctx, a) {
+      const f = ctx.find;
+      if (!f || !f.target) return false;
+      if (f.busy) return true;
+      if (a.t.name !== f.target) {
+        ctx.miss(null, "다시 찾아봐요!");
+        return true;
+      }
+      f.busy = true;
+      f.n++;
+      f.card.innerHTML = f.card.innerHTML.replace(/<i>.*<\/i>/, "<i>" + "●".repeat(f.n) + "○".repeat(3 - f.n) + "</i>");
+      U.replay(f.card, "ok");
+      if (ctx.use3d) ctx.z3.hearts(a, 4);
+      else this.hearts(ctx, a, 4);
+      KP.audio.sfx("sparkle");
+      KP.voice.say(f.target + "! 찾았다!");
+      (async () => {
+        await ctx.wait(900);
+        if (ctx.find !== f) return;
+        const last = f.n >= 3;
+        const ok = await ctx.win({ msg: last ? "모두 찾았다!" : "찾았다!", big: last });
+        if (ok === false || ctx.find !== f) return;
+        if (last) this.findEnd(ctx, true);
+        else this.findNext(ctx);
+      })();
+      return true;
+    },
+    findEnd(ctx, done) {
+      if (!ctx.find) return;
+      ctx.find.card.remove();
+      ctx.find = null;
+      ctx.bFind.classList.remove("on");
+      ctx.hint(null);
+      if (!done) KP.audio.sfx("back");
+    },
     poke(ctx, a) {
+      if (ctx.find && this.findTap(ctx, a)) {
+        U.replay(a.el, "jump");
+        return;
+      }
       U.replay(a.el, "jump");
       const nm = a.t.name;
       KP.voice.say(nm + "! " + a.t.cry + " 내가 색칠한 " + U.josa(nm, "이에요/예요") + "!");
@@ -12207,6 +12802,7 @@ KP.game({
   W3.poke = function (a) {
     this.cheer(a);
     a.look = 1.8;
+    if (this.onPoke && this.onPoke(a)) return; // 찾기 놀이(zoo.js)가 맡음 — 이름·울음 인사는 하지 않음
     if (a.state === "walk" && !a.treat && !a.gather && !a.isNew && !a.fly && !a.swim) {
       a.state = "idle";
       a.wait = 2;

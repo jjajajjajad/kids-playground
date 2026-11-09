@@ -5,7 +5,8 @@
    - 🌟 따라 치기: 동요를 고르면 다음에 칠 건반이 반짝 → 누르면 다음 음 → 한 곡 완성 시 축하
      (1단계: 앞 두 소절, 2단계: 절반, 3단계: 끝까지)
      틀린 건반: 부드러운 '톡' + 칠 건반이 들썩 (벌 없음). 쓸기(글리산도)로 지나간 건반은 소리만 나고 진행엔 안 셈
-     (쓸어서 정답을 지나가는 것 방지) — 따라 치기는 콕 눌러야 다음으로. 틀린 횟수가 많으면 열쇠 별 없음 */
+     (쓸어서 정답을 지나가는 것 방지) — 따라 치기는 콕 눌러야 다음으로. 틀린 횟수가 많으면 열쇠 별 없음
+   - 폰 세로 따라 치기: 노래에 필요한 건반까지만 보여 넓게(비행기·나비야·곰 세 마리 5개, 반짝반짝·학교종 6개). 마음대로 칠 땐 8개 */
 "use strict";
 KP.game({
   id: "piano",
@@ -43,8 +44,9 @@ KP.game({
       .pn-key.next::after{content:"";position:absolute;inset:-5px;border-radius:0 0 20px 20px;box-shadow:0 0 0 6px #ffe14d,0 0 26px 10px rgba(255,225,77,.85);pointer-events:none}
       @keyframes pnNext{50%{transform:translateY(-6px)}}
       .pn-star{position:absolute;left:0;right:0;text-align:center;top:6%;font-size:clamp(30px,4.6vw,48px);animation:bob 1s ease-in-out infinite;pointer-events:none}
-      .pn-bk{position:absolute;top:10px;height:52%;width:calc((100% - 20px) / 8 * .58);margin-left:calc((100% - 20px) / 8 * -.29);border-radius:0 0 12px 12px;background:linear-gradient(#3a3550,#1f1b30);box-shadow:0 5px 0 #0c0a14;z-index:2;touch-action:none;display:none}
+      .pn-bk{position:absolute;top:10px;height:52%;width:calc((100% - 20px) / var(--kn,8) * .58);margin-left:calc((100% - 20px) / var(--kn,8) * -.29);border-radius:0 0 12px 12px;background:linear-gradient(#3a3550,#1f1b30);box-shadow:0 5px 0 #0c0a14;z-index:2;touch-action:none;display:none}
       .pn-keys.black .pn-bk{display:block}
+      .pn-keys .pn-key.off,.pn-keys.black .pn-bk.off{display:none}
       .pn-bk.down{transform:translateY(4px);background:#6a5a9a}
       .pn-note{position:absolute;pointer-events:none;font-size:clamp(28px,4vw,44px);z-index:5;animation:pnFly 1.1s ease-out forwards}
       @keyframes pnFly{from{transform:translate(-50%,0) scale(.5);opacity:1}to{transform:translate(calc(-50% + var(--dx)),-170px) scale(1.2) rotate(var(--r));opacity:0}}
@@ -66,6 +68,7 @@ KP.game({
         .pn-ib{flex:0 0 auto;min-width:48px}
         .pn-song{padding:6px 12px}
         .pn-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+        .pn-choir{font-size:min(8.5vh,14vw);gap:clamp(4px,1.6vw,14px)}
       }
     `);
 
@@ -137,7 +140,8 @@ KP.game({
     });
     const blackEls = BLACKS.map(([n, pos]) => {
       const k = U.el("div", "pn-bk");
-      k.style.left = "calc(10px + (100% - 20px) / 8 * " + pos + ")";
+      k.style.left = "calc(10px + (100% - 20px) / var(--kn,8) * " + pos + ")";
+      k.dataset.pos = pos;
       k.dataset.n = n;
       keysEl.appendChild(k);
       return k;
@@ -145,6 +149,16 @@ KP.game({
     const picker = U.el("div", "pn-pick");
     wrap.append(top, choir, prog, keysEl);
     ctx.body.append(wrap, picker);
+    /** 폰 세로 따라 치기: 칠 음 중 가장 높은 건반까지만 (최소 5개) — 건반 폭 39px → 약 55~67px */
+    function fitKeys() {
+      const narrow = matchMedia("(max-aspect-ratio:1/1) and (max-width:560px)").matches;
+      let n = 8;
+      if (narrow && follow) n = Math.max(5, ...follow.notes.map(([x]) => KEYS.findIndex((k) => k[0] === x) + 1));
+      keysEl.style.setProperty("--kn", n);
+      keyEls.forEach((k, i) => k.classList.toggle("off", i >= n));
+      blackEls.forEach((k) => k.classList.toggle("off", +k.dataset.pos >= n));
+    }
+    addEventListener("resize", () => ctx._active && fitKeys());
     function markInst() {
       instBtns.forEach(([id, b]) => b.classList.toggle("sel", id === pref.inst));
       bBlack.classList.toggle("sel", pref.black);
@@ -269,6 +283,7 @@ KP.game({
       notes.forEach(() => dots.appendChild(U.el("span", "pn-dot")));
       prog.classList.add("on");
       picker.classList.remove("show");
+      fitKeys();
       ctx.say(song.name + "! 반짝이는 건반을 차례로 눌러요.");
       // 첫 소절을 살짝 들려주고, 바로 반짝이는 건반으로 시작
       A.melody(ph[0], { beat: 0.34, inst: "bell", octave: 1, vol: 0.14, when: 0.6 });
@@ -334,6 +349,7 @@ KP.game({
       await ctx.wait(900 + len * 1000);
       if (gen !== playGen) return; // 그사이 새 노래를 골랐으면 옛 축하는 건너뜀
       prog.classList.remove("on");
+      fitKeys(); // 다 쳤으면 건반 8개로 (마음대로 치기)
       const ok = await ctx.win({ big: true, msg: song.name + " 완성!" });
       if (!ok) return;
       ctx.say("또 다른 노래를 쳐 볼까요? 별 단추를 눌러요!");
@@ -341,6 +357,7 @@ KP.game({
     }
     function stopFollow() {
       follow = null;
+      fitKeys();
       prog.classList.remove("on");
       markNext(true);
       keyEls.forEach((k) => k.classList.remove("next"));

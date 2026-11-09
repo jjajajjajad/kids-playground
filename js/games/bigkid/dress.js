@@ -82,11 +82,11 @@ KP.game({
       ["🥾", "장화", "feet", ["rain"], "red"],
       ["🧥", "노란 우비", "body", ["rain"], "yellow"],
       ["🧣", "목도리", "neck", ["snow", "cool"]],
-      ["🧤", "장갑", "hands", ["snow"]],
+      ["🧤", "장갑", "hands", ["snow", "cool"]], // 쌀쌀한 날도 장갑 → 3단계 쌀쌀 판이 4가지 조합 (말: "장갑! 꼈어요!" 자연 음성)
       ["🧥", "두꺼운 패딩", "body", ["snow"]],
       ["🥾", "털부츠", "feet", ["snow"]],
       ["🧥", "점퍼", "body", ["cool"], "green"], // 같은 🧥 그림이 우비·패딩·점퍼 셋 — 색으로 구별
-      ["👖", "긴바지", "legs", ["cool", "snow"]],
+      ["👖", "긴바지", "legs", ["cool", "snow", "rain"]], // 비 오는 날도 긴바지(3단계 비 판이 늘 같은 3개였음)
     ];
     // 날씨별 틀린 보기 (확실히 안 맞는 것만)
     ctx.WRONG = {
@@ -137,7 +137,9 @@ KP.game({
     sc.appendChild(bear);
 
     // 보기
-    const good = U.sample(ctx.ITEMS.filter((it) => it[3].includes(wk)), need);
+    // 맞는 옷: 같은 자리(발·몸 등)는 하나만 — 장화+운동화처럼 겹치지 않게
+    const good = [];
+    U.shuffle(ctx.ITEMS.filter((it) => it[3].includes(wk))).forEach((it) => good.length < need && !good.some((g) => g[2] === it[2]) && good.push(it));
     const bad = U.sample(ctx.WRONG[wk], nWrong).map(([e, n, msg]) => ({ e, n, msg, ok: false }));
     const list = U.shuffle([...good.map(([e, n, slot, , col]) => ({ e, n, slot, col, ok: true })), ...bad]);
     ctx.tray.innerHTML = "";

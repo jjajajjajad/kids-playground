@@ -1,6 +1,6 @@
 /* 순서대로 놓기 — 그림 카드를 일어난 순서대로 빈칸 1·2·3 에 끌어 놓기
    1단계: 3장 모두 직접 놓기 (쉬운 이야기만 — 예전엔 첫 장면을 놓아 줘서 사실상 2택이었음)
-   2단계: 3장 모두 직접 놓기 (이야기 전체)
+   2단계: 3장 모두 직접 놓기 (이야기 전체) + 이야기와 상관없는 그림 1장이 쟁반에 섞임(남는 카드) — 1단계와 차이
    3단계: 4장 모두 직접 놓기
    완성하면 카드가 차례로 반짝이며 짧은 이야기를 들려준다. */
 "use strict";
@@ -50,11 +50,15 @@ KP.game({
       { name: "닭", easy: 1, s3: [0, 1, 3], steps: [["🥚", "", "알이 있어요"], ["🐣", "", "알이 톡톡 깨졌어요"], ["🐥", "", "삐약삐약! 병아리예요"], ["🐔", "", "꼬끼오! 닭이에요."]] },
       { name: "풍선", easy: 1, s3: [0, 2, 3], steps: [["🎈", "", "풍선을 후 불어요", "s1"], ["🎈", "", "후우 더 커졌어요", "s2"], ["🎈", "", "큰 풍선!", "s3"], ["💥", "", "풍선이 갑자기 펑 터졌어요!"]] },
       { name: "무지개", easy: 1, s3: [1, 2, 3], steps: [["☀️", "", "해님이 반짝반짝"], ["☁️", "", "구름이 몰려와요"], ["🌧️", "", "주룩주룩 비가 와요"], ["🌈", "", "무지개!"]] },
-      { name: "나비", s3: [0, 1, 2], steps: [["🐛", "🍃", "애벌레가 냠냠 잎을 먹어요"], ["cocoon", "", "번데기가 되었어요"], ["🦋", "", "나비가 되었어요"], ["🦋", "🌸", "나비가 꽃으로 훨훨 날아가요"]] },
+      { name: "나비", s3: [0, 1, 2], steps: [["🐛", "🍃", "애벌레가 냠냠 잎을 먹어요"], ["cocoon", "", "번데기가 되었어요"], ["🦋", "", "나비가 되었어요"], ["🌸", "🦋", "나비가 꽃으로 훨훨 날아가요"]] }, // 4번은 꽃이 크게(3번 나비와 헷갈리지 않게)
       { name: "케이크", s3: [0, 1, 2], steps: [["🥚", "🥛", "달걀이랑 우유를 준비해요"], ["🥣", "", "반죽을 휘휘 섞어요"], ["🎂", "", "케이크가 완성됐어요"], ["😋", "🍰", "냠냠 맛있게 먹어요"]] },
       { name: "아침", s3: [0, 1, 2], steps: [["😴", "", "쿨쿨 잠을 자요"], ["🧼", "🫧", "일어나서 세수해요"], ["👕", "", "옷을 입어요"], ["🎒", "", "유치원에 가요"]] },
       { name: "눈사람", s3: [0, 1, 2], steps: [["❄️", "", "오늘은 하얀 눈이 펑펑 와요."], ["ball", "", "눈을 데굴데굴 굴려요"], ["⛄", "", "눈사람 완성"], ["💧", "☀️", "해님이 나와서 눈사람이 녹았어요", "melt"]] },
-      { name: "사과", s3: [0, 1, 2], steps: [["🌸", "", "꽃이 활짝 피었어요"], ["🍏", "", "초록 사과!"], ["🍎", "", "빨갛게 익었어요"], ["😋", "🍎", "아삭아삭 맛있어요"]] },
+      // 1단계 쉬운 이야기 늘림(4 → 8): 사과·로켓·밥·생일 — 말은 모두 이미 있는 자연 음성 문장
+      { name: "로켓", easy: 1, s3: [0, 1, 3], steps: [["🚀", "", "출발 준비!", "s2"], ["🚀", "🔥", "출발!"], ["🚀", "⭐", "로켓은 우주로 슝"], ["🌙", "🚀", "달에 도착!"]] },
+      { name: "밥", easy: 1, no4: 1, s3: [0, 1, 2], steps: [["🤤", "🍙", "배고파요!"], ["😋", "🍙", "냠냠 맛있게 먹어요"], ["🍽️", "", "배불러요!"]] },
+      { name: "생일", easy: 1, no4: 1, s3: [0, 1, 2], steps: [["🎂", "", "생일!"], ["🎂", "🎵", "생일 축하합니다"], ["😋", "🍰", "냠냠 맛있게 먹어요"]] },
+      { name: "사과", easy: 1, s3: [0, 1, 2], steps: [["🌸", "", "꽃이 활짝 피었어요"], ["🍏", "", "초록 사과!"], ["🍎", "", "빨갛게 익었어요"], ["😋", "🍎", "아삭아삭 맛있어요"]] },
     ];
     ctx.wrap = U.el("div", "sqWrap");
     ctx.row = U.el("div", "sqRow");
@@ -95,7 +99,8 @@ KP.game({
     const lv = ctx.level;
     const tok = ++ctx.token;
     const n = lv === 3 ? 4 : 3;
-    let pool = ctx.STORIES.filter((s) => (lv === 1 ? s.easy : true) && s !== ctx.last);
+    // no4: 3장면뿐인 이야기(3단계 4장 놓기에는 안 나옴)
+    let pool = ctx.STORIES.filter((s) => (lv === 1 ? s.easy : true) && !(n === 4 && s.no4) && s !== ctx.last);
     const story = U.pick(pool);
     ctx.last = story;
     const steps = n === 4 ? story.steps : story.s3.map((i) => story.steps[i]);
@@ -118,20 +123,30 @@ KP.game({
       c.dataset.i = i;
       return c;
     });
+    // 2단계: 다른 이야기의 그림 1장(남는 카드) — 어디에도 안 들어감
+    let odd = null;
+    if (lv === 2) {
+      const mains = new Set(story.steps.map((s) => s[0]));
+      const others = ctx.STORIES.filter((s) => s !== story).flatMap((s) => s.steps).filter((s) => !mains.has(s[0]) && s[0] !== "cocoon" && s[0] !== "ball" && !s[3]);
+      const os = U.pick(others);
+      odd = U.el("div", "sqCard", this.art(os));
+      odd.dataset.i = -1;
+    }
     let left = n - pre;
     for (let i = 0; i < pre; i++) {
       slots[i].appendChild(cards[i]);
       slots[i].classList.add("filled");
     }
-    U.shuffle(cards.slice(pre)).forEach((c, k) => {
+    U.shuffle(cards.slice(pre).concat(odd ? [odd] : [])).forEach((c, k) => {
       c.classList.add("item");
       c.style.setProperty("--i", k);
       ctx.tray.appendChild(c);
       const i = +c.dataset.i;
       const d = KP.drag(c, {
         targets: () => slots.filter((s) => !s.classList.contains("filled")),
-        accept: (t) => +t.dataset.i === i,
+        accept: (t) => i >= 0 && +t.dataset.i === i,
         onReject: (t) => {
+          if (i < 0) return ctx.miss(t, "다른 그림을 찾아볼까?"); // 이 이야기 그림이 아님
           ctx.miss(t, +t.dataset.i < i ? "음, 이건 조금 나중 일이에요. 다른 그림을 찾아볼까?" : "이건 조금 먼저 일어난 일이에요. 다시 생각해 볼까?");
         },
         onDrop: (t) => {
@@ -172,6 +187,12 @@ KP.game({
     hint();
     const finish = async () => {
       ctx.hint(null);
+      if (odd) {
+        odd.style.transition = "opacity .4s, transform .4s";
+        odd.style.opacity = "0";
+        odd.style.transform = "scale(.6)";
+        odd.style.pointerEvents = "none";
+      }
       await ctx.wait(500);
       if (tok !== ctx.token) return;
       // 차례로 반짝이며 이야기 들려주기

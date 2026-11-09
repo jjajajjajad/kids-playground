@@ -1278,6 +1278,7 @@
   W3.poke = function (a) {
     this.cheer(a);
     a.look = 1.8;
+    if (this.onPoke && this.onPoke(a)) return; // 찾기 놀이(zoo.js)가 맡음 — 이름·울음 인사는 하지 않음
     if (a.state === "walk" && !a.treat && !a.gather && !a.isNew && !a.fly && !a.swim) {
       a.state = "idle";
       a.wait = 2;

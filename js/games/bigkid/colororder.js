@@ -5,9 +5,10 @@
    - "점점 비슷해져요" 막대: 그릇 전체 색과 목표 색의 거리(Lab)로 0~100%
    - 🤲 드리기: 허용 거리 안이면 성공. 아니면 한 방울씩 더 넣어 보는 계산으로
      가장 가까워지는 물감을 찾아 그 통을 가리키며 알려 줌. 되돌릴 수 없으면 "비우고 다시"
-   - 단계: 1) 두 물감 1:1  2) 두 물감 2:1·1:2  3) 하양·검정이 들어간 색
+   - 단계: 1) 두 물감 1:1 + 분홍·하늘색(빨강/파랑 1 + 하양 2) 2) 두 물감 2:1·1:2  3) 하양·검정이 들어간 색
    - 1단계는 쉽게: 통을 한 번 누르면 한 방울만(꾹 눌러 계속 붓기 없음 → 1:1 이 쉽게 안 틀어짐),
-     조금만 저어도(고른 정도 0.5) 드릴 수 있음
+     조금만 저어도(고른 정도 0.5) 드릴 수 있음. 덜 저은 채 드리기를 누르면 곰돌이가 빙글빙글 저어 주고 바로 봄
+     (2·3단계는 '먼저 저어요' 안내를 한 번 받은 뒤 또 누르면 저어 줌) → 한 판이 1분 안쪽
    - 손님 말풍선 안에 '넣기 → 젓기 → 드리기' 그림 진행표(✔) — 글 없이 다음 할 일이 보이게.
      말풍선을 누르면 주문을 다시 들려줌
 ===================================================================== */
@@ -77,6 +78,20 @@ KP.game({
       @media (max-width:420px){
         .psJars{gap:6px}
         .coJarsCell .psJar{width:64px;height:82px}
+      }
+      /* 폰 세로(360~420px 폭): 3단계 물감 통 5개가 두 줄로 넘어가 그릇(최소 140px)이 통 줄과 겹쳤음 →
+         옆 여백·통 사이를 줄여 한 줄로, 손님 칸·단추를 조금 낮게 */
+      @media (orientation:portrait) and (max-width:420px){
+        .coW{padding:2px 4px 6px;gap:6px}
+        .coJarsCell .psJars{gap:4px;flex-wrap:nowrap}
+        .coJarsCell .psJar{height:76px}
+      }
+      @media (orientation:portrait) and (max-height:700px){
+        .coAni{font-size:clamp(46px,7.4vh,64px)}
+        .coCard{width:clamp(64px,10vh,90px)}
+        .coCust{padding:6px 10px 8px}
+        .coB{min-height:64px}
+        .coB .e{font-size:28px}
       }
       @media (orientation:landscape) and (min-height:500px){
         .coW{grid-template-areas:"jars bowl side";grid-template-columns:auto minmax(0,1fr) minmax(280px,30vw);grid-template-rows:minmax(0,1fr);padding:4px 16px 12px;gap:16px}
@@ -191,7 +206,8 @@ KP.game({
 
   /* ---------- 단계별 주문 ---------- */
   RECIPES: {
-    1: [[1, 1, 0, 0, 0], [0, 1, 1, 0, 0], [1, 0, 1, 0, 0]],
+    // 1단계: 주황·초록·보라 + 분홍·하늘색(하양을 넣으면 밝아져요) — 하양 통은 그 판에만 나옴
+    1: [[1, 1, 0, 0, 0], [0, 1, 1, 0, 0], [1, 0, 1, 0, 0], [1, 0, 0, 2, 0], [0, 0, 1, 2, 0]],
     2: [[1, 2, 0, 0, 0], [2, 1, 0, 0, 0], [0, 2, 1, 0, 0], [0, 1, 2, 0, 0], [2, 0, 1, 0, 0]],
     3: [[0, 0, 1, 2, 0], [1, 0, 1, 2, 0], [1, 1, 0, 3, 0], [0, 0, 0, 2, 1], [0, 0, 2, 0, 1], [0, 1, 0, 3, 0], [0, 1, 1, 0, 1], [3, 0, 1, 3, 0], [1, 1, 1, 0, 0]],
   },
@@ -256,9 +272,13 @@ KP.game({
       P = KP.paint;
     const lv = ctx.level;
     const list = this.RECIPES[lv];
+    // 최근 2판과 다른 주문 (주문이 5가지 이상이면)
+    const recent = (ctx.recentV = ctx.recentV || []);
     let v;
     do v = U.pick(list);
-    while (list.length > 1 && ctx.order && v === ctx.order.v);
+    while ((list.length > 1 && ctx.order && v === ctx.order.v) || (list.length > 3 && recent.includes(v)));
+    recent.push(v);
+    while (recent.length > 2) recent.shift();
     const target = P.mix(v);
     const name = P.nameOf(target).n;
     let an;
@@ -269,10 +289,11 @@ KP.game({
     ctx.nearTold = false;
     ctx.dirty = true;
     ctx.busy = false;
+    ctx.stirAsk = 0;
     ctx.studio.setEnabled(true);
     ctx.studio.bowl.clear();
-    // 하양·검정은 3단계에서만
-    [3, 4].forEach((id) => (ctx.studio.jar(id).style.display = lv >= 3 ? "" : "none"));
+    // 하양·검정은 3단계에서만 (1단계 분홍·하늘색 판은 하양만)
+    [3, 4].forEach((id) => (ctx.studio.jar(id).style.display = lv >= 3 || v[id] > 0 ? "" : "none"));
     // 손님 등장
     ctx.ani.classList.remove("out");
     ctx.ani.innerHTML = KP.E(an[0]);
@@ -287,9 +308,12 @@ KP.game({
       v.forEach((x, i) => {
         if (!x) return;
         if (R.childNodes.length) R.appendChild(U.el("span", "", "+"));
-        const d = U.el("span", "coDrop");
-        d.style.setProperty("--c", P.BASE[i].hex);
-        R.appendChild(d);
+        // 1단계는 양도 보여 줌(분홍 = 빨강 방울 1 + 하양 방울 2)
+        for (let k = 0; k < (lv === 1 ? x : 1); k++) {
+          const d = U.el("span", "coDrop");
+          d.style.setProperty("--c", P.BASE[i].hex);
+          R.appendChild(d);
+        }
       });
     } else R.appendChild(U.el("span", "q", "?"));
     // 소리: "진초록이에요." 처럼 자연 음성이 없는 색 이름은 "진초록!" 으로 (조각마다 자연 음성)
@@ -378,6 +402,9 @@ KP.game({
       return;
     }
     if (studio.state.even < this.evenNeed(ctx)) {
+      // 1단계(또는 한 번 안내받은 뒤): 대신 빙글빙글 저어 주고 바로 봄 — 한 판이 너무 길어지지 않게
+      if (ctx.level === 1 || ctx.stirAsk >= 1) return this.autoStir(ctx);
+      ctx.stirAsk++;
       ctx.miss(ctx.bGive, "먼저 숟가락으로 빙글빙글 저어요!", { soft: true });
       ctx.hint(() => bowl.cv, "그릇을 빙글빙글 저어요!");
       return;
@@ -405,6 +432,39 @@ KP.game({
       U.replay(ctx.ani, "wig");
       ctx.hint(() => ctx.bDrain, "비우기를 누르고 다시 해 봐요!");
     }
+  },
+
+  /** 대신 저어 주기: 그릇 가운데를 빙글빙글 (공용 bowl.stir 로 손가락 젓기와 같은 계산) → 고르게 되면 드리기 */
+  async autoStir(ctx) {
+    const studio = ctx.studio,
+      bowl = studio.bowl;
+    ctx.busy = true;
+    ctx.autoStirs = (ctx.autoStirs || 0) + 1; // 점검용
+    ctx.hint(null);
+    KP.voice.say("먼저 빙글빙글 섞어 볼까요?"); // 자연 음성 있는 문장
+    const sess = ctx._session,
+      need = this.evenNeed(ctx);
+    let t = 0,
+      last = null;
+    await new Promise((res) => {
+      ctx.loop((dt) => {
+        if (ctx._session !== sess) return res(), false;
+        t += dt;
+        const S = bowl.size(),
+          a = t * 7.5,
+          r = S * (0.18 + 0.1 * Math.sin(t * 2.3));
+        const p = { x: S / 2 + Math.cos(a) * r, y: S / 2 + Math.sin(a) * r };
+        if (last) bowl.stir(p.x, p.y, p.x - last.x, p.y - last.y);
+        last = p;
+        studio.state.lastStirAt = performance.now();
+        // 1.2초 이상 젓고 고르게 됐으면 끝 (최대 4초)
+        if ((t > 1.2 && studio.state.even >= need) || t > 4) return res(), false;
+      });
+    });
+    if (ctx._session !== sess || !ctx._active) return;
+    ctx.busy = false;
+    if (studio.state.even < need) studio.state.even = need; // 4초 저었으면 고르게 된 걸로
+    this.give(ctx);
   },
 
   async success(ctx) {

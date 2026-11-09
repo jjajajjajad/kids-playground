@@ -4,6 +4,10 @@
           1·2단계 판 셋 중 하나쯤은 앞 칸(1, 또는 1·2)이 이미 붙어 있어 그다음 숫자부터 이어요(시작 숫자 변화, 이을 칸 수는 같음)
    3단계: 1~10 기차에서 빈 칸 4개 채우기 (숫자만, 앞뒤 숫자 보고 추리)
           — 3단계에 처음 들어오면 첫 2판은 디딤판: 1~6 기차에 빈 칸 2개 (점도 보임)
+   2차 보강:
+     · 2단계 판 셋 중 하나(앞 칸 붙은 판과 겹치지 않게)는 '빈 칸 하나 추리': 1~5 기차에 빈 칸 1개, 카드 3장(맞는 것 1 + 헷갈리는 것 2) — 3단계 디딤
+     · 3단계(디딤판 뒤) 판 종류가 돌아가며 바뀜: 보통(빈 칸 4) → 헷갈리는 카드 1장 더(끝 카드가 저절로 맞지 않게) → 거꾸로 기차(10, 9, 8 … 1)
+     · 다 이은 뒤 출발 연출(약 5초)은 둘째 판부터 화면을 누르면 건너뜀
    칸 크기(--cw)는 무대 폭에 맞춰 계산 → 한 줄에 다 들어가게. 너무 좁으면(폰 세로) 반씩 2줄(5+5)로 나눔
    다 이으면 동물 승객이 창문에서 손을 흔들고 기차가 칙칙폭폭 달려 나간다. */
 "use strict";
@@ -65,6 +69,8 @@ KP.game({
     ctx.tray = U.el("div", "trTray");
     ctx.wrap.append(ctx.track, ctx.tray);
     ctx.body.appendChild(ctx.wrap);
+    // 출발 연출 건너뛰기 (finish 가 ctx.trSkip 을 걸어 둔 동안만)
+    ctx.wrap.addEventListener("pointerdown", () => ctx.trSkip && ctx.trSkip());
     ctx.round = 0;
     ctx.token = 0;
     // 화면을 돌리면 칸 크기·줄 나눔만 다시 맞춤 (판은 그대로)
@@ -105,7 +111,7 @@ KP.game({
     const lw = cw * L + 2;
     ctx.train.style.width = split ? Math.ceil(lw + per * (cw + g)) + 1 + "px" : "";
     // 둘째 줄 첫 칸은 기관차 폭만큼 들여서 윗줄 칸 아래에 맞춤
-    (ctx.units || []).forEach((u) => (u.style.marginLeft = split && +u.dataset.n === per + 1 ? lw + "px" : ""));
+    (ctx.units || []).forEach((u) => (u.style.marginLeft = split && +u.dataset.pos === per + 1 ? lw + "px" : ""));
   },
   start(ctx) {
     ctx.round = 0;
@@ -129,11 +135,18 @@ KP.game({
     if (lv < 3) ctx.l3n = 0;
     const step = lv === 3 && (ctx.l3n || 0) < 2;
     if (lv === 3) ctx.l3n = (ctx.l3n || 0) + 1;
-    const seq = lv < 3; // 차례로 잇기
+    let seq = lv < 3; // 차례로 잇기
     // 1·2단계: 가끔 앞 칸이 이미 붙어 있음 → 2(또는 3)부터 이어 붙이기. 연달아 두 번은 안 함
     let pre = 0;
     if (seq && !ctx.lastPre && U.rand(3) === 0) pre = lv === 1 ? 1 : 1 + U.rand(2);
+    // 2단계 빈 칸 하나 추리 판 (앞 칸 붙은 판이 아닐 때, 판 셋 중 하나)
+    if (lv === 2) ctx.l2n = (ctx.l2n || 0) + 1;
+    const one = lv === 2 && !pre && ctx.l2n % 3 === 0;
+    if (one) seq = false;
     ctx.lastPre = pre;
+    // 3단계 판 종류: 0 보통 · 1 헷갈리는 카드 · 2 거꾸로 (디딤판 뒤부터 돌아가며)
+    const kind = lv === 3 && !step ? (ctx.l3n - 3) % 3 : 0;
+    const rev = kind === 2;
     const total = step ? 6 : [3, 5, 10][lv - 1] + pre;
     const dots = lv < 3 || step;
     ctx.wrap.classList.toggle("big", lv === 1);
@@ -153,25 +166,31 @@ KP.game({
     let blanks;
     if (seq) blanks = new Set(Array.from({ length: total - pre }, (_, i) => i + 1 + pre));
     else {
-      blanks = new Set(U.sample(Array.from({ length: total - 1 }, (_, i) => i + 2), step ? 2 : 4));
+      // 빈 칸: 맨 앞 칸(보통 1, 거꾸로 기차는 10)은 늘 보이게
+      blanks = new Set(U.sample(Array.from({ length: total - 1 }, (_, i) => (rev ? i + 1 : i + 2)), one ? 1 : step ? 2 : 4));
     }
-    for (let n = 1; n <= total; n++) {
+    // 헷갈리는 카드: 빈 칸 숫자가 아닌 것 (2단계 추리 판 2장, 3단계 '헷갈리는 카드' 판 1장)
+    const decoys = one ? U.sample([1, 2, 3, 4, 5, 6].filter((x) => !blanks.has(x)), 2) : kind === 1 ? U.sample(Array.from({ length: total }, (_, i) => i + 1).filter((x) => !blanks.has(x)), 1) : [];
+    for (let k = 1; k <= total; k++) {
+      const n = rev ? total + 1 - k : k; // 거꾸로 기차: 앞에서부터 10, 9, 8 …
       const u = U.el("div", "trUnit");
       u.style.setProperty("--k", n);
       const inner = blanks.has(n) ? U.el("div", "trSlot", "?") : this.car(ctx, n, dots);
       inner.appendChild(U.el("span", "trLink"));
       u.appendChild(inner);
       u.dataset.n = n;
+      u.dataset.pos = k; // 화면에서 몇 번째 칸인지 (2줄 나눔용)
       units.push(u);
       if (!seq || !blanks.has(n)) ctx.train.appendChild(u);
     }
+    const unitOf = (n) => units.find((u) => +u.dataset.n === n);
     ctx.total = total;
     ctx.units = units;
     this.fit(ctx);
     // 차례로 잇기: 다음 칸만 보여 줌
     let nextN = pre + 1;
     const showNext = () => {
-      const u = units[nextN - 1];
+      const u = unitOf(nextN);
       if (!u) return;
       ctx.train.appendChild(u);
       u.firstChild.classList.add("next");
@@ -181,21 +200,25 @@ KP.game({
 
     // 앞 칸이 붙어 있는 판: "하나! 둘! 다음은 뭐가 올 차례일까?" — 모두 자연 음성 조각
     const preSay = Array.from({ length: pre }, (_, i) => U.NAT[i + 1] + "!").join(" ") + " 다음은 뭐가 올 차례일까?";
-    ctx.say(seq ? (pre ? preSay : "기차 칸을 1부터 순서대로 이어 주세요!") : "빈 칸에 어떤 숫자가 들어갈까요? 기차를 이어 주세요!");
+    // 거꾸로 기차: "열! 아홉! 여덟! 빈 칸에 들어갈 숫자를 찾아요!" — 모두 자연 음성 조각
+    ctx.say(seq ? (pre ? preSay : "기차 칸을 1부터 순서대로 이어 주세요!") : rev ? "열! 아홉! 여덟! 빈 칸에 들어갈 숫자를 찾아요!" : "빈 칸에 어떤 숫자가 들어갈까요? 기차를 이어 주세요!");
     // 디딤판(끌 것 2개·빈 칸 2개): 첫 카드를 아무 칸에 놓아도 반은 맞고 나머지는 저절로 맞음 → 열쇠 별 없음
     if (step) ctx.fewChoice();
 
     const openSlots = () => units.filter((u) => u.isConnected && u.firstChild.classList.contains("trSlot"));
-    const cars = U.shuffle([...blanks]).map((n, k) => {
+    const cars = U.shuffle([...blanks, ...decoys.map((d) => -d)]).map((v, k) => {
+      const n = Math.abs(v),
+        fake = v < 0; // 헷갈리는 카드(어느 빈 칸에도 안 맞음)
       const c = this.car(ctx, n, dots);
       c.classList.add("item");
       c.style.animation = "itemIn .4s backwards cubic-bezier(.2,1.4,.4,1)";
       c.style.animationDelay = 300 + k * 70 + "ms";
+      if (fake) c.dataset.fake = "1";
       ctx.tray.appendChild(c);
       const d = KP.drag(c, {
         targets: openSlots,
         pad: 30,
-        accept: (u) => +u.dataset.n === n,
+        accept: (u) => !fake && +u.dataset.n === n,
         onReject: (u) => {
           const want = +u.dataset.n;
           if (seq) {
@@ -204,7 +227,10 @@ KP.game({
             ctx.miss(u, want === 1 ? "맨 처음은 1이에요. 1을 찾아볼까?" : cnt + " 다음은 뭐가 올 차례일까?");
           } else {
             // 말로만 나감 → 숫자는 글자로 끊어 말하기(자연 음성 조각): "일곱! 아홉! 빈 칸에 들어갈 숫자를 찾아요!"
-            ctx.miss(u, U.NAT[want - 1] + "! " + (want + 1 <= total ? U.NAT[want + 1] + "! 빈 칸에 들어갈 숫자를 찾아요!" : "다음은 뭐가 올 차례일까?"));
+            // 화면에서 빈 칸 왼쪽·오른쪽 숫자 (거꾸로 기차는 왼쪽이 더 큰 수)
+            const L = rev ? want + 1 : want - 1,
+              R = rev ? want - 1 : want + 1;
+            ctx.miss(u, U.NAT[L] + "! " + (R >= 1 && R <= total ? U.NAT[R] + "! 빈 칸에 들어갈 숫자를 찾아요!" : "다음은 뭐가 올 차례일까?"));
           }
         },
         onDrop: (u) => {
@@ -224,15 +250,23 @@ KP.game({
             nextN++;
             showNext();
           }
-          if (!blanks.size) finish();
-          else hint();
+          if (!blanks.size) {
+            // 남은 헷갈리는 카드는 쏙 사라짐
+            cars.forEach((x) => {
+              if (!x.isConnected) return;
+              x.style.transition = "opacity .3s";
+              x.style.opacity = "0";
+              x.style.pointerEvents = "none";
+            });
+            finish();
+          } else hint();
         },
       });
       return c;
     });
     const hint = () => {
-      const want = seq ? nextN : Math.min(...blanks);
-      const c = cars.find((x) => +x.dataset.n === want);
+      const want = seq ? nextN : rev ? Math.max(...blanks) : Math.min(...blanks);
+      const c = cars.find((x) => +x.dataset.n === want && !x.dataset.fake);
       ctx.hint(() => c, seq ? (want === 1 ? "1번 칸을 끌어서 기차 뒤에 붙여요!" : U.NAT[want - 1] + " 다음은 몇일까? 찾아서 붙여요!") : "빈 칸에 들어갈 숫자를 찾아요!");
     };
     hint();
@@ -250,9 +284,13 @@ KP.game({
         car.appendChild(p);
       });
       A.sfx("pop");
+      // 둘째 판부터: 화면을 누르면 출발 연출 건너뛰기
+      let skipped = false;
+      const skip = ctx.round > 0 ? new Promise((r) => (ctx.trSkip = () => ((skipped = true), r()))) : new Promise(() => {});
+      const pause = (ms) => (skipped ? Promise.resolve() : Promise.race([ctx.wait(ms), skip]));
       // 다 함께 세기 (1~5까지만 빠르게 세고, 10칸이면 마지막 숫자만)
       ctx.say("칙칙폭폭! 친구들이 탔어요. 출발!");
-      await ctx.wait(1600);
+      await pause(1600);
       if (tok !== ctx.token) return;
       // 기적 소리 + 출발
       A.tone(660, { dur: 0.45, vol: 0.16, type: "triangle" });
@@ -272,11 +310,12 @@ KP.game({
           ctx.after(1300, () => s.remove());
         }
       });
-      await ctx.wait(700);
+      await pause(700);
       if (tok !== ctx.token) return;
       ctx.train.classList.add("go");
-      KP.voice.say("칙칙폭폭! 칙칙폭폭!");
-      await ctx.wait(2400);
+      if (!skipped) KP.voice.say("칙칙폭폭! 칙칙폭폭!");
+      await pause(2400);
+      ctx.trSkip = null;
       ctx.cancel(steam);
       if (tok !== ctx.token) return;
       ctx.score.add();

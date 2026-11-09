@@ -52,8 +52,11 @@ KP.game({
     const board = U.el("div", "board jgBoard");
     const cv = U.el("canvas");
     const spot = U.el("div", "jgSpot");
+    // 놓을 곳 표시(힌트 두 번째부터 손가락이 쟁반 조각 → 이 자리로 움직임 — 공용 힌트의 끌기 '놓을 곳' 안내를 캔버스 조각에도)
+    const spotTo = U.el("div", "jgSpot");
+    spot._kpDragDest = () => spotTo;
     const pick = U.el("div", "jgPick");
-    board.append(cv, spot);
+    board.append(cv, spot, spotTo);
     ctx.body.append(tools, board, pick);
     ctx.body.style.position = "relative";
     const cx = cv.getContext("2d");
@@ -465,7 +468,8 @@ KP.game({
         st.fy = (H - F) / 2;
         st.tray = { x: st.fx + F + gap, y: gap, w: W - (st.fx + F + gap) - gap, h: H - gap * 2 };
       } else {
-        F = Math.min(W - gap * 2, H * 0.56);
+        // 세로 화면: 3×3 이상은 그림 판을 조금 줄이고(56% → 48%) 쟁반을 넓혀 쟁반 조각을 크게 (폰 3단계 조각이 42~58px 로 작았음)
+        F = Math.min(W - gap * 2, H * (n >= 3 && W < 600 ? 0.48 : 0.56));
         st.fx = (W - F) / 2;
         st.fy = gap;
         st.tray = { x: gap, y: st.fy + F + gap, w: W - gap * 2, h: H - (st.fy + F + gap) - gap };
@@ -521,7 +525,9 @@ KP.game({
           y: T.y + (T.h - best.c * best.rows) / 2 + (row + 0.5) * best.c,
         });
       }
-      const order = keep ? loose : U.shuffle([...loose]);
+      // 4×4 이상은 테두리 조각을 쟁반 앞쪽(위·왼쪽)에 — 가장자리부터 맞추면 쉬워서 한 판이 짧아짐
+      const edge = (p) => p.i === 0 || p.j === 0 || p.i === n - 1 || p.j === n - 1;
+      const order = keep ? loose : n >= 4 ? U.shuffle(loose.filter(edge)).concat(U.shuffle(loose.filter((p) => !edge(p)))) : U.shuffle([...loose]);
       order.forEach((pc, k) => {
         const sl = slots[k];
         pc.hx = sl.x + U.randf(-0.06, 0.06) * best.c;
@@ -657,6 +663,10 @@ KP.game({
         spot.style.top = hp.y + "px";
         spot.style.width = spot.style.height = s * hp.sc + "px";
         spot.style.margin = (-s * hp.sc) / 2 + "px 0 0 " + (-s * hp.sc) / 2 + "px";
+        spotTo.style.left = hp.cx + "px";
+        spotTo.style.top = hp.cy + "px";
+        spotTo.style.width = spotTo.style.height = s + "px";
+        spotTo.style.margin = -s / 2 + "px 0 0 " + -s / 2 + "px";
       }
     }
     function rr(x, y, w, h, r) {

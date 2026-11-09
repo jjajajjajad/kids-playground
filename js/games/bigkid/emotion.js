@@ -3,7 +3,9 @@
    2단계: + 화나요 / 놀라요 (3개 중 고르기)
    3단계: + 무서워요 / 부끄러워요 (4개 중 고르기). 헷갈리기 쉬운 장면(lv:3)은 3단계에만
    맞히면 친구 얼굴에 표정이 생기고, "슬플 땐 꼭 안아줘요" 같은 따뜻한 한마디(말이 끝나면 바로 다음).
-   장면을 누르면 이야기를 다시 읽어 줌(🔊 표시). 1단계는 상황 그림(💧 같은 작은 단서)을 더 크게. */
+   장면을 누르면 이야기를 다시 읽어 줌(🔊 표시). 1단계는 상황 그림(💧 같은 작은 단서)을 더 크게.
+   맞힌 뒤 나오는 돌봄 그림(🙌 🫂 💨 …)은 '따라 해 봐요' 단추 — 누르면 박수·토닥·후~ 같은 소리와 하트(누르지 않아도 다음으로 넘어감)
+   2단계 화난 장면 2개 추가(과자·새치기) — 이야기 문장은 녹음 대기(tools/out/new-voice/emotion.txt), 그전엔 기기 목소리 */
 "use strict";
 KP.game({
   id: "emotion",
@@ -43,7 +45,11 @@ KP.game({
       .emQ{position:absolute;right:-8%;top:-8%;font-size:6cqw;width:10cqw;height:10cqw;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;color:var(--cat);box-shadow:0 4px 0 rgba(0,0,0,.1);animation:emFloat 1.6s ease-in-out infinite;z-index:3}
       .emHero .face{position:absolute;left:50%;top:-.5cqw;margin-left:-10cqw;font-size:20cqw;line-height:1;z-index:4;animation:popBig .5s cubic-bezier(.2,1.6,.4,1)}
       .emHero.got .emQ,.emHero.got .emHead{visibility:hidden}
-      .emCare{position:absolute;right:5%;top:8%;font-size:14cqw;line-height:1;animation:popBig .5s cubic-bezier(.2,1.6,.4,1);filter:drop-shadow(0 4px 4px rgba(0,0,0,.15))}
+      .emCare{position:absolute;right:4%;top:6%;font-size:16cqw;line-height:1;padding:2cqw;border-radius:50%;background:rgba(255,255,255,.55);animation:popBig .5s cubic-bezier(.2,1.6,.4,1),emDo 1.4s .6s ease-in-out infinite;filter:drop-shadow(0 4px 4px rgba(0,0,0,.15));z-index:6;min-width:72px;min-height:72px;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
+      @keyframes emDo{50%{transform:scale(1.1)}}
+      .emCare.did{animation:popBig .4s}
+      .emHeart{position:absolute;font-size:7cqw;pointer-events:none;z-index:7;animation:emHeart 1.2s ease-out forwards}
+      @keyframes emHeart{from{transform:translate(-50%,0) scale(.4);opacity:1}to{transform:translate(calc(-50% + var(--dx)),-22cqw) scale(1.1);opacity:0}}
       .emDark{--bg:linear-gradient(#1f2a55,#33407a 62%,#2a3463 62.3%,#222b52)}
       .emSnow{--bg:linear-gradient(#dfefff,#f6fbff 62%,#ffffff 62.3%,#e8f1fb)}
       .emIn{--bg:linear-gradient(#fff3dc,#ffe9c4 62%,#e5c193 62.3%,#d6ab78)}
@@ -81,6 +87,8 @@ KP.game({
       { f: "sad", t: "비가 와서 밖에서 못 놀아요.", no: ["angry"], bg: "emIn", it: [["🌧️", 72, 26, 20, "float"], ["🛝", 76, 68, 18], ["💧", 50, 38, 8, "float"]] },
       { f: "angry", lv: 3, t: "친구가 내 장난감을 확 뺏어 갔어요!", no: ["sad"], it: [["🏃", 76, 56, 20, "run"], ["🧸", 66, 50, 11, "run"], ["💢", 48, 26, 10, "shake"]] },
       { f: "angry", t: "열심히 쌓은 블록 탑을 누가 쾅 무너뜨렸어요!", no: ["sad", "surprise"], bg: "emIn", it: [["🧱", 62, 80, 12, "", 30], ["🧱", 76, 76, 12, "", -20], ["🧱", 70, 60, 11, "", 60], ["💥", 72, 40, 14], ["💢", 46, 24, 10, "shake"]] },
+      { f: "angry", t: "동생이 내 과자를 몰래 다 먹었어요!", no: ["sad", "surprise"], bg: "emIn", it: [["👶", 74, 58, 20, "hop"], ["🍪", 60, 80, 10, "", 20], ["🥣", 86, 78, 12], ["💢", 46, 24, 10, "shake"]] },
+      { f: "angry", t: "줄을 서 있는데 친구가 새치기했어요!", no: ["sad", "surprise"], it: [["🏃", 62, 56, 18, "run"], ["🐻", 82, 58, 18], ["💢", 46, 24, 10, "shake"]] },
       { f: "angry", t: "동생이 내 그림에 마구 낙서를 했어요!", no: ["sad"], bg: "emIn", it: [["🖼️", 68, 50, 24], ["🖍️", 82, 74, 12, "shake", -30], ["💢", 46, 24, 10, "shake"]] },
       { f: "surprise", t: "문을 열었더니 깜짝 생일 파티!", no: ["joy"], bg: "emIn", it: [["🎉", 66, 34, 16, "shake"], ["🎂", 70, 66, 20], ["🎈", 88, 30, 12, "float"]] },
       { f: "surprise", t: "상자를 열었더니 개구리가 폴짝 튀어나왔어요!", no: ["fear", "joy"], it: [["📦", 68, 72, 20], ["🐸", 68, 40, 14, "hop"], ["❗", 50, 24, 10, "shake"]] },
@@ -111,10 +119,36 @@ KP.game({
     ctx.cur = null;
     this.next(ctx);
   },
+  /** 돌봄 동작: 기쁨=박수, 슬픔=토닥토닥, 화남=후~, 놀람=두근두근, 무서움=손 꼭, 부끄러움=반짝 */
+  doCare(ctx, f, care, scene) {
+    const U = KP.u,
+      A = KP.audio;
+    U.replay(care, "did");
+    if (f === "joy") [0, 0.22, 0.44].forEach((w) => A.noise({ dur: 0.07, vol: 0.22, bp: 1800, q: 0.8, when: w }));
+    else if (f === "sad") {
+      [0, 0.35].forEach((w) => A.noise({ dur: 0.09, vol: 0.12, lp: 500, when: w }));
+      if (!ctx.careSaid) KP.voice.say("토닥토닥.");
+    } else if (f === "angry") {
+      A.noise({ dur: 1.1, vol: 0.1, bp: 900, bpTo: 400, q: 0.6 });
+      if (!ctx.careSaid) KP.voice.say("후~");
+    } else if (f === "surprise") [0, 0.18, 0.6, 0.78].forEach((w, i) => A.tone(i % 2 ? 70 : 90, { dur: 0.12, vol: 0.22, type: "sine", when: w }));
+    else A.melody([["E5", 1], ["G5", 1], ["C6", 2]], { beat: 0.12, inst: "bell", vol: 0.18 });
+    ctx.careSaid = true;
+    for (let i = 0; i < 4; i++) {
+      const h = U.el("span", "emHeart", KP.E(i % 2 ? "💖" : "❤️"));
+      h.style.left = 30 + i * 8 + "%";
+      h.style.top = "48%";
+      h.style.setProperty("--dx", (i - 1.5) * 6 + "cqw");
+      h.style.animationDelay = i * 0.1 + "s";
+      scene.appendChild(h);
+      ctx.after(1500, () => h.remove());
+    }
+  },
   next(ctx) {
     const U = KP.u,
       A = KP.audio;
     const lv = ctx.level;
+    ctx.careSaid = false;
     const tok = ++ctx.token;
     const pool = lv === 1 ? ["joy", "sad"] : lv === 2 ? ["joy", "sad", "angry", "surprise"] : ["joy", "sad", "angry", "surprise", "fear", "shy"];
     const nC = lv < 3 ? 3 : 4; // 보기는 1단계부터 3개 이상 (열쇠 별 규칙)
@@ -165,7 +199,14 @@ KP.game({
         hero.appendChild(U.el("span", "face", KP.E(F.face)));
         A.sfx("good");
         ctx.after(500, () => {
-          el.appendChild(U.el("div", "emCare", KP.E(F.icon)));
+          const care = U.el("div", "emCare", KP.E(F.icon));
+          // 따라 해 봐요: 누르면 기분에 맞는 소리 + 하트 (장면 다시 읽기와 겹치지 않게 막음)
+          care.addEventListener("click", (e) => e.stopPropagation());
+          ctx.fast(care, (e) => {
+            e.stopPropagation();
+            this.doCare(ctx, sc.f, care, el);
+          });
+          el.appendChild(care);
           A.sfx("sparkle");
         });
         const talk = ctx.say(F.name + "! " + F.care);

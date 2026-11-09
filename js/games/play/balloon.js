@@ -1,7 +1,9 @@
 /* 풍선 터뜨리기 — CSS로 그린 진짜 풍선이 흔들흔들 올라온다. 콕! 누르면 팡!
    - 풍선 크기에 따라 터지는 소리 높이가 다름 (큰 풍선 = 낮은 소리)
    - 특별 풍선: 🎁 선물 풍선(동물 친구가 튀어나와 이름을 말함), ⭐ 별 풍선(+3)
-   - 10개마다 축하 / 1단계: 느리고 적게 → 3단계: 빠르고 많이 */
+   - 10개마다 축하 / 1단계: 느리고 적게 → 3단계: 빠르고 많이
+   - 3단계 '색 주문': 10개 중 뒤 5개는 곰돌이가 부르는 색만("빨간 풍선만 콕! 터뜨려요!") — 다른 색은 안 터지고 살짝 흔들 + 가벼운 틀림
+     ("이건 노란색이에요. 빨간 풍선을 찾아요!", 모두 자연 음성 조각). 같은 색 풍선(colorpop)과 달리 마구 터뜨리기와 번갈아 */
 "use strict";
 KP.game({
   id: "balloon",
@@ -46,6 +48,13 @@ KP.game({
       .bl-pang{position:absolute;font-size:clamp(28px,4.4vw,46px);color:#fff;-webkit-text-stroke:2px var(--d);paint-order:stroke;text-shadow:0 3px 0 var(--d);pointer-events:none;z-index:5;
         transform:translate(-50%,-50%);animation:bl-pang .7s cubic-bezier(.2,1.6,.4,1) forwards}
       @keyframes bl-pang{0%{transform:translate(-50%,-50%) scale(.3)}40%{transform:translate(-50%,-80%) scale(1.15)}100%{transform:translate(-50%,-120%) scale(1);opacity:0}}
+      .bl-order{position:absolute;left:10px;top:10px;z-index:7;display:flex;align-items:center;gap:8px;background:#fff;border-radius:999px;padding:6px 18px 6px 10px;
+        box-shadow:0 5px 0 rgba(31,111,208,.25);font-size:clamp(20px,3vw,28px);color:var(--ink);pointer-events:none}
+      .bl-order i{display:block;width:clamp(26px,3.6vw,36px);height:clamp(32px,4.4vw,44px);border-radius:50% 50% 46% 46%/56% 56% 44% 44%;
+        background:radial-gradient(circle at 33% 27%,var(--l) 0 7%,var(--c) 45%,var(--d) 100%)}
+      .bl-order.pop{animation:popBig .4s cubic-bezier(.2,1.6,.4,1)}
+      .bl-b.no .bl-body{animation:bl-no .45s}
+      @keyframes bl-no{25%{transform:translateX(-10%) rotate(-8deg)}75%{transform:translateX(10%) rotate(8deg)}}
       .bl-friend{position:absolute;font-size:clamp(90px,15vw,150px);line-height:1;z-index:6;pointer-events:none;transform:translate(-50%,-50%);
         animation:bl-friend 2.3s cubic-bezier(.2,1.4,.4,1) forwards;filter:drop-shadow(0 8px 6px rgba(0,0,0,.18))}
       .bl-friend b{position:absolute;left:50%;top:100%;transform:translateX(-50%);font-size:.26em;font-weight:400;color:#fff;background:var(--coral);padding:2px 12px;border-radius:999px;white-space:nowrap}
@@ -59,12 +68,17 @@ KP.game({
       '<div class="bl-cloud" style="top:32%;animation-duration:95s;animation-delay:-70s;transform:scale(.7)"></div>' +
       '<div class="bl-hill" style="left:-10%;width:70%;height:150px"></div>' +
       '<div class="bl-hill" style="right:-15%;width:75%;height:130px;background:linear-gradient(#a6e58f,#6cc764)"></div>';
+    const order = U.el("div", "bl-order");
+    order.hidden = true;
+    field.appendChild(order);
     ctx.body.appendChild(field);
     ctx.field = field;
+    ctx.orderEl = order;
 
+    // [색, 밝은색, 어두운색, 이름(꾸밈), 이름(색)] — 이름은 3단계 '색 주문'용 (같은 색 풍선 colorpop 과 같은 말)
     ctx.COLORS = [
-      ["#ff4d5e", "#ffb3ba", "#c81e3a"], ["#ff9a2e", "#ffd6a3", "#d06a00"], ["#ffd23f", "#fff3b0", "#d6a400"],
-      ["#3ccf6e", "#b9f5cd", "#1f9a4c"], ["#3aa0ff", "#bfe0ff", "#1f6fd0"], ["#9a6bff", "#ddd0ff", "#6a3fd4"], ["#ff6fb5", "#ffd0e7", "#d33f8a"],
+      ["#ff4d5e", "#ffb3ba", "#c81e3a", "빨간", "빨간색"], ["#ff9a2e", "#ffd6a3", "#d06a00", "주황", "주황색"], ["#ffd23f", "#fff3b0", "#d6a400", "노란", "노란색"],
+      ["#3ccf6e", "#b9f5cd", "#1f9a4c", "초록", "초록색"], ["#3aa0ff", "#bfe0ff", "#1f6fd0", "파란", "파란색"], ["#9a6bff", "#ddd0ff", "#6a3fd4", "보라", "보라색"], ["#ff6fb5", "#ffd0e7", "#d33f8a", "분홍", "분홍색"],
     ];
     ctx.FRIENDS = [
       ["🐶", "강아지"], ["🐱", "고양이"], ["🐰", "토끼"], ["🐻", "곰돌이"], ["🐼", "판다"], ["🦁", "사자"], ["🐯", "호랑이"],
@@ -90,7 +104,8 @@ KP.game({
       const lv = ctx.level;
       const base = U.clamp(Math.min(W, H) * 0.2, 78, 140);
       const w = Math.max(78, Math.round(base * U.randf(lv === 3 ? 0.8 : 0.9, 1.15) * (kind ? 1.08 : 1))); // 폰 가로 3단계도 78px 이상
-      const col = kind === "star" ? ["#ffcf33", "#fff6c4", "#e09a00"] : U.pick(ctx.COLORS);
+      // 색 주문 중에는 부르는 색이 절반쯤
+      const col = kind === "star" ? ["#ffcf33", "#fff6c4", "#e09a00"] : ctx.order && Math.random() < 0.45 ? ctx.order : U.pick(ctx.COLORS);
       const el = U.el("div", "bl-b" + (kind ? " " + kind : ""));
       el.dataset.tap = "1";
       el.style.cssText = "--w:" + w + "px;--c:" + col[0] + ";--l:" + col[1] + ";--d:" + col[2];
@@ -110,6 +125,12 @@ KP.game({
       return b;
     };
 
+    ctx.recolor = (b, col) => {
+      b.col = col;
+      b.el.style.setProperty("--c", col[0]);
+      b.el.style.setProperty("--l", col[1]);
+      b.el.style.setProperty("--d", col[2]);
+    };
     ctx.burst = (b, cx, cy) => {
       const n = 10;
       for (let i = 0; i < n; i++) {
@@ -135,6 +156,16 @@ KP.game({
 
     ctx.pop = (b) => {
       if (b.dead) return;
+      // 3단계 색 주문: 다른 색은 안 터지고 도리도리 (가벼운 틀림, 1번은 봐줌)
+      if (ctx.order && !b.kind && b.col !== ctx.order) {
+        if (b.noAt && performance.now() - b.noAt < 900) return;
+        b.noAt = performance.now();
+        U.replay(b.el, "no");
+        A.sfx("boing");
+        ctx.miss(null, "이건 " + b.col[4] + "이에요. " + ctx.order[3] + " 풍선을 찾아요!", { soft: true });
+        return;
+      }
+      if (ctx.order && b.col === ctx.order) ctx.orderPops++;
       b.dead = true;
       const cx = b.x,
         cy = b.y + b.h / 2;
@@ -168,8 +199,23 @@ KP.game({
       if (Math.floor(ctx.count / 10) > Math.floor(prev / 10)) {
         ctx.ms++;
         const big = ctx.ms % 3 === 0;
-        ctx.after(b.kind === "gift" ? 1300 : 250, () => (ctx.noStar(), ctx.win({ big, msg: big ? "{부름} 풍선 대장!" : ctx.count + "개 팡팡!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 우와!" : "우와아!" })));
-      }
+        // 열쇠 별: 1·2단계는 누르기만 하는 판 → 없음. 3단계는 색 주문에서 3개 이상 골라 터뜨린 판만
+        const judged = ctx.orderPops >= 3;
+        ctx.setOrder(null);
+        ctx.after(b.kind === "gift" ? 1300 : 250, () => (judged || ctx.noStar(), ctx.win({ big, msg: big ? "{부름} 풍선 대장!" : ctx.count + "개 팡팡!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 우와!" : "우와아!" })));
+      } else if (ctx.level === 3 && !ctx.order && ctx.count % 10 >= 5) ctx.setOrder(U.pick(ctx.COLORS.filter((c) => c !== ctx.lastOrder)));
+    };
+    /** 3단계 색 주문 켜기/끄기 */
+    ctx.setOrder = (c) => {
+      ctx.order = c;
+      ctx.orderPops = 0;
+      ctx.orderEl.hidden = !c;
+      if (!c) return;
+      ctx.lastOrder = c;
+      ctx.orderEl.innerHTML = '<i style="--c:' + c[0] + ";--l:" + c[1] + ";--d:" + c[2] + '"></i><span>' + c[3] + " 풍선만!</span>";
+      U.replay(ctx.orderEl, "pop");
+      A.sfx("sparkle");
+      ctx.say(c[3] + " 풍선만 콕! 터뜨려요! 🎈");
     };
 
     ctx.frame = (dt, now) => {
@@ -183,7 +229,12 @@ KP.game({
       if (ctx.spawnT <= 0 && alive.length < maxN) {
         ctx.spawnT = [1.1, 0.8, 0.6][lv - 1] * U.randf(0.7, 1.3);
         const r = Math.random();
-        ctx.make(r < 0.08 ? "star" : r < 0.18 ? "gift" : null);
+        // 색 주문 중에는 특별 풍선 없이 (색 고르기에 집중) — 부르는 색이 화면에 하나도 없으면 꼭 그 색
+        if (ctx.order) {
+          const has = alive.some((b) => b.col === ctx.order && b.y > 0);
+          const nb = ctx.make(null);
+          if (!has && nb.col !== ctx.order) ctx.recolor(nb, ctx.order);
+        } else ctx.make(r < 0.08 ? "star" : r < 0.18 ? "gift" : null);
       }
       for (const b of ctx.balloons) {
         if (b.dead) continue;
@@ -206,6 +257,8 @@ KP.game({
     ctx.balloons = [];
     ctx.count = 0;
     ctx.ms = 0;
+    ctx.lastOrder = null;
+    ctx.setOrder(null);
     ctx.spawnT = 0.2;
     ctx.say("풍선을 콕! 눌러서 팡 터뜨려 봐요! 🎈");
     requestAnimationFrame(() => {
@@ -217,10 +270,15 @@ KP.game({
       });
       ctx.loop((dt, now) => ctx.frame(dt, now));
     });
-    ctx.hint(() => {
-      const alive = ctx.balloons.filter((b) => !b.dead && b.y > 0 && b.y < ctx.field.clientHeight - b.h);
-      alive.sort((a, b) => b.y - a.y);
-      return alive[0] && alive[0].el;
-    }, "풍선을 콕 눌러 봐요!");
+    // 힌트: 가장 아래 풍선 (색 주문 중에는 부르는 색만 — 정답을 가리키는 셈이라 answer, 가리킨 판은 열쇠 별 없음)
+    ctx.hint(
+      () => {
+        const alive = ctx.balloons.filter((b) => !b.dead && b.y > 0 && b.y < ctx.field.clientHeight - b.h && (!ctx.order || b.col === ctx.order));
+        alive.sort((a, b) => b.y - a.y);
+        return alive[0] && alive[0].el;
+      },
+      "풍선을 콕 눌러 봐요!",
+      { answer: true }
+    );
   },
 });

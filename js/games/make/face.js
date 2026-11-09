@@ -59,6 +59,13 @@ KP.game({
       .fc-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:6}
       .fc-flash.on{animation:fcFlash .5s ease-out}
       @keyframes fcFlash{from{opacity:1}to{opacity:0}}
+      /* 표정 주문 카드 (2026-11-09 2라운드): 오른쪽 위 — 표정 그림 + 바꿀 부위 그림 2개(레시피) */
+      .fc-order{position:absolute;right:8px;top:8px;z-index:5;display:flex;align-items:center;gap:4px;padding:4px 8px 4px 6px;min-height:64px;border-radius:22px;background:rgba(255,250,244,.94);box-shadow:0 4px 0 rgba(120,70,60,.18)}
+      .fc-order .em{font-size:clamp(36px,6vmin,48px);line-height:1}
+      .fc-order .pl{font-size:20px;color:#b48a6a}
+      .fc-order svg{width:clamp(40px,6.4vmin,54px);height:clamp(40px,6.4vmin,54px);background:#fff;border-radius:12px;box-shadow:inset 0 0 0 2px #f1dccb}
+      .fc-order.done{animation:popBig .6s}
+      .fc-order.done::after{content:"✓";position:absolute;right:-6px;top:-8px;width:28px;height:28px;border-radius:50%;background:#3ccf6e;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 0 rgba(0,0,0,.2)}
       .fc-badge{position:absolute;left:10px;top:10px;z-index:5;width:clamp(52px,9vmin,72px);height:clamp(52px,9vmin,72px);border-radius:50%;background:rgba(255,250,244,.92);box-shadow:0 4px 0 rgba(120,70,60,.18);display:none;align-items:center;justify-content:center;font-size:clamp(30px,5.4vmin,44px)}
       .fc-badge.on{display:flex;animation:popIn .35s backwards}
       .fc-note{font-size:clamp(26px,4.4vmin,40px)}
@@ -442,7 +449,8 @@ KP.game({
     const glass = U.el("div", "fc-glass");
     const flash = U.el("div", "fc-flash");
     const badge = U.el("div", "fc-badge");
-    stage.append(mirror, flash, badge);
+    const order = U.btn("", "fc-order");
+    stage.append(mirror, flash, badge, order);
     const panel = U.el("div", "fc-panel");
     const line = U.el("div", "fc-line", '<svg class="rope" viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M0 8 Q50 30 100 8" fill="none" stroke="#c9955f" stroke-width="2.4" vector-effect="non-scaling-stroke"/></svg>');
     const pols = U.el("div", "fc-pols");
@@ -567,7 +575,7 @@ KP.game({
           U.replay(b, "pop");
           A.note(A.SCALE[i % 8], { inst: "marimba", dur: 0.25, vol: 0.24 });
           if (tab === "mouth" || tab === "eyes") A.sfx("boing");
-          if (name) KP.voice.say(name);
+          if (!checkOrder(tab) && name) KP.voice.say(name);
         });
         opts.appendChild(b);
       });
@@ -588,6 +596,61 @@ KP.game({
         });
       }
     }
+
+    /* ---------- 표정 주문: "웃는 얼굴이에요. 만들어 봐요!" — 카드의 두 부위를 골라 그 표정을 만들면 축하 ----------
+       (보기 단추를 직접 눌러 맞췄을 때만 — 🎲 랜덤으로 우연히 맞은 건 세지 않음) */
+    const ORDERS = [
+      { k: "happy", em: "😄", w: "웃는", need: { eyes: ["happy"], mouth: ["smile", "grin", "laugh"] }, show: { eyes: "happy", mouth: "laugh" } },
+      { k: "sad", em: "😢", w: "슬픈", need: { brows: ["sad"], mouth: ["sad"] }, show: { brows: "sad", mouth: "sad" } },
+      { k: "angry", em: "😠", w: "화난", need: { brows: ["angry"], mouth: ["sad"] }, show: { brows: "angry", mouth: "sad" } },
+      { k: "wow", em: "😮", w: "놀란", need: { brows: ["up"], mouth: ["o"] }, show: { brows: "up", mouth: "o" } },
+      { k: "sleepy", em: "😴", w: "졸린", need: { eyes: ["sleepy"], mouth: ["o"] }, show: { eyes: "sleepy", mouth: "o" } },
+    ];
+    let ord = null,
+      ordBusy = false;
+    const ordOk = (o) => Object.entries(o.need).every(([p, ids]) => ids.includes(cfg[p]));
+    const ordLine = () => ord.w + " 얼굴이에요. 만들어 봐요!";
+    function pickOrder() {
+      const left = ORDERS.filter((o) => (!ord || o.k !== ord.k) && !ordOk(o));
+      ord = U.pick(left.length ? left : ORDERS);
+      KP.store.set("face:order", ord.k);
+      renderOrder();
+    }
+    function renderOrder() {
+      if (!ord) return;
+      order.classList.remove("done");
+      order.innerHTML =
+        '<span class="em">' + KP.E(ord.em) + "</span>" +
+        Object.entries(ord.show)
+          .map(([p, id]) => '<span class="pl">+</span>' + faceSVG(Object.assign({}, DEF, { skin: cfg.skin, hairC: cfg.hairC }, { [p]: id }), { vb: VB[p] }))
+          .join("")
+          .replace(/^<span class="pl">\+<\/span>/, "");
+    }
+    ctx.tap(order, () => {
+      if (!ord) return;
+      A.sfx("tap2");
+      U.replay(order, "jump");
+      ctx.orderSaid = true;
+      KP.voice.say(ordLine());
+    });
+    /** 보기를 고른 뒤: 주문한 표정이 됐으면 축하하고 다음 주문 (true 를 돌려주면 부위 이름은 말하지 않음) */
+    function checkOrder(part) {
+      if (!ord || ordBusy || !(part in ord.need) || !ordOk(ord)) return false; // 주문한 부위를 직접 골라 맞췄을 때만
+      ordBusy = true;
+      order.classList.add("done");
+      A.sfx("levelup");
+      ctx.hint(null);
+      (async () => {
+        const ok = await ctx.win({ msg: "와, 똑같아요!" });
+        ordBusy = false;
+        if (ok === false || !ctx._active) return;
+        pickOrder();
+        U.replay(order, "pop");
+        ctx.after(400, () => KP.voice.say(ordLine()));
+      })();
+      return true;
+    }
+    ctx.order = () => ord; // 점검용
 
     /* ---------- 부위마다 다른 반응 ---------- */
     const LINES = ["안녕! 나는 멋쟁이야!", "히히, 간지러워!", "까꿍!", "나랑 같이 놀자!", "우와, 멋지게 꾸며 줘서 고마워!", "하하하! 재밌다!", "나 예뻐?"];
@@ -1252,12 +1315,25 @@ KP.game({
       renderTabs();
       renderOpts();
       layout();
+      // 표정 주문: 지난 주문을 이어서(이미 그 표정이면 새 주문)
+      ordBusy = false;
+      ord = ORDERS.find((o) => o.k === KP.store.get("face:order", "")) || null;
+      if (!ord || ordOk(ord)) pickOrder();
+      else renderOrder();
+      ctx.orderSaid = false;
     };
   },
   start(ctx) {
     ctx.init();
     ctx.say("얼굴을 꾸며 봐요! 코, 볼, 입을 콕 눌러 봐요."); // 뒤 문장은 새 음성(tools/out/new-voice/face.txt)
     ctx.every(3600, () => ctx.blink());
+    // 시작 안내가 끝날 즈음 표정 주문을 한 번 말해 줌 (카드를 누르면 다시)
+    ctx.after(5200, () => {
+      if (ctx.orderSaid || !ctx.order()) return;
+      ctx.orderSaid = true;
+      KP.u.replay(ctx.body.querySelector(".fc-order"), "jump");
+      KP.voice.say(ctx.order().w + " 얼굴이에요. 만들어 봐요!");
+    });
     ctx.hint(() => ctx.body.querySelector(".fc-opt:not(.sel)"), "그림을 눌러서 바꿔 봐요!");
   },
   stop(ctx) {

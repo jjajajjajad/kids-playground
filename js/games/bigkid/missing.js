@@ -3,7 +3,9 @@
    2단계: 4개 (두 종류 2개씩, 빈자리는 그대로, 점선 없음) · 보기 4개(남아 있는 것 1개 섞임)
    3단계: 6개 (남은 것들 자리도 섞임) · 보기 4개(같은 종류끼리)
    - 처음 안내가 끝나면 하나씩 통통 튀며 이름을 불러 줌 → 커튼 닫힘 "눈 감아요! 하나, 둘, 셋!" → 열림
-   - 보는 동안 그림을 누르면 통통 튀며 이름을 말해 주고, 커튼이 닫혔을 때 누르면 🙈 가 "하나, 둘, 셋!" */
+   - 보는 동안 그림을 누르면 통통 튀며 이름을 말해 주고, 커튼이 닫혔을 때 누르면 🙈 가 "하나, 둘, 셋!"
+   - 보는 시간 줄이기(2차 보강): 열고 둘째 판부터 안내는 짧게 "잘 봐요!", 1·2단계는 이름 대신 통통+소리만 빠르게(3단계는 이름 그대로)
+   - 좁은 세로 화면 1단계(3개): 2+1 로 그림을 크게 */
 "use strict";
 KP.game({
   id: "missing",
@@ -59,6 +61,11 @@ KP.game({
         s = W / per - gap;
       if (s < 96 && n > 3) {
         per = Math.ceil(n / 2);
+        s = W / per - gap;
+      }
+      // 좁은 세로(폰) 3개: 한 줄이면 92px 안팎 → 2+1 로 (높이에 여유가 있을 때)
+      if (n === 3 && s < 110 && H > W * 1.2) {
+        per = 2;
         s = W / per - gap;
       }
       s = Math.min(s, 180, (H * 0.46) / Math.ceil(n / per));
@@ -136,21 +143,26 @@ KP.game({
     const tok = (ctx.msTok = (ctx.msTok || 0) + 1);
     const g = (ctx.ms = { phase: "names", spots, eyesSaid: false });
     const alive = () => ctx._active && ctx.msTok === tok;
-    const intro = ctx.say("잘 봐요! 무엇 무엇이 있나요?");
+    // 열고 첫 판은 긴 안내, 그다음부터는 "잘 봐요!"만
+    const quick = ctx.round > 0;
+    const intro = ctx.say(quick ? "잘 봐요!" : "잘 봐요! 무엇 무엇이 있나요?");
     // 하나씩 이름 불러 주기 — 첫 안내가 끝난 뒤에 시작 (예전엔 1.7초 뒤 첫 이름이 안내를 끊었음)
-    const STEP = 800;
+    // 둘째 판부터 1·2단계는 이름 없이 통통+소리만 빠르게 (3단계는 비슷한 것끼리라 이름이 도움)
+    const names = !quick || lv === 3;
+    const STEP = names ? 800 : 420;
     const look = [1000, 900, 1200][lv - 1];
     const run = async () => {
       const t0 = Date.now();
       await Promise.race([intro, ctx.wait(3600)]);
       if (!alive()) return;
       const waited = Date.now() - t0;
-      if (waited < 900) await ctx.wait(900 - waited);
+      const minW = quick ? 500 : 900;
+      if (waited < minW) await ctx.wait(minW - waited);
       for (let k = 0; k < n; k++) {
         if (!alive()) return;
         U.replay(spots[k], "jump");
         A.note(A.SCALE[k] || "C6", { inst: "marimba", dur: 0.3, vol: 0.22 });
-        KP.voice.say(shown[k][1]);
+        if (names) KP.voice.say(shown[k][1]);
         await ctx.wait(STEP);
       }
       if (!alive()) return;

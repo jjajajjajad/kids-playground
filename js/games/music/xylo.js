@@ -3,7 +3,8 @@
    - 🌟 따라 치기: 동요를 고르면 칠 막대가 반짝 → 차례로 치면 한 곡 완성 (피아노 따라 치기와 같은 방식, 한 옥타브 위)
      1단계: 앞 두 소절, 2단계: 절반, 3단계: 끝까지. 틀리면 부드러운 '톡' + 칠 막대가 들썩. 쓸기로 지나간 막대는 진행에 안 셈
    - 🔴 녹음: 누르고 치다가 잠깐(2.5초) 멈추면 저절로 끝나고 바로 들려줌 (채가 혼자 연주) — 그만 단추를 눌러도 됨
-     ▶ 듣기(녹음이 있을 때만 보임)로 다시 듣기. 3음 이상일 때만 축하(자유 연주라 열쇠 별은 없음)
+     ▶ 듣기(녹음이 있을 때만 보임)로 다시 듣기. 3음 이상일 때만 축하(자유 연주라 열쇠 별은 없음). 듣는 동안 막대를 치면 같이 연주(소리 남)
+   - 안내는 "반짝이는 막대를 쳐요!" (새 문장 — 녹음 전엔 기기 목소리)
    - 녹음은 KP.store "xylo:rec" 에 저장 → 다음에 열어도 들을 수 있음 */
 "use strict";
 KP.game({
@@ -180,8 +181,8 @@ KP.game({
     let restT = 0;
     const held = new Map();
     function userHit(i, x, y, slid) {
-      if (playing) return;
       hit(i, x, y);
+      if (playing) return; // 내 녹음을 듣는 동안 쳐도 소리가 남 (같이 연주 — 재생·축하는 그대로 이어 감, 녹음엔 안 들어감)
       ctx.hint(null);
       if (follow) return followHit(i, slid);
       if (rec) {
@@ -311,6 +312,8 @@ KP.game({
 
     /* ---------- 따라 치기 (piano.js 의 따라 치기와 같은 방식) ---------- */
     const SONGS = [["twinkle", "⭐"], ["airplane", "✈️"], ["butterfly", "🦋"], ["schoolbell", "🔔"], ["bears", "🐻"]];
+    /** 실로폰은 '막대' — 새 문장(tools/out/new-voice/xylo.txt). 녹음 전에는 기기 목소리로 말함 */
+    const TAP_LIT = "반짝이는 막대를 쳐요!";
     let follow = null; // {key, seq:[막대 번호], len:[박], idx, wrong}
     function phrasesOf(notes) {
       const out = [];
@@ -366,7 +369,7 @@ KP.game({
       prog.classList.add("on");
       picker.classList.remove("show");
       requestAnimationFrame(layout);
-      ctx.say(song.name + "! 반짝이는 건반을 차례로 눌러요.");
+      ctx.say(song.name + "! " + TAP_LIT);
       // 첫 소절을 살짝 들려주고 바로 시작
       A.melody(ph[0], { beat: 0.34, inst: "marimba", octave: 1, vol: 0.16, when: 0.6 });
       markNext();
@@ -384,7 +387,7 @@ KP.game({
       if (!b) return;
       b.classList.add("next");
       b.appendChild(U.el("span", "xy-star", KP.E("⭐")));
-      ctx.hint(() => b, "반짝이는 건반을 눌러요!");
+      ctx.hint(() => b, TAP_LIT);
     }
     async function followHit(i, slid) {
       if (!follow || KP.celebrating || slid) return; // 쓸면서 지나간 막대는 소리만
@@ -395,8 +398,8 @@ KP.game({
         ctx._softMiss = (ctx._softMiss || 0) + 1; // 마구 쳐서 끝내면 열쇠 별 없음 (1번은 봐줌)
         A.sfx("tap2");
         U.replay(bars[want], "bump");
-        if (follow.wrong % 3 === 0) KP.voice.say("반짝이는 건반을 눌러요!");
-        ctx.hint(() => bars[want], "반짝이는 건반을 눌러요!"); // 누를 때 지운 힌트를 다시 걸기
+        if (follow.wrong % 3 === 0) KP.voice.say(TAP_LIT);
+        ctx.hint(() => bars[want], TAP_LIT); // 누를 때 지운 힌트를 다시 걸기
         return;
       }
       follow.wrong = 0;

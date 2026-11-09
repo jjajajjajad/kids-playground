@@ -1,6 +1,8 @@
 /* 사탕 가게 — 말한 색 사탕을 끌어서 병에 담아요. 병에 사탕이 차곡차곡 차올라요.
-   1단계: 2가지 색 중 말한 색 사탕 모두(3개) / 2단계: 3~4가지 색 중 말한 색 모두(3~4개)
-   3단계: "빨간 사탕 3개!" — 개수까지 맞춰 담기(말한 색이 더 많이 섞여 있음) */
+   1단계: 2가지 색 중 말한 색 사탕 모두(2~4개, 앞 판과 다른 수) / 2단계: 3~4가지 색 중 말한 색 모두(3~4개)
+   3단계: "빨간 사탕 3개!" — 개수까지 맞춰 담기(말한 색이 더 많이 섞여 있음)
+   2단계부터: 말한 색이 빨강·주황·분홍 중 하나면 나머지 둘은 같이 안 나옴(3~4세에 헷갈리는 색)
+   병을 닫으면 손님 동물이 와서 하트 — '가게' 느낌 */
 "use strict";
 KP.game({
   id: "candy",
@@ -29,6 +31,8 @@ KP.game({
       .cdLabel .cdC{--cs:calc(var(--jw) * .14)}
       .cdCount{position:absolute;right:-14px;top:-10px;min-width:54px;height:54px;border-radius:27px;background:var(--coral);color:#fff;font-size:32px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 0 rgba(0,0,0,.15);z-index:3}
       .cdCount.bump{animation:bump .35s}
+      .cdGuest{position:absolute;left:calc(var(--jw) * -.3);bottom:0;font-size:calc(var(--jw) * .34);line-height:1;z-index:3;pointer-events:none;animation:popIn .45s cubic-bezier(.2,1.6,.4,1)}
+      .cdGuest i{position:absolute;right:-.25em;top:-.35em;font-size:.45em;animation:bob 1.2s ease-in-out infinite}
       .cdPile{flex:0 1 auto;display:grid;grid-template-columns:repeat(var(--pc),auto);gap:clamp(6px,1.4vw,14px);justify-content:center;align-content:center;padding:clamp(10px,1.6vw,18px);background:rgba(255,255,255,.55);border-radius:30px}
       .cdC{display:block;position:relative;width:calc(var(--cs) * 1.7);height:var(--cs)}
       .cdC .cdBall{position:absolute;left:22%;right:22%;top:0;bottom:0;border-radius:50%;background:repeating-linear-gradient(-45deg,var(--c) 0 9px,color-mix(in srgb,var(--c) 70%,#fff) 9px 15px);
@@ -64,6 +68,7 @@ KP.game({
       { k: "pink", a: "분홍", n: "분홍색", c: "#ff7eb9" },
     ];
     ctx.CNT = ["", "한", "두", "세", "네", "다섯", "여섯"];
+    ctx.GUESTS = ["🐰", "🐻", "🐱", "🐶", "🐼", "🐷", "🦊", "🐨"];
     ctx.round = 0;
   },
   start(ctx) {
@@ -76,15 +81,20 @@ KP.game({
     const lv = ctx.level;
     const self = this;
     const nCol = lv === 1 ? 2 : lv === 2 ? 3 + U.rand(2) : 3 + U.rand(2);
-    const cols = U.sample(lv === 1 ? ctx.COL.slice(0, 4) : ctx.COL, nCol);
-    let target = cols[0];
-    if (ctx.lastK === target.k) [cols[0], cols[1]] = [cols[1], cols[0]];
-    target = cols[0];
+    const base = lv === 1 ? ctx.COL.slice(0, 4) : ctx.COL;
+    let target = U.pick(base.filter((c) => c.k !== ctx.lastK));
     ctx.lastK = target.k;
+    // 헷갈리는 색 묶음(빨강·주황·분홍): 말한 색이 그중 하나면 나머지 둘은 빼기
+    const WARM = ["red", "orange", "pink"];
+    const rest = base.filter((c) => c !== target && !(WARM.includes(target.k) && WARM.includes(c.k)));
+    const cols = [target, ...U.sample(rest, nCol - 1)];
     let need, nTarget, candies = [];
     if (lv === 1) {
-      need = nTarget = 3;
-      candies = [...Array(3).fill(cols[0]), ...Array(3).fill(cols[1])];
+      need = 2 + U.rand(3); // 2~4개 (병 이름표엔 수가 안 보이고 '모두' 담기)
+      if (need === ctx.lastNeed) need = need === 4 ? 2 : need + 1;
+      ctx.lastNeed = need;
+      nTarget = need;
+      candies = [...Array(need).fill(cols[0]), ...Array(3).fill(cols[1])];
     } else if (lv === 2) {
       need = nTarget = 3 + U.rand(2);
       candies = Array(need).fill(target);
@@ -109,6 +119,7 @@ KP.game({
     ctx.wrap.style.setProperty("--cs", Math.round(Math.max(40, cs)) + "px");
     ctx.wrap.style.setProperty("--jw", portrait ? "min(46vw,30vh)" : "clamp(200px,min(26vw,48vh),330px)");
     ctx.jarIn.innerHTML = "";
+    ctx.jarBox.querySelectorAll(".cdGuest").forEach((x) => x.remove());
     // 병 앞 이름표: 담을 사탕 색(3단계는 개수도) → 글 못 읽어도 알 수 있게
     ctx.jar.querySelectorAll(".cdLabel").forEach((x) => x.remove());
     const label = U.el("div", "cdLabel", '<span class="cdC" style="--c:' + target.c + '"><span class="cdBall"></span></span>' + (lv === 3 ? "× " + need : ""));
@@ -168,7 +179,8 @@ KP.game({
       });
       return c;
     });
-    const hint = () => ctx.hint(() => els.find((c) => c.dataset.go && !c.dataset.done), ask);
+    // 가리키는 사탕 = 정답 → 힌트 본 판은 열쇠 별 없음
+    const hint = () => ctx.hint(() => els.find((c) => c.dataset.go && !c.dataset.done), ask, { answer: true });
     hint();
     const done = async () => {
       await ctx.wait(400);
@@ -177,6 +189,12 @@ KP.game({
       U.replay(ctx.jar, "yay");
       A.sfx("sparkle");
       KP.voice.say(target.a + " 사탕 " + ctx.CNT[need] + " 개! 병이 가득!");
+      // 손님 동물이 와서 하트
+      const ge = U.pick(ctx.GUESTS.filter((x) => x !== ctx.lastGuest));
+      ctx.lastGuest = ge;
+      const g = U.el("span", "cdGuest", KP.E(ge) + "<i>" + KP.E("💖") + "</i>");
+      ctx.jarBox.appendChild(g);
+      ctx.after(700, () => A.sfx("pop"));
       ctx.score.add();
       ctx.round++;
       await ctx.wait(1300);

@@ -73,10 +73,15 @@ KP.game({
         .dcEmpty > .e,.dcEmpty > span{display:none}
         .dcSw.base{--s:clamp(50px,6.6vh,56px)}
         .dcEmpty button{flex-direction:column;min-width:64px;font-size:12px;padding:6px 8px;gap:0}
+        /* 기본 물감 8색 + 실험실 단추: 한 줄로 밀면 실험실 단추가 화면 밖 → 내 물감이 없을 땐 두 줄로 감싸 다 보이게 */
+        .dcPal.wrap{flex-wrap:wrap;justify-content:center;overflow-x:hidden;gap:6px 4px;padding:8px 2px}
+        .dcPal.wrap .dcSw.base{--s:min(64px,calc((100vw - 70px) / 5))}
+        .dcPal.wrap .dcEmpty button{min-height:min(64px,calc((100vw - 70px) / 5))}
       }
+      @media (orientation:portrait) and (min-width:700px){ .dcSw.base{--s:64px} .dcPal.wrap .dcSw.base{--s:64px} }
       @media (orientation:landscape) and (min-height:500px){
         .dcW{grid-template-areas:"pal board acts";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);gap:14px;padding:2px 14px 14px}
-        .dcPal{display:grid;grid-template-columns:repeat(2,auto);justify-content:center;align-content:center;justify-items:center;
+        .dcPal{display:grid;grid-template-columns:repeat(2,auto);justify-content:center;align-content:safe center;justify-items:center;
           overflow-x:hidden;overflow-y:auto;max-height:100%;padding:10px 8px;gap:12px;width:clamp(160px,15vw,180px)}
         .dcSep{width:auto;height:3px;margin:2px 8px;grid-column:1/-1;background:repeating-linear-gradient(90deg,#c9d2e6 0 6px,transparent 6px 11px)}
         .dcEmpty{grid-column:1/-1;flex-direction:column;text-align:center;padding:10px 8px;max-width:none}
@@ -90,8 +95,9 @@ KP.game({
          → 물감은 왼쪽 2칸 줄, 단추는 오른쪽 세로줄, 종이가 높이를 다 씀 */
       @media (orientation:landscape) and (max-height:500px){
         .dcW{grid-template-areas:"pal board acts";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);gap:10px;padding:0 10px 8px}
-        .dcPal{display:grid;grid-template-columns:repeat(2,auto);justify-content:center;align-content:center;justify-items:center;
-          overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;max-height:100%;padding:8px 10px;gap:10px}
+        /* 기본 물감 8색(2026-11-09 2라운드) → 3칸 줄, 넘치면 위부터 보이게(safe center) */
+        .dcPal{display:grid;grid-template-columns:repeat(3,auto);justify-content:center;align-content:safe center;justify-items:center;
+          overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;max-height:100%;padding:8px 8px;gap:8px}
         .dcSw.base,.dcSw.mine{--s:min(16.5vh,64px)}
         .dcSep{width:auto;height:3px;margin:2px 6px;grid-column:1/-1;background:repeating-linear-gradient(90deg,#c9d2e6 0 6px,transparent 6px 11px)}
         .dcEmpty{grid-column:1/-1;padding:0;background:none;box-shadow:none;max-width:none;justify-content:center}
@@ -769,7 +775,9 @@ KP.game({
     ctx.renderPal = () => {
       pal.innerHTML = "";
       const mine = P.mine();
-      const base = [0, 1, 2, 4].map((i) => P.BASE[i]);
+      pal.classList.toggle("wrap", !mine.length);
+      // 기본 물감 8색 (2026-11-09 2라운드: 4색뿐이라 무늬가 단조롭던 것 → 분홍·주황·초록·보라 추가, 검정은 맨 뒤)
+      const base = [P.BASE[0], { n: "분홍", hex: "#ff7eb6" }, { n: "주황", hex: "#ff8a1f" }, P.BASE[1], { n: "초록", hex: "#22b04b" }, P.BASE[2], { n: "보라", hex: "#8a4fe0" }, P.BASE[4]];
       const all = [];
       if (!mine.length) {
         const box = U.el("div", "dcEmpty", KP.E("🧪") + "<span>물감 실험실에서 색을 만들어 담아 오세요</span>");

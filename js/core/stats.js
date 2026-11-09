@@ -10,7 +10,9 @@
 (function (KP) {
   const S = KP.store;
   const url = () => (typeof KP.STATS_URL === "string" && /^https:\/\//.test(KP.STATS_URL) ? KP.STATS_URL.replace(/\/$/, "") : "");
-  const on = () => !!url() && KP.settings.get().stats !== false;
+  // 로컬 서버(localhost·사설 IP)나 자동 점검 브라우저(Playwright: navigator.webdriver)에서는 보내지 않음 — 2026-11-09 점검 기록 186대가 실제 서버에 섞여 들어간 사고
+  const local = () => /^(localhost|127\.|0\.0\.0\.0|\[::1\]|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(location.hostname) || !!navigator.webdriver;
+  const on = () => !!url() && !local() && KP.settings.get().stats !== false;
   const rnd = () => {
     const a = new Uint8Array(12);
     (self.crypto || {}).getRandomValues ? crypto.getRandomValues(a) : a.forEach((_, i) => (a[i] = (Math.random() * 256) | 0));

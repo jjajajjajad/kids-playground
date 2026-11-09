@@ -96,6 +96,8 @@ KP.game({
     const lv = ctx.level;
     const nb = lv === 3 ? 3 : 2;
     const perB = [2, 3, 3][lv - 1];
+    // 3단계는 바구니마다 2·2·3개(섞어서) = 7개 — 9개는 아이에게 1~2분이라 길었음
+    const perBin = lv === 3 ? U.shuffle([2, 2, 3]) : null;
     const list = nb === 3 ? ctx.THEMES3 : ctx.THEMES2;
     ctx.themeIdx[nb] = (ctx.themeIdx[nb] + 1) % list.length;
     const theme = list[ctx.themeIdx[nb]];
@@ -112,9 +114,9 @@ KP.game({
       const used = new Set();
       bins = theme.map((k) => ({ key: k, label: ctx.B[k][0], name: ctx.B[k][1], color: ctx.B[k][2] }));
       things = [];
-      theme.forEach((k) => {
+      theme.forEach((k, bi) => {
         const pool = ctx.B[k][3].filter(([em]) => !used.has(em) && !theme.some((o) => o !== k && ctx.B[o][3].some(([e2]) => e2 === em)));
-        U.sample(pool, perB).forEach(([em, name]) => {
+        U.sample(pool, perBin ? perBin[bi] : perB).forEach(([em, name]) => {
           used.add(em);
           things.push({ em, name, key: k });
         });
@@ -193,7 +195,19 @@ KP.game({
     const done = async () => {
       ctx.score.add();
       ctx.round++;
-      binEls.forEach((b, k) => ctx.after(k * 200, () => U.replay(b, "jump")));
+      // 확인하기: 바구니를 하나씩 통통 — 바구니 이름을 말하고 담긴 것이 톡톡 (복습)
+      ctx.hint(null);
+      const tk0 = ctx.round;
+      for (let k = 0; k < binEls.length; k++) {
+        if (!ctx._active || tk0 !== ctx.round) return;
+        const b = binEls[k];
+        U.replay(b, "jump");
+        b.querySelectorAll(".soIn").forEach((e, j) => ctx.after(j * 120, () => U.replay(e, "pop")));
+        A.note(A.SCALE[Math.min(A.SCALE.length - 1, k * 2)], { inst: "bell", dur: 0.4, vol: 0.2 });
+        if (theme[0] !== "SIZE") KP.voice.say(bins[k].name + "!");
+        await ctx.wait(850);
+      }
+      if (!ctx._active || tk0 !== ctx.round) return;
       const big = ctx.round % 4 === 0;
       const ok = await ctx.win({ big, msg: big ? "{부름} 정리 대장!" : "다 나눴어요!" });
       if (ok) this.next(ctx);

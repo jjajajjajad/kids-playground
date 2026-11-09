@@ -3,6 +3,8 @@
    - 👆 내가 연주: 화면 아무 데나 누를 때마다 다음 음이 나옴 → 리듬대로 눌러 한 곡 완성하면 축하
      단계: 음 개수 기준 1단계 약 6~10음 → 2단계 약 절반 → 3단계 끝까지. 한 소절 칠 때마다 밴드가 다 같이 춤추며 칭찬
      (아무 데나 누르면 되는 놀이라 열쇠 별은 없음)
+     리듬 칭찬: 누른 간격이 음 길이(긴 음은 길게)에 맞으면 🌟 음표, 한 소절 대부분이 맞으면 "박자에 딱딱 맞아요!"
+       빠르기는 아이 속도에 맞춤(최근 간격의 가운데 값). 너무 빠른 연타(한 박 반보다 빠름)는 리듬으로 안 셈
    - 가사는 넣지 않음(저작권) — 멜로디만 */
 "use strict";
 KP.game({
@@ -40,6 +42,7 @@ KP.game({
       .mb-band .dance{animation:mbDance .4s cubic-bezier(.3,1.6,.5,1)}
       @keyframes mbDance{40%{transform:translateY(-18%) rotate(-8deg) scale(1.08,.94)}75%{transform:rotate(7deg)}}
       .mb-note{position:absolute;pointer-events:none;font-size:clamp(30px,5vh,48px);z-index:3;animation:mbNote 1.4s ease-out forwards}
+      .mb-note.rh{font-size:clamp(38px,6.5vh,62px)}
       @keyframes mbNote{from{transform:translate(-50%,-50%) scale(.3);opacity:1}to{transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(1.2) rotate(var(--r));opacity:0}}
       .mb-dots{position:absolute;left:3%;right:3%;top:3%;display:flex;flex-wrap:wrap;gap:4px;justify-content:center;pointer-events:none}
       .mb-dot{height:12px;border-radius:6px;background:rgba(255,255,255,.85);box-shadow:inset 0 0 0 2px #d9cdf2}
@@ -221,10 +224,10 @@ KP.game({
         d.classList.toggle("now", i === cur);
       });
     }
-    function burst(k) {
+    function burst(k, good) {
       const r = stage.getBoundingClientRect(),
         br = box.getBoundingClientRect();
-      const nt = U.el("div", "mb-note", KP.E(U.pick(["🎵", "🎶", "⭐", "💖"])));
+      const nt = U.el("div", "mb-note" + (good ? " rh" : ""), KP.E(good ? "🌟" : U.pick(["🎵", "🎶", "⭐", "💖"])));
       nt.style.left = br.left - r.left + br.width * (0.3 + Math.random() * 0.4) + "px";
       nt.style.top = br.top - r.top + br.height * 0.35 + "px";
       nt.style.setProperty("--dx", (Math.random() - 0.5) * r.width * 0.6 + "px");
@@ -270,6 +273,33 @@ KP.game({
 
     /* ---------- 내가 연주 ---------- */
     let lastTap = 0;
+    /** 리듬: 앞 음 길이(박) 대비 실제 간격 비율 → 아이 빠르기(최근 비율의 가운데 값)와 가까우면 '리듬 맞음' */
+    const RH = { at: 0, b: 0, rs: [], ph: [0, 0], all: [0, 0] };
+    function rhReset() {
+      RH.at = 0;
+      RH.rs = [];
+      RH.ph = [0, 0];
+      RH.all = [0, 0];
+    }
+    function rhTap(b) {
+      const now = performance.now(),
+        iv = now - RH.at,
+        prevB = RH.b;
+      RH.at = now;
+      RH.b = b;
+      if (!prevB || iv > 2600 || iv < 60) return false; // 첫 음·한참 쉬었다 누름은 안 셈
+      const r = iv / (prevB * BEAT * 1000);
+      RH.rs.push(r);
+      if (RH.rs.length > 6) RH.rs.shift();
+      if (RH.rs.length < 3) return false; // 빠르기를 알 때까지
+      const m = RH.rs.slice().sort((x, y) => x - y)[RH.rs.length >> 1];
+      const good = m >= 0.65 && m <= 2.6 && Math.abs(Math.log(r / m)) < Math.log(1.45);
+      RH.ph[1]++;
+      RH.all[1]++;
+      if (good) RH.ph[0]++, RH.all[0]++;
+      return good;
+    }
+    ctx._rh = RH; // 점검용
     ctx.fast(stage, async () => {
       if (mode !== "mine") {
         // 듣는 중에 누르면 춤만
@@ -278,8 +308,9 @@ KP.game({
       }
       if (KP.celebrating || idx >= mine.length) return;
       const [n, b] = mine[idx];
+      if (idx === 0) rhReset();
       sound(n, b);
-      burst(idx);
+      burst(idx, rhTap(b));
       stage.classList.add("play");
       ctx.cancel(lastTap);
       lastTap = ctx.after(Math.max(500, b * BEAT * 1000 + 200), () => stage.classList.remove("play"));
@@ -291,7 +322,8 @@ KP.game({
         await ctx.wait(700);
         const name = A.SONGS[song].name;
         ctx.noStar ? ctx.noStar() : (ctx._fewChoice = true); // 아무 데나 눌러도 되는 놀이 → 열쇠 별 제외
-        const ok = await ctx.win(mine.full ? { big: true, msg: name + " 완성!" } : { msg: "멋진 연주예요!" });
+        const rhy = RH.all[1] >= 4 && RH.all[0] / RH.all[1] >= 0.7; // 노래 리듬대로 눌렀어요
+        const ok = await ctx.win(Object.assign(mine.full ? { big: true, msg: name + " 완성!" } : { msg: "멋진 연주예요!" }, rhy ? { msg: (mine.full ? name + " 완성! " : "") + "리듬도 딱딱 " + KP.E("🌟"), say: "박자에 딱딱 맞아요!" } : {}));
         if (!ok) return;
         idx = 0;
         renderDots(); // 단계가 올랐으면 더 길어짐
@@ -311,7 +343,9 @@ KP.game({
         const c = U.el("div", "mb-cheer", KP.E(U.pick(["⭐", "🌟", "💖"])) + " " + KP.E("👏"));
         stage.appendChild(c);
         ctx.after(1150, () => c.remove());
-        KP.voice.say(U.pick(["좋아요!", "멋져요!", "잘했어요!"]));
+        const [g, n] = RH.ph;
+        KP.voice.say(n >= 3 && g / n >= 0.75 ? "박자에 딱딱 맞아요!" : U.pick(["좋아요!", "멋져요!", "잘했어요!"]));
+        RH.ph = [0, 0];
       });
     }
     function setMode(m, speak) {

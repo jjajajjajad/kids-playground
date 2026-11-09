@@ -99,10 +99,14 @@
   ];
   const COLORS = ["#ff5b6e", "#ff8a3d", "#e6a700", "#3fbf6a", "#14b8a6", "#2f95f5", "#5b7cfa", "#8a63ee", "#d94fc2"];
   function book() {
+    // 완성 때 영어 낱말 음성: 소문자 문장("ant!")이 없으면 대문자 문장("Ant!")으로 — 소리는 같고 자연 음성이 있음
+    const nat = (t) => !!(KP.voice._natUrls && KP.voice._natUrls(t));
+    const enW = (w) => (nat(w + "!") ? w : nat(w[0].toUpperCase() + w.slice(1) + "!") ? w[0].toUpperCase() + w.slice(1) : w);
     return [
       { id: "up", name: "대문자", items: L.map((l, i) => ({ id: "U" + l[0], kind: "jamo", label: l[0], ch: l[0], say: "대문자 " + l[1], en: l[0], color: COLORS[i % 9], strokes: ST[l[0]], word: [l[2], l[3]] })) },
-      { id: "low", name: "소문자", items: L.map((l, i) => ({ id: "L" + l[0], kind: "jamo", label: l[0].toLowerCase(), ch: l[0].toLowerCase(), say: "소문자 " + l[1], en: l[0], color: COLORS[i % 9], strokes: ST[l[0].toLowerCase()], word: [l[2].toLowerCase(), l[3]] })) },
-      { id: "word", name: "단어", items: WORDS.map((w, i) => ({ id: "W" + w[0], kind: "word", label: w[0], ch: w[0], say: w[1], en: w[0], color: COLORS[i % 9], word: [w[0], w[2]], parts: [...w[0]] })) },
+      // 소문자는 접어 둠 — 대문자를 다 쓰면(다음 차례가 되면) 저절로 펼쳐짐, [펼쳐 보기]로 먼저 볼 수도 있음
+      { id: "low", name: "소문자", fold: true, items: L.map((l, i) => ({ id: "L" + l[0], kind: "jamo", label: l[0].toLowerCase(), ch: l[0].toLowerCase(), say: "소문자 " + l[1], en: l[0], color: COLORS[i % 9], strokes: ST[l[0].toLowerCase()], word: [l[2].toLowerCase(), l[3]] })) },
+      { id: "word", name: "단어", items: WORDS.map((w, i) => ({ id: "W" + w[0], kind: "word", label: w[0], ch: w[0], say: w[1], en: enW(w[0]), color: COLORS[i % 9], word: [w[0], w[2]], parts: [...w[0]] })) },
     ];
   }
   KP.notebook({

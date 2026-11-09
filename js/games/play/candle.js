@@ -1,7 +1,9 @@
 /* 생일 촛불 끄기 — 오늘의 주인공 동물 친구 생일! 케이크 위 촛불을 콕 눌러 후~
    - 일렁이는 불꽃, 끄면 바람 소리 + 연기 모락모락
    - 다 끄면 생일 축하 노래 + "○○야 생일 축하해!"
-   1단계: 촛불 3개 / 2단계: 4개 / 3단계: 5개 (장난꾸러기 촛불 2개가 한 번씩 다시 켜짐!)
+   1단계: 촛불 3개 (아무거나) / 2단계: 4개 + '숫자 촛불' — 촛불마다 1~4 숫자(자리는 섞임), 1부터 차례로 후~
+   3단계: 5개 숫자 촛불 + 장난꾸러기 촛불 2개가 한 번씩 다시 켜짐(다시 켜진 건 아무 때나 후~)
+   - 차례가 아닌 촛불은 흔들흔들 + "다음은 둘!"(가벼운 틀림, 1번은 봐줌) → 2·3단계는 열쇠 별 대상
    - 촛불은 한 개당 76px 간격 이상(유아 손가락) — 넓은 화면은 케이크를 옆으로 길게, 좁은 폰은 2층(아래층 앞줄·위층 뒷줄)에 엇갈려 꽂음
    - 노래는 2판에 한 번 전곡, 나머지는 앞 두 소절만(판 사이 기다림 줄이기) */
 "use strict";
@@ -60,6 +62,12 @@ KP.game({
       .cd-smoke{position:absolute;left:50%;bottom:58%;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:rgba(150,150,165,.55);pointer-events:none;filter:blur(2px);
         animation:cd-smoke 1.6s ease-out forwards;animation-delay:var(--dl)}
       @keyframes cd-smoke{0%{transform:translate(0,0) scale(.4);opacity:.8}50%{transform:translate(var(--dx),-50px) scale(1.2)}100%{transform:translate(calc(var(--dx)*-1),-110px) scale(1.8);opacity:0}}
+      .cd-num{position:absolute;left:50%;bottom:6%;width:clamp(30px,calc(var(--ck)*.11),44px);height:clamp(30px,calc(var(--ck)*.11),44px);margin-left:calc(clamp(30px,calc(var(--ck)*.11),44px)*-.5);
+        border-radius:50%;background:#fff;color:#c2185b;box-shadow:0 0 0 3px var(--c1),0 3px 0 rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;
+        font-size:clamp(20px,calc(var(--ck)*.08),30px);line-height:1;pointer-events:none;z-index:4}
+      .cd-c.out .cd-num{opacity:.45}
+      .cd-c.nope{animation:cd-nope .4s}
+      @keyframes cd-nope{25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
       .cd-hoo{position:absolute;left:50%;bottom:100%;transform:translateX(-50%);font-size:clamp(20px,3vw,30px);color:#4a7ab8;text-shadow:0 0 6px #fff,0 0 3px #fff;white-space:nowrap;pointer-events:none;z-index:5;animation:cd-hoo .8s ease-out forwards}
       @keyframes cd-hoo{from{opacity:0;transform:translate(10%,10px)}30%{opacity:1}to{opacity:0;transform:translate(-90%,-10px)}}
       .cd-note{position:absolute;font-size:clamp(26px,4vw,42px);pointer-events:none;animation:cd-note 2s ease-out forwards;z-index:4}
@@ -148,12 +156,19 @@ KP.game({
     const trick = new Set(lv === 3 ? U.sample(Array.from({ length: n }, (_, i) => i), 2) : []);
     let left = n,
       busy = false;
-    ctx.say("오늘은 " + hero[1] + " 생일! 촛불을 콕 눌러서 후~ 불어 줘요 🎂");
+    // 2·3단계 숫자 촛불: 자리마다 섞인 1..n, 차례(next)대로 끄기
+    const numbered = lv >= 2;
+    const nums = numbered ? U.shuffle(Array.from({ length: n }, (_, i) => i + 1)) : [];
+    let next = 1;
+    const relit = new Set(); // 다시 켜진 장난꾸러기 촛불 (아무 때나 끄기)
+    const ORDER_TXT = "1부터 차례로 후~ 불어 줘요!"; // 새 문장 new-voice/candle.txt — 녹음 전에는 기기 목소리
+    if (numbered) ctx.say("오늘은 " + hero[1] + " 생일! 숫자 " + ORDER_TXT + " 🎂", "오늘은 " + hero[1] + " 생일! " + ORDER_TXT);
+    else ctx.say("오늘은 " + hero[1] + " 생일! 촛불을 콕 눌러서 후~ 불어 줘요 🎂");
     const candles = Array.from({ length: n }, (_, i) => {
       const c = U.el("div", "cd-c");
       c.style.setProperty("--c1", ctx.CCOL[i % ctx.CCOL.length]);
       c.dataset.tap = "1";
-      c.innerHTML = '<div class="cd-fl"><div class="cd-glow"></div><div class="cd-flame"></div></div><div class="cd-wick"></div><div class="cd-stick"></div>';
+      c.innerHTML = '<div class="cd-fl"><div class="cd-glow"></div><div class="cd-flame"></div></div><div class="cd-wick"></div><div class="cd-stick"></div>' + (numbered ? '<div class="cd-num">' + nums[i] + "</div>" : "");
       ctx.candlesEl.appendChild(c);
       ctx.fast(c, () => blow(c, i));
       return c;
@@ -161,6 +176,18 @@ KP.game({
     ctx.size();
     const blow = (c, i) => {
       if (busy || c.classList.contains("out")) return;
+      if (numbered && !relit.has(i) && nums[i] !== next) {
+        // 차례가 아닌 숫자: 흔들흔들 (가벼운 틀림)
+        U.replay(c, "nope");
+        A.note("C4", { inst: "soft", dur: 0.2, vol: 0.12 });
+        ctx.miss(null, "다음은 " + U.NAT[next] + "!", { soft: true });
+        return;
+      }
+      if (numbered && !relit.has(i)) {
+        next++;
+        KP.voice.say(U.NAT[nums[i]] + "!"); // 하나! 둘! (같이 세기)
+      }
+      relit.delete(i);
       c.classList.add("blow");
       // 후~ 바람 소리
       A.noise({ dur: 0.55, vol: 0.2, bp: 700, bpTo: 1500, q: 0.7, attack: 0.05 });
@@ -185,6 +212,7 @@ KP.game({
         ctx.after(1400, () => {
           if (!ctx._active || busy) return;
           c.classList.remove("out");
+          relit.add(i);
           left++;
           A.sfx("boing");
           KP.voice.say("어? 다시 켜졌네! 한 번 더 후~");
@@ -195,7 +223,11 @@ KP.game({
       if (left === 0) ctx.after(1500, () => left === 0 && party());
       else hint();
     };
-    const hint = () => ctx.hint(() => candles.find((c) => !c.classList.contains("out")), "촛불을 콕 눌러서 후~ 불어요!");
+    // 숫자 촛불은 차례인 촛불(정답)을 가리킴 → 가리킨 판은 열쇠 별 없음(answer)
+    const hint = () =>
+      numbered
+        ? ctx.hint(() => candles.find((c, k) => !c.classList.contains("out") && (relit.has(k) || nums[k] === next)), "다음은 " + U.NAT[Math.min(next, n)] + "!", { answer: true })
+        : ctx.hint(() => candles.find((c) => !c.classList.contains("out")), "촛불을 콕 눌러서 후~ 불어요!");
     hint();
     const party = async () => {
       if (busy) return;
@@ -222,7 +254,7 @@ KP.game({
       ctx.score.add();
       ctx.round++;
       const big = ctx.round % 4 === 0;
-      ctx.noStar(); // 누르기만 하면 꺼지는 촛불(틀릴 수 없음) → 열쇠 별 없음
+      if (!numbered) ctx.noStar(); // 1단계: 누르기만 하면 꺼지는 촛불(틀릴 수 없음) → 열쇠 별 없음 (2·3단계는 숫자 차례)
       const ok = await ctx.win({ big, msg: U.josa(hero[1], "아/야") + " 생일 축하해!", say: "생일 축하해!" });
       if (ok) this.next(ctx);
     };

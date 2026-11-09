@@ -1,7 +1,8 @@
 /* 자동차 경주 — 내 차를 고르고, 화면을 콕콕 연타하면 부릉부릉 달려요!
    - 차 5종(경주차·자동차·경찰차·소방차·버스)을 직접 그림, 바퀴가 진짜로 굴러감, 먼지 폴폴
    - 출발 신호등 → 결승 깃발. 상대 차(여우)는 대부분 아이가 이길 수 있게 (단계마다 조금씩 빨라짐)
-   - 지면 "아깝다! 다시 해 볼까?" — 벌 없음, 다음 판은 상대가 조금 더 느긋해짐 */
+   - 지면 "아깝다! 다시 해 볼까?" — 벌 없음, 다음 판은 상대가 조금 더 느긋해짐
+   - 세로로 긴 화면(폰 세로·태블릿 세로)은 도로를 세로로 놓고 아래→위로 달림(.vert) — 가로 도로는 폰 세로에서 차 96px·달리는 길 230px 뿐이었음 */
 "use strict";
 KP.game({
   id: "race",
@@ -71,6 +72,20 @@ KP.game({
         .rc-pick h2{font-size:28px}
       }
       .rc-opt.sel{background:#fff5c9;box-shadow:0 0 0 5px #ffc531,0 7px 0 rgba(47,58,102,.14)}
+      /* 세로 도로 (아래 → 위) */
+      .rc-board.vert{background:linear-gradient(180deg,#8fd3ff 0%,#c6ecff 17%,#7ccf6a 17%,#5fb956 100%)}
+      .rc-board.vert .rc-crowd{top:1%;height:14%;right:24%;font-size:clamp(24px,7vw,44px)}
+      .rc-board.vert .rc-road{left:12%;right:12%;top:17%;bottom:0;height:auto;box-shadow:inset 6px 0 0 #e9edf5,inset -6px 0 0 #e9edf5}
+      .rc-board.vert .rc-mid{left:calc(50% - 3px);right:auto;top:0;bottom:0;width:6px;height:auto}
+      .rc-board.vert .rc-mid::before{left:0;right:0;top:-68px;bottom:0;background:repeating-linear-gradient(180deg,#fff 0 34px,transparent 34px 68px)}
+      .rc-board.vert .rc-road.move .rc-mid::before{animation-name:rc-dashV}
+      @keyframes rc-dashV{to{transform:translateY(68px)}}
+      .rc-board.vert .rc-start{left:0;right:0;top:auto;bottom:calc(var(--cw) + 22px);width:auto;height:8px}
+      .rc-board.vert .rc-finish{left:0;right:0;top:12px;bottom:auto;width:auto;height:clamp(20px,3vh,30px);background-size:clamp(10px,1.5vh,15px) clamp(10px,1.5vh,15px)}
+      .rc-board.vert .rc-flag{right:2%;top:2%;font-size:clamp(48px,12vw,80px)}
+      .rc-board.vert>.rc-car{rotate:-90deg}
+      .rc-dust.v{animation-name:rc-dustV}
+      @keyframes rc-dustV{from{transform:scale(.4)}to{transform:translate(var(--vx,0px),60px) scale(1.5);opacity:0}}
     `);
     // 차 그리기 (오른쪽을 보는 옆모습, viewBox 200x100)
     const wheel = (x, r) =>
@@ -144,6 +159,22 @@ KP.game({
     ctx.size = () => {
       const W = board.clientWidth,
         H = board.clientHeight;
+      const vert = (ctx.vert = H > W * 1.15);
+      board.classList.toggle("vert", vert);
+      if (vert) {
+        // 세로: 차를 -90° 돌려 위를 보게. 차 길이(cw)는 화면 높이의 22%, 폭(cw/2)은 차선(도로 76% 의 반) 안
+        const cw = Math.round(U.clamp(Math.min(W * 0.46, H * 0.22), 96, 220));
+        board.style.setProperty("--cw", cw + "px");
+        ctx.cw = cw;
+        // 차선 가운데(x)와 출발·결승(차 가운데 y)
+        ctx.laneX = [W * 0.31, W * 0.69]; // [상대, 나]
+        ctx.startY = H - cw * 0.5 - 10;
+        ctx.finishY = H * 0.17 + 12 + cw * 0.5;
+        opp.style.left = ctx.laneX[0] - cw / 2 + "px";
+        me.style.left = ctx.laneX[1] - cw / 2 + "px";
+        ctx.put && ctx.put();
+        return;
+      }
       const cw = Math.round(U.clamp(Math.min(W * 0.26, H * 0.5), 96, 230));
       board.style.setProperty("--cw", cw + "px");
       ctx.cw = cw;
@@ -153,6 +184,22 @@ KP.game({
       me.style.top = roadTop + roadH * 0.75 - cw * 0.42 + "px";
       ctx.startX = 8;
       ctx.finishX = W - U.clamp(W * 0.03, 14, 40) - cw * 0.92;
+      ctx.put && ctx.put();
+    };
+    /** 진행(0~1) → 차 자리 (가로: 왼쪽→오른쪽 / 세로: 아래→위) */
+    ctx.put = () => {
+      const c = ctx.ctl || {};
+      const p = c.p || 0,
+        o = c.o || 0;
+      if (ctx.vert) {
+        const y = (q) => ctx.startY + q * (ctx.finishY - ctx.startY) - ctx.cw * 0.25; // 돌린 차의 상자 top (상자 높이 cw/2)
+        me.style.top = y(p) + "px";
+        opp.style.top = y(o) + "px";
+      } else {
+        const span = ctx.finishX - ctx.startX;
+        me.style.left = ctx.startX + p * span + "px";
+        opp.style.left = ctx.startX + o * span + "px";
+      }
     };
     addEventListener("resize", () => ctx._active && ctx.size());
 
@@ -161,6 +208,18 @@ KP.game({
       U.replay(ctx.bigEl, "show");
     };
     const dust = (car, x) => {
+      if (ctx.vert) {
+        // 세로: 차 꽁무니(아래)에서 먼지가 아래로
+        const cx = parseFloat(car.style.left) + ctx.cw / 2,
+          by = parseFloat(car.style.top) + ctx.cw * 0.25 + ctx.cw * 0.48;
+        for (let i = 0; i < 3; i++) {
+          const d = U.el("div", "rc-dust v");
+          d.style.cssText = "left:" + (cx + U.randf(-ctx.cw * 0.18, ctx.cw * 0.1)) + "px;top:" + (by + U.randf(-6, 6)) + "px;--p:" + U.randf(14, 28) + "px;--vx:" + U.randf(-20, 20) + "px";
+          board.appendChild(d);
+          ctx.after(720, () => d.remove());
+        }
+        return;
+      }
       const top = parseFloat(car.style.top) + ctx.cw * 0.4;
       for (let i = 0; i < 3; i++) {
         const d = U.el("div", "rc-dust");
@@ -213,9 +272,8 @@ KP.game({
           ctx.finish(c.p >= 1);
         }
       }
-      const span = ctx.finishX - ctx.startX;
-      me.style.left = ctx.startX + c.p * span + "px";
-      opp.style.left = ctx.startX + c.o * span + "px";
+      const span = ctx.vert ? Math.abs(ctx.startY - ctx.finishY) : ctx.finishX - ctx.startX;
+      ctx.put();
       // 바퀴 굴리기
       c.wm = (c.wm || 0) + (c.p - (c.lp || 0)) * span * 3.2;
       c.wo = (c.wo || 0) + (c.o - (c.lo || 0)) * span * 3.2;
@@ -302,6 +360,7 @@ KP.game({
     // (2차 보완의 [12,10.5,9]초·[26,32,38]번은 초당 4번으로도 3단계를 거의 못 이겼음)
     const T = [13, 11.5, 10.5][lv - 1] + Math.min(ctx.losses, 3) * 2.5;
     ctx.ctl = { state: "ready", p: 0, pT: 0, o: 0, ov: 1 / T, t: 0, taps: [22, 26, 30][lv - 1], vmax: [0.2, 0.22, 0.24][lv - 1], tapN: 0 };
+    ctx.put(); // 출발선에 세우기 (예전엔 출발 신호 동안 지난 경주 자리에 서 있었음)
     ctx.say("화면을 콕콕콕 빨리 누르면 내 차가 달려요!");
     // 출발 신호 (진 뒤 다시 달릴 때는 기다림을 줄이고 바로 셋·둘·하나)
     const L = ctx.light,

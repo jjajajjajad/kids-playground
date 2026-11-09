@@ -58,7 +58,7 @@
     const one = [];
     for (let n = 0; n <= 9; n++)
       one.push({ id: "D" + n, kind: "jamo", label: String(n), ch: String(n), say: n ? U.numNative(n) : "영", color: COLORS[n], strokes: D[n], word: n ? [U.numNative(n) + " · " + U.numSino(n), THINGS[n]] : ["영 · 하나도 없어요", "🧺"] });
-    const two = (n) => ({ id: "N" + n, kind: "jamo", label: String(n), ch: String(n), say: U.numSino(n), color: COLORS[Math.floor(n / 10) % 10], strokes: numStrokes(n), syl: true, word: [U.numSino(n) + (n < 100 ? " · " + U.numNative(n) : ""), "🔢"] });
+    const two = (n) => ({ id: "N" + n, kind: "jamo", label: String(n), ch: String(n), say: U.numSino(n), color: COLORS[Math.floor(n / 10) % 10], strokes: numStrokes(n), syl: true, cells: 2, word: [U.numSino(n) + (n < 100 ? " · " + U.numNative(n) : ""), "🔢"] });
     // 두 자리 수는 양이 많아(91개) 나눔: 몇십(10·20…100) → 11~19 → 나머지(접어 둠). 저장 키(N+수)는 예전과 같음
     const tens = [],
       teen = [],

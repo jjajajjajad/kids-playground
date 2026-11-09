@@ -6,7 +6,8 @@
      (등록 직후엔 그 사진부터 숨고, 이후 기본 친구와 섞여 나옴)
    - 썸네일 줄: 개수·저장 상태 표시, 누르면 바로 그 친구가 숨음, ✖ 꾹 누르면 삭제
    - 예전 버전 localStorage "kidsWipePhotos" 가 있으면 db 로 옮기고 지움
-   - 단계: 1 큰 친구 → 3 작은 친구 */
+   - 단계: 1 큰 친구 → 3 작은 친구
+   - 3단계: 친구 둘이 함께 숨음 (하나 찾으면 "하나 더!" → 둘 다 찾아야 성공, 2026-11-09 2라운드) */
 "use strict";
 KP.game({
   id: "wipe",
@@ -245,11 +246,13 @@ KP.game({
     const board = U.el("div", "board wp-board");
     const scene = U.el("div", "wp-scene");
     const charEl = U.el("div", "wp-char");
+    const charEl2 = U.el("div", "wp-char"); // 3단계 두 번째 친구
     const cover = U.el("canvas", "wp-cover");
     const fx = U.el("canvas", "wp-fx");
     const sponge = U.el("div", "wp-sponge", KP.E("🧽"));
     const spot = U.el("div", "wp-spot"); // 힌트 손가락이 가리킬 자리(덮개 위, 투명)
-    board.append(scene, charEl, cover, fx, spot, sponge);
+    const spot2 = U.el("div", "wp-spot");
+    board.append(scene, charEl, charEl2, cover, fx, spot, spot2, sponge);
     ctx.body.append(top, board);
     const cg = cover.getContext("2d");
     const fg = fx.getContext("2d");
@@ -371,6 +374,7 @@ KP.game({
       lastPos = null,
       samples = [],
       cleared = 0,
+      tgs = [], // 숨은 친구들 [{el, spot, name, samples, cleared, done}] — 3단계는 2명
       done = false,
       theme = THEMES[0],
       R = 40,
@@ -403,6 +407,23 @@ KP.game({
       const f = U.pick(pool);
       return { em: f[0], name: f[1] };
     }
+    /** 친구 하나 자리 잡기 (다른 친구와 겹치지 않게) */
+    function place(el, sp, S, avoid) {
+      const m = 12;
+      let x = 0,
+        y = 0;
+      for (let k = 0; k < 30; k++) {
+        x = m + Math.random() * Math.max(1, W - S - 2 * m);
+        y = m + Math.random() * Math.max(1, H - S - 2 * m);
+        const farLast = !lastPos || Math.hypot(x - lastPos[0], y - lastPos[1]) > Math.min(W, H) * 0.3;
+        const farOther = !avoid || Math.hypot(x - avoid[0], y - avoid[1]) > S * 1.15;
+        if (farOther && (farLast || k > 14)) break;
+      }
+      Object.assign(el.style, { display: "", left: x + "px", top: y + "px", width: S + "px", height: S + "px", fontSize: S + "px" });
+      Object.assign(sp.style, { display: "", left: x + S * 0.2 + "px", top: y + S * 0.2 + "px", width: S * 0.6 + "px", height: S * 0.6 + "px" });
+      el.classList.remove("found");
+      return [x, y];
+    }
     async function newRound(force) {
       if (!ctx._active) return;
       busy = false;
@@ -419,24 +440,25 @@ KP.game({
       const lv = ctx.level;
       const S = Math.max(84, Math.min(W, H) * [0.46, 0.34, 0.25][lv - 1]);
       R = Math.max(24, Math.min(W, H) * [0.085, 0.075, 0.066][lv - 1]);
-      const m = 12;
-      let x = 0,
-        y = 0;
-      for (let k = 0; k < 14; k++) {
-        x = m + Math.random() * Math.max(1, W - S - 2 * m);
-        y = m + Math.random() * Math.max(1, H - S - 2 * m);
-        if (!lastPos || Math.hypot(x - lastPos[0], y - lastPos[1]) > Math.min(W, H) * 0.3) break;
+      const [x, y] = place(charEl, spot, S, null);
+      // 3단계: 두 번째 친구 (그림 친구, 첫 친구와 다른 것)
+      let two = null;
+      if (lv >= 3) {
+        const f = U.pick(FRIENDS.filter((q) => q[0] !== cur.em));
+        two = { em: f[0], name: f[1], xy: place(charEl2, spot2, S, [x, y]) };
+        charEl2.innerHTML = KP.E(two.em);
+      } else {
+        charEl2.style.display = "none";
+        spot2.style.display = "none";
+        charEl2.innerHTML = "";
       }
       lastPos = [x, y];
-      Object.assign(charEl.style, { left: x + "px", top: y + "px", width: S + "px", height: S + "px", fontSize: S + "px" });
-      Object.assign(spot.style, { left: x + S * 0.2 + "px", top: y + S * 0.2 + "px", width: S * 0.6 + "px", height: S * 0.6 + "px" });
-      charEl.classList.remove("found");
       charEl.innerHTML = cur.photo ? '<img class="ph" src="' + KP.safeImg(cur.photo.img) + '" alt="">' : KP.E(cur.em);
       scene.style.background = theme.scene;
       U.$$(".wp-th", strip).forEach((t) => t.classList.toggle("now", !!(cur.photo && t.dataset.id === cur.photo.id)));
       // 덮개
       cover.classList.remove("gone");
-      await KP.loadE(cur.em ? [cur.em] : []);
+      await KP.loadE((cur.em ? [cur.em] : []).concat(two ? [two.em] : []));
       if (!ctx._active) return;
       const seed = (Math.random() * 1e9) | 0;
       let a = seed;
@@ -448,19 +470,24 @@ KP.game({
       cg.clearRect(0, 0, W, H);
       theme.draw(cg, W, H, r);
       // 친구 영역 표본점 (그림이면 실제 윤곽, 사진이면 둥근 네모)
-      samples = makeSamples(x, y, S);
+      tgs = [{ el: charEl, spot, name: cur.photo ? "우리 친구" : cur.name, samples: makeSamples(x, y, S, cur.em), cleared: 0, done: false }];
+      if (two) tgs.push({ el: charEl2, spot: spot2, name: two.name, samples: makeSamples(two.xy[0], two.xy[1], S, two.em), cleared: 0, done: false });
+      samples = tgs[0].samples.concat(two ? tgs[1].samples : []);
+      tgs.forEach((t) => t.samples.forEach((s) => (s.t = t)));
       ctx.say(cur.photo && Math.random() < 0.5 ? "우리 캐릭터가 숨었어요! 어디 있을까요?" : theme.say);
-      ctx.hint(() => spot, "여기를 문질문질 해 봐요!", { answer: true }); // 친구 자리를 알려 주는 힌트 → 그 판은 열쇠 별 없음
+      setHint();
     }
-    function makeSamples(x, y, S) {
+    // 친구 자리를 알려 주는 힌트 → 그 판은 열쇠 별 없음 (3단계는 아직 못 찾은 친구 자리)
+    const setHint = () => ctx.hint(() => (tgs.find((t) => !t.done) || tgs[0]).spot, "여기를 문질문질 해 봐요!", { answer: true });
+    function makeSamples(x, y, S, em) {
       const N = 44,
         out = [];
       let mask = null;
-      if (cur.em) {
+      if (em) {
         const c = document.createElement("canvas");
         c.width = c.height = N;
         const g = c.getContext("2d");
-        KP.drawE(g, cur.em, N / 2, N / 2, N);
+        KP.drawE(g, em, N / 2, N / 2, N);
         try {
           mask = g.getImageData(0, 0, N, N).data;
         } catch (e) {
@@ -523,6 +550,7 @@ KP.game({
         if (ex * ex + ey * ey <= R2) {
           s.c = true;
           cleared++;
+          if (s.t) s.t.cleared++;
         }
       }
       // 반짝이
@@ -538,8 +566,18 @@ KP.game({
     }
     function progress() {
       if (done || !samples.length) return;
-      const ratio = cleared / samples.length;
-      if (ratio >= 0.93) return found();
+      // 친구마다 93% 이상이면 찾음 — 남은 친구가 있으면 "하나 더!", 다 찾으면 성공
+      for (const t of tgs) {
+        if (t.done || t.cleared / t.samples.length < 0.93) continue;
+        t.done = true;
+        if (tgs.some((q) => !q.done)) {
+          foundOne(t);
+          return;
+        }
+        return found(t);
+      }
+      const rest = tgs.filter((t) => !t.done);
+      const ratio = rest.length ? Math.max(...rest.map((t) => t.cleared / t.samples.length)) : cleared / samples.length;
       if (ratio > 0.45 && said < 1) {
         said = 1;
         KP.voice.say(U.pick(["와, 조금 보여요! 누구일까?", "어? 뭔가 보여요!", "누구지? 조금 더!"]));
@@ -548,27 +586,53 @@ KP.game({
         KP.voice.say("거의 다 찾았어요!");
       }
     }
-    async function found() {
-      done = true;
-      busy = true;
-      sponge.classList.remove("on");
-      ctx.hint(null);
-      cover.classList.add("gone"); // 나머지 덮개는 스르륵
-      const cx = parseFloat(charEl.style.left) + charEl.offsetWidth / 2,
-        cy = parseFloat(charEl.style.top) + charEl.offsetHeight / 2;
+    function burst(el) {
+      const cx = parseFloat(el.style.left) + el.offsetWidth / 2,
+        cy = parseFloat(el.style.top) + el.offsetHeight / 2;
       for (let i = 0; i < 46; i++) {
         const a = Math.random() * 6.28,
           sp = 80 + Math.random() * 260;
         parts.push({ x: cx, y: cy, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 60, life: 1.3, s: 4 + Math.random() * 6, c: U.pick(["#ffd54a", "#ff7ac6", "#7ad7ff", "#ffffff", "#9cff8a"]), star: true });
       }
+      return [cx, cy];
+    }
+    function nameTag(el, name) {
+      el.classList.add("found");
+      A.sfx("boing");
+      el.appendChild(U.el("div", "wp-name" + (parseFloat(el.style.top) + el.offsetHeight + 60 > H ? " up" : ""), KP.E(name + "!")));
+    }
+    /** 3단계: 둘 중 하나를 찾음 → 그 자리 덮개만 걷고 "하나 더!" */
+    function foundOne(t) {
+      const [cx, cy] = burst(t.el);
+      const rr = t.el.offsetWidth;
+      cg.save();
+      cg.globalCompositeOperation = "destination-out";
+      cg.beginPath();
+      const up = parseFloat(t.el.style.top) + t.el.offsetHeight + 60 > H; // 이름표가 위에 붙는 자리(nameTag 와 같은 기준)
+      cg.ellipse(cx, cy + rr * (up ? -0.14 : 0.14), rr * 0.68, rr * 0.76, 0, 0, 6.28); // 이름표까지 보이게
+      cg.fill();
+      cg.restore();
       A.sfx("sparkle");
       ctx.after(250, () => {
-        charEl.classList.add("found");
-        A.sfx("boing");
-        const name = cur.photo ? "우리 친구" : cur.name;
-        const tag = U.el("div", "wp-name" + (parseFloat(charEl.style.top) + charEl.offsetHeight + 60 > H ? " up" : ""), KP.E(name + "!"));
-        charEl.appendChild(tag);
-        KP.voice.say(name + "! 찾았다!");
+        if (done) return;
+        nameTag(t.el, t.name);
+        KP.voice.say(t.name + "! 찾았다! 하나 더!");
+      });
+      said = 0;
+      setHint();
+    }
+    async function found(t) {
+      done = true;
+      busy = true;
+      sponge.classList.remove("on");
+      ctx.hint(null);
+      cover.classList.add("gone"); // 나머지 덮개는 스르륵
+      const lastT = t || tgs[0];
+      burst(lastT.el);
+      A.sfx("sparkle");
+      ctx.after(250, () => {
+        nameTag(lastT.el, lastT.name);
+        KP.voice.say(lastT.name + "! 찾았다!");
       });
       await ctx.wait(1700);
       ctx.score.add();
@@ -666,7 +730,7 @@ KP.game({
       const cx = parseFloat(charEl.style.left) || 0,
         cy = parseFloat(charEl.style.top) || 0,
         cs = parseFloat(charEl.style.width) || 0;
-      const cut = cx + cs > r.width || cy + cs > r.height;
+      const cut = cx + cs > r.width || cy + cs > r.height || tgs.length > 1; // 두 친구 판은 그냥 새 판
       if (flip || big || cut || nd !== oD || !samples.length) return newRound(cur && cur.photo ? { photo: cur.photo } : cur);
       const keep = document.createElement("canvas");
       keep.width = cover.width;

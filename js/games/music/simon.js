@@ -1,5 +1,5 @@
 /* 순서 기억하기 — 동물 친구 4명이 차례로 노래하면 같은 순서로 눌러요
-   - 하나씩 늘어나서 목표 길이(1단계 3 / 2단계 5 / 3단계 7)까지 가면 성공
+   - 하나씩 늘어나서 목표 길이(1단계 3 / 2단계 5 / 3단계 6 — 7개는 한 판이 1분 30초를 넘어 6으로)까지 가면 성공
    - 틀려도 "다시 잘 보세요!" 하고 같은 순서를 다시 보여 줌 (처음부터 아님) */
 "use strict";
 KP.game({
@@ -89,9 +89,10 @@ KP.game({
       if (g !== gen) return;
       const lv = ctx.level,
         step = [720, 620, 540][lv - 1];
-      for (const i of seq) {
+      for (let k = 0; k < seq.length; k++) {
+        const i = seq[k];
         if (g !== gen || !ctx._active) return;
-        light(i, step * 0.7);
+        light(i, step * (seq[k + 1] === i ? 0.55 : 0.7)); // 같은 친구가 또 노래하면 불을 일찍 꺼서 '두 번'으로 보이게
         await ctx.wait(step);
       }
       if (g !== gen) return;
@@ -144,7 +145,7 @@ KP.game({
       return U.pick([0, 1, 2, 3].filter((i) => i !== prev));
     }
     function newRound() {
-      target = [3, 5, 7][ctx.level - 1];
+      target = [3, 5, 6][ctx.level - 1];
       seq = [];
       seq.push(nextPad());
       show(false);

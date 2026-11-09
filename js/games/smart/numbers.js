@@ -2,6 +2,9 @@
    배우기: 1~10 카드를 누르면 큰 숫자가 나오고, 숫자만큼 그림이 하나씩 튀어나오며 "하나, 둘, 셋…" 함께 세기.
            큰 숫자의 점선을 손가락으로 따라 써 볼 수 있어요.
    퀴즈 1단계: "셋을 찾아요!" 1~5 중 3개 / 2단계: 1~10 중 4개
+     · 판 셋 중 하나는 '그림 묶음 고르기': 큰 숫자를 보여 주고 보기가 그림 묶음(●●● 처럼) — 숫자 모양 ↔ 양 잇기
+   배우기는 숫자 3개를 보면 퀴즈로 이어 감(예전 5개, 첫 '맞혔다'까지 약 27초 → 약 12초).
+   오늘 이미 배우기를 본 아이는 다음에 열면 바로 퀴즈부터(📖 배우기 단추는 그대로)
    퀴즈 3단계: 큰 숫자만큼 사과를 바구니에 담고 ✔ 누르기 (빼기도 가능)
    [쓰기 공책]·[100까지]는 다른 놀이로 가는 버튼 → 한 번 누르면 반짝이며 "한 번 더!", 3초 안에 한 번 더 눌러야 이동
    (글 못 읽는 아이가 아무거나 누르다 갑자기 다른 놀이로 튕기지 않게) */
@@ -66,6 +69,11 @@ KP.game({
       .nbAdd span{font-size:.7em;color:var(--grass)}
       .nbOk{background:var(--grass);box-shadow:0 7px 0 #1f8a4c}
       .nbAdd:active,.nbOk:active{transform:translateY(5px)}
+      .nbGrpQ{display:flex;flex-direction:column;align-items:center;gap:clamp(8px,2vh,20px)}
+      .nbGrpQ .nbTarget{font-size:clamp(64px,min(10vw,13vh),120px);padding:2px 26px}
+      .nbQ .choice.nbGrp{min-width:clamp(96px,14vw,150px);min-height:clamp(96px,14vw,150px);padding:8px;display:grid;grid-template-columns:repeat(var(--gc),auto);align-content:center;justify-content:center;gap:2px;font-size:var(--ge)}
+      .nbGrp .e{display:block;line-height:1}
+      @media (max-height:500px){.nbGrpQ{flex-direction:row;gap:24px}.nbQ .choice.nbGrp{min-width:96px;min-height:96px}}
       .nbChk{display:block;width:.42em;height:.8em;border:solid #fff;border-width:0 .16em .16em 0;border-radius:4px;transform:rotate(45deg) translate(-.06em,-.08em)}
     `);
     ctx.THINGS = [["🍎", "사과"], ["🐥", "병아리"], ["⭐", "별"], ["🍓", "딸기"], ["🚗", "자동차"], ["🐟", "물고기"], ["🎈", "풍선"], ["🌼", "꽃"], ["🍪", "쿠키"], ["🦋", "나비"]];
@@ -175,9 +183,13 @@ KP.game({
   },
   start(ctx) {
     ctx.round = 0;
+    ctx.qn = 0; // 퀴즈 판 수 (그림 묶음 판 고르기)
     ctx.seen = new Set();
     ctx.suggested = false;
-    this.mode(ctx, ctx.level === 1 ? "learn" : "quiz", true);
+    // 1단계는 배우기로 시작 — 오늘 이미 배우기를 보고 퀴즈로 넘어간 아이는 바로 퀴즈부터(한국 날짜 기준)
+    const today = KP.gate && KP.gate.today ? KP.gate.today() : "";
+    const learned = today && KP.store.get("numbers:learned", "") === today;
+    this.mode(ctx, ctx.level === 1 && !learned ? "learn" : "quiz", true);
   },
   mode(ctx, m, first) {
     ctx._resetFew(); // 모드를 바꾸면 새 판 — 앞 모드의 '보기 적은 판' 표시를 지움
@@ -243,10 +255,11 @@ KP.game({
       if (ctx.token !== tk) return;
       KP.voice.say(name + " " + U.NAT[n] + "! 숫자 " + n + "!");
       ctx.objs.querySelectorAll(".nbObj").forEach((o, i) => ctx.after(i * 60, () => U.replay(o, "jump")));
-      if (ctx.seen.size >= 5 && !ctx.suggested) {
+      if (ctx.seen.size >= 3 && !ctx.suggested) {
         ctx.suggested = true;
-        // 숫자 5개를 다 봤으면 퀴즈로 자연스럽게 이어 가기 (그사이 다른 카드를 누르면 배우기 계속)
-        ctx.after(2200, async () => {
+        // 숫자 3개를 봤으면 퀴즈로 자연스럽게 이어 가기 (그사이 다른 카드를 누르면 배우기 계속) — 예전 5개·2.2초 뒤
+        if (KP.gate && KP.gate.today) KP.store.set("numbers:learned", KP.gate.today());
+        ctx.after(1000, async () => {
           if (ctx.m !== "learn" || ctx.token !== tk) return;
           U.replay(ctx.bQuiz, "glow");
           await Promise.race([KP.voice.say("우와, 숫자 박사! 퀴즈도 해 볼까요?"), ctx.wait(3500)]);
@@ -265,7 +278,10 @@ KP.game({
     const self = this;
     ctx.q.innerHTML = "";
     if (lv < 3) {
-      const hi = lv === 1 ? 5 : 10;
+      ctx.qn = (ctx.qn || 0) + 1;
+      // 판 셋 중 하나: 큰 숫자 보고 그림 묶음 고르기 (2단계는 묶음이 너무 작아지지 않게 1~6)
+      const grp = ctx.qn % 3 === 0;
+      const hi = lv === 1 ? 5 : grp ? 6 : 10;
       const nC = lv === 1 ? 3 : 4;
       let t = 1 + U.rand(hi);
       if (t === ctx.lastT) t = (t % hi) + 1;
@@ -275,10 +291,15 @@ KP.game({
       const ask = U.josa(U.NAT[t], "을/를") + " 찾아요!";
       ctx.say("🔢 " + ask);
       const box = U.el("div", "qAns");
-      ctx.q.appendChild(box);
+      const [gem] = ctx.THINGS[ctx.qn % ctx.THINGS.length];
+      if (grp) {
+        const gq = U.el("div", "nbGrpQ");
+        gq.append(U.el("div", "nbTarget", String(t)), box);
+        ctx.q.appendChild(gq);
+      } else ctx.q.appendChild(box);
       const btns = ctx.choices(box, U.shuffle([...opts]), {
-        cls: "num",
-        render: (v) => String(v),
+        cls: grp ? "nbGrp" : "num",
+        render: (v) => (grp ? KP.E(gem).repeat(v) : String(v)),
         right: (v) => v === t,
         wrongMsg: (v) => "이건 " + U.NAT[v] + "! " + ask, // "이건 둘! 셋을 찾아요!" — 모두 자연 음성 조각
         onRight: async (v, b) => {
@@ -288,6 +309,12 @@ KP.game({
           await this.done(ctx, "숫자 " + v + "!");
         },
       });
+      if (grp)
+        btns.forEach((b) => {
+          const n = b.childElementCount; // 묶음 그림 수
+          b.style.setProperty("--gc", n <= 3 ? n : n === 4 ? 2 : 3);
+          b.style.setProperty("--ge", n <= 2 ? "clamp(34px,4.6vw,52px)" : n <= 4 ? "clamp(28px,3.6vw,42px)" : "clamp(24px,3vw,36px)");
+        });
       ctx.hint(() => btns.find((b) => b.dataset.right), ask);
       return;
     }

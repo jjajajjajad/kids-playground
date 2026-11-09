@@ -53,6 +53,11 @@ KP.game({
       @media (orientation:portrait) and (max-height:700px){.abSpotBox .abCh{font-size:clamp(70px,14vh,110px)}.abSpotPic .e{font-size:clamp(60px,12vh,100px)}.abSpotBox .abW{font-size:26px}.abSpotBox{gap:8px}}
       /* 폰 가로: 글자·그림 | 단추를 옆으로 놓아 카드 아래가 잘리지 않게 */
       @media (orientation:landscape) and (max-height:500px){.abSpot{padding:6px 0}.abSpotBox{flex-direction:row;gap:clamp(12px,3vw,28px);padding:10px clamp(16px,3vw,28px);border-width:5px;max-height:100%;border-radius:32px}.abSpotBtns{flex-direction:column;flex-wrap:nowrap;gap:10px}.abSpotBox .abCh{font-size:clamp(60px,19vh,110px)}.abSpotPic .e{font-size:clamp(54px,17vh,100px)}.abSpotBox .abW{font-size:22px}}
+      .abProg{position:absolute;top:6px;left:10px;display:flex;gap:clamp(5px,.8vw,8px);pointer-events:none;z-index:2}
+      .abProg i{display:block;width:clamp(14px,1.9vw,20px);aspect-ratio:1;border-radius:50%;background:rgba(255,255,255,.8);box-shadow:inset 0 0 0 3px rgba(47,58,102,.16)}
+      .abProg i.on{background:#ffc83d;box-shadow:0 2px 0 rgba(47,58,102,.18)}
+      .abProg i.pop{animation:popIn .4s}
+      @media (max-width:420px){.abProg{top:2px;left:6px;gap:5px}.abProg i{width:12px}}
       .abQ{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(12px,3vh,30px);padding:4px 12px 18px}
       .abBig{font-size:clamp(90px,min(30vw,17vh),160px);line-height:1;background:#fff;border-radius:34px;padding:10px 36px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px}
       .abBig.yay{animation:jumpA .5s 2}
@@ -130,9 +135,17 @@ KP.game({
     ctx.vSpell = U.el("div", "abView");
     ctx.sp = U.el("div", "abSp");
     ctx.vSpell.appendChild(ctx.sp);
+    // 5문제 진행 표시(동그라미 5개가 하나씩 차고 5번째에 큰 축하) — 퀴즈·단어 만들기 같은 묶음(ctx.round)
+    ctx.progs = [ctx.vQuiz, ctx.vSpell].map((v) => {
+      const p = U.el("div", "abProg", "<i></i><i></i><i></i><i></i><i></i>");
+      v.appendChild(p);
+      return p;
+    });
+    // 낱말 24개 (3글자 16 · 4글자 8). 뒤쪽 8개(ant~lion)는 소문자 음성이 없어 대문자 문장("Ant!")으로 읽음 — sayW
     ctx.WORDS = [
       ["cat", "🐱"], ["dog", "🐶"], ["sun", "☀️"], ["pig", "🐷"], ["bus", "🚌"], ["hat", "🎩"], ["egg", "🥚"], ["fox", "🦊"],
       ["bee", "🐝"], ["cow", "🐮"], ["car", "🚗"], ["box", "📦"], ["fish", "🐟"], ["frog", "🐸"], ["duck", "🦆"], ["star", "⭐"],
+      ["ant", "🐜"], ["owl", "🦉"], ["key", "🔑"], ["nut", "🥜"], ["moon", "🌙"], ["cake", "🍰"], ["kite", "🪁"], ["lion", "🦁"],
     ];
     ctx.body.append(modes, ctx.vLearn, ctx.vSpell, ctx.vQuiz);
   },
@@ -212,6 +225,22 @@ KP.game({
     }
     ctx.hint(() => (ctx.spot.classList.contains("on") ? bWrite : null), "손가락으로 따라 써 볼까요?");
   },
+  /** 진행 표시: n 개 채움 (pop = 방금 찬 칸 통통) */
+  prog(ctx, n, pop) {
+    (ctx.progs || []).forEach((p) =>
+      [...p.children].forEach((d, i) => {
+        d.classList.toggle("on", i < n);
+        d.classList.remove("pop");
+        if (pop && i === n - 1) KP.u.replay(d, "pop");
+      })
+    );
+  },
+  /** 영어 낱말을 자연 음성이 있는 꼴로: "ant" 음성이 없으면 "Ant" (소리는 같음) */
+  sayW(word) {
+    const nat = (t) => !!(KP.voice._natUrls && KP.voice._natUrls(t));
+    const cap = word[0].toUpperCase() + word.slice(1);
+    return nat(word + "!") || !nat(cap + "!") ? word : cap;
+  },
   closeSpot(ctx) {
     if (!ctx.spot.classList.contains("on")) return;
     ctx.spot.classList.remove("on");
@@ -225,11 +254,17 @@ KP.game({
     const U = KP.u;
     const lv = ctx.level;
     const tk = ctx.spTok;
-    let w = U.pick(ctx.WORDS);
-    if (lv === 1) w = U.pick(ctx.WORDS.filter((x) => x[0].length === 3));
-    if (ctx.lastSpell && w[0] === ctx.lastSpell) w = ctx.WORDS[(ctx.WORDS.indexOf(w) + 1) % ctx.WORDS.length];
+    // 최근 3개 낱말은 피함 (예전엔 직전 1개만 → 3판 안에 같은 낱말 19%)
+    const recent = (ctx.recentSpell = ctx.recentSpell || []);
+    const pool0 = lv === 1 ? ctx.WORDS.filter((x) => x[0].length === 3) : ctx.WORDS;
+    const fresh = pool0.filter((x) => !recent.includes(x[0]));
+    const w = U.pick(fresh.length ? fresh : pool0);
+    recent.push(w[0]);
+    while (recent.length > 3) recent.shift();
     ctx.lastSpell = w[0];
     const word = w[0];
+    const sw = this.sayW(word);
+    this.prog(ctx, ctx.round % 5);
     const color = ctx.CC[U.rand(ctx.CC.length)];
     ctx.sp.innerHTML = "";
     ctx.sp.style.setProperty("--c", color);
@@ -248,9 +283,9 @@ KP.game({
     let pos = 0;
     const mark = () => slotEls.forEach((e, i) => e.classList.toggle("next", i === pos));
     mark();
-    const spellOut = () => KP.voice.en(word);
+    const spellOut = () => KP.voice.en(sw + "!");
     const intro = () => {
-      KP.voice.en(word + "!");
+      KP.voice.en(sw + "!");
       KP.voice.say("글자를 차례대로 골라서 만들어요!", { queue: true });
     };
     ctx.say("🧩 그림을 보고 단어를 만들어요!", false);
@@ -286,9 +321,10 @@ KP.game({
         ctx.hint(null);
         U.replay(pic, "yay");
         KP.audio.sfx("good");
-        KP.voice.en([...word].map((x) => x.toUpperCase()).join(", ") + ". " + word + "!");
+        KP.voice.en([...word].map((x) => x.toUpperCase()).join(", ") + ". " + sw + "!");
         ctx.score.add();
         ctx.round = (ctx.round || 0) + 1;
+        this.prog(ctx, ((ctx.round - 1) % 5) + 1, true);
         await ctx.wait(2200);
         if (tk !== ctx.spTok) return;
         const bg = ctx.round % 5 === 0;
@@ -299,6 +335,8 @@ KP.game({
       return t;
     });
     ctx.hint(() => tileEls.find((x) => !x.classList.contains("used") && x.textContent === word[pos]), "첫 글자를 찾아요!", { answer: true });
+    // 1단계는 칸에 흐린 글자가 보이고 남는 글자가 없음 = 모양 맞추기 → 열쇠 별 없음(축하·단계는 그대로)
+    if (lv === 1) ctx.fewChoice();
   },
   quiz(ctx) {
     const U = KP.u;
@@ -321,6 +359,7 @@ KP.game({
       if (kind === ctx.lastKind) kind = U.pick(kinds);
     }
     ctx.lastKind = kind;
+    this.prog(ctx, ctx.round % 5);
     const reverse = kind === "reverse";
     const n = lv === 1 ? 3 : lv === 2 ? 3 : 4; // 1단계도 보기 3개(2개면 찍어도 반 — 열쇠 별 규칙). 1·2단계는 닮은 글자를 빼서 쉬움 유지
     const big = U.btn("", "abBig");
@@ -398,6 +437,7 @@ KP.game({
         sayRight();
         ctx.score.add();
         ctx.round++;
+        self.prog(ctx, ((ctx.round - 1) % 5) + 1, true);
         await ctx.wait(1400);
         if (tk !== ctx.spTok) return; // 그새 탭을 바꿨으면 그 화면에서 축하하지 않음
         const bg = ctx.round % 5 === 0;

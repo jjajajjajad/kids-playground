@@ -1601,7 +1601,14 @@ KP.game({
     ctx.mzRound(cols, rows);
     st.saidSpin = false;
     ctx.paintChase && ctx.paintChase();
-    ctx.say(ctx.mzIntro());
+    // 1단계(술래 없음)를 거쳐 2단계로 다시 오르면 술래가 갑자기 나오지 않게 먼저 알림 (자연 음성 있는 문장) + 술래 단추 반짝
+    const back = st.ch && ctx.prevLv === 1 && ctx.level >= 2;
+    ctx.prevLv = ctx.level;
+    if (back) {
+      ctx.chaseWarned = (ctx.chaseWarned || 0) + 1; // 점검용
+      ctx.say(ctx.mzIntro(), "술래잡기 도전! 친구가 쫓아와요. 먼저 도착해요!");
+      ctx.bChase && KP.u.replay(ctx.bChase, "hintGlow");
+    } else ctx.say(ctx.mzIntro());
     ctx.mzSetHint();
   },
 });

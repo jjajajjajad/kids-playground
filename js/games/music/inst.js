@@ -3,7 +3,9 @@
      (모두 Web Audio 합성으로 악기 특징을 살림 — 나팔은 부드러운 금관 느낌)
    - 진짜 악기 녹음(KP.sampler: 북·피아노·실로폰·기타·탬버린·마라카스)을 불러오면 그 소리로, 못 불러오면 합성음
    - 🔊 다시 듣기, 단계: 보기 3 / 3 / 4개
-     (1·2단계는 소리가 비슷한 악기끼리 — 종·트라이앵글·실로폰 / 마라카스·탬버린 / 나팔·피리·바이올린 — 같이 나오지 않게) */
+     (1·2단계는 소리가 비슷한 악기끼리 — 종·트라이앵글·실로폰 / 마라카스·탬버린 / 나팔·피리·바이올린 — 같이 나오지 않게,
+      3단계는 같은 묶음 최대 2개까지 — 비슷한 소리 셋이 한 문제에 몰리지 않게)
+   - 정답 악기는 최근 3문제와 겹치지 않게. 문제 시작 뒤 🔊를 먼저 누르면 예약된 자동 듣기는 취소(소리 두 번 겹침 방지) */
 "use strict";
 KP.game({
   id: "inst",
@@ -94,8 +96,9 @@ KP.game({
     const ans = U.el("div", "qAns");
     ctx.body.append(stage, ans);
     let answer = null,
-      last = null,
+      recent = [], // 최근 정답 3개 (같은 악기가 금방 또 나오지 않게)
       playT = 0,
+      autoT = 0, // 문제 시작 뒤 자동 듣기 예약
       replayT = 0,
       btns = [];
     function playIt(inst) {
@@ -107,18 +110,19 @@ KP.game({
       playT = ctx.after(inst.len * 1000, () => bListen.classList.remove("play"));
     }
     ctx.tap(bListen, () => {
+      ctx.cancel(autoT); // 자동 듣기 전에 먼저 눌렀으면 자동 듣기는 취소 (두 번 겹쳐 울리지 않게)
       U.replay(bListen, "pop");
       playIt();
     });
-    /** 보기 고르기: 1·2단계는 소리 묶음(g)이 서로 다른 악기만 (비슷한 소리끼리 헷갈리지 않게), 3단계는 아무거나 */
+    /** 보기 고르기: 1·2단계는 소리 묶음(g)이 서로 다른 악기만 (비슷한 소리끼리 헷갈리지 않게), 3단계는 같은 묶음 최대 2개 */
     function pickOpts(n) {
-      if (ctx.level >= 3) return U.sample(INSTS.filter((x) => x !== answer), n - 1);
-      const used = new Set([answer.g]),
+      const cap = ctx.level >= 3 ? 2 : 1,
+        used = { [answer.g]: 1 },
         out = [];
       for (const x of U.shuffle(INSTS.filter((x) => x !== answer))) {
         if (out.length >= n - 1) break;
-        if (used.has(x.g)) continue;
-        used.add(x.g);
+        if ((used[x.g] || 0) >= cap) continue;
+        used[x.g] = (used[x.g] || 0) + 1;
         out.push(x);
       }
       return out;
@@ -126,8 +130,9 @@ KP.game({
     function next() {
       const n = [3, 3, 4][ctx.level - 1];
       ctx.cancel(replayT);
-      answer = U.pick(INSTS.filter((x) => x !== last));
-      last = answer;
+      answer = U.pick(INSTS.filter((x) => !recent.includes(x)));
+      recent.push(answer);
+      if (recent.length > 3) recent.shift();
       const opts = U.shuffle([answer, ...pickOpts(n)]);
       ans.innerHTML = "";
       btns = ctx.choices(ans, opts, {
@@ -137,6 +142,7 @@ KP.game({
         wrongMsg: (v) => U.josa(v.name, "이/가") + " 아니에요. 다시 들어 볼까요?",
         onRight: async (v, b) => {
           ctx.hint(null);
+          ctx.cancel(autoT);
           ctx.cancel(replayT); // 오답 뒤 예약해 둔 '다시 들려주기'가 정답 소리와 겹치지 않게
           b.classList.add("play");
           playIt(v);
@@ -154,11 +160,13 @@ KP.game({
           b.addEventListener("click", () => {
             if (KP.celebrating) return;
             ctx.cancel(replayT);
+            ctx.cancel(autoT);
             replayT = ctx.after(1700, () => !KP.celebrating && playIt());
           });
       });
       ctx.say("무슨 악기 소리일까요? 잘 들어 보세요!");
-      ctx.after(2300, () => playIt());
+      ctx.cancel(autoT);
+      autoT = ctx.after(2300, () => playIt());
       ctx.hint(() => btns.find((b) => b.dataset.right), "소리를 듣고 악기 그림을 눌러요!");
     }
     ctx.next = next;

@@ -61,6 +61,19 @@ KP.game({
       .n1Ask.yay{animation:jumpA .5s 2}
       .n1Ask .n1Blocks{min-height:0}
       .n1Q .choice{font-size:clamp(40px,6.4vw,74px);min-width:clamp(96px,14vw,150px);color:var(--ocean)}
+      /* 진행 표시 (5문제) */
+      .n1Prog{position:absolute;top:6px;left:10px;display:flex;gap:clamp(5px,.8vw,8px);pointer-events:none;z-index:2}
+      .n1Prog i{display:block;width:clamp(14px,1.9vw,20px);aspect-ratio:1;border-radius:50%;background:rgba(255,255,255,.8);box-shadow:inset 0 0 0 3px rgba(47,58,102,.16)}
+      .n1Prog i.on{background:#ffc83d;box-shadow:0 2px 0 rgba(47,58,102,.18)}
+      .n1Prog i.pop{animation:popIn .4s}
+      @media (max-width:420px){.n1Prog{top:2px;left:6px;gap:5px}.n1Prog i{width:12px}}
+      /* 손가락으로 세기 (1단계): 하나씩 눌러 세고 → 몇 개인지 고르기 */
+      .n1Cnt{display:flex;flex-wrap:wrap;justify-content:center;gap:clamp(6px,1.2vw,12px);max-width:min(94vw,760px);background:#fff;border-radius:30px;padding:clamp(8px,1.6vw,16px);box-shadow:var(--shadow)}
+      .n1Thing{position:relative;width:clamp(64px,min(9vw,12vh),96px);height:clamp(64px,min(9vw,12vh),96px);font-size:clamp(40px,min(6.4vw,8.5vh),68px);border-radius:20px;background:#f4f6fb;line-height:1;display:flex;align-items:center;justify-content:center;padding:0}
+      .n1Thing.on{background:color-mix(in srgb,var(--c) 22%,#fff);box-shadow:inset 0 0 0 3px var(--c)}
+      .n1Thing b{position:absolute;top:-6px;right:-6px;min-width:26px;height:26px;border-radius:13px;background:var(--c);color:#fff;font-size:16px;line-height:26px;text-align:center;display:none}
+      .n1Thing.on b{display:block}
+      .n1Q .qAns.wait{visibility:hidden}
       @media (orientation:portrait) and (max-width:480px){
         .n1Modes{flex-wrap:wrap;gap:6px;padding:6px 4px 4px}
         .n1Mode{font-size:16px;padding:4px 12px;min-height:64px;flex:1 1 auto;justify-content:center;border-width:3px}
@@ -140,6 +153,9 @@ KP.game({
     ctx.vQuiz = U.el("div", "n1View");
     ctx.q = U.el("div", "n1Q");
     ctx.vQuiz.appendChild(ctx.q);
+    // 5문제 진행 표시 (동그라미 5개가 하나씩 차고 5번째에 큰 축하)
+    ctx.prog = U.el("div", "n1Prog", "<i></i><i></i><i></i><i></i><i></i>");
+    ctx.vQuiz.appendChild(ctx.prog);
     ctx.body.classList.add("n1Body");
     ctx.body.append(modes, ctx.vChart, ctx.vTens, ctx.vQuiz);
     addEventListener("resize", () => ctx._active && ctx.m === "chart" && self.fit(ctx));
@@ -280,11 +296,13 @@ KP.game({
     const U = KP.u;
     const lv = ctx.level;
     const max = lv === 1 ? 10 : lv === 2 ? 20 : 50;
-    const types = lv === 1 ? ["hear", "hear", "blocks"] : lv === 2 ? ["hear", "blocks", "next"] : ["hear", "blocks", "next", "tens", "before"];
+    // 1단계는 '손가락으로 세기'(count) 위주 — 하나씩 눌러 세고 몇 개인지 고름(보기 3개 → 열쇠 별 대상)
+    const types = lv === 1 ? ["hear", "count", "blocks", "count"] : lv === 2 ? ["hear", "blocks", "next"] : ["hear", "blocks", "next", "tens", "before"];
     let t = U.pick(types);
     if (t === ctx.lastT && types.length > 2) t = U.pick(types.filter((x) => x !== t));
     ctx.lastT = t;
     let n = 1 + U.rand(max);
+    if (t === "count") n = 3 + U.rand(7); // 3~9개
     if (t === "tens") n = 10 * (1 + U.rand(10)); // 몇십은 100까지
     if (t === "next") n = Math.min(n, max - 1);
     if (t === "before") n = Math.max(n, 2);
@@ -301,8 +319,11 @@ KP.game({
       const x = 1 + U.rand(max);
       if (ok(x)) cand.add(x);
     }
-    const nOpt = lv === 1 ? 2 : lv === 2 ? 3 : 4;
-    const list = U.shuffle([answer, ...U.shuffle([...cand]).slice(0, nOpt - 1)]);
+    const nOpt = t === "count" ? 3 : lv === 1 ? 2 : lv === 2 ? 3 : 4;
+    // 세기: 헷갈리는 보기는 ±1 (그다음 ±2)
+    const near = t === "count" ? [answer + 1, answer - 1, answer + 2, answer - 2].filter(ok) : [];
+    const list = U.shuffle([answer, ...(near.length >= nOpt - 1 ? near.slice(0, nOpt - 1) : U.shuffle([...cand]).slice(0, nOpt - 1))]);
+    this.prog(ctx, ctx.round % 5);
     ctx.q.innerHTML = "";
     const ask = U.el("div", "n1Ask");
     const ans = U.el("div", "qAns");
@@ -312,6 +333,10 @@ KP.game({
       ask.innerHTML = KP.E("👂");
       speak = U.josa(U.numSino(answer), "을/를") + " 찾아요!" + (answer < 100 ? " " + U.numNative(answer) + "!" : "");
       bubble = "🔊 수를 듣고 찾아요!";
+    } else if (t === "count") {
+      ask.className = "n1Cnt";
+      speak = "하나씩 눌러서 세어 봐요!";
+      bubble = "👆 하나씩 눌러서 세어 봐요!";
     } else if (t === "blocks") {
       ask.appendChild(this.blocks(answer, ctx.colorOf(answer)));
       speak = "블록이 모두 몇 개일까요? 막대 하나는 열 개!";
@@ -328,14 +353,47 @@ KP.game({
     ctx.say(bubble, false);
     ctx.instr = speak;
     KP.voice.say(speak);
-    ctx.tap(ask, () => KP.voice.say(speak));
+    if (t !== "count") ctx.tap(ask, () => KP.voice.say(speak));
     const tk = ctx.tok;
+    let things = null;
+    if (t === "count") {
+      // 하나씩 누르면 "하나, 둘…" — 다 세면 "모두 몇 개예요?" 하고 보기가 나타남
+      const em = U.pick(["🍎", "🐥", "⭐", "🍓", "🚗", "🐟", "🎈", "🌼", "🍪", "🦋"]);
+      const col = ctx.colorOf(answer);
+      let k = 0;
+      ans.classList.add("wait");
+      things = [];
+      for (let i = 0; i < answer; i++) {
+        const b = U.btn(KP.E(em) + "<b></b>", "n1Thing");
+        b.style.setProperty("--c", col);
+        ctx.tap(b, () => {
+          if (b.classList.contains("on")) return U.replay(b, "wig");
+          k++;
+          b.classList.add("on");
+          b.querySelector("b").textContent = k;
+          U.replay(b, "pop");
+          KP.audio.note(KP.audio.SCALE[(k - 1) % 8], { inst: "marimba", dur: 0.25, vol: 0.25 });
+          KP.voice.say(U.NAT[k]);
+          if (k < answer) return;
+          ctx.after(700, () => {
+            if (tk !== ctx.tok || !ask.isConnected) return;
+            ans.classList.remove("wait");
+            ctx.instr = "모두 몇 개예요?";
+            ctx.say("🔢 모두 몇 개예요?", false);
+            KP.voice.say("모두 몇 개예요?", { queue: true });
+            ctx.hint(() => btns.find((x) => x.dataset.right), "모두 몇 개예요?");
+          });
+        });
+        ask.appendChild(b);
+        things.push(b);
+      }
+    }
     const btns = ctx.choices(ans, list, {
       cls: "num",
       render: (v) => String(v),
       right: (v) => v === answer,
       // "이건 삼! 사를 찾아요! 넷!" — 이미 있는 조각을 이어 자연 음성으로
-      wrongMsg: (v) => "이건 " + U.numSino(v) + "! " + speak,
+      wrongMsg: (v) => "이건 " + U.numSino(v) + "! " + (t === "count" ? "다시 세어 볼까요?" : speak),
       onRight: async (v, b) => {
         U.replay(ask, "yay");
         U.replay(b, "jump");
@@ -343,6 +401,7 @@ KP.game({
         KP.voice.say(U.numSino(answer) + "! " + (answer < 100 ? U.numNative(answer) + "!" : ""));
         ctx.score.add();
         ctx.round++;
+        this.prog(ctx, ((ctx.round - 1) % 5) + 1, true);
         await ctx.wait(1300);
         if (tk !== ctx.tok) return; // 그새 탭(100판·10씩 세기)을 바꿨으면 그 화면에서 축하하지 않음
         const bg = ctx.round % 5 === 0;
@@ -350,6 +409,16 @@ KP.game({
         if (ok && ctx.m === "quiz" && tk === ctx.tok) this.quiz(ctx);
       },
     });
-    ctx.hint(() => btns.find((x) => x.dataset.right), speak);
+    if (things) ctx.hint(() => things.find((x) => !x.classList.contains("on")) || null, speak);
+    else ctx.hint(() => btns.find((x) => x.dataset.right), speak);
+  },
+  /** 진행 표시: n 개 채움 (pop = 방금 찬 칸 통통) */
+  prog(ctx, n, pop) {
+    if (!ctx.prog) return;
+    [...ctx.prog.children].forEach((d, i) => {
+      d.classList.toggle("on", i < n);
+      d.classList.remove("pop");
+      if (pop && i === n - 1) KP.u.replay(d, "pop");
+    });
   },
 });

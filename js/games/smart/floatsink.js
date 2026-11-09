@@ -143,8 +143,19 @@ KP.game({
       const n = ctx.shelf.children.length || 4;
       let is;
       if (row) is = U.clamp(Math.min((Math.min(vw * 0.4, 300) - 30) / Math.min(n, 2) - 10, vh * 0.2), 58, 96);
-      else if (portrait) is = U.clamp(Math.min((vw - 60) / n - 14, vh * 0.15), 64, 120); // 세로 폰: 어항 아래 빈 곳이 커서 조금 크게(64px 이상)
+      else if (portrait) is = U.clamp(Math.min((vw - 60) / n - 14, vh * 0.18), 64, 120); // 세로 폰: 어항 아래 빈 곳이 커서 조금 크게(64px 이상)
       else is = U.clamp(Math.min((vw * 0.55) / n - 14, vh * 0.12), 60, 104);
+      // 좁은 세로 화면(폰): 한 줄 4개면 물건이 68px 안팎이고 쟁반 아래가 비어 → 남는 높이가 되면 쟁반을 두 줄(2+2·2+1)로, 물건을 크게
+      let twoRow = false;
+      if (!row && portrait && vw <= 600 && n >= 3 && !wrap.classList.contains("pair")) {
+        const sh = side.clientHeight - (ctx.pred.hidden ? 0 : ctx.pred.offsetHeight + 12) - 40;
+        const is2 = Math.min((vw - 60) / 2 - 14, sh / 2 - 14, 120);
+        if (is2 > is * 1.2) {
+          is = Math.round(is2);
+          twoRow = true;
+        }
+      }
+      ctx.shelf.style.maxWidth = twoRow ? 2 * Math.round(is) + 44 + "px" : "";
       wrap.style.setProperty("--is", Math.round(is) + "px");
       wrap.style.setProperty("--is2", Math.round(row ? U.clamp(Math.min(vw * 0.17, vh * 0.3), 70, 120) : U.clamp(Math.min(vw * 0.3, vh * 0.15), 80, 136)) + "px");
       ctx.pred.style.setProperty("--mw", Math.round(row ? U.clamp(vh * 0.2, 60, 84) : U.clamp(Math.min(vw * 0.18, vh * 0.1), 64, 96)) + "px");
@@ -173,12 +184,13 @@ KP.game({
     const opt = {
       flat,
       qKey: "play3d:q",
-      onLost: () => ctx._active && ctx.st === st && this.start(ctx, true),
+      // 그래픽이 끊기거나 느려 그림으로 바꿀 때: 무대·인형만 다시 만들고 하던 판(쟁반·물속 물건·예상)은 그대로 이어 감
+      onLost: () => ctx._active && ctx.st === st && this.swap(ctx),
       onSlow: () => {
         if (!ctx._active || ctx.st !== st) return;
         KP.store.set("floatsink:flat", { t: Date.now() });
         KP.toast("기기가 바빠서 그림으로 바꿨어요");
-        this.start(ctx, true);
+        this.swap(ctx);
       },
     };
     try {
@@ -274,32 +286,45 @@ KP.game({
       wait.remove();
       return;
     }
+    const okb = await this.boot(ctx, st, tok, true);
+    ctx.cancel(wt);
+    wait.remove();
+    if (!okb) return;
+    this.next(ctx);
+  },
+  /** 무대 위 인형·장면 돌리기 (처음 열 때 · 그림으로 바꿀 때 공용). enter: 오른쪽에서 폴짝 들어옴 */
+  async boot(ctx, st, tok, enter) {
     // 관찰 친구 인형
     let act = null;
+    const pick = enter || !ctx.curPick ? this.pickDoll(ctx) : ctx.curPick; // 무대를 바꿀 때는 같은 인형 친구
+    ctx.curPick = pick;
     try {
-      act = st.gl ? await KP.dollActor.create(st, this.pickDoll(ctx)) : await KP.dollActor.create2D(st, this.pickDoll(ctx));
+      act = st.gl ? await KP.dollActor.create(st, pick) : await KP.dollActor.create2D(st, pick);
     } catch (e) {
       console.warn("인형 준비 실패", e && e.message);
       if (tok === ctx.token && ctx.st === st && !st.dead) act = await KP.dollActor.create2D(st, { species: "bear" }).catch(() => null);
     }
-    ctx.cancel(wt);
-    wait.remove();
     if (tok !== ctx.token || !ctx._active || ctx.st !== st || st.dead) {
       if (act) act.dispose();
-      return;
+      return false;
     }
     ctx.actor = act;
     ctx.fw = act ? KP.dollFollow(st.ui, act, { cls: "dfT" }) : null;
     ctx.poseT = {};
     if (act) {
       this.layout(ctx);
-      ctx._entering = true;
       const tgt = ctx.dollAt;
-      act.place(tgt[0] + st.pxToWorld(tgt[0], tgt[1], st.w * 0.45), tgt[1]);
-      act.jumpTo(tgt[0], tgt[1], 0.8, 0.5).then(() => {
+      if (enter) {
+        ctx._entering = true;
+        act.place(tgt[0] + st.pxToWorld(tgt[0], tgt[1], st.w * 0.45), tgt[1]);
+        act.jumpTo(tgt[0], tgt[1], 0.8, 0.5).then(() => {
+          ctx._entering = false;
+          this.layout(ctx);
+        });
+      } else {
         ctx._entering = false;
-        this.layout(ctx);
-      });
+        act.place(tgt[0], tgt[1]);
+      }
     }
     ctx.loop((dt) => {
       if (ctx.st !== st || st.dead) return false;
@@ -309,8 +334,23 @@ KP.game({
       this.stepObjs(ctx, dt, st.time);
     });
     // 점검용
-    ctx.fsState = () => ({ gl: !!st.gl, painted: !!(act && act.painted), who: act && act.name, objs: ctx.objs.map((o) => ({ n: o.t.name, fl: o.t.fl, st: o.state, wl: Math.round(o.wl) })), level: ctx.level });
-    this.next(ctx);
+    ctx.fsState = () => ({ gl: !!st.gl, painted: !!(act && act.painted), who: act && act.name, objs: ctx.objs.map((o) => ({ n: o.t.name, fl: o.t.fl, st: o.state, wl: Math.round(o.wl) })), level: ctx.level, rid: ctx.rid, swaps: ctx.fsSwaps || 0 });
+    return true;
+  },
+  /** 하던 판은 그대로 두고 무대만 새로(그림 모드) — 쟁반 물건·물속 물건(ctx.objs, ctx.objL 안)·예상 단추·판 번호(rid) 유지.
+      바꾸는 동안 물건 움직임은 잠깐 멈췄다가 이어서 움직이고, 끝난 판(축하 뒤 다음 판)은 바꾼 뒤에 이어서 시작 */
+  async swap(ctx) {
+    const tok = ctx.token;
+    ctx.fsSwaps = (ctx.fsSwaps || 0) + 1;
+    const st = await this.makeStage(ctx);
+    if (!st || tok !== ctx.token || !ctx._active) return;
+    if (!(await this.boot(ctx, st, tok, false))) return;
+    ctx.fsSize();
+    if (ctx.thinkCh) this.think(ctx, ctx.thinkCh); // 머리 위 "?" 다시
+    if (ctx._fsNeedNext) {
+      ctx._fsNeedNext = false;
+      this.next(ctx);
+    }
   },
   stop(ctx) {
     ctx.token++;
@@ -331,6 +371,7 @@ KP.game({
   },
   /** 머리 위 생각 말풍선: "?" (궁금) · "!" (깜짝) · null (없앰) */
   think(ctx, ch) {
+    ctx.thinkCh = ch;
     if (!ctx.fw) return;
     if (ctx.thinkEl) ctx.fw.kill(ctx.thinkEl);
     ctx.thinkEl = null;
@@ -738,6 +779,8 @@ KP.game({
           ctx.hint(null);
           ctx.say("🫗 같이 넣어 볼까요?");
           ctx.after(1300, async () => {
+            // 그림 모드로 바꾸는 중이면 무대가 다시 생길 때까지 잠깐 기다림(판을 버리지 않게)
+            for (let w = 0; w < 50 && self.alive(ctx, rid, sess) && !ctx.st; w++) await ctx.wait(100);
             if (!self.alive(ctx, rid, sess) || !ctx.st) return;
             els.forEach((e) => e.classList.add("used"));
             ctx.shelf.classList.add("fsGone"); // 빈 쟁반 상자가 남지 않게(자리는 그대로 — 화면이 흔들리지 않게)
@@ -787,6 +830,8 @@ KP.game({
     await ctx.wait(600);
     const big = ctx.round % 4 === 0;
     const ok = await ctx.win({ big, msg: big ? "{부름} 꼬마 과학자!" : msg });
-    if (ok && ctx.st) this.next(ctx);
+    if (!ok) return;
+    if (ctx.st) this.next(ctx);
+    else ctx._fsNeedNext = true; // 무대를 바꾸는 중 → 바꾼 뒤 다음 판 (swap)
   },
 });
