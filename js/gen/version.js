@@ -1,3 +1,3 @@
 /* 자동 생성 */
-KP.VERSION="bac5b096 (2026-11-09 10:29 KST)";
+KP.VERSION="972e9b6b (2026-11-09 11:36 KST)";
 KP.STATS_URL="https://kp-stats.jdhgto.workers.dev";

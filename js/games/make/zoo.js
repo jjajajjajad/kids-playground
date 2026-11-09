@@ -1837,6 +1837,7 @@
             ctx.z3 = KP.zoo3d.create(ctx, W, T);
             ctx.z3.onDelete = (a) => this.askDelete3(ctx, a);
             ctx.z3.onPoke = (a) => !!ctx.find && this.findTap(ctx, a); // 찾기 놀이 중이면 누른 친구를 맞는지 봄
+            ctx.z3.prefer = (a) => !!(ctx.find && ctx.find.target && a.t && a.t.name === ctx.find.target); // 겹쳐 있으면 찾는 친구를 먼저 (2026-11-09 콜드 리뷰)
             // 3D 화면이 끊기면(iPad 백그라운드·메모리 부족) 새로 만들어 다시 보여 줌
             const me = ctx.z3; // 이 3D 화면이 지금 쓰는 것일 때만 (나갔다 빨리 다시 들어와도 엉뚱하게 재시작 안 하게)
             me.onLost = () => ctx._active && ctx.use3d && ctx.z3 === me && this.start(ctx);
@@ -2075,6 +2076,9 @@
         b.remove();
         this.drawCount(ctx);
         KP.voice.say("코 자자~");
+        // 🔍 찾기 놀이 중 찾을 친구가 쉬러 가면 다른 친구로 (그대로 두면 없는 친구를 찾느라 판이 안 끝남, 2026-11-09 콜드 리뷰)
+        const f = ctx.find;
+        if (f && !f.busy && !this.findList(ctx).some((q) => q.t && q.t.name === f.target)) ctx.after(900, () => ctx.find === f && !f.busy && this.findNext(ctx));
         // 마지막 친구까지 쉬러 가면 "집에서 데려오기" 화면으로
         if (!(ctx.allZoo || []).some((x) => !x.rest)) ctx.after(900, () => this.start(ctx));
       });
@@ -2135,7 +2139,7 @@
         e.preventDefault();
         e.stopPropagation();
         KP.audio.unlock();
-        this.poke(ctx, a);
+        this.poke(ctx, a, e);
         clearTimeout(lp);
         lx = e.clientX;
         ly = e.clientY;
@@ -2317,10 +2321,19 @@
       );
     },
     /** 찾기 놀이 중 친구를 눌렀을 때 — true 면 원래 인사(이름·울음)는 하지 않음 */
-    findTap(ctx, a) {
+    findTap(ctx, a, e) {
       const f = ctx.find;
       if (!f || !f.target) return false;
       if (f.busy) return true;
+      // 2.5D: 겹친 친구 뒤에 '찾는 친구'가 손가락 아래 있으면 그 친구로 (큰 코끼리 뒤 토끼 등, 2026-11-09 콜드 리뷰)
+      if (a.t.name !== f.target && e && !ctx.use3d) {
+        const alt = (ctx.animals || []).find((q) => {
+          if (!q.t || q.t.name !== f.target || !q.el) return false;
+          const r = (q.el.querySelector(".zBob") || q.el).getBoundingClientRect();
+          return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+        });
+        if (alt) a = alt;
+      }
       if (a.t.name !== f.target) {
         ctx.miss(null, "다시 찾아봐요!");
         return true;
@@ -2352,8 +2365,8 @@
       ctx.hint(null);
       if (!done) KP.audio.sfx("back");
     },
-    poke(ctx, a) {
-      if (ctx.find && this.findTap(ctx, a)) {
+    poke(ctx, a, e) {
+      if (ctx.find && this.findTap(ctx, a, e)) {
         U.replay(a.el, "jump");
         return;
       }

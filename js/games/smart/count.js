@@ -15,14 +15,18 @@ KP.game({
       .countTile{position:relative;background:#fff;border-radius:26px;padding:12px;box-shadow:0 6px 0 rgba(47,58,102,.12);font-size:clamp(46px,7.5vw,84px);line-height:1}
       .countTile[data-n]{background:#fff8d6;box-shadow:0 6px 0 #f1cf5b}
       .countBadge{position:absolute;top:-10px;right:-10px;min-width:38px;height:38px;border-radius:50%;background:var(--coral);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 0 rgba(0,0,0,.15);animation:popBig .4s}
-      /* 폰 가로(낮은 화면): 타일을 높이 기준으로 줄여 8~10개도 한 줄에 — 위로 잘리거나 보기와 겹치지 않게 */
+      /* 흩어진 판(3단계): 칸 안에서 자리를 잡아 겹치지 않게 (scatter) */
       .countItems.scat{position:relative;display:block;width:100%;max-width:none!important;flex:1;min-height:0}
       .countItems.scat .countTile{position:absolute;font-size:var(--ts);padding:calc(var(--ts) * .14)}
+      /* 폰 가로(낮은 화면): 타일을 높이 기준으로 줄여 8~10개도 한 줄에 — 위로 잘리거나 보기와 겹치지 않게 */
       @media (max-height:500px) and (min-aspect-ratio:1/1){.qStage .countTile{font-size:clamp(36px,12vh,70px);padding:9px;border-radius:20px}.countItems{padding-top:14px}.countBadge{top:-8px;right:-8px;min-width:32px;height:32px;font-size:20px}}
     `);
     ctx.items = U.el("div", "qStage countItems");
     ctx.ans = U.el("div", "qAns");
     ctx.body.append(ctx.items, ctx.ans);
+    // 흩어진 판에서 화면을 돌리면 자리를 다시 잡음 (예전 자리 그대로면 화면 밖으로 나감)
+    const self = this;
+    addEventListener("resize", () => ctx._active && ctx.scatTiles && ctx.items.classList.contains("scat") && requestAnimationFrame(() => self.scatter(ctx, ctx.scatTiles)));
     ctx.THINGS = [
       ["🍎", "사과"], ["🍌", "바나나"], ["🐟", "물고기"], ["🚗", "자동차"], ["🌼", "꽃"], ["🍪", "쿠키"],
       ["🐥", "병아리"], ["⚽", "공"], ["🦆", "오리"], ["🍓", "딸기"], ["🦋", "나비"], ["⭐", "별"],
@@ -75,6 +79,7 @@ KP.game({
       ctx.items.appendChild(t);
     }
 
+    ctx.scatTiles = scat ? tiles : null;
     if (scat) this.scatter(ctx, tiles);
     // 보기
     // 정답 근처 수 중에서 보기 고르기 (정답 10처럼 근처 수가 모자라면 아래로 넓혀 채움 — 무한 반복 방지)

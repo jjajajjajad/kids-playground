@@ -612,7 +612,9 @@ KP.game({
     const ordLine = () => ord.w + " 얼굴이에요. 만들어 봐요!";
     function pickOrder() {
       const left = ORDERS.filter((o) => (!ord || o.k !== ord.k) && !ordOk(o));
-      ord = U.pick(left.length ? left : ORDERS);
+      // 지금 얼굴에 이미 맞는 부위가 없는 주문 먼저 (예: 졸린 → 놀란 은 입 'o' 가 같아 눈썹 하나만 눌러도 끝났음, 2026-11-09 콜드 리뷰)
+      const fresh = left.filter((o) => Object.entries(o.need).every(([p, ids]) => !ids.includes(cfg[p])));
+      ord = U.pick(fresh.length ? fresh : left.length ? left : ORDERS);
       KP.store.set("face:order", ord.k);
       renderOrder();
     }

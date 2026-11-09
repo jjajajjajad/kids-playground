@@ -126,8 +126,12 @@ KP.game({
     // 2단계: 다른 이야기의 그림 1장(남는 카드) — 어디에도 안 들어감
     let odd = null;
     if (lv === 2) {
+      // 같은 그림·같은 말인 장면은 빼기 — 예: 꽃 이야기에 사과 이야기의 🌸 "꽃이 활짝 피었어요"가 남는 카드로 나오면 3번 칸에도 맞아 보였음
       const mains = new Set(story.steps.map((s) => s[0]));
-      const others = ctx.STORIES.filter((s) => s !== story).flatMap((s) => s.steps).filter((s) => !mains.has(s[0]) && s[0] !== "cocoon" && s[0] !== "ball" && !s[3]);
+      const says = new Set(story.steps.map((s) => s[2]));
+      const FL = ["🌸", "🌻", "🌼", "🌷"]; // 꽃 그림끼리는 같은 것으로 (꽃 이야기에 🌸 카드도 헷갈림)
+      const flower = story.steps.some((s) => FL.includes(s[0]));
+      const others = ctx.STORIES.filter((s) => s !== story).flatMap((s) => s.steps).filter((s) => !mains.has(s[0]) && !says.has(s[2]) && !(flower && FL.includes(s[0])) && s[0] !== "cocoon" && s[0] !== "ball" && !s[3]);
       const os = U.pick(others);
       odd = U.el("div", "sqCard", this.art(os));
       odd.dataset.i = -1;

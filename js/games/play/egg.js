@@ -178,6 +178,8 @@ KP.game({
       ctx.fast(egg, () => {
         if (open || busy) return;
         if (order && i !== awake) {
+          // 방금 깬 알 뒤 다음 알이 깨어나기 전(0.9초): 틀림 아님 — 톡 흔들기만 (예전엔 서둘러 누르면 '쿨쿨' 가벼운 틀림)
+          if (awake === -2) return U.replay(egg, "eg-tok");
           // 자는 알: 쿨쿨 (가벼운 틀림) — 깨어난 알을 한 번 더 꿈틀
           egg.classList.remove("eg-wobble");
           U.replay(egg, "eg-tok");
@@ -216,6 +218,8 @@ KP.game({
         // 쩍! 깨지기
         open = true;
         egg.classList.add("open");
+        egg.classList.remove("eg-awake"); // 깨진 알은 그만 꿈틀 (마지막 알은 wake 가 안 불려 축하 동안 계속 흔들렸음)
+        if (order) awake = -2; // 다음 알이 깨어날 때까지
         A.noise({ dur: 0.18, vol: 0.2, hp: 1500 });
         A.sfx("pop");
         ctx.after(250, () => A.sfx(gold ? "sticker" : "levelup"));

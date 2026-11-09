@@ -1225,9 +1225,12 @@
       const tp = this.project(a.x, y0 + a.h * 1.05, a.z).y;
       const hh = Math.max(40, by - tp), hw = Math.max(34, hh * (a.w / a.h) * 0.55);
       const top = a.swim ? by - hh * 1.3 : tp - 8, bot = a.swim ? by + hh * 0.5 : by + 10;
-      if (px > bx - hw && px < bx + hw && py > top && py < bot && bzz < bz) {
-        best = a;
-        bz = bzz;
+      if (px > bx - hw && px < bx + hw && py > top && py < bot) {
+        if (this.prefer && this.prefer(a)) return { animal: a }; // 찾기 놀이(zoo.js): 겹친 친구 뒤에 가려진 '찾는 친구'를 눌러도 그 친구로
+        if (bzz < bz) {
+          best = a;
+          bz = bzz;
+        }
       }
     }
     if (best) return { animal: best };

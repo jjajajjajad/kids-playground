@@ -2477,10 +2477,10 @@ KP.game({
     function traceBox() {
       return { cx: W / 2, cy: H / 2, S: Math.min(W, H) * 0.82 };
     }
-    /** 따라 그리기: 점선 위 점들 중 75% 이상에 그림이 닿았으면 '잘 따라 그렸어요!' (선은 금색으로) */
+    /** 따라 그리기: 점선 위 점들 중 75% 이상에 그림이 닿았으면 '잘 따라 그렸어요!' (선은 금색으로)
+        (2026-11-09 콜드 리뷰) 그림의 절반 넘게가 선에서 먼 곳이면(종이 전체를 막 칠하기) 따라 그린 것으로 안 셈 */
     let traceCv = null;
-    function checkTrace() {
-      if (pref.paper !== "trace" || traceDone || !W) return;
+    function traceMeasure() {
       const tr = TRACES[(pref.traceK || 0) % TRACES.length];
       const { cx, cy, S } = traceBox();
       const k = 160 / W;
@@ -2493,7 +2493,11 @@ KP.game({
       x.clearRect(0, 0, tw, th);
       x.drawImage(inkCv, 0, 0, tw, th);
       const d = x.getImageData(0, 0, tw, th).data;
+      const near = new Uint8Array(tw * th); // 선 가까이(선 점에서 약 5% 안)
+      const NR = Math.max(4, Math.round(S * k * 0.06));
       const hit = (px, py) => {
+        for (let yy = Math.max(0, py - NR); yy <= Math.min(th - 1, py + NR); yy++)
+          for (let xx = Math.max(0, px - NR); xx <= Math.min(tw - 1, px + NR); xx++) near[yy * tw + xx] = 1;
         for (let yy = Math.max(0, py - 3); yy <= Math.min(th - 1, py + 3); yy++)
           for (let xx = Math.max(0, px - 3); xx <= Math.min(tw - 1, px + 3); xx++) if (d[(yy * tw + xx) * 4 + 3] > 20) return true;
         return false;
@@ -2514,8 +2518,22 @@ KP.game({
           }
         }
       });
-      ctx.traceRatio = n ? ok / n : 0; // 점검용
-      if (!n || ok / n < 0.75) return;
+      let ink = 0,
+        off = 0;
+      for (let q = 0; q < tw * th; q++)
+        if (d[q * 4 + 3] > 20) {
+          ink++;
+          if (!near[q]) off++;
+        }
+      const r = { ratio: n ? ok / n : 0, off: ink ? off / ink : 0 };
+      ctx.traceRatio = r.ratio; // 점검용
+      ctx.traceOff = r.off; // 점검용
+      return r;
+    }
+    const traceOk = (m) => m.ratio >= 0.75 && m.off <= 0.5;
+    function checkTrace() {
+      if (pref.paper !== "trace" || traceDone || !W) return;
+      if (!traceOk(traceMeasure())) return;
       traceDone = true;
       traceFresh = true; // 이번 저장은 획 수가 적어도 열쇠 별 (따라 그리기를 끝낸 그림)
       drawPaper();
@@ -2524,6 +2542,12 @@ KP.game({
       U.replay(bSave, "jump");
       KP.voice.say("잘 따라 그렸어요! 저장을 눌러 봐요!");
       ctx.hint(() => bSave, "저장을 눌러 봐요!");
+    }
+    /** 되돌리기 뒤: 따라 그린 선이 지워졌으면 금색 선·열쇠 별도 처음으로 (말 없이) */
+    function recheckTrace() {
+      if (pref.paper !== "trace" || !traceDone || !W || traceOk(traceMeasure())) return;
+      traceDone = traceFresh = false;
+      drawPaper();
     }
     ctx.checkTrace = checkTrace; // 점검용
     ctx.traceInfo = () => ({ paper: pref.paper, k: pref.traceK, done: traceDone, box: traceBox(), lines: TRACES[(pref.traceK || 0) % TRACES.length].lines, n: TRACES[(pref.traceK || 0) % TRACES.length].n }); // 점검용
@@ -2899,6 +2923,7 @@ KP.game({
       ops.pop();
       renderInk();
       changed();
+      recheckTrace();
       U.replay(bUndo, "wig");
       A.sfx("slide");
     });
@@ -2908,6 +2933,7 @@ KP.game({
       () => {
         commit({ tool: "clear" });
         renderInk();
+        traceFresh = false; // 다 지우면 따라 그리기 열쇠 별도 처음부터
         if (traceDone) {
           traceDone = false; // 다 지우면 따라 그리기도 처음부터 (금색 선 → 점선)
           drawPaper();
@@ -3665,7 +3691,9 @@ KP.game({
     const ordLine = () => ord.w + " 얼굴이에요. 만들어 봐요!";
     function pickOrder() {
       const left = ORDERS.filter((o) => (!ord || o.k !== ord.k) && !ordOk(o));
-      ord = U.pick(left.length ? left : ORDERS);
+      // 지금 얼굴에 이미 맞는 부위가 없는 주문 먼저 (예: 졸린 → 놀란 은 입 'o' 가 같아 눈썹 하나만 눌러도 끝났음, 2026-11-09 콜드 리뷰)
+      const fresh = left.filter((o) => Object.entries(o.need).every(([p, ids]) => !ids.includes(cfg[p])));
+      ord = U.pick(fresh.length ? fresh : left.length ? left : ORDERS);
       KP.store.set("face:order", ord.k);
       renderOrder();
     }
@@ -4766,11 +4794,17 @@ KP.game({
       }
       if (shade || catEl) return setHint(); // 돌봄 일이 먼저
       // 말풍선도 바꿈 (소리를 못 들어도 다음 할 일이 보이게)
-      if (pots.some((q) => q.stage < 4 && q.water < 1)) ctx.say(saidSun ? "꿀꺽꿀꺽! 촉촉해졌어요!" : "꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
-      else ctx.say("꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
-      saidSun = true;
+      // (2026-11-09 콜드 리뷰) 물이 옆 화분으로 퍼져 화분 2~3개가 거의 동시에 다 먹으면 말이 0.1초 간격으로 겹쳐 끊겼음 → 잠깐 모아서 한 번만
+      ctx.cancel(wetSayT);
+      wetSayT = ctx.after(350, () => {
+        if (shade || catEl || busy) return;
+        if (pots.some((q) => q.stage < 4 && q.water < 1)) ctx.say(saidSun ? "꿀꺽꿀꺽! 촉촉해졌어요!" : "꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
+        else ctx.say("꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
+        saidSun = true;
+      });
       setHint();
     }
+    let wetSayT = 0;
 
     /* ---------- 돌봄 일 (꽃 한 송이마다 하나 이상: 구름 / 애벌레 / 둘 다 — 직전과 다르게) ---------- */
     let plan = {},
@@ -4977,13 +5011,15 @@ KP.game({
         const bud = pots.findIndex((p) => p.stage === 3);
         if (plan.bug && !plan.bugDone && bud >= 0) {
           busy = false;
-          ctx.after(900, () => {
-            if (!ctx._active || catEl) return;
+          // (2026-11-09 콜드 리뷰) 예전엔 "봉오리가 생겼어요! 곧 꽃이 필 거예요!" 를 말하는 도중 0.9초 뒤 다음 말이 끊고 들어왔음
+          //   → "봉오리가 생겼어요!" 를 다 말한 뒤(최소 0.9초) 애벌레가 오며 "애벌레를 콕 눌러 봐요!"
+          const pl = plan;
+          Promise.all([ctx.say("봉오리가 생겼어요!"), ctx.wait(900)]).then(() => {
+            if (!ctx._active || catEl || plan !== pl || pl.bugDone || pots[bud].stage !== 3) return;
             showCat(bud);
-            ctx.say("봉오리가 생겼어요! 애벌레를 콕 눌러 봐요!");
+            ctx.say("애벌레를 콕 눌러 봐요!");
             setHint();
           });
-          ctx.say("봉오리가 생겼어요! 곧 꽃이 필 거예요!");
           return;
         }
         ctx.say(["", "싹이 났어요!", "잎이 쑥쑥 자랐어요!", "봉오리가 생겼어요! 곧 꽃이 필 거예요!"][st] + " 또 물을 주세요!");
@@ -5003,8 +5039,9 @@ KP.game({
         A.sfx("sparkle");
         updateGardenBtn();
         U.replay(bGarden, "bump");
-        ctx.say(bloomMsg(name) + " 내 정원에 심었어요.");
       }
+      // 여러 송이가 함께 피어도 말은 한 번 (예전엔 송이마다 말해서 앞 말이 바로 끊김 — 2026-11-09 콜드 리뷰)
+      ctx.say(bloomMsg(FLOWERS[pots[bloomed[0]].kind][1]) + " 내 정원에 심었어요.");
       // 내가 키운 꽃을 볼 시간 (꽃을 콕 누르면 이름을 말함)
       await ctx.wait(3200);
       ctx.round = (ctx.round || 0) + 1;
@@ -6768,7 +6805,7 @@ KP.game({
   },
 
   /** 오늘의 색(목표) 정하기: 아직 못 찾은 도감 색 중 레시피가 쉬운 것부터. 다 찾았으면 아무 색이나(직전 것 빼고) */
-  setGoal(ctx, name) {
+  setGoal(ctx, name, avoid) {
     const P = KP.paint;
     const all = P.NAMES.filter((x) => x.dex);
     let g = all.find((x) => x.n === name);
@@ -6776,7 +6813,7 @@ KP.game({
       const dex = P.dex();
       const cost = (x) => x.v.reduce((a, b) => a + b, 0) + x.v.filter((b) => b > 0).length * 2;
       const left = all.filter((x) => !dex[x.n]).sort((a, b) => cost(a) - cost(b));
-      g = left[0] || KP.u.pick(all.filter((x) => x.n !== name && x.n !== ctx.goal));
+      g = left[0] || KP.u.pick(all.filter((x) => x.n !== name && x.n !== ctx.goal && x.n !== avoid));
     }
     ctx.goal = g.n;
     KP.store.set("lab:goal", g.n);
@@ -6803,16 +6840,22 @@ KP.game({
     ctx.nameTag.classList.add("on");
     const isNew = P.discover(nm.n);
     ctx.hint(() => ctx.bKeep, "마음에 들면 내 물감에 담아요!");
-    if (nm.n === ctx.goal) {
+    if (ctx.goal && nm.n === ctx.goal) {
       // 🎯 오늘의 색을 만들었음 → 축하, 다음 목표
+      // (2026-11-09 콜드 리뷰) 다음 목표가 나오기 전(축하·4초)에 물감을 더 부어 같은 색이 또 나와도 두 번 축하하지 않게 목표를 비워 둠
+      const made = ctx.goal;
+      ctx.goal = null;
+      KP.store.set("lab:goal", null); // 축하 중에 나가도 다음엔 새 목표
       ctx.goalEl.classList.add("done");
       KP.audio.sfx("levelup");
       ctx.lastName = nm.n;
       const ok = await ctx.win({ msg: "와, 똑같아요! " + nm.n + "! 됐어요!", big: true });
       if (!ok || !ctx._active) return;
+      const me = ctx.goalEl;
       if (isNew) KP.voice.say(nm.n + "! 도감에 생겼어요! 마음에 들면 내 물감에 담아요.");
       ctx.after(isNew ? 4200 : 1200, () => {
-        this.setGoal(ctx, null);
+        if (ctx.goal || me !== ctx.goalEl) return; // 그사이 다시 시작해 새 목표가 정해졌으면 그대로
+        this.setGoal(ctx, null, made);
         KP.u.replay(ctx.goalEl, "pop");
         KP.voice.say(ctx.goal + " 만들어 봐요!");
       });
@@ -10847,6 +10890,7 @@ KP.game({
             ctx.z3 = KP.zoo3d.create(ctx, W, T);
             ctx.z3.onDelete = (a) => this.askDelete3(ctx, a);
             ctx.z3.onPoke = (a) => !!ctx.find && this.findTap(ctx, a); // 찾기 놀이 중이면 누른 친구를 맞는지 봄
+            ctx.z3.prefer = (a) => !!(ctx.find && ctx.find.target && a.t && a.t.name === ctx.find.target); // 겹쳐 있으면 찾는 친구를 먼저 (2026-11-09 콜드 리뷰)
             // 3D 화면이 끊기면(iPad 백그라운드·메모리 부족) 새로 만들어 다시 보여 줌
             const me = ctx.z3; // 이 3D 화면이 지금 쓰는 것일 때만 (나갔다 빨리 다시 들어와도 엉뚱하게 재시작 안 하게)
             me.onLost = () => ctx._active && ctx.use3d && ctx.z3 === me && this.start(ctx);
@@ -11085,6 +11129,9 @@ KP.game({
         b.remove();
         this.drawCount(ctx);
         KP.voice.say("코 자자~");
+        // 🔍 찾기 놀이 중 찾을 친구가 쉬러 가면 다른 친구로 (그대로 두면 없는 친구를 찾느라 판이 안 끝남, 2026-11-09 콜드 리뷰)
+        const f = ctx.find;
+        if (f && !f.busy && !this.findList(ctx).some((q) => q.t && q.t.name === f.target)) ctx.after(900, () => ctx.find === f && !f.busy && this.findNext(ctx));
         // 마지막 친구까지 쉬러 가면 "집에서 데려오기" 화면으로
         if (!(ctx.allZoo || []).some((x) => !x.rest)) ctx.after(900, () => this.start(ctx));
       });
@@ -11145,7 +11192,7 @@ KP.game({
         e.preventDefault();
         e.stopPropagation();
         KP.audio.unlock();
-        this.poke(ctx, a);
+        this.poke(ctx, a, e);
         clearTimeout(lp);
         lx = e.clientX;
         ly = e.clientY;
@@ -11327,10 +11374,19 @@ KP.game({
       );
     },
     /** 찾기 놀이 중 친구를 눌렀을 때 — true 면 원래 인사(이름·울음)는 하지 않음 */
-    findTap(ctx, a) {
+    findTap(ctx, a, e) {
       const f = ctx.find;
       if (!f || !f.target) return false;
       if (f.busy) return true;
+      // 2.5D: 겹친 친구 뒤에 '찾는 친구'가 손가락 아래 있으면 그 친구로 (큰 코끼리 뒤 토끼 등, 2026-11-09 콜드 리뷰)
+      if (a.t.name !== f.target && e && !ctx.use3d) {
+        const alt = (ctx.animals || []).find((q) => {
+          if (!q.t || q.t.name !== f.target || !q.el) return false;
+          const r = (q.el.querySelector(".zBob") || q.el).getBoundingClientRect();
+          return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+        });
+        if (alt) a = alt;
+      }
       if (a.t.name !== f.target) {
         ctx.miss(null, "다시 찾아봐요!");
         return true;
@@ -11362,8 +11418,8 @@ KP.game({
       ctx.hint(null);
       if (!done) KP.audio.sfx("back");
     },
-    poke(ctx, a) {
-      if (ctx.find && this.findTap(ctx, a)) {
+    poke(ctx, a, e) {
+      if (ctx.find && this.findTap(ctx, a, e)) {
         U.replay(a.el, "jump");
         return;
       }
@@ -12749,9 +12805,12 @@ KP.game({
       const tp = this.project(a.x, y0 + a.h * 1.05, a.z).y;
       const hh = Math.max(40, by - tp), hw = Math.max(34, hh * (a.w / a.h) * 0.55);
       const top = a.swim ? by - hh * 1.3 : tp - 8, bot = a.swim ? by + hh * 0.5 : by + 10;
-      if (px > bx - hw && px < bx + hw && py > top && py < bot && bzz < bz) {
-        best = a;
-        bz = bzz;
+      if (px > bx - hw && px < bx + hw && py > top && py < bot) {
+        if (this.prefer && this.prefer(a)) return { animal: a }; // 찾기 놀이(zoo.js): 겹친 친구 뒤에 가려진 '찾는 친구'를 눌러도 그 친구로
+        if (bzz < bz) {
+          best = a;
+          bz = bzz;
+        }
       }
     }
     if (best) return { animal: best };

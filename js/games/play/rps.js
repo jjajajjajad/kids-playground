@@ -247,6 +247,8 @@ KP.game({
     ctx.miss(btn, (mine === bear ? "똑같네! " : "") + why(right, bear));
     await ctx.wait(2300);
     if (!ctx._active) return;
+    // 5번 틀려 1단계(운 판)로 내려갔으면: 문제 화면을 걷고 1단계로 (예전엔 '이기는 손' 안내가 남은 채 다음 누름이 운 판이 됨)
+    if (ctx.level < 2) return this.reset(ctx);
     ctx.bearFace.innerHTML = ctx.bearSVG("normal");
     ctx.mh.innerHTML = KP.E("✊");
     ctx.word.textContent = bear.name + "!";

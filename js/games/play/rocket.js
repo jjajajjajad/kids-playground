@@ -126,6 +126,9 @@ KP.game({
     const down = lv === 3;
     let idx = 0,
       busy = false;
+    // 다음 숫자 노란 테두리(.next): 1단계는 늘(안내 판 → 열쇠 별 없음), 2·3단계는 한 번 틀린 뒤부터만
+    // (예전엔 모든 단계에서 늘 정답 버튼에 테두리 → 테두리만 따라 눌러도 '깨끗한 판' 열쇠 별)
+    let ring = lv === 1;
     const scene = ctx.scene;
     scene.className = "rk-scene";
     ctx.size();
@@ -150,6 +153,8 @@ KP.game({
         if (n !== seq[idx]) {
           // "다음은 구예요/다섯이에요"는 자연 음성에 없는 것이 있어, 모든 숫자에 음성이 있는 "다음 숫자 ○를 눌러요!"로
           ctx.miss(b, "다음 숫자 " + KP.u.josa(word(seq[idx]), "을/를") + " 눌러요!");
+          ring = true;
+          btns[idx].classList.add("next");
           return;
         }
         b.classList.add("done");
@@ -167,14 +172,14 @@ KP.game({
         ctx.puff(2 + Math.round(pr * 5), 40 + pr * 90);
         A.noise({ dur: 0.35 + pr * 0.4, vol: 0.06 + pr * 0.1, lp: 300 + pr * 500 });
         if (idx < seq.length) {
-          btns[idx].classList.add("next");
+          if (ring) btns[idx].classList.add("next");
           hint();
         } else launch();
       });
       ctx.nums.appendChild(b);
       return b;
     });
-    btns[0].classList.add("next");
+    if (ring) btns[0].classList.add("next");
     const hint = () => ctx.hint(() => btns[idx], "다음 숫자 " + KP.u.josa(word(seq[idx]), "을/를") + " 눌러요!", { answer: true }); // 정답 숫자를 가리킴 → 가리킨 판은 열쇠 별 없음
     hint();
 
@@ -221,6 +226,7 @@ KP.game({
       ctx.score.add();
       ctx.round++;
       const big = ctx.round % 4 === 0;
+      if (lv === 1) ctx.noStar(); // 1단계: 다음 숫자가 늘 테두리로 보임(정답 안내) → 열쇠 별 없음
       const ok = await ctx.win({ big, msg: big ? "{부름} 우주 비행사!" : "달 착륙 성공!" });
       if (ok) this.next(ctx);
     };

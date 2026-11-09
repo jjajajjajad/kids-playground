@@ -53,8 +53,9 @@ KP.game({
       heart: { name: "하트", r: "❤️", b: "💙", y: "💛", g: "💚" },
     };
     ctx.COLORN = { r: "빨간", b: "파란", y: "노란", g: "초록" };
-    // 1단계 닮은 보기 (그림이 비슷한 것 — 이름은 같게 불러 줌)
-    ctx.LOOK = { "🍎": "🍏", "🍓": "🍒", "🍉": "🍈", "🐶": "🐕", "🐱": "🐈", "🐰": "🐇", "🐻": "🐼", "🚗": "🚙", "🚌": "🚎", "🚒": "🚑", "☀️": "🌞", "🌙": "🌛", "⭐": "🌟", "🔴": "🟠", "🔵": "🟦", "🟡": "🟨", "🟢": "🟩", "🟣": "🟪" };
+    // 1단계 닮은 보기 (그림이 비슷한 것) — 이름이 같은 것은 그림만, 다른 것(판다·체리·구급차·주황 — 멜론은 음성이 없어 수박은 뺌)은 [그림, 이름]
+    // (예전엔 모두 원래 이름으로 불러 🟠 를 "빨강", 🐼 를 "곰" 이라고 말했음)
+    ctx.LOOK = { "🍎": "🍏", "🍓": ["🍒", "체리"], "🐶": "🐕", "🐱": "🐈", "🐰": "🐇", "🐻": ["🐼", "판다"], "🚗": "🚙", "🚌": "🚎", "🚒": ["🚑", "구급차"], "☀️": "🌞", "🌙": "🌛", "⭐": "🌟", "🔴": ["🟠", "주황"], "🔵": "🟦", "🟡": "🟨", "🟢": "🟩", "🟣": "🟪" };
     ctx.NOTES = ["C5", "E5", "G5", "A5"];
 
     // 줄 크기: 한 줄에 다 들어가면 한 줄, 아니면 두 줄
@@ -119,7 +120,10 @@ KP.game({
     if (lv === 1) {
       // 줄의 두 그림 중 닮은 그림이 있는 것 하나를 골라 그 닮은 것을 세 번째 보기로
       const lk = U.shuffle(options.filter((o) => ctx.LOOK[o.em]));
-      if (lk.length) options.push({ em: ctx.LOOK[lk[0].em], name: lk[0].name, sym: 9 });
+      if (lk.length) {
+        const L = ctx.LOOK[lk[0].em];
+        options.push(Array.isArray(L) ? { em: L[0], name: L[1], sym: 9 } : { em: L, name: lk[0].name, sym: 9 });
+      }
     }
     if (options.length < nOpt) options.push(items[syms.length]);
     options = U.shuffle(options.slice(0, Math.max(nOpt, options.length)));

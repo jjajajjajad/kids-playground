@@ -379,10 +379,10 @@ KP.game({
     function traceBox() {
       return { cx: W / 2, cy: H / 2, S: Math.min(W, H) * 0.82 };
     }
-    /** 따라 그리기: 점선 위 점들 중 75% 이상에 그림이 닿았으면 '잘 따라 그렸어요!' (선은 금색으로) */
+    /** 따라 그리기: 점선 위 점들 중 75% 이상에 그림이 닿았으면 '잘 따라 그렸어요!' (선은 금색으로)
+        (2026-11-09 콜드 리뷰) 그림의 절반 넘게가 선에서 먼 곳이면(종이 전체를 막 칠하기) 따라 그린 것으로 안 셈 */
     let traceCv = null;
-    function checkTrace() {
-      if (pref.paper !== "trace" || traceDone || !W) return;
+    function traceMeasure() {
       const tr = TRACES[(pref.traceK || 0) % TRACES.length];
       const { cx, cy, S } = traceBox();
       const k = 160 / W;
@@ -395,7 +395,11 @@ KP.game({
       x.clearRect(0, 0, tw, th);
       x.drawImage(inkCv, 0, 0, tw, th);
       const d = x.getImageData(0, 0, tw, th).data;
+      const near = new Uint8Array(tw * th); // 선 가까이(선 점에서 약 5% 안)
+      const NR = Math.max(4, Math.round(S * k * 0.06));
       const hit = (px, py) => {
+        for (let yy = Math.max(0, py - NR); yy <= Math.min(th - 1, py + NR); yy++)
+          for (let xx = Math.max(0, px - NR); xx <= Math.min(tw - 1, px + NR); xx++) near[yy * tw + xx] = 1;
         for (let yy = Math.max(0, py - 3); yy <= Math.min(th - 1, py + 3); yy++)
           for (let xx = Math.max(0, px - 3); xx <= Math.min(tw - 1, px + 3); xx++) if (d[(yy * tw + xx) * 4 + 3] > 20) return true;
         return false;
@@ -416,8 +420,22 @@ KP.game({
           }
         }
       });
-      ctx.traceRatio = n ? ok / n : 0; // 점검용
-      if (!n || ok / n < 0.75) return;
+      let ink = 0,
+        off = 0;
+      for (let q = 0; q < tw * th; q++)
+        if (d[q * 4 + 3] > 20) {
+          ink++;
+          if (!near[q]) off++;
+        }
+      const r = { ratio: n ? ok / n : 0, off: ink ? off / ink : 0 };
+      ctx.traceRatio = r.ratio; // 점검용
+      ctx.traceOff = r.off; // 점검용
+      return r;
+    }
+    const traceOk = (m) => m.ratio >= 0.75 && m.off <= 0.5;
+    function checkTrace() {
+      if (pref.paper !== "trace" || traceDone || !W) return;
+      if (!traceOk(traceMeasure())) return;
       traceDone = true;
       traceFresh = true; // 이번 저장은 획 수가 적어도 열쇠 별 (따라 그리기를 끝낸 그림)
       drawPaper();
@@ -426,6 +444,12 @@ KP.game({
       U.replay(bSave, "jump");
       KP.voice.say("잘 따라 그렸어요! 저장을 눌러 봐요!");
       ctx.hint(() => bSave, "저장을 눌러 봐요!");
+    }
+    /** 되돌리기 뒤: 따라 그린 선이 지워졌으면 금색 선·열쇠 별도 처음으로 (말 없이) */
+    function recheckTrace() {
+      if (pref.paper !== "trace" || !traceDone || !W || traceOk(traceMeasure())) return;
+      traceDone = traceFresh = false;
+      drawPaper();
     }
     ctx.checkTrace = checkTrace; // 점검용
     ctx.traceInfo = () => ({ paper: pref.paper, k: pref.traceK, done: traceDone, box: traceBox(), lines: TRACES[(pref.traceK || 0) % TRACES.length].lines, n: TRACES[(pref.traceK || 0) % TRACES.length].n }); // 점검용
@@ -801,6 +825,7 @@ KP.game({
       ops.pop();
       renderInk();
       changed();
+      recheckTrace();
       U.replay(bUndo, "wig");
       A.sfx("slide");
     });
@@ -810,6 +835,7 @@ KP.game({
       () => {
         commit({ tool: "clear" });
         renderInk();
+        traceFresh = false; // 다 지우면 따라 그리기 열쇠 별도 처음부터
         if (traceDone) {
           traceDone = false; // 다 지우면 따라 그리기도 처음부터 (금색 선 → 점선)
           drawPaper();

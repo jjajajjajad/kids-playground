@@ -249,7 +249,7 @@ KP.game({
   },
 
   /** 오늘의 색(목표) 정하기: 아직 못 찾은 도감 색 중 레시피가 쉬운 것부터. 다 찾았으면 아무 색이나(직전 것 빼고) */
-  setGoal(ctx, name) {
+  setGoal(ctx, name, avoid) {
     const P = KP.paint;
     const all = P.NAMES.filter((x) => x.dex);
     let g = all.find((x) => x.n === name);
@@ -257,7 +257,7 @@ KP.game({
       const dex = P.dex();
       const cost = (x) => x.v.reduce((a, b) => a + b, 0) + x.v.filter((b) => b > 0).length * 2;
       const left = all.filter((x) => !dex[x.n]).sort((a, b) => cost(a) - cost(b));
-      g = left[0] || KP.u.pick(all.filter((x) => x.n !== name && x.n !== ctx.goal));
+      g = left[0] || KP.u.pick(all.filter((x) => x.n !== name && x.n !== ctx.goal && x.n !== avoid));
     }
     ctx.goal = g.n;
     KP.store.set("lab:goal", g.n);
@@ -284,16 +284,22 @@ KP.game({
     ctx.nameTag.classList.add("on");
     const isNew = P.discover(nm.n);
     ctx.hint(() => ctx.bKeep, "마음에 들면 내 물감에 담아요!");
-    if (nm.n === ctx.goal) {
+    if (ctx.goal && nm.n === ctx.goal) {
       // 🎯 오늘의 색을 만들었음 → 축하, 다음 목표
+      // (2026-11-09 콜드 리뷰) 다음 목표가 나오기 전(축하·4초)에 물감을 더 부어 같은 색이 또 나와도 두 번 축하하지 않게 목표를 비워 둠
+      const made = ctx.goal;
+      ctx.goal = null;
+      KP.store.set("lab:goal", null); // 축하 중에 나가도 다음엔 새 목표
       ctx.goalEl.classList.add("done");
       KP.audio.sfx("levelup");
       ctx.lastName = nm.n;
       const ok = await ctx.win({ msg: "와, 똑같아요! " + nm.n + "! 됐어요!", big: true });
       if (!ok || !ctx._active) return;
+      const me = ctx.goalEl;
       if (isNew) KP.voice.say(nm.n + "! 도감에 생겼어요! 마음에 들면 내 물감에 담아요.");
       ctx.after(isNew ? 4200 : 1200, () => {
-        this.setGoal(ctx, null);
+        if (ctx.goal || me !== ctx.goalEl) return; // 그사이 다시 시작해 새 목표가 정해졌으면 그대로
+        this.setGoal(ctx, null, made);
         KP.u.replay(ctx.goalEl, "pop");
         KP.voice.say(ctx.goal + " 만들어 봐요!");
       });

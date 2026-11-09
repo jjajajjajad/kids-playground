@@ -367,11 +367,17 @@ KP.game({
       }
       if (shade || catEl) return setHint(); // 돌봄 일이 먼저
       // 말풍선도 바꿈 (소리를 못 들어도 다음 할 일이 보이게)
-      if (pots.some((q) => q.stage < 4 && q.water < 1)) ctx.say(saidSun ? "꿀꺽꿀꺽! 촉촉해졌어요!" : "꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
-      else ctx.say("꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
-      saidSun = true;
+      // (2026-11-09 콜드 리뷰) 물이 옆 화분으로 퍼져 화분 2~3개가 거의 동시에 다 먹으면 말이 0.1초 간격으로 겹쳐 끊겼음 → 잠깐 모아서 한 번만
+      ctx.cancel(wetSayT);
+      wetSayT = ctx.after(350, () => {
+        if (shade || catEl || busy) return;
+        if (pots.some((q) => q.stage < 4 && q.water < 1)) ctx.say(saidSun ? "꿀꺽꿀꺽! 촉촉해졌어요!" : "꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
+        else ctx.say("꿀꺽꿀꺽! 이제 해님을 눌러 주세요!");
+        saidSun = true;
+      });
       setHint();
     }
+    let wetSayT = 0;
 
     /* ---------- 돌봄 일 (꽃 한 송이마다 하나 이상: 구름 / 애벌레 / 둘 다 — 직전과 다르게) ---------- */
     let plan = {},
@@ -578,13 +584,15 @@ KP.game({
         const bud = pots.findIndex((p) => p.stage === 3);
         if (plan.bug && !plan.bugDone && bud >= 0) {
           busy = false;
-          ctx.after(900, () => {
-            if (!ctx._active || catEl) return;
+          // (2026-11-09 콜드 리뷰) 예전엔 "봉오리가 생겼어요! 곧 꽃이 필 거예요!" 를 말하는 도중 0.9초 뒤 다음 말이 끊고 들어왔음
+          //   → "봉오리가 생겼어요!" 를 다 말한 뒤(최소 0.9초) 애벌레가 오며 "애벌레를 콕 눌러 봐요!"
+          const pl = plan;
+          Promise.all([ctx.say("봉오리가 생겼어요!"), ctx.wait(900)]).then(() => {
+            if (!ctx._active || catEl || plan !== pl || pl.bugDone || pots[bud].stage !== 3) return;
             showCat(bud);
-            ctx.say("봉오리가 생겼어요! 애벌레를 콕 눌러 봐요!");
+            ctx.say("애벌레를 콕 눌러 봐요!");
             setHint();
           });
-          ctx.say("봉오리가 생겼어요! 곧 꽃이 필 거예요!");
           return;
         }
         ctx.say(["", "싹이 났어요!", "잎이 쑥쑥 자랐어요!", "봉오리가 생겼어요! 곧 꽃이 필 거예요!"][st] + " 또 물을 주세요!");
@@ -604,8 +612,9 @@ KP.game({
         A.sfx("sparkle");
         updateGardenBtn();
         U.replay(bGarden, "bump");
-        ctx.say(bloomMsg(name) + " 내 정원에 심었어요.");
       }
+      // 여러 송이가 함께 피어도 말은 한 번 (예전엔 송이마다 말해서 앞 말이 바로 끊김 — 2026-11-09 콜드 리뷰)
+      ctx.say(bloomMsg(FLOWERS[pots[bloomed[0]].kind][1]) + " 내 정원에 심었어요.");
       // 내가 키운 꽃을 볼 시간 (꽃을 콕 누르면 이름을 말함)
       await ctx.wait(3200);
       ctx.round = (ctx.round || 0) + 1;

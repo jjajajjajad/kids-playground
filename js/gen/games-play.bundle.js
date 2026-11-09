@@ -1140,11 +1140,24 @@ KP.game({
         ctx.after(b.kind === "gift" ? 1300 : 250, () => (judged || ctx.noStar(), ctx.win({ big, msg: big ? "{부름} 풍선 대장!" : ctx.count + "개 팡팡!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 우와!" : "우와아!" })));
       } else if (ctx.level === 3 && !ctx.order && ctx.count % 10 >= 5) ctx.setOrder(U.pick(ctx.COLORS.filter((c) => c !== ctx.lastOrder)));
     };
+    // 힌트: 가장 아래 풍선 (색 주문 중에는 부르는 색만 — 정답을 가리키는 셈이라 answer, 가리킨 판은 열쇠 별 없음)
+    // answer 는 색 주문 중에만: 늘 answer 면 3단계 앞 5개(마구 터뜨리기)에서 가리킨 손가락이 뒤 색 주문 판의 별까지 막았음
+    ctx.setHint = () =>
+      ctx.hint(
+        () => {
+          const alive = ctx.balloons.filter((b) => !b.dead && b.y > 0 && b.y < ctx.field.clientHeight - b.h && (!ctx.order || b.col === ctx.order));
+          alive.sort((a, b) => b.y - a.y);
+          return alive[0] && alive[0].el;
+        },
+        ctx.order ? ctx.order[3] + " 풍선을 찾아요!" : "풍선을 콕 눌러 봐요!",
+        ctx.order ? { answer: true } : undefined
+      );
     /** 3단계 색 주문 켜기/끄기 */
     ctx.setOrder = (c) => {
       ctx.order = c;
       ctx.orderPops = 0;
       ctx.orderEl.hidden = !c;
+      ctx.setHint();
       if (!c) return;
       ctx.lastOrder = c;
       ctx.orderEl.innerHTML = '<i style="--c:' + c[0] + ";--l:" + c[1] + ";--d:" + c[2] + '"></i><span>' + c[3] + " 풍선만!</span>";
@@ -1205,16 +1218,7 @@ KP.game({
       });
       ctx.loop((dt, now) => ctx.frame(dt, now));
     });
-    // 힌트: 가장 아래 풍선 (색 주문 중에는 부르는 색만 — 정답을 가리키는 셈이라 answer, 가리킨 판은 열쇠 별 없음)
-    ctx.hint(
-      () => {
-        const alive = ctx.balloons.filter((b) => !b.dead && b.y > 0 && b.y < ctx.field.clientHeight - b.h && (!ctx.order || b.col === ctx.order));
-        alive.sort((a, b) => b.y - a.y);
-        return alive[0] && alive[0].el;
-      },
-      "풍선을 콕 눌러 봐요!",
-      { answer: true }
-    );
+    ctx.setHint();
   },
 });
 
@@ -2790,7 +2794,8 @@ KP.game({
     });
     ctx.size();
     const blow = (c, i) => {
-      if (busy || c.classList.contains("out")) return;
+      // 'blow'(끄는 중 0.22초)도 막음 — 빠른 두 번 톡이 left 를 두 번 줄여(1단계: 켜진 촛불이 남은 채 노래) / 숫자 판에선 가짜 '다음은 둘!' 틀림이 됐음
+      if (busy || c.classList.contains("out") || c.classList.contains("blow")) return;
       if (numbered && !relit.has(i) && nums[i] !== next) {
         // 차례가 아닌 숫자: 흔들흔들 (가벼운 틀림)
         U.replay(c, "nope");
@@ -3695,6 +3700,8 @@ KP.game({
       ctx.fast(egg, () => {
         if (open || busy) return;
         if (order && i !== awake) {
+          // 방금 깬 알 뒤 다음 알이 깨어나기 전(0.9초): 틀림 아님 — 톡 흔들기만 (예전엔 서둘러 누르면 '쿨쿨' 가벼운 틀림)
+          if (awake === -2) return U.replay(egg, "eg-tok");
           // 자는 알: 쿨쿨 (가벼운 틀림) — 깨어난 알을 한 번 더 꿈틀
           egg.classList.remove("eg-wobble");
           U.replay(egg, "eg-tok");
@@ -3733,6 +3740,8 @@ KP.game({
         // 쩍! 깨지기
         open = true;
         egg.classList.add("open");
+        egg.classList.remove("eg-awake"); // 깨진 알은 그만 꿈틀 (마지막 알은 wake 가 안 불려 축하 동안 계속 흔들렸음)
+        if (order) awake = -2; // 다음 알이 깨어날 때까지
         A.noise({ dur: 0.18, vol: 0.2, hp: 1500 });
         A.sfx("pop");
         ctx.after(250, () => A.sfx(gold ? "sticker" : "levelup"));
@@ -8495,6 +8504,9 @@ KP.game({
     const down = lv === 3;
     let idx = 0,
       busy = false;
+    // 다음 숫자 노란 테두리(.next): 1단계는 늘(안내 판 → 열쇠 별 없음), 2·3단계는 한 번 틀린 뒤부터만
+    // (예전엔 모든 단계에서 늘 정답 버튼에 테두리 → 테두리만 따라 눌러도 '깨끗한 판' 열쇠 별)
+    let ring = lv === 1;
     const scene = ctx.scene;
     scene.className = "rk-scene";
     ctx.size();
@@ -8519,6 +8531,8 @@ KP.game({
         if (n !== seq[idx]) {
           // "다음은 구예요/다섯이에요"는 자연 음성에 없는 것이 있어, 모든 숫자에 음성이 있는 "다음 숫자 ○를 눌러요!"로
           ctx.miss(b, "다음 숫자 " + KP.u.josa(word(seq[idx]), "을/를") + " 눌러요!");
+          ring = true;
+          btns[idx].classList.add("next");
           return;
         }
         b.classList.add("done");
@@ -8536,14 +8550,14 @@ KP.game({
         ctx.puff(2 + Math.round(pr * 5), 40 + pr * 90);
         A.noise({ dur: 0.35 + pr * 0.4, vol: 0.06 + pr * 0.1, lp: 300 + pr * 500 });
         if (idx < seq.length) {
-          btns[idx].classList.add("next");
+          if (ring) btns[idx].classList.add("next");
           hint();
         } else launch();
       });
       ctx.nums.appendChild(b);
       return b;
     });
-    btns[0].classList.add("next");
+    if (ring) btns[0].classList.add("next");
     const hint = () => ctx.hint(() => btns[idx], "다음 숫자 " + KP.u.josa(word(seq[idx]), "을/를") + " 눌러요!", { answer: true }); // 정답 숫자를 가리킴 → 가리킨 판은 열쇠 별 없음
     hint();
 
@@ -8590,6 +8604,7 @@ KP.game({
       ctx.score.add();
       ctx.round++;
       const big = ctx.round % 4 === 0;
+      if (lv === 1) ctx.noStar(); // 1단계: 다음 숫자가 늘 테두리로 보임(정답 안내) → 열쇠 별 없음
       const ok = await ctx.win({ big, msg: big ? "{부름} 우주 비행사!" : "달 착륙 성공!" });
       if (ok) this.next(ctx);
     };
@@ -8848,6 +8863,8 @@ KP.game({
     ctx.miss(btn, (mine === bear ? "똑같네! " : "") + why(right, bear));
     await ctx.wait(2300);
     if (!ctx._active) return;
+    // 5번 틀려 1단계(운 판)로 내려갔으면: 문제 화면을 걷고 1단계로 (예전엔 '이기는 손' 안내가 남은 채 다음 누름이 운 판이 됨)
+    if (ctx.level < 2) return this.reset(ctx);
     ctx.bearFace.innerHTML = ctx.bearSVG("normal");
     ctx.mh.innerHTML = KP.E("✊");
     ctx.word.textContent = bear.name + "!";

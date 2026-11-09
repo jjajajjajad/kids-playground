@@ -175,7 +175,8 @@ KP.game({
     });
     ctx.size();
     const blow = (c, i) => {
-      if (busy || c.classList.contains("out")) return;
+      // 'blow'(끄는 중 0.22초)도 막음 — 빠른 두 번 톡이 left 를 두 번 줄여(1단계: 켜진 촛불이 남은 채 노래) / 숫자 판에선 가짜 '다음은 둘!' 틀림이 됐음
+      if (busy || c.classList.contains("out") || c.classList.contains("blow")) return;
       if (numbered && !relit.has(i) && nums[i] !== next) {
         // 차례가 아닌 숫자: 흔들흔들 (가벼운 틀림)
         U.replay(c, "nope");

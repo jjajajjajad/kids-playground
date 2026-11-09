@@ -205,11 +205,24 @@ KP.game({
         ctx.after(b.kind === "gift" ? 1300 : 250, () => (judged || ctx.noStar(), ctx.win({ big, msg: big ? "{부름} 풍선 대장!" : ctx.count + "개 팡팡!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 우와!" : "우와아!" })));
       } else if (ctx.level === 3 && !ctx.order && ctx.count % 10 >= 5) ctx.setOrder(U.pick(ctx.COLORS.filter((c) => c !== ctx.lastOrder)));
     };
+    // 힌트: 가장 아래 풍선 (색 주문 중에는 부르는 색만 — 정답을 가리키는 셈이라 answer, 가리킨 판은 열쇠 별 없음)
+    // answer 는 색 주문 중에만: 늘 answer 면 3단계 앞 5개(마구 터뜨리기)에서 가리킨 손가락이 뒤 색 주문 판의 별까지 막았음
+    ctx.setHint = () =>
+      ctx.hint(
+        () => {
+          const alive = ctx.balloons.filter((b) => !b.dead && b.y > 0 && b.y < ctx.field.clientHeight - b.h && (!ctx.order || b.col === ctx.order));
+          alive.sort((a, b) => b.y - a.y);
+          return alive[0] && alive[0].el;
+        },
+        ctx.order ? ctx.order[3] + " 풍선을 찾아요!" : "풍선을 콕 눌러 봐요!",
+        ctx.order ? { answer: true } : undefined
+      );
     /** 3단계 색 주문 켜기/끄기 */
     ctx.setOrder = (c) => {
       ctx.order = c;
       ctx.orderPops = 0;
       ctx.orderEl.hidden = !c;
+      ctx.setHint();
       if (!c) return;
       ctx.lastOrder = c;
       ctx.orderEl.innerHTML = '<i style="--c:' + c[0] + ";--l:" + c[1] + ";--d:" + c[2] + '"></i><span>' + c[3] + " 풍선만!</span>";
@@ -270,15 +283,6 @@ KP.game({
       });
       ctx.loop((dt, now) => ctx.frame(dt, now));
     });
-    // 힌트: 가장 아래 풍선 (색 주문 중에는 부르는 색만 — 정답을 가리키는 셈이라 answer, 가리킨 판은 열쇠 별 없음)
-    ctx.hint(
-      () => {
-        const alive = ctx.balloons.filter((b) => !b.dead && b.y > 0 && b.y < ctx.field.clientHeight - b.h && (!ctx.order || b.col === ctx.order));
-        alive.sort((a, b) => b.y - a.y);
-        return alive[0] && alive[0].el;
-      },
-      "풍선을 콕 눌러 봐요!",
-      { answer: true }
-    );
+    ctx.setHint();
   },
 });

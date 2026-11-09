@@ -320,8 +320,12 @@ KP.game({
       if (ok(x)) cand.add(x);
     }
     const nOpt = t === "count" ? 3 : lv === 1 ? 2 : lv === 2 ? 3 : 4;
-    // 세기: 헷갈리는 보기는 ±1 (그다음 ±2)
-    const near = t === "count" ? [answer + 1, answer - 1, answer + 2, answer - 2].filter(ok) : [];
+    // 세기: 헷갈리는 보기는 가까운 수 둘 — 정답이 가운데·가장 작은·가장 큰 수가 고르게 (예전엔 늘 ±1 둘이라 정답이 언제나 '가운데 수')
+    let near = [];
+    if (t === "count") {
+      const sets = [[answer - 1, answer + 1], [answer + 1, answer + 2], [answer - 2, answer - 1]].filter((x) => x.every(ok));
+      near = sets.length ? U.pick(sets) : [];
+    }
     const list = U.shuffle([answer, ...(near.length >= nOpt - 1 ? near.slice(0, nOpt - 1) : U.shuffle([...cand]).slice(0, nOpt - 1))]);
     this.prog(ctx, ctx.round % 5);
     ctx.q.innerHTML = "";
@@ -355,7 +359,8 @@ KP.game({
     KP.voice.say(speak);
     if (t !== "count") ctx.tap(ask, () => KP.voice.say(speak));
     const tk = ctx.tok;
-    let things = null;
+    let things = null,
+      recount = null;
     if (t === "count") {
       // 하나씩 누르면 "하나, 둘…" — 다 세면 "모두 몇 개예요?" 하고 보기가 나타남
       const em = U.pick(["🍎", "🐥", "⭐", "🍓", "🚗", "🐟", "🎈", "🌼", "🍪", "🦋"]);
@@ -363,6 +368,16 @@ KP.game({
       let k = 0;
       ans.classList.add("wait");
       things = [];
+      // 틀린 수를 고르면 "다시 세어 볼까요?" → 센 표시를 지워 처음부터 다시 셀 수 있게 (보기는 그대로 보임)
+      recount = () => {
+        if (tk !== ctx.tok || !ask.isConnected || k < answer) return;
+        k = 0;
+        things.forEach((x) => {
+          x.classList.remove("on");
+          x.querySelector("b").textContent = "";
+        });
+        ctx.hint(() => things.find((x) => !x.classList.contains("on")) || btns.find((x) => x.dataset.right), "하나씩 눌러서 세어 봐요!");
+      };
       for (let i = 0; i < answer; i++) {
         const b = U.btn(KP.E(em) + "<b></b>", "n1Thing");
         b.style.setProperty("--c", col);
@@ -409,6 +424,7 @@ KP.game({
         if (ok && ctx.m === "quiz" && tk === ctx.tok) this.quiz(ctx);
       },
     });
+    if (recount) btns.forEach((b) => !b.dataset.right && b.addEventListener("click", () => ctx.after(400, recount)));
     if (things) ctx.hint(() => things.find((x) => !x.classList.contains("on")) || null, speak);
     else ctx.hint(() => btns.find((x) => x.dataset.right), speak);
   },

@@ -1253,14 +1253,18 @@ KP.game({
       .countTile{position:relative;background:#fff;border-radius:26px;padding:12px;box-shadow:0 6px 0 rgba(47,58,102,.12);font-size:clamp(46px,7.5vw,84px);line-height:1}
       .countTile[data-n]{background:#fff8d6;box-shadow:0 6px 0 #f1cf5b}
       .countBadge{position:absolute;top:-10px;right:-10px;min-width:38px;height:38px;border-radius:50%;background:var(--coral);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 0 rgba(0,0,0,.15);animation:popBig .4s}
-      /* 폰 가로(낮은 화면): 타일을 높이 기준으로 줄여 8~10개도 한 줄에 — 위로 잘리거나 보기와 겹치지 않게 */
+      /* 흩어진 판(3단계): 칸 안에서 자리를 잡아 겹치지 않게 (scatter) */
       .countItems.scat{position:relative;display:block;width:100%;max-width:none!important;flex:1;min-height:0}
       .countItems.scat .countTile{position:absolute;font-size:var(--ts);padding:calc(var(--ts) * .14)}
+      /* 폰 가로(낮은 화면): 타일을 높이 기준으로 줄여 8~10개도 한 줄에 — 위로 잘리거나 보기와 겹치지 않게 */
       @media (max-height:500px) and (min-aspect-ratio:1/1){.qStage .countTile{font-size:clamp(36px,12vh,70px);padding:9px;border-radius:20px}.countItems{padding-top:14px}.countBadge{top:-8px;right:-8px;min-width:32px;height:32px;font-size:20px}}
     `);
     ctx.items = U.el("div", "qStage countItems");
     ctx.ans = U.el("div", "qAns");
     ctx.body.append(ctx.items, ctx.ans);
+    // 흩어진 판에서 화면을 돌리면 자리를 다시 잡음 (예전 자리 그대로면 화면 밖으로 나감)
+    const self = this;
+    addEventListener("resize", () => ctx._active && ctx.scatTiles && ctx.items.classList.contains("scat") && requestAnimationFrame(() => self.scatter(ctx, ctx.scatTiles)));
     ctx.THINGS = [
       ["🍎", "사과"], ["🍌", "바나나"], ["🐟", "물고기"], ["🚗", "자동차"], ["🌼", "꽃"], ["🍪", "쿠키"],
       ["🐥", "병아리"], ["⚽", "공"], ["🦆", "오리"], ["🍓", "딸기"], ["🦋", "나비"], ["⭐", "별"],
@@ -1313,6 +1317,7 @@ KP.game({
       ctx.items.appendChild(t);
     }
 
+    ctx.scatTiles = scat ? tiles : null;
     if (scat) this.scatter(ctx, tiles);
     // 보기
     // 정답 근처 수 중에서 보기 고르기 (정답 10처럼 근처 수가 모자라면 아래로 넓혀 채움 — 무한 반복 방지)
@@ -1835,7 +1840,8 @@ KP.game({
     }
     const m = "냠냠! " + U.josa(f[1], "은/는") + " " + U.josa(f[3], "을/를") + " 좋아해요!";
     const said = KP.voice.say(this.nat(m, "냠냠! " + f[3] + "! " + U.josa(f[1], "이/가") + " 좋아해요!", "냠냠! " + f[3] + "! " + f[1] + "! 좋아해요!"));
-    if (more) Promise.resolve(said).then(() => ctx._active && KP.voice.say("하나 더!"));
+    // 말이 끝나면 "하나 더!" — 그새 두 번째 먹이까지 먹였으면(full) 말하지 않음(뒤 '냠냠' 말을 끊고 틀린 말이 나왔음)
+    if (more) Promise.resolve(said).then(() => ctx._active && t.isConnected && !t.classList.contains("full") && KP.voice.say("하나 더!"));
   },
 });
 
@@ -6354,8 +6360,12 @@ KP.game({
       if (ok(x)) cand.add(x);
     }
     const nOpt = t === "count" ? 3 : lv === 1 ? 2 : lv === 2 ? 3 : 4;
-    // 세기: 헷갈리는 보기는 ±1 (그다음 ±2)
-    const near = t === "count" ? [answer + 1, answer - 1, answer + 2, answer - 2].filter(ok) : [];
+    // 세기: 헷갈리는 보기는 가까운 수 둘 — 정답이 가운데·가장 작은·가장 큰 수가 고르게 (예전엔 늘 ±1 둘이라 정답이 언제나 '가운데 수')
+    let near = [];
+    if (t === "count") {
+      const sets = [[answer - 1, answer + 1], [answer + 1, answer + 2], [answer - 2, answer - 1]].filter((x) => x.every(ok));
+      near = sets.length ? U.pick(sets) : [];
+    }
     const list = U.shuffle([answer, ...(near.length >= nOpt - 1 ? near.slice(0, nOpt - 1) : U.shuffle([...cand]).slice(0, nOpt - 1))]);
     this.prog(ctx, ctx.round % 5);
     ctx.q.innerHTML = "";
@@ -6389,7 +6399,8 @@ KP.game({
     KP.voice.say(speak);
     if (t !== "count") ctx.tap(ask, () => KP.voice.say(speak));
     const tk = ctx.tok;
-    let things = null;
+    let things = null,
+      recount = null;
     if (t === "count") {
       // 하나씩 누르면 "하나, 둘…" — 다 세면 "모두 몇 개예요?" 하고 보기가 나타남
       const em = U.pick(["🍎", "🐥", "⭐", "🍓", "🚗", "🐟", "🎈", "🌼", "🍪", "🦋"]);
@@ -6397,6 +6408,16 @@ KP.game({
       let k = 0;
       ans.classList.add("wait");
       things = [];
+      // 틀린 수를 고르면 "다시 세어 볼까요?" → 센 표시를 지워 처음부터 다시 셀 수 있게 (보기는 그대로 보임)
+      recount = () => {
+        if (tk !== ctx.tok || !ask.isConnected || k < answer) return;
+        k = 0;
+        things.forEach((x) => {
+          x.classList.remove("on");
+          x.querySelector("b").textContent = "";
+        });
+        ctx.hint(() => things.find((x) => !x.classList.contains("on")) || btns.find((x) => x.dataset.right), "하나씩 눌러서 세어 봐요!");
+      };
       for (let i = 0; i < answer; i++) {
         const b = U.btn(KP.E(em) + "<b></b>", "n1Thing");
         b.style.setProperty("--c", col);
@@ -6443,6 +6464,7 @@ KP.game({
         if (ok && ctx.m === "quiz" && tk === ctx.tok) this.quiz(ctx);
       },
     });
+    if (recount) btns.forEach((b) => !b.dataset.right && b.addEventListener("click", () => ctx.after(400, recount)));
     if (things) ctx.hint(() => things.find((x) => !x.classList.contains("on")) || null, speak);
     else ctx.hint(() => btns.find((x) => x.dataset.right), speak);
   },
@@ -8924,7 +8946,8 @@ KP.game({
       ["🍊", "귤", "circle"], ["🌕", "달", "circle"],
       ["🪁", "연", "diamond"], ["⭐", "별", "star"], ["🌟", "반짝별", "star"], ["❤️", "하트", "heart"], ["💝", "하트 상자", "heart"],
       // 2차 보강: 모양마다 물건 더 (이름은 모두 자연 음성 조각이 있는 것)
-      ["🌍", "지구", "circle"], ["🍉", "수박", "triangle"], ["🍰", "케이크", "triangle"], ["📦", "상자", "square"], ["📘", "책", "square"],
+      // (🍉 수박은 그림이 반달 모양, 🍰 케이크는 옆에서 보면 네모라 세모 정답으로 헷갈려 뺌 — 콜드 리뷰)
+      ["🌍", "지구", "circle"], ["📦", "상자", "square"], ["📘", "책", "square"],
       ["💎", "보석", "diamond"], ["💖", "반짝 하트", "heart"],
     ];
     ctx.round = 0;

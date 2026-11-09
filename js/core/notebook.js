@@ -1041,10 +1041,11 @@
         const it = ctx.it;
         const avg = ctx.cellStars.reduce((a, b) => a + b, 0) / ctx.cellStars.length;
         const stars = Math.max(1, Math.min(3, Math.round(avg)));
-        // 열쇠 별은 '혼자 쓰기 칸 ★★ 이상'일 때만 (따라 쓰기만 있는 선 긋기·낱말은 공책 별·도장만, 열쇠 별 없음)
+        // 열쇠 별: 글자는 '혼자 쓰기 칸 ★★ 이상'일 때만. 낱말(혼자 쓰기 칸 없음 — 여러 글자를 이어 따라 쓰는 긴 항목)은 전체 ★★ 이상이면.
+        // 선 긋기(따라 긋기만, 쉬움)는 공책 별·도장만, 열쇠 별 없음
         const alone = ctx.cells.map((c, i) => (c.mode === "alone" ? ctx.cellStars[i] || 0 : -1)).filter((v) => v >= 0);
-        const aloneStars = alone.length ? Math.min.apply(null, alone) : 0;
-        KP.earn && KP.earn.onNotebook(ctx, aloneStars);
+        const keyStars = it.kind === "word" ? stars : alone.length ? Math.min.apply(null, alone) : 0;
+        KP.earn && KP.earn.onNotebook(ctx, keyStars);
         const prev = ctx.stars[it.id] || 0;
         ctx.stars[it.id] = Math.max(prev, stars);
         KP.store.set(cfg.key, ctx.stars);

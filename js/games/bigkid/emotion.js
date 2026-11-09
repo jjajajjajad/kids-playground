@@ -119,7 +119,8 @@ KP.game({
     ctx.cur = null;
     this.next(ctx);
   },
-  /** 돌봄 동작: 기쁨=박수, 슬픔=토닥토닥, 화남=후~, 놀람=두근두근, 무서움=손 꼭, 부끄러움=반짝 */
+  /** 돌봄 동작: 기쁨=박수, 슬픔=토닥토닥, 화남=후~, 놀람=두근두근, 무서움=손 꼭, 부끄러움=반짝
+      말("토닥토닥." "후~")은 queue — 돌봄 한마디("슬플 땐 꼭 안아줘요")를 끊지 않고 그 뒤에 */
   doCare(ctx, f, care, scene) {
     const U = KP.u,
       A = KP.audio;
@@ -127,10 +128,10 @@ KP.game({
     if (f === "joy") [0, 0.22, 0.44].forEach((w) => A.noise({ dur: 0.07, vol: 0.22, bp: 1800, q: 0.8, when: w }));
     else if (f === "sad") {
       [0, 0.35].forEach((w) => A.noise({ dur: 0.09, vol: 0.12, lp: 500, when: w }));
-      if (!ctx.careSaid) KP.voice.say("토닥토닥.");
+      if (!ctx.careSaid) KP.voice.say("토닥토닥.", { queue: true });
     } else if (f === "angry") {
       A.noise({ dur: 1.1, vol: 0.1, bp: 900, bpTo: 400, q: 0.6 });
-      if (!ctx.careSaid) KP.voice.say("후~");
+      if (!ctx.careSaid) KP.voice.say("후~", { queue: true });
     } else if (f === "surprise") [0, 0.18, 0.6, 0.78].forEach((w, i) => A.tone(i % 2 ? 70 : 90, { dur: 0.12, vol: 0.22, type: "sine", when: w }));
     else A.melody([["E5", 1], ["G5", 1], ["C6", 2]], { beat: 0.12, inst: "bell", vol: 0.18 });
     ctx.careSaid = true;

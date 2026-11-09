@@ -173,6 +173,7 @@ KP.game({
     }
     const m = "냠냠! " + U.josa(f[1], "은/는") + " " + U.josa(f[3], "을/를") + " 좋아해요!";
     const said = KP.voice.say(this.nat(m, "냠냠! " + f[3] + "! " + U.josa(f[1], "이/가") + " 좋아해요!", "냠냠! " + f[3] + "! " + f[1] + "! 좋아해요!"));
-    if (more) Promise.resolve(said).then(() => ctx._active && KP.voice.say("하나 더!"));
+    // 말이 끝나면 "하나 더!" — 그새 두 번째 먹이까지 먹였으면(full) 말하지 않음(뒤 '냠냠' 말을 끊고 틀린 말이 나왔음)
+    if (more) Promise.resolve(said).then(() => ctx._active && t.isConnected && !t.classList.contains("full") && KP.voice.say("하나 더!"));
   },
 });

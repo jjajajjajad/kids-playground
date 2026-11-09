@@ -274,18 +274,22 @@ KP.game({
     /* ---------- 내가 연주 ---------- */
     let lastTap = 0;
     /** 리듬: 앞 음 길이(박) 대비 실제 간격 비율 → 아이 빠르기(최근 비율의 가운데 값)와 가까우면 '리듬 맞음' */
-    const RH = { at: 0, b: 0, rs: [], ph: [0, 0], all: [0, 0] };
+    const RH = { at: 0, b: 0, b2: 0, rs: [], ph: [0, 0], all: [0, 0], chg: [0, 0] }; // chg: 음 길이가 바뀌는 곳(앞앞 음과 앞 음 길이가 다름)만 센 것
     function rhReset() {
       RH.at = 0;
+      RH.b = RH.b2 = 0;
       RH.rs = [];
       RH.ph = [0, 0];
       RH.all = [0, 0];
+      RH.chg = [0, 0];
     }
     function rhTap(b) {
       const now = performance.now(),
         iv = now - RH.at,
-        prevB = RH.b;
+        prevB = RH.b,
+        prev2 = RH.b2;
       RH.at = now;
+      RH.b2 = prevB;
       RH.b = b;
       if (!prevB || iv > 2600 || iv < 60) return false; // 첫 음·한참 쉬었다 누름은 안 셈
       const r = iv / (prevB * BEAT * 1000);
@@ -297,6 +301,7 @@ KP.game({
       RH.ph[1]++;
       RH.all[1]++;
       if (good) RH.ph[0]++, RH.all[0]++;
+      if (prev2 && prev2 !== prevB) RH.chg[1]++, good && RH.chg[0]++; // 리듬이 바뀌는 곳 — 일정하게 톡톡 누르면 여기서 틀림
       return good;
     }
     ctx._rh = RH; // 점검용
@@ -322,7 +327,8 @@ KP.game({
         await ctx.wait(700);
         const name = A.SONGS[song].name;
         ctx.noStar ? ctx.noStar() : (ctx._fewChoice = true); // 아무 데나 눌러도 되는 놀이 → 열쇠 별 제외
-        const rhy = RH.all[1] >= 4 && RH.all[0] / RH.all[1] >= 0.7; // 노래 리듬대로 눌렀어요
+        const rhy = RH.all[1] >= 4 && RH.all[0] / RH.all[1] >= 0.7 && (RH.chg[1] < 2 || RH.chg[0] / RH.chg[1] >= 0.6); // 노래 리듬대로 눌렀어요
+        // (2026-11-09 콜드 리뷰) 일정한 간격으로 톡톡 눌러도 한 박 음이 많은 곡은 64~75% 가 '맞음'이라 곡 칭찬이 나왔음 → 긴 음·짧은 음 다음도 60% 이상 맞아야
         const ok = await ctx.win(Object.assign(mine.full ? { big: true, msg: name + " 완성!" } : { msg: "멋진 연주예요!" }, rhy ? { msg: (mine.full ? name + " 완성! " : "") + "리듬도 딱딱 " + KP.E("🌟"), say: "박자에 딱딱 맞아요!" } : {}));
         if (!ok) return;
         idx = 0;
