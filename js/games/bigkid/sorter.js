@@ -17,7 +17,12 @@ KP.game({
       .srtBox{display:flex;gap:clamp(10px,2.4vw,26px);flex-wrap:wrap;justify-content:center;padding:clamp(14px,2.4vw,26px);border-radius:32px;background:linear-gradient(180deg,#ffcf7a,#f4a944);box-shadow:0 10px 0 #c97f22, inset 0 4px 0 rgba(255,255,255,.5)}
       .srtHole{width:clamp(84px,13vw,140px);height:clamp(84px,13vw,140px);border-radius:24px;background:rgba(120,60,0,.18);box-shadow:inset 0 6px 10px rgba(80,40,0,.35);display:flex;align-items:center;justify-content:center;font-size:clamp(60px,9.5vw,104px);position:relative}
       .srtHole .ghost{filter:brightness(0) opacity(.35)}
-      .srtBox.tint .srtHole .ghost{filter:saturate(.75) opacity(.5)}
+      /* 색 구멍(3단계): 흰 동그라미 위에 본래 색을 진하게 — 주황 상자 위에 반투명으로 겹치면 보라가 갈색·파랑이 회색처럼 보였음 */
+      .srtBox.tint .srtHole::before{content:"";position:absolute;inset:9%;border-radius:50%;background:rgba(255,255,255,.88);box-shadow:inset 0 3px 6px rgba(80,40,0,.18)}
+      .srtBox.tint .srtHole .ghost{filter:opacity(.8);position:relative}
+      .srtBox.tint .srtHole.filled::before{display:none}
+      /* 🔺 그림은 여백이 커서 다른 모양의 절반처럼 보임 → 그림만 키움(끄는 상자 크기는 그대로) */
+      [data-k="🔺"] .e{transform:scale(1.7)}
       .srtHole.filled .ghost{display:none}
       .srtTray{display:flex;gap:clamp(12px,2.6vw,30px);flex-wrap:wrap;justify-content:center;min-height:clamp(96px,14vw,150px);align-items:center}
       .srtPiece{font-size:clamp(60px,9.5vw,104px);line-height:1;padding:8px;filter:drop-shadow(0 6px 0 rgba(0,0,0,.15))}

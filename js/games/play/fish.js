@@ -81,7 +81,7 @@ KP.game({
       const lv = ctx.level;
       let k = U.pick(ctx.KINDS);
       if (k[2] === "crab" && ctx.fish.some((f) => f.kind === "crab")) k = ctx.KINDS[0];
-      const base = U.clamp(Math.min(W, H) * 0.17, 74, 130);
+      const base = U.clamp(Math.min(W, H) * 0.17, 80, 130); // 최소 80 → 0.9배여도 72px
       const s = Math.round(base * (k[0] === "🐬" || k[0] === "🐢" ? 1.25 : U.randf(0.9, 1.1)));
       const el = U.el("div", "fs-c " + k[2], '<div class="fs-i">' + KP.E(k[0]) + "</div>");
       el.style.setProperty("--s", s + "px");
@@ -206,6 +206,7 @@ KP.game({
       if (ctx.count % 10 === 0) {
         ctx.ms++;
         const big = ctx.ms % 3 === 0;
+        ctx.noStar(); // 누르면 잡히는 진행형(틀림 없음) → 열쇠 별 없음
         ctx.win({ big, msg: big ? "{부름} 낚시왕!" : ctx.count + "마리 잡았다!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 잡았다!" : "잡았다!" }).then((ok) => ok && ctx.setHint());
       }
     };

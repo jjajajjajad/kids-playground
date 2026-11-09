@@ -87,7 +87,8 @@ KP.game({
       }
       @media (orientation:landscape) and (max-height:500px){
         /* 폰 가로: 5칸 격자 → 기본 14색이 3줄에 다 보임(무지개·반짝이 안 잘림), 내 물감은 위 한 줄 가로 스크롤 (2026-11-08) */
-        .pb{gap:8px;padding:2px 10px 8px;--sw:min(13.6vh,56px);--ab:min(16vh,62px)}
+        .pb{gap:8px;padding:2px 10px 8px;--sw:min(14.4vh,56px);--ab:min(16.4vh,64px)}
+        .pb-tool{min-width:var(--ab);height:var(--ab);font-size:calc(var(--ab) * .5)} /* 도구(🪣/🖍️) 64px (2026-11-09) */
         .pb-acts{gap:6px}
         .pb-pal,.pb-pal.mine3{grid-template-columns:repeat(5,var(--sw));gap:6px;align-content:center;overflow-y:auto;padding:8px 10px}
         .pb-mine{grid-column:1/-1;display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;padding:7px 9px;margin:-7px -9px;scrollbar-width:none;touch-action:pan-x}

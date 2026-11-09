@@ -4,7 +4,7 @@
 /* ABC 놀이 — 위쪽 버튼으로 [배우기]/[퀴즈] 전환. (1단계는 배우기로, 2단계부터 퀴즈로 시작)
    배우기: A~Z 카드(대문자·소문자+그림+낱말). 누르면 크게 나오며 영어 발음 "A! Apple!"
            크게 본 카드는 바깥을 누를 때까지 그대로 — [따라 쓰기](ABC 쓰기 공책) · [다른 낱말] · 그림을 누르면 다시 읽기
-   퀴즈 1단계: "Find A!" 글자 2개
+   퀴즈 1단계: "Find A!" 글자 3개 (닮지 않은 글자만 — 쉬움은 그대로, 찍어 맞히기 방지)
    퀴즈 2단계(보기 3개): 글자 이름 듣고 찾기 · 그림 보고 첫 글자(낱말의 첫 글자를 ?로 가림) · 소문자 보고 짝꿍 대문자
    퀴즈 3단계(보기 4개): 위 세 가지 + 모양이 닮은 글자(E·F·H, O·Q·C·G …)
    안내는 영어 + 한국어("에이를 찾아요!") 함께 */
@@ -43,6 +43,7 @@ KP.game({
       .abSpotRow{display:flex;align-items:center;gap:clamp(10px,3vw,40px)}
       .abSpotPic{display:flex;flex-direction:column;align-items:center;border-radius:28px;padding:4px 10px;background:transparent;box-shadow:none}
       .abSpotBtns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+      .abSpotBtns .btn{min-height:64px}
       .abBig .abHintW{font-size:.32em;color:var(--ink);letter-spacing:1px}
       .abBig .abHintW b{color:var(--coral);font-weight:400}
       .abBig .abLow{color:var(--c);font-size:.95em}
@@ -52,6 +53,9 @@ KP.game({
       .abSpotBox .abW{font-size:clamp(28px,4vw,46px);display:block;text-align:center}
       @media (max-aspect-ratio:1/1){.abSpotRow{flex-direction:column;gap:6px}}
       @media (max-height:500px){.abSpotBox .abCh{font-size:clamp(70px,22vh,120px)}.abSpotPic .e{font-size:clamp(60px,20vh,110px)}.abSpotBox .abW{font-size:24px}}
+      @media (orientation:portrait) and (max-height:700px){.abSpotBox .abCh{font-size:clamp(70px,14vh,110px)}.abSpotPic .e{font-size:clamp(60px,12vh,100px)}.abSpotBox .abW{font-size:26px}.abSpotBox{gap:8px}}
+      /* 폰 가로: 글자·그림 | 단추를 옆으로 놓아 카드 아래가 잘리지 않게 */
+      @media (orientation:landscape) and (max-height:500px){.abSpot{padding:6px 0}.abSpotBox{flex-direction:row;gap:clamp(12px,3vw,28px);padding:10px clamp(16px,3vw,28px);border-width:5px;max-height:100%;border-radius:32px}.abSpotBtns{flex-direction:column;flex-wrap:nowrap;gap:10px}.abSpotBox .abCh{font-size:clamp(60px,19vh,110px)}.abSpotPic .e{font-size:clamp(54px,17vh,100px)}.abSpotBox .abW{font-size:22px}}
       .abQ{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(12px,3vh,30px);padding:4px 12px 18px}
       .abBig{font-size:clamp(90px,min(30vw,17vh),160px);line-height:1;background:#fff;border-radius:34px;padding:10px 36px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px}
       .abBig.yay{animation:jumpA .5s 2}
@@ -277,7 +281,8 @@ KP.game({
         pos++;
         mark();
         if (pos < word.length) {
-          ctx.hint(() => tileEls.find((x) => !x.classList.contains("used") && x.textContent === word[pos]), "다음 글자를 찾아요!");
+          // 글자 타일은 .choice 가 아니라서 정답 표시를 직접 (손가락이 가리킨 판은 열쇠 별 없음)
+          ctx.hint(() => tileEls.find((x) => !x.classList.contains("used") && x.textContent === word[pos]), "다음 글자를 찾아요!", { answer: true });
           return;
         }
         // 완성: 한 글자씩 읽고 단어 읽기
@@ -296,12 +301,15 @@ KP.game({
       tiles.appendChild(t);
       return t;
     });
-    ctx.hint(() => tileEls.find((x) => !x.classList.contains("used") && x.textContent === word[pos]), "첫 글자를 찾아요!");
+    ctx.hint(() => tileEls.find((x) => !x.classList.contains("used") && x.textContent === word[pos]), "첫 글자를 찾아요!", { answer: true });
   },
   quiz(ctx) {
     const U = KP.u;
     const lv = ctx.level;
     const self = this;
+    const tk = ctx.spTok; // 탭(배우기·단어 만들기)을 바꾸면 mode() 가 올림
+    const qk = (ctx.qk = (ctx.qk || 0) + 1); // 이번 물음 표시 — 다음 물음으로 넘어가면 지난 물음 다시 말하기 취소
+    let solved = false;
     ctx.q.innerHTML = "";
     let ti = U.rand(ctx.L.length);
     if (ti === ctx.lastI) ti = (ti + 1) % ctx.L.length;
@@ -317,7 +325,7 @@ KP.game({
     }
     ctx.lastKind = kind;
     const reverse = kind === "reverse";
-    const n = lv === 1 ? 2 : lv === 2 ? 3 : 4;
+    const n = lv === 1 ? 3 : lv === 2 ? 3 : 4; // 1단계도 보기 3개(2개면 찍어도 반 — 열쇠 별 규칙). 1·2단계는 닮은 글자를 빼서 쉬움 유지
     const big = U.btn("", "abBig");
     const ans = U.el("div", "abAns");
     ctx.q.append(big, ans);
@@ -326,7 +334,9 @@ KP.game({
       const like = (ctx.LIKE.filter((g) => g.includes(c)).join("") || "").replace(new RegExp(c, "g"), "");
       others = [...new Set(like)].slice(0, n - 1);
     } else others = [];
-    const rest = U.shuffle(ctx.L.map((l) => l[0]).filter((x) => x !== c && !others.includes(x)));
+    const likeC = lv < 3 ? ctx.LIKE.filter((g) => g.includes(c)).join("") : "";
+    let rest = U.shuffle(ctx.L.map((l) => l[0]).filter((x) => x !== c && !others.includes(x)));
+    rest = [...rest.filter((x) => likeC.includes(x)), ...rest.filter((x) => !likeC.includes(x))]; // pop() 은 끝에서 → 닮지 않은 글자부터
     while (others.length < n - 1) others.push(rest.pop());
     const list = U.shuffle([c, ...others]);
     const koOf = (x) => ctx.L.find((l) => l[0] === x)[1];
@@ -354,7 +364,7 @@ KP.game({
       // 소문자 보고 짝꿍 대문자 찾기
       big.style.setProperty("--c", ctx.CC[ti % ctx.CC.length]);
       big.innerHTML = '<span class="abLow">' + c.toLowerCase() + "</span>";
-      en = c.toLowerCase() + "!";
+      en = c + "!"; // 글자 이름은 대문자·소문자가 같음 — 대문자 "E!" 는 26개 모두 자연 음성(소문자 "e!" 는 기기 목소리)
       ask = "짝꿍 글자를 찾아요!";
       wrongTail = ask;
       sayRight = () => {
@@ -384,6 +394,7 @@ KP.game({
       // "이건 비! 에이를 찾아요!" — 이미 있는 조각을 이어 자연 음성으로
       wrongMsg: (v) => "이건 " + koOf(v) + "! " + wrongTail,
       onRight: async (v, b) => {
+        solved = true;
         U.replay(big, "yay");
         U.replay(b, "jump");
         KP.audio.sfx("good");
@@ -391,14 +402,17 @@ KP.game({
         ctx.score.add();
         ctx.round++;
         await ctx.wait(1400);
+        if (tk !== ctx.spTok) return; // 그새 탭을 바꿨으면 그 화면에서 축하하지 않음
         const bg = ctx.round % 5 === 0;
         const ok = await ctx.win({ big: bg, msg: bg ? "{부름} ABC 박사!" : "딩동댕!", quiet: !bg });
-        if (ok && ctx.m === "quiz") self.quiz(ctx);
+        if (ok && ctx.m === "quiz" && tk === ctx.spTok) self.quiz(ctx);
       },
     });
     btns.forEach((b, i) => b.style.setProperty("--c", ctx.CC[(ti + i * 2) % ctx.CC.length]));
-    // 틀리면 영어로 다시 들려주기
-    btns.forEach((b) => !b.dataset.right && b.addEventListener("click", () => ctx.after(1900, () => KP.voice.en(en))));
+    // 틀리면 영어로 다시 들려주기 — 그새 정답을 눌렀거나 물음·탭이 바뀌었으면 말하지 않음
+    btns.forEach((b) => !b.dataset.right && b.addEventListener("click", () => ctx.after(1900, () => {
+      if (!solved && qk === ctx.qk && tk === ctx.spTok && ctx.m === "quiz" && ctx._active) KP.voice.en(en);
+    })));
     ctx.hint(() => btns.find((b) => b.dataset.right), ask);
   },
 });
@@ -613,6 +627,7 @@ KP.game({
       const h = Z.HABITATS.find((x) => x.k === hab);
       await ctx.wait(2200);
       if (!ctx._active) return;
+      ctx.noStar(); // 누르기만 하면 되는 자유 탐색 → 열쇠 별 없음
       await ctx.win({ big: true, msg: allDone ? "{부름} 동물 친구들 다 만났어요!" : h.n + " 친구들 다 만났어요!" });
     }
   },
@@ -1124,6 +1139,8 @@ KP.game({
       .countTile{position:relative;background:#fff;border-radius:26px;padding:12px;box-shadow:0 6px 0 rgba(47,58,102,.12);font-size:clamp(46px,7.5vw,84px);line-height:1}
       .countTile[data-n]{background:#fff8d6;box-shadow:0 6px 0 #f1cf5b}
       .countBadge{position:absolute;top:-10px;right:-10px;min-width:38px;height:38px;border-radius:50%;background:var(--coral);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 0 rgba(0,0,0,.15);animation:popBig .4s}
+      /* 폰 가로(낮은 화면): 타일을 높이 기준으로 줄여 8~10개도 한 줄에 — 위로 잘리거나 보기와 겹치지 않게 */
+      @media (max-height:500px) and (min-aspect-ratio:1/1){.qStage .countTile{font-size:clamp(36px,12vh,70px);padding:9px;border-radius:20px}.countItems{padding-top:14px}.countBadge{top:-8px;right:-8px;min-width:32px;height:32px;font-size:20px}}
     `);
     ctx.items = U.el("div", "qStage countItems");
     ctx.ans = U.el("div", "qAns");
@@ -1150,7 +1167,8 @@ KP.game({
 
     ctx.say(U.josa(name, "이/가") + " 몇 개일까요? 하나씩 눌러서 세어 봐요!");
     ctx.items.innerHTML = "";
-    ctx.items.style.maxWidth = answer > 5 ? "900px" : "760px";
+    const low = innerHeight <= 500 && innerWidth >= innerHeight;
+    ctx.items.style.maxWidth = low ? "none" : answer > 5 ? "900px" : "760px";
     ctx.items.style.margin = "0 auto";
     const tiles = [];
     for (let i = 0; i < answer; i++) {
@@ -1392,7 +1410,7 @@ KP.game({
         ctx.miss(b, "이건 " + ctx.SINO[v] + "! " + self.nj(ctx, step, "을/를") + " 찾아요!");
       }
     };
-    const hint = () => ctx.hint(() => balloons[step - 1], self.nj(ctx, step, "을/를") + " 찾아요!");
+    const hint = () => ctx.hint(() => balloons[step - 1], self.nj(ctx, step, "을/를") + " 찾아요!", { answer: true });
     hint();
   },
 });
@@ -1520,7 +1538,7 @@ KP.game({
       });
       return el;
     });
-    const hint = () => ctx.hint(() => foodEls.find((e) => e.dataset.go && !e.dataset.done), "먹이를 끌어서 동물 입에 쏙 넣어 줘요!");
+    const hint = () => ctx.hint(() => foodEls.find((e) => e.dataset.go && !e.dataset.done), "먹이를 끌어서 동물 입에 쏙 넣어 줘요!", { answer: true });
     ctx.foodEls = foodEls; // 점검용
     hint();
     const done = async () => {
@@ -4777,8 +4795,12 @@ KP.game({
       lock = false;
       ctx.say("🃏 카드를 두 장 뒤집어서 같은 그림 짝을 찾아요!");
     }
+    // 한 장 뒤집은 뒤의 힌트는 '짝 카드(정답)'를 가리킴 → 그 판은 열쇠 별 없음
     const hint = () =>
-      ctx.hint(() => (first ? cards.find((c) => c !== first && c.dataset.k === first.dataset.k) : cards.find((c) => !c.classList.contains("done"))), first ? "같은 그림을 찾아요!" : "카드를 눌러 뒤집어 봐요!");
+      first
+        ? ctx.hint(() => cards.find((c) => c !== first && c.dataset.k === first.dataset.k), "같은 그림을 찾아요!", { answer: true })
+        : ctx.hint(() => cards.find((c) => !c.classList.contains("done")), "카드를 눌러 뒤집어 봐요!");
+    let wrong = 0; // 틀린 짝 수 — 쌍 수보다 많아지면 가벼운 실수로 셈(마구 누르기로 별 받기 방지)
     if (!peek) hint();
 
     const sparkle = (c) => {
@@ -4822,7 +4844,9 @@ KP.game({
       } else {
         lock = true;
         KP.voice.say(name);
-        KP.audio.note("E4", { inst: "soft", dur: 0.25, vol: 0.14, when: 0.15 });
+        wrong++;
+        if (wrong > pairs) ctx.miss(null, null, { soft: true });
+        else KP.audio.note("E4", { inst: "soft", dur: 0.25, vol: 0.14, when: 0.15 });
         ctx.after(1100, () => {
           a.classList.remove("open");
           c.classList.remove("open");
@@ -5427,7 +5451,8 @@ KP.game({
 /* ==== js/games/smart/more.js ==== */
 /* 많은 쪽 찾기 — 접시 중 많은 쪽/적은 쪽을 골라요. 맞히면 접시 위 과일이 하나씩 폴짝 뛰며 함께 세어요.
    1단계: 접시 3개 — 확 많은 접시 1개 + 적은 접시 2개 중 "많은 쪽"
-   2단계: 접시 3개 — 1~2개 차이. 한 접시만 다르고 나머지 두 접시는 같은 개수(그래서 '더 많은/더 적은' 접시가 하나뿐)
+   2단계: 접시 3개 — 세 접시 모두 개수가 달라요(1~2개 차이씩). 가장 많은/적은 접시가 정답
+          (예전엔 두 접시가 같아 '혼자 다른 접시'만 찍으면 맞았음 → 세어 비교해야 맞히게)
    3단계: 위 접시와 "같은 개수" 찾기(접시 3개) 또는 1개 차이 두 접시(최대 9개, 이 판은 열쇠 별 제외)
    (보기 3개 이상이 열쇠 별 규칙 — 2개뿐인 3단계 '1개 차이' 판은 ctx.choices 가 _fewChoice 로 표시) */
 "use strict";
@@ -5522,9 +5547,10 @@ KP.game({
     const three = !same && lv < 3; // 1·2단계: 접시 3개 (위 접시 없음 → 조금 더 크게, 폰 세로는 2+1 줄)
     ctx.row.classList.toggle("three", three);
     ctx.wrap.style.setProperty("--psl", same ? "clamp(110px,min(22vw,32vh),220px)" : three ? "clamp(130px,min(27vw,46vh),300px)" : "clamp(150px,min(34vw,52vh),360px)");
-    ctx.wrap.style.setProperty("--psp", same ? "clamp(96px,30vw,140px)" : three ? "clamp(120px,40vw,190px)" : "clamp(140px,44vw,200px)");
+    // 세로 화면 상한: 폰(390px)은 vw 값이 먼저 걸려 그대로, 세로 태블릿(820px)은 접시를 더 크게
+    ctx.wrap.style.setProperty("--psp", same ? "clamp(96px,30vw,200px)" : three ? "clamp(120px,40vw,270px)" : "clamp(140px,44vw,290px)");
     ctx.wrap.style.setProperty("--rs", "clamp(110px,min(22vw,26vh),200px)");
-    ctx.wrap.style.setProperty("--rsp", "clamp(110px,40vw,170px)");
+    ctx.wrap.style.setProperty("--rsp", "clamp(110px,40vw,230px)");
     // 자연 음성 클립이 있으면 그 문장, 없으면 이름을 떼어 말하기 ("귤이 더 많은…" → "귤! 더 많은…")
     const nat = (a, b) => (KP.voice._natUrls && KP.voice._natUrls(a) ? a : b);
     let list, target, ask, spoken, wrongMsg, rightMsg;
@@ -5548,10 +5574,11 @@ KP.game({
         list = U.shuffle([...lows, b]);
         target = b;
       } else if (lv === 2) {
-        a = 1 + U.rand(4);
-        b = a + 1 + U.rand(2);
-        // 정답 접시 하나만 다르고 나머지 두 접시는 같은 개수
-        list = many ? U.shuffle([a, a, b]) : U.shuffle([a, b, b]);
+        // 세 접시 모두 다른 개수 (a < m < b) — 가운데 접시가 있어 '혼자 다른 접시' 찍기로는 못 맞힘
+        a = 1 + U.rand(3);
+        const m = a + 1 + U.rand(2);
+        b = m + 1 + U.rand(2);
+        list = U.shuffle([a, m, b]);
         target = many ? b : a;
       } else {
         a = 3 + U.rand(6);
@@ -5936,6 +5963,7 @@ KP.game({
         ctx.score.add();
         ctx.round++;
         await ctx.wait(1300);
+        if (tk !== ctx.tok) return; // 그새 탭(100판·10씩 세기)을 바꿨으면 그 화면에서 축하하지 않음
         const bg = ctx.round % 5 === 0;
         const ok = await ctx.win({ big: bg, msg: bg ? "{부름} 숫자 박사!" : "딩동댕!", quiet: !bg });
         if (ok && ctx.m === "quiz" && tk === ctx.tok) this.quiz(ctx);
@@ -6006,7 +6034,9 @@ KP.game({
       .nbTarget{font-size:clamp(80px,12vw,140px);line-height:1;color:var(--ocean);background:#fff;border-radius:30px;padding:6px 30px;box-shadow:var(--shadow)}
       .nbBasket{position:relative;width:clamp(260px,40vw,460px);min-height:clamp(120px,20vh,190px);background:#f7d9a8;border-radius:16px 16px 60px 60px;
         border:6px solid #d79b4f;box-shadow:inset 0 -10px 0 rgba(0,0,0,.08);display:flex;flex-wrap:wrap;align-content:flex-end;justify-content:center;gap:2px;padding:10px 10px 16px}
-      .nbBasket::before{content:"";position:absolute;left:12%;right:12%;top:-50px;height:60px;border:7px solid #d79b4f;border-bottom:none;border-radius:120px 120px 0 0}
+      .nbBasket::before{content:"";position:absolute;left:12%;right:12%;top:-50px;height:60px;border:7px solid #d79b4f;border-bottom:none;border-radius:120px 120px 0 0;pointer-events:none}
+      /* 폰 가로(낮은 화면): 손잡이가 위 모드 단추 줄을 덮지 않게 낮추고 위 여백 확보 */
+      @media (max-height:500px){.nbBasket::before{top:-26px;height:32px;border-width:6px}.nbQ{padding-top:30px}}
       .nbBasket .nbA{font-size:clamp(40px,5.4vw,58px);line-height:1;padding:2px;animation:nbPop .35s}
       .nbBasket .nbA b{display:none}
       .nbTools{display:flex;gap:clamp(14px,3vw,30px);align-items:center}
@@ -6158,7 +6188,12 @@ KP.game({
     ctx.seen.add(n);
     ctx.cardEls[n - 1].classList.add("seen");
     const portrait = innerHeight > innerWidth;
-    const nb = portrait ? Math.min(innerWidth * 0.5, innerHeight * 0.24) : Math.min(innerWidth * 0.26, innerHeight * 0.44);
+    let nb = portrait ? Math.min(innerWidth * 0.5, innerHeight * 0.24) : Math.min(innerWidth * 0.26, innerHeight * 0.44);
+    // 낮은 가로 화면(폰 가로): 큰 숫자가 위 단추 줄·아래 숫자 카드 줄을 덮지 않게 무대 남은 높이로 제한
+    const room = ctx.show.clientHeight - 12;
+    if (!portrait && room > 60) nb = Math.min(nb, room);
+    // 세로 작은 폰(360×640): 아래 그림 줄(최소 높이 16vh)을 빼고 남는 만큼만
+    if (portrait && room > 160) nb = Math.min(nb, room - Math.max(90, innerHeight * 0.16) - 14);
     ctx.big.style.setProperty("--nb", Math.round(nb) + "px");
     ctx.big.className = "nbBig" + (n === 10 ? " two" : "");
     ctx.big.innerHTML = '<svg viewBox="0 0 120 120"><text x="60" y="64">' + n + "</text></svg>";
@@ -6240,7 +6275,8 @@ KP.game({
     if (t === ctx.lastT) t = t === 9 ? 4 : t + 1;
     ctx.lastT = t;
     const [em, name] = U.pick(ctx.THINGS.slice(0, 4));
-    const ask = U.josa(name, "을/를") + " " + CNT[t] + " 개 담아요! 다 담으면 초록 ✅ 버튼을 눌러요!";
+    const nat = (a, b) => (KP.voice._natUrls && KP.voice._natUrls(a) ? a : b); // 자연 음성이 없으면 "딸기! …" 조각으로
+    const ask = nat(U.josa(name, "을/를") + " " + CNT[t] + " 개 담아요! 다 담으면 초록 ✅ 버튼을 눌러요!", name + "! " + CNT[t] + " 개 담아요! 다 담으면 초록 ✅ 버튼을 눌러요!");
     ctx.say("🧺 " + ask);
     const wrap = U.el("div", "nbMake");
     const tg = U.el("div", "nbTarget", String(t));
@@ -6289,7 +6325,7 @@ KP.game({
         U.replay(tg, "jump");
         KP.voice.say(name + " " + CNT[t] + " 개! 딩동댕!");
         await this.done(ctx, CNT[t] + " 개 담았어요!");
-      } else if (cnt === 0) ctx.miss(ok, "아직 하나도 없어요. " + U.josa(name, "을/를") + " 담아 봐요!");
+      } else if (cnt === 0) ctx.miss(ok, nat("아직 하나도 없어요. " + U.josa(name, "을/를") + " 담아 봐요!", "아직 하나도 없어요. " + name + "! 담아 봐요!"));
       else if (cnt < t) ctx.miss(ok, "지금 " + CNT[cnt] + " 개예요. " + (t - cnt === 1 ? "하나 더" : "더") + " 담아요!");
       else ctx.miss(ok, "지금 " + CNT[cnt] + " 개예요. 너무 많아요! 바구니에서 눌러서 빼요!");
     });
@@ -6415,6 +6451,8 @@ KP.game({
     KP.css("odd", `
       .oddGrid{--sz:var(--szl);flex:1;min-height:0;display:grid;grid-template-columns:repeat(var(--cl),auto);justify-content:center;align-content:center;gap:clamp(10px,2vw,22px);padding:8px 12px 20px}
       @media (max-aspect-ratio:1/1){.oddGrid{--sz:var(--szp);grid-template-columns:repeat(var(--cp),auto)}}
+      /* 폰 가로(낮은 가로 화면): 9칸을 3줄 대신 5+4 두 줄로 — 3줄이면 위·아래가 잘림 */
+      @media (min-aspect-ratio:1/1) and (max-height:500px){.oddGrid{--sz:var(--szs);grid-template-columns:repeat(var(--cs),auto);padding:4px 12px 10px}}
       .oddBtn{font-size:var(--sz);border-radius:28px;padding:clamp(8px,1.2vw,14px)}
       .oddBtn .e{transition:transform .2s}
       .oddFlip .e{transform:scaleX(-1)}
@@ -6483,10 +6521,12 @@ KP.game({
     for (let i = 0; i < n - 1; i++) list.push({ odd: false });
     list.push({ odd: true });
     U.shuffle(list);
-    const cols = { 4: [4, 2], 6: [3, 2], 9: [3, 3] }[n];
+    const cols = { 4: [4, 2, 4], 6: [3, 2, 3], 9: [3, 3, 5] }[n]; // [가로, 세로, 낮은 가로]
     ctx.grid.style.setProperty("--cl", cols[0]);
     ctx.grid.style.setProperty("--cp", cols[1]);
+    ctx.grid.style.setProperty("--cs", cols[2]);
     ctx.grid.style.setProperty("--szl", { 4: "clamp(80px,min(14vw,30vh),170px)", 6: "clamp(70px,min(13vw,22vh),150px)", 9: "clamp(60px,min(11vw,15vh),110px)" }[n]);
+    ctx.grid.style.setProperty("--szs", { 4: "clamp(80px,min(14vw,30vh),170px)", 6: "clamp(60px,min(13vw,20vh),150px)", 9: "clamp(56px,min(11vw,22vh),110px)" }[n]);
     ctx.grid.style.setProperty("--szp", { 4: "clamp(80px,34vw,160px)", 6: "clamp(70px,min(32vw,16vh),140px)", 9: "clamp(60px,min(22vw,14vh),110px)" }[n]);
     const ask = "하나만 달라요! 다른 걸 찾아요!";
     const nat = (...l) => (KP.voice._natUrls && l.find((t) => KP.voice._natUrls(t))) || l[0]; // 같은 뜻 중 자연 음성(이미 있는 조각)이 있는 문장
@@ -7930,19 +7970,12 @@ KP.game({
         await ctx.wait(600);
         if (!alive(r)) return false;
         ctx.score.add();
+        ctx.noStar(); // 한 바퀴(틀릴 수 없는 판) — 단계는 올리되 열쇠 별은 2·3단계에서만
         return ctx.win({ big: true, msg: "{부름} 사계절 박사!" });
       }
-      /** 봄·여름·가을 축하: ctx.win 그대로(열쇠 별·마지막 판 처리 포함) 하되 단계 연승(streak)에는 넣지 않음 */
+      /** 봄·여름·가을 축하: 빛나는 것을 누르기만 하는(틀릴 수 없는) 판 → 축하·마지막 판 처리만, 단계·열쇠 별에는 넣지 않음 */
       function seasonWin(o) {
-        const lv = KP.level.get("seasons");
-        const keep = lv.streak || 0;
-        lv.streak = -1; // win 이 +1 → 0, 3연승 승급 안 됨
-        KP.level.save("seasons", lv);
-        const p = ctx.win(o);
-        const lv2 = KP.level.get("seasons");
-        lv2.streak = keep;
-        KP.level.save("seasons", lv2);
-        return p;
+        return ctx.win(Object.assign({}, o, { noLevel: true }));
       }
       async function cycle(r) {
         if (!grown && !(await seedPhase(r))) return;
@@ -8488,6 +8521,8 @@ KP.game({
       @media (max-aspect-ratio:1/1){.szShelf{--sz:var(--szp)}
         /* 세로 폰: 칸 폭을 그림 크기에 맞춰(작은 그림 칸은 좁게, 그래도 72px 이상) → 큰 그림을 더 크게 그릴 수 있어 '작은 것'도 점처럼 안 보임 */
         .szShelf .szItem{width:max(72px,calc(var(--sz) * var(--k) + 16px))}}
+      /* 좁은 세로 화면의 4개 판: 선반 두 단(2+2) — 한 줄이면 가장 작은 그림이 32px 로 너무 작음 */
+      .szShelf.szTwo{flex-direction:column;align-items:center;gap:clamp(18px,3vh,30px);border-bottom:none;box-shadow:none;padding:0;border-radius:0}
       .szItem{position:relative;display:flex;align-items:flex-end;justify-content:center;width:calc(var(--sz) + 16px);height:calc(var(--sz) + 22px);
         border-radius:26px 26px 0 0;padding:0 0 4px;background:rgba(255,255,255,.55);transition:background .2s}
       .szItem:active{background:rgba(255,255,255,.9)}
@@ -8528,9 +8563,16 @@ KP.game({
     if (lv === 3) while (order.every((o, i) => o.rank === i)) order = U.shuffle(order);
     ctx.shelf.style.setProperty("--szl", { 3: "clamp(90px,min(22vw,40vh),240px)", 4: "clamp(80px,min(19vw,36vh),210px)" }[n]);
     // 세로: 칸 폭 합(그림 크기 합 + 칸 여백 16px·간격 8px·선반 여백) 이 화면 폭에 맞게
-    const sumK = ks.reduce((a, b) => a + Math.max(b, 0.56), 0); // 작은 칸도 최소 84px(.choice) → 작은 그림은 0.56 으로 셈
-    ctx.shelf.style.setProperty("--szp", "clamp(64px,calc((100vw - " + (16 * n + 8 * (n - 1) + 68) + "px) / " + sumK.toFixed(2) + "),min(" + (n === 3 ? 170 : 150) + "px,32vh))");
+    const two = n === 4 && innerWidth < innerHeight && innerWidth <= 600; // 폰 세로 4개 판: 선반 두 단
+    const per = two ? 2 : n; // 한 단의 칸 수
+    const kk = (o) => Math.max(o.k, 0.56); // 작은 칸도 최소 84px(.choice) → 작은 그림은 0.56 으로 셈
+    const sumK = two ? Math.max(kk(order[0]) + kk(order[1]), kk(order[2]) + kk(order[3])) : ks.reduce((a, b) => a + Math.max(b, 0.56), 0);
+    // 세로 화면 상한: 폰은 폭 계산이 먼저 걸리고, 세로 태블릿은 상한까지 크게 (예전 170/150px·32vh → 220/200px·36vh)
+    const cap = two ? "min(170px,26vh)" : "min(" + (n === 3 ? 220 : 200) + "px,36vh)";
+    ctx.shelf.style.setProperty("--szp", "clamp(64px,calc((100vw - " + (16 * per + 8 * (per - 1) + 68) + "px) / " + sumK.toFixed(2) + ")," + cap + ")");
     ctx.shelf.innerHTML = "";
+    ctx.shelf.classList.toggle("szTwo", two);
+    const rows = two ? [0, 1].map(() => ctx.shelf.appendChild(U.el("div", "szShelf szSub"))) : null;
     const render = (o) => KP.E(em);
 
     if (lv < 3) {
@@ -8598,7 +8640,7 @@ KP.game({
           ctx.miss(b, o.rank > step ? "이것보다 더 작은 " + U.josa(name, "이/가") + " 있어요!" : "다시 해 봐요!");
         }
       });
-      ctx.shelf.appendChild(b);
+      (rows ? rows[i < 2 ? 0 : 1] : ctx.shelf).appendChild(b);
       return b;
     });
     const hint = () => ctx.hint(() => btns.find((b) => +b.dataset.seq === step), step === 0 ? first : "그다음 큰 걸 눌러요!");

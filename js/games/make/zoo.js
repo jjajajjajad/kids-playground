@@ -510,6 +510,42 @@
           .zpB .e{font-size:34px}
           .zpB.send{min-width:96px;padding:12px 10px}
         }
+        /* 폰 가로(키 작은 가로 화면, 2026-11-09): 예전엔 세로용 쌓기 배치라 그림판이 73px 로 찌그러짐
+           → 색·도구는 왼쪽(색 6칸씩 3줄, 내 물감이 있거나 아주 작은 폰이면 그 칸만 위아래로 밀기), 단추는 오른쪽 2줄, 그림판이 높이를 다 씀 */
+        @media (orientation:landscape) and (max-height:500px){
+          .zpWork{grid-template-areas:"pal paper act";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);padding:0 10px 8px;gap:10px}
+          .zpPal{display:grid;grid-template-columns:repeat(6,auto);gap:6px;align-content:start;justify-content:center;overflow-y:auto;overscroll-behavior:contain;padding:4px 4px 8px}
+          .zpSep{grid-column:1/-1;height:3px}
+          .zpSp{width:min(12.8vh,52px);height:min(12.8vh,52px);font-size:22px;border-width:3px}
+          .zpSp.sel{transform:scale(1.08)}
+          .zpTools{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:0}
+          .zpTool{min-width:0;min-height:64px;justify-content:center;padding:3px 4px;font-size:11px}
+          .zpTool .e{font-size:26px}
+          .zpSize{width:auto;height:64px;border-radius:18px}
+          .zpAct{display:grid;grid-template-columns:repeat(2,minmax(68px,auto));grid-auto-rows:minmax(64px,1fr);align-content:center;gap:8px}
+          .zpB{min-width:68px;padding:4px 6px;font-size:12px}
+          .zpB span{word-break:keep-all;text-align:center}
+          .zpB .e{font-size:28px}
+          .zpB.send{grid-column:1/-1;min-width:0}
+        }
+        @media (orientation:landscape) and (max-height:500px) and (max-width:720px){
+          .zpPal{grid-template-columns:repeat(4,auto)}
+          .zpSp{width:min(14vh,48px);height:min(14vh,48px)}
+          .zpTool,.zpSize{min-height:56px;height:56px}
+        }
+        /* 태블릿 세로(큰 세로 화면): 폰 크기 그대로라 작던 색·도구·단추를 크게 */
+        @media (orientation:portrait) and (min-width:700px){
+          .zpPal{gap:10px}
+          .zpSp{width:64px;height:64px;font-size:28px}
+          .zpTools{gap:10px}
+          .zpTool{min-width:80px;min-height:72px;justify-content:center;font-size:14px}
+          .zpTool .e{font-size:32px}
+          .zpSize{width:64px;height:64px}
+          .zpAct{gap:12px}
+          .zpB{min-width:104px;min-height:84px;font-size:16px}
+          .zpB .e{font-size:36px}
+          .zpB.send{min-width:150px}
+        }
         /* 폰처럼 좁은 세로 화면 */
         /* (2026-11-08) 손가락이 닿기 쉽게: 색 36→최대 52px(키 작은 폰은 조금 작게), 도구·굵기 52px 이상, '보내기' 글자는 낱말 단위로 줄바꿈 */
         @media (max-width:500px){
@@ -1209,6 +1245,10 @@
       KP.zooNew = item.id;
       ctx.paper.classList.add("fly");
       KP.audio.sfx("whoosh");
+      // 열쇠 별: 동물 도안과 같은 기준 — 큰 영역을 3곳 이상(또는 절반 이상) 칠했을 때만 (한 획만 칠하고 보내기 반복 방지, 2026-11-09)
+      const nBig = P.bigRegions(),
+        nDone = nBig - P.blank();
+      if (nDone < Math.min(3, Math.ceil(nBig / 2))) ctx.fewChoice();
       const ok = await ctx.win({ msg: DOLL().SPECIES[sp].name + " 출발!", big: true });
       if (ctx.doll === sp && !ctx.tid) this.dropDoll(ctx);
       ctx.paper.innerHTML = "";
@@ -1493,22 +1533,22 @@
         .z3Bg{position:absolute;inset:0;background-repeat:no-repeat;display:none;z-index:0;pointer-events:none;transition:filter .6s}
         .zooW.mode3d .z3Bg{display:block}
         .z3Bg.night{filter:brightness(.55) saturate(.8) hue-rotate(-8deg)}
-        .z3BgBtn{position:absolute;left:10px;top:8px;z-index:9600;display:none;width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.9);font-size:30px;box-shadow:0 4px 0 rgba(0,0,0,.14);align-items:center;justify-content:center}
+        .z3BgBtn{position:absolute;left:10px;top:8px;z-index:9600;display:none;width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.9);font-size:30px;box-shadow:0 4px 0 rgba(0,0,0,.14);align-items:center;justify-content:center}
         .zooW.mode3d .z3BgBtn{display:flex}
         .z3Load{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9600;background:rgba(255,255,255,.92);border-radius:999px;padding:8px 18px;font-size:clamp(17px,2.2vw,22px);color:#2f3a66;pointer-events:none}
         .zA.doll .zDoll{width:100%;height:100%;object-fit:contain;object-position:50% 100%;display:block;pointer-events:none}
         .zhPic .zDollTh{width:100%;height:100%;object-fit:contain;display:block}
         .z3Tip{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:9600;background:rgba(255,255,255,.8);border-radius:999px;padding:4px 14px;font-size:clamp(13px,1.8vw,17px);color:#2f3a66;pointer-events:none;transition:opacity .6s;white-space:nowrap}
-        .zCount{position:absolute;right:10px;top:8px;z-index:9600;background:#fff;border:4px solid #b9773a;border-radius:999px;padding:4px 14px;min-height:48px;min-width:64px;font-size:clamp(17px,2.2vw,21px);color:#5a3a1a;box-shadow:0 4px 0 #8a5528}
+        .zCount{position:absolute;right:10px;top:8px;z-index:9600;background:#fff;border:4px solid #b9773a;border-radius:999px;padding:4px 14px;min-height:64px;min-width:72px;font-size:clamp(17px,2.2vw,21px);color:#5a3a1a;box-shadow:0 4px 0 #8a5528}
         .zCount.pulse{animation:zPulse 1s ease-in-out 4}
         @keyframes zPulse{50%{transform:scale(1.15)}}
         .zHouse{position:absolute;inset:0;z-index:9900;background:linear-gradient(180deg,#fff4dc,#ffe6b8);display:flex;flex-direction:column;border-radius:inherit}
         .zhTop{display:flex;align-items:center;gap:8px;padding:10px 12px 6px;flex-wrap:wrap}
         .zhTitle{font-size:clamp(20px,3vw,28px);color:#7a4a1e;flex:1 1 auto;white-space:nowrap}
-        .zhClose{min-height:48px}
+        .zhClose{min-height:64px}
         .zhFilter{display:flex;gap:6px;padding:0 12px 6px;overflow-x:auto;scrollbar-width:none;flex:0 0 auto}
         .zhFilter::-webkit-scrollbar{display:none}
-        .zhF{flex:0 0 auto;min-width:52px;min-height:48px;border-radius:16px;background:#fff;border:3px solid #f0cf94;font-size:24px;padding:2px 8px}
+        .zhF{flex:0 0 auto;min-width:64px;min-height:64px;border-radius:16px;background:#fff;border:3px solid #f0cf94;font-size:24px;padding:2px 8px}
         .zhF.sel{background:#ffd34d;border-color:#b9773a}
         .zhGrid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(120px,17vw,170px),1fr));gap:12px;padding:6px 12px 16px;align-content:start}
         .zhCard{position:relative;border-radius:22px;border:4px solid #fff;padding:6px 4px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;box-shadow:0 5px 0 rgba(122,74,30,.25)}
@@ -1518,9 +1558,10 @@
         .zhPic{width:100%;aspect-ratio:200/170}
         .zhPic svg{width:100%;height:100%;display:block;overflow:visible}
         .zhState{font-size:clamp(14px,1.8vw,17px);background:rgba(255,255,255,.9);border-radius:999px;padding:1px 10px;color:#3b3355}
-        .zhFav{position:absolute;right:4px;top:4px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.85);font-size:24px;display:flex;align-items:center;justify-content:center;opacity:.45}
+        .zhFav{position:absolute;right:4px;top:4px;width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.85);font-size:30px;display:flex;align-items:center;justify-content:center;opacity:.45}
         .zhFav.on{opacity:1;background:#ffe27a}
         .zhCard.busy{pointer-events:none;opacity:.6}
+        .zEmpty .btn{min-height:64px} /* (2026-11-09) 터치 64px 이상 */
       `);
       if (!document.querySelector(".zDefs")) document.body.insertAdjacentHTML("beforeend", SHADE_DEFS);
       const W = U.el("div", "zooW");
@@ -1865,7 +1906,8 @@
         newcomer = ctx.animals.find((x) => x.item.id === newId);
       }
       if (newcomer) {
-        ctx.say("새 친구 " + U.josa(tOf(newcomer.item).name, "이/가") + " 동물원에 왔어요! 환영해!");
+        const nn = tOf(newcomer.item).name; // '새가' 는 녹음이 없어 새만 "새 친구 새! …" (자연 음성)
+        ctx.say(nn === "새" ? "새 친구 새! 동물원에 왔어요! 환영해!" : "새 친구 " + U.josa(nn, "이/가") + " 동물원에 왔어요! 환영해!");
         ctx.after(600, () => KP.confetti(140));
       }
       // 자리가 꽉 차 집에서 쉬러 간 친구가 있으면: 환영 인사 뒤에 짧게 + 집 버튼 반짝
@@ -1878,6 +1920,15 @@
         W.appendChild(tip);
         ctx.after(6000, () => (tip.style.opacity = "0"));
         ctx.after(7000, () => tip.remove());
+        // 3D 도 가만히 있으면 손가락이 동물 친구를 가리킴 (2.5D 와 같게, 2026-11-09)
+        ctx.hint(() => {
+          const z = ctx.z3,
+            a = z && z.animals && z.animals[0];
+          if (!a || tok !== ctx._tok) return null;
+          const p = z.toScreen(a, 0.5),
+            r = W.getBoundingClientRect();
+          return { x: r.left + p.x, y: r.top + p.y };
+        }, "동물 친구를 콕 눌러 보세요!");
         ctx.loop((dt) => {
           if (tok !== ctx._tok || !ctx.z3) return false;
           ctx.z3.tick(dt);

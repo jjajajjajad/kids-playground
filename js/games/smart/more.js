@@ -1,6 +1,7 @@
 /* 많은 쪽 찾기 — 접시 중 많은 쪽/적은 쪽을 골라요. 맞히면 접시 위 과일이 하나씩 폴짝 뛰며 함께 세어요.
    1단계: 접시 3개 — 확 많은 접시 1개 + 적은 접시 2개 중 "많은 쪽"
-   2단계: 접시 3개 — 1~2개 차이. 한 접시만 다르고 나머지 두 접시는 같은 개수(그래서 '더 많은/더 적은' 접시가 하나뿐)
+   2단계: 접시 3개 — 세 접시 모두 개수가 달라요(1~2개 차이씩). 가장 많은/적은 접시가 정답
+          (예전엔 두 접시가 같아 '혼자 다른 접시'만 찍으면 맞았음 → 세어 비교해야 맞히게)
    3단계: 위 접시와 "같은 개수" 찾기(접시 3개) 또는 1개 차이 두 접시(최대 9개, 이 판은 열쇠 별 제외)
    (보기 3개 이상이 열쇠 별 규칙 — 2개뿐인 3단계 '1개 차이' 판은 ctx.choices 가 _fewChoice 로 표시) */
 "use strict";
@@ -95,9 +96,10 @@ KP.game({
     const three = !same && lv < 3; // 1·2단계: 접시 3개 (위 접시 없음 → 조금 더 크게, 폰 세로는 2+1 줄)
     ctx.row.classList.toggle("three", three);
     ctx.wrap.style.setProperty("--psl", same ? "clamp(110px,min(22vw,32vh),220px)" : three ? "clamp(130px,min(27vw,46vh),300px)" : "clamp(150px,min(34vw,52vh),360px)");
-    ctx.wrap.style.setProperty("--psp", same ? "clamp(96px,30vw,140px)" : three ? "clamp(120px,40vw,190px)" : "clamp(140px,44vw,200px)");
+    // 세로 화면 상한: 폰(390px)은 vw 값이 먼저 걸려 그대로, 세로 태블릿(820px)은 접시를 더 크게
+    ctx.wrap.style.setProperty("--psp", same ? "clamp(96px,30vw,200px)" : three ? "clamp(120px,40vw,270px)" : "clamp(140px,44vw,290px)");
     ctx.wrap.style.setProperty("--rs", "clamp(110px,min(22vw,26vh),200px)");
-    ctx.wrap.style.setProperty("--rsp", "clamp(110px,40vw,170px)");
+    ctx.wrap.style.setProperty("--rsp", "clamp(110px,40vw,230px)");
     // 자연 음성 클립이 있으면 그 문장, 없으면 이름을 떼어 말하기 ("귤이 더 많은…" → "귤! 더 많은…")
     const nat = (a, b) => (KP.voice._natUrls && KP.voice._natUrls(a) ? a : b);
     let list, target, ask, spoken, wrongMsg, rightMsg;
@@ -121,10 +123,11 @@ KP.game({
         list = U.shuffle([...lows, b]);
         target = b;
       } else if (lv === 2) {
-        a = 1 + U.rand(4);
-        b = a + 1 + U.rand(2);
-        // 정답 접시 하나만 다르고 나머지 두 접시는 같은 개수
-        list = many ? U.shuffle([a, a, b]) : U.shuffle([a, b, b]);
+        // 세 접시 모두 다른 개수 (a < m < b) — 가운데 접시가 있어 '혼자 다른 접시' 찍기로는 못 맞힘
+        a = 1 + U.rand(3);
+        const m = a + 1 + U.rand(2);
+        b = m + 1 + U.rand(2);
+        list = U.shuffle([a, m, b]);
         target = many ? b : a;
       } else {
         a = 3 + U.rand(6);

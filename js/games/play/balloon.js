@@ -89,7 +89,7 @@ KP.game({
         H = field.clientHeight;
       const lv = ctx.level;
       const base = U.clamp(Math.min(W, H) * 0.2, 78, 140);
-      const w = Math.round(base * U.randf(lv === 3 ? 0.8 : 0.9, 1.15) * (kind ? 1.08 : 1));
+      const w = Math.max(78, Math.round(base * U.randf(lv === 3 ? 0.8 : 0.9, 1.15) * (kind ? 1.08 : 1))); // 폰 가로 3단계도 78px 이상
       const col = kind === "star" ? ["#ffcf33", "#fff6c4", "#e09a00"] : U.pick(ctx.COLORS);
       const el = U.el("div", "bl-b" + (kind ? " " + kind : ""));
       el.dataset.tap = "1";
@@ -168,7 +168,7 @@ KP.game({
       if (Math.floor(ctx.count / 10) > Math.floor(prev / 10)) {
         ctx.ms++;
         const big = ctx.ms % 3 === 0;
-        ctx.after(b.kind === "gift" ? 1300 : 250, () => ctx.win({ big, msg: big ? "{부름} 풍선 대장!" : ctx.count + "개 팡팡!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 우와!" : "우와아!" }));
+        ctx.after(b.kind === "gift" ? 1300 : 250, () => (ctx.noStar(), ctx.win({ big, msg: big ? "{부름} 풍선 대장!" : ctx.count + "개 팡팡!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 우와!" : "우와아!" })));
       }
     };
 

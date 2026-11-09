@@ -175,7 +175,7 @@ KP.game({
         ctx.miss(b, "이건 " + ctx.SINO[v] + "! " + self.nj(ctx, step, "을/를") + " 찾아요!");
       }
     };
-    const hint = () => ctx.hint(() => balloons[step - 1], self.nj(ctx, step, "을/를") + " 찾아요!");
+    const hint = () => ctx.hint(() => balloons[step - 1], self.nj(ctx, step, "을/를") + " 찾아요!", { answer: true });
     hint();
   },
 });

@@ -129,7 +129,11 @@ KP.game({
       forcedSoft = false, // 당근 앞 '강제 신호 바꿈' 뒤 첫 실수는 가볍게 (연타하던 아이가 미처 못 멈춤)
       lastHop = 0;
     const DUR = { g: [3.4, 3.2, 2.8][lv - 1], y: 1.3, r: [2.6, 2.6, 2.5][lv - 1] };
+    let sigAt = 0, // 신호가 바뀐 시각
+      fromG = false; // 초록불에서 바뀌었나 (바뀐 직후 누름 = 반응이 늦은 것 → 틀림 아님)
     const setSig = (s, speak = true) => {
+      fromG = sig === "g" && s !== "g";
+      sigAt = performance.now();
       sig = s;
       if (s === "r" && started) sawRed = true;
       ctx.lamps.forEach((l) => l.classList.toggle("on", l.classList.contains(s)));
@@ -220,6 +224,11 @@ KP.game({
           lastTalk = now;
           KP.voice.say("초록불 기다려요");
         }
+      } else if (fromG && performance.now() - sigAt < 500) {
+        // 초록불이 막 바뀐 직후(0.5초 안) 누름: 손가락이 신호보다 조금 늦었을 뿐 → 틀림 아님, 멈칫만 (뒤로 밀림·말 없음)
+        rab.classList.remove("hop", "idle");
+        U.replay(rab, "oops");
+        A.note("E5", { inst: "soft", dur: 0.12, vol: 0.12 });
       } else {
         // 빨간불/노란불 — 깜짝 멈칫
         rab.classList.remove("hop", "idle");

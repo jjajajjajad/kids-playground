@@ -438,8 +438,13 @@ KP.game({
     const U = KP.u;
     const lv = ctx.level;
     // 같은 단계 안에서는 모양이 골고루 나오도록 주머니에서 뽑기
-    if (!ctx.bag[lv] || !ctx.bag[lv].length) ctx.bag[lv] = lv === 3 ? [...ctx.SHAPES[2]] : U.shuffle([...ctx.SHAPES[lv - 1]]);
+    if (!ctx.bag[lv] || !ctx.bag[lv].length) {
+      ctx.bag[lv] = lv === 3 ? [...ctx.SHAPES[2]] : U.shuffle([...ctx.SHAPES[lv - 1]]);
+      // 다시 채운 주머니의 첫 모양이 바로 앞 판과 같으면 뒤로 (같은 모양 연달아 방지)
+      if (ctx.bag[lv].length > 1 && ctx.bag[lv][0] === ctx.lastShape) ctx.bag[lv].push(ctx.bag[lv].shift());
+    }
     const shape = ctx.bag[lv].shift();
+    ctx.lastShape = shape;
     ctx.trBuild(shape, lv);
     if (shape.say) {
       // 화면은 "ㄱ 따라 그려요!", 말(말풍선 다시 듣기·힌트 포함)은 "기역을 따라 그려요!"

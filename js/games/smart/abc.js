@@ -1,7 +1,7 @@
 /* ABC 놀이 — 위쪽 버튼으로 [배우기]/[퀴즈] 전환. (1단계는 배우기로, 2단계부터 퀴즈로 시작)
    배우기: A~Z 카드(대문자·소문자+그림+낱말). 누르면 크게 나오며 영어 발음 "A! Apple!"
            크게 본 카드는 바깥을 누를 때까지 그대로 — [따라 쓰기](ABC 쓰기 공책) · [다른 낱말] · 그림을 누르면 다시 읽기
-   퀴즈 1단계: "Find A!" 글자 2개
+   퀴즈 1단계: "Find A!" 글자 3개 (닮지 않은 글자만 — 쉬움은 그대로, 찍어 맞히기 방지)
    퀴즈 2단계(보기 3개): 글자 이름 듣고 찾기 · 그림 보고 첫 글자(낱말의 첫 글자를 ?로 가림) · 소문자 보고 짝꿍 대문자
    퀴즈 3단계(보기 4개): 위 세 가지 + 모양이 닮은 글자(E·F·H, O·Q·C·G …)
    안내는 영어 + 한국어("에이를 찾아요!") 함께 */
@@ -40,6 +40,7 @@ KP.game({
       .abSpotRow{display:flex;align-items:center;gap:clamp(10px,3vw,40px)}
       .abSpotPic{display:flex;flex-direction:column;align-items:center;border-radius:28px;padding:4px 10px;background:transparent;box-shadow:none}
       .abSpotBtns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+      .abSpotBtns .btn{min-height:64px}
       .abBig .abHintW{font-size:.32em;color:var(--ink);letter-spacing:1px}
       .abBig .abHintW b{color:var(--coral);font-weight:400}
       .abBig .abLow{color:var(--c);font-size:.95em}
@@ -49,6 +50,9 @@ KP.game({
       .abSpotBox .abW{font-size:clamp(28px,4vw,46px);display:block;text-align:center}
       @media (max-aspect-ratio:1/1){.abSpotRow{flex-direction:column;gap:6px}}
       @media (max-height:500px){.abSpotBox .abCh{font-size:clamp(70px,22vh,120px)}.abSpotPic .e{font-size:clamp(60px,20vh,110px)}.abSpotBox .abW{font-size:24px}}
+      @media (orientation:portrait) and (max-height:700px){.abSpotBox .abCh{font-size:clamp(70px,14vh,110px)}.abSpotPic .e{font-size:clamp(60px,12vh,100px)}.abSpotBox .abW{font-size:26px}.abSpotBox{gap:8px}}
+      /* 폰 가로: 글자·그림 | 단추를 옆으로 놓아 카드 아래가 잘리지 않게 */
+      @media (orientation:landscape) and (max-height:500px){.abSpot{padding:6px 0}.abSpotBox{flex-direction:row;gap:clamp(12px,3vw,28px);padding:10px clamp(16px,3vw,28px);border-width:5px;max-height:100%;border-radius:32px}.abSpotBtns{flex-direction:column;flex-wrap:nowrap;gap:10px}.abSpotBox .abCh{font-size:clamp(60px,19vh,110px)}.abSpotPic .e{font-size:clamp(54px,17vh,100px)}.abSpotBox .abW{font-size:22px}}
       .abQ{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(12px,3vh,30px);padding:4px 12px 18px}
       .abBig{font-size:clamp(90px,min(30vw,17vh),160px);line-height:1;background:#fff;border-radius:34px;padding:10px 36px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px}
       .abBig.yay{animation:jumpA .5s 2}
@@ -274,7 +278,8 @@ KP.game({
         pos++;
         mark();
         if (pos < word.length) {
-          ctx.hint(() => tileEls.find((x) => !x.classList.contains("used") && x.textContent === word[pos]), "다음 글자를 찾아요!");
+          // 글자 타일은 .choice 가 아니라서 정답 표시를 직접 (손가락이 가리킨 판은 열쇠 별 없음)
+          ctx.hint(() => tileEls.find((x) => !x.classList.contains("used") && x.textContent === word[pos]), "다음 글자를 찾아요!", { answer: true });
           return;
         }
         // 완성: 한 글자씩 읽고 단어 읽기
@@ -293,12 +298,15 @@ KP.game({
       tiles.appendChild(t);
       return t;
     });
-    ctx.hint(() => tileEls.find((x) => !x.classList.contains("used") && x.textContent === word[pos]), "첫 글자를 찾아요!");
+    ctx.hint(() => tileEls.find((x) => !x.classList.contains("used") && x.textContent === word[pos]), "첫 글자를 찾아요!", { answer: true });
   },
   quiz(ctx) {
     const U = KP.u;
     const lv = ctx.level;
     const self = this;
+    const tk = ctx.spTok; // 탭(배우기·단어 만들기)을 바꾸면 mode() 가 올림
+    const qk = (ctx.qk = (ctx.qk || 0) + 1); // 이번 물음 표시 — 다음 물음으로 넘어가면 지난 물음 다시 말하기 취소
+    let solved = false;
     ctx.q.innerHTML = "";
     let ti = U.rand(ctx.L.length);
     if (ti === ctx.lastI) ti = (ti + 1) % ctx.L.length;
@@ -314,7 +322,7 @@ KP.game({
     }
     ctx.lastKind = kind;
     const reverse = kind === "reverse";
-    const n = lv === 1 ? 2 : lv === 2 ? 3 : 4;
+    const n = lv === 1 ? 3 : lv === 2 ? 3 : 4; // 1단계도 보기 3개(2개면 찍어도 반 — 열쇠 별 규칙). 1·2단계는 닮은 글자를 빼서 쉬움 유지
     const big = U.btn("", "abBig");
     const ans = U.el("div", "abAns");
     ctx.q.append(big, ans);
@@ -323,7 +331,9 @@ KP.game({
       const like = (ctx.LIKE.filter((g) => g.includes(c)).join("") || "").replace(new RegExp(c, "g"), "");
       others = [...new Set(like)].slice(0, n - 1);
     } else others = [];
-    const rest = U.shuffle(ctx.L.map((l) => l[0]).filter((x) => x !== c && !others.includes(x)));
+    const likeC = lv < 3 ? ctx.LIKE.filter((g) => g.includes(c)).join("") : "";
+    let rest = U.shuffle(ctx.L.map((l) => l[0]).filter((x) => x !== c && !others.includes(x)));
+    rest = [...rest.filter((x) => likeC.includes(x)), ...rest.filter((x) => !likeC.includes(x))]; // pop() 은 끝에서 → 닮지 않은 글자부터
     while (others.length < n - 1) others.push(rest.pop());
     const list = U.shuffle([c, ...others]);
     const koOf = (x) => ctx.L.find((l) => l[0] === x)[1];
@@ -351,7 +361,7 @@ KP.game({
       // 소문자 보고 짝꿍 대문자 찾기
       big.style.setProperty("--c", ctx.CC[ti % ctx.CC.length]);
       big.innerHTML = '<span class="abLow">' + c.toLowerCase() + "</span>";
-      en = c.toLowerCase() + "!";
+      en = c + "!"; // 글자 이름은 대문자·소문자가 같음 — 대문자 "E!" 는 26개 모두 자연 음성(소문자 "e!" 는 기기 목소리)
       ask = "짝꿍 글자를 찾아요!";
       wrongTail = ask;
       sayRight = () => {
@@ -381,6 +391,7 @@ KP.game({
       // "이건 비! 에이를 찾아요!" — 이미 있는 조각을 이어 자연 음성으로
       wrongMsg: (v) => "이건 " + koOf(v) + "! " + wrongTail,
       onRight: async (v, b) => {
+        solved = true;
         U.replay(big, "yay");
         U.replay(b, "jump");
         KP.audio.sfx("good");
@@ -388,14 +399,17 @@ KP.game({
         ctx.score.add();
         ctx.round++;
         await ctx.wait(1400);
+        if (tk !== ctx.spTok) return; // 그새 탭을 바꿨으면 그 화면에서 축하하지 않음
         const bg = ctx.round % 5 === 0;
         const ok = await ctx.win({ big: bg, msg: bg ? "{부름} ABC 박사!" : "딩동댕!", quiet: !bg });
-        if (ok && ctx.m === "quiz") self.quiz(ctx);
+        if (ok && ctx.m === "quiz" && tk === ctx.spTok) self.quiz(ctx);
       },
     });
     btns.forEach((b, i) => b.style.setProperty("--c", ctx.CC[(ti + i * 2) % ctx.CC.length]));
-    // 틀리면 영어로 다시 들려주기
-    btns.forEach((b) => !b.dataset.right && b.addEventListener("click", () => ctx.after(1900, () => KP.voice.en(en))));
+    // 틀리면 영어로 다시 들려주기 — 그새 정답을 눌렀거나 물음·탭이 바뀌었으면 말하지 않음
+    btns.forEach((b) => !b.dataset.right && b.addEventListener("click", () => ctx.after(1900, () => {
+      if (!solved && qk === ctx.qk && tk === ctx.spTok && ctx.m === "quiz" && ctx._active) KP.voice.en(en);
+    })));
     ctx.hint(() => btns.find((b) => b.dataset.right), ask);
   },
 });

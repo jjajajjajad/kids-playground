@@ -17,6 +17,17 @@ KP.game({
       .rp-arena{flex:1;min-height:0;position:relative;margin:0 12px 6px;border-radius:24px;overflow:hidden;box-shadow:var(--shadow);
         background:linear-gradient(180deg,#ffe9d6 0%,#fff6ea 50%,#e3f4ff 50%,#cdeaff 100%);display:flex;flex-direction:column;justify-content:space-around;align-items:center;padding:8px}
       .rp-row{display:flex;align-items:center;justify-content:center;gap:clamp(10px,3vw,40px);width:100%}
+      /* 낮고 넓은 화면(폰 가로): 위아래 두 줄이 안 들어가 '내 줄'이 잘렸음 → 곰돌이 | 가위바위보 | 나 를 좌우로 */
+      .rp-arena.wide{flex-direction:row;justify-content:space-evenly;background:linear-gradient(90deg,#ffe9d6 0%,#fff6ea 50%,#e3f4ff 50%,#cdeaff 100%)}
+      .rp-arena.wide .rp-row{width:auto;flex:1 1 0;min-width:0;gap:clamp(8px,2vw,24px)}
+      .rp-arena.wide .rp-mid{min-height:0;flex:0 0 auto;max-width:34%}
+      .rp-arena.wide .rp-res{white-space:normal}
+      .rp-arena.wide .rp-hand.bear{transform:rotate(90deg)}
+      .rp-arena.wide .rp-hand.mine{transform:rotate(-90deg)}
+      .rp-arena.wide .rp-hand.bear.shake{animation-name:rp-shbw}
+      .rp-arena.wide .rp-hand.mine.shake{animation-name:rp-shmw}
+      @keyframes rp-shbw{50%{transform:rotate(90deg) translateY(25%)}}
+      @keyframes rp-shmw{50%{transform:rotate(-90deg) translateY(25%)}}
       .rp-side{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
       .rp-face{width:var(--fs);height:var(--fs);position:relative}
       .rp-face svg{width:100%;height:100%;display:block;overflow:visible}
@@ -100,6 +111,8 @@ KP.game({
     ctx.size = () => {
       const W = arena.clientWidth,
         H = arena.clientHeight;
+      // 두 줄(각 얼굴+이름 약 110px)+가운데가 안 들어가는 낮은 무대는 좌우 배치
+      arena.classList.toggle("wide", H < 330 && W > H * 1.6);
       arena.style.setProperty("--fs", Math.round(U.clamp(Math.min(W * 0.28, H * 0.28), 80, 210)) + "px");
       arena.style.setProperty("--hs", Math.round(U.clamp(Math.min(W * 0.24, H * 0.22), 70, 180)) + "px");
     };
@@ -206,6 +219,7 @@ KP.game({
       if (!ctx._active) return;
       if (ctx.wins % 3 === 0) {
         const big = ctx.wins % 6 === 0;
+        ctx.noStar(); // 가위바위보 결과는 운 → 열쇠 별 없음 (축하·단계는 그대로)
         const ok = await ctx.win({ big, msg: big ? "가위바위보 챔피언!" : "곰돌이를 이겼어요!" });
         if (!ok) return;
       } else KP.confetti(50, innerWidth * 0.75, innerHeight * 0.4);

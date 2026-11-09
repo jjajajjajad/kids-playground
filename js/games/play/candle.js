@@ -207,7 +207,7 @@ KP.game({
       await ctx.wait(1500);
       // 2판에 한 번은 전곡, 나머지는 앞 두 소절만 (판 사이 기다림 줄이기)
       const song = A.SONGS.birthday.notes;
-      const len = A.melody(ctx.round % 2 === 0 ? song : song.slice(0, 12), { beat: 0.36, inst: "bell", vol: 0.22 }) || 1;
+      const len = A.melody(ctx.round % 2 === 1 ? song : song.slice(0, 12), /* 첫 판은 짧게(열 때마다 9초 전곡 대기였음), 2·4번째 판에 전곡 */ { beat: 0.36, inst: "bell", vol: 0.22 }) || 1;
       // 음표가 둥실둥실
       const notes = ["🎵", "🎶", "🎈", "🎉"];
       for (let k = 0; k < 10; k++)
@@ -222,6 +222,7 @@ KP.game({
       ctx.score.add();
       ctx.round++;
       const big = ctx.round % 4 === 0;
+      ctx.noStar(); // 누르기만 하면 꺼지는 촛불(틀릴 수 없음) → 열쇠 별 없음
       const ok = await ctx.win({ big, msg: U.josa(hero[1], "아/야") + " 생일 축하해!", say: "생일 축하해!" });
       if (ok) this.next(ctx);
     };

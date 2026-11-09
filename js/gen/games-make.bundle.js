@@ -53,7 +53,7 @@ KP.game({
       .dcPal::-webkit-scrollbar{display:none}
       .dcSw{flex:0 0 auto;width:var(--s,48px);height:var(--s,48px);border-radius:50%;border:4px solid #fff;box-shadow:0 4px 0 rgba(0,0,0,.14);position:relative;transition:transform .12s}
       .dcSw.mine{--s:clamp(56px,7.6vh,70px);border-color:#ffe7a3}
-      .dcSw.base{--s:clamp(44px,6vh,54px)}
+      .dcSw.base{--s:clamp(56px,7.8vh,64px)}
       .dcSw.light{border-color:#e4e8f2}
       .dcSw.sel{transform:scale(1.14);box-shadow:0 0 0 4px var(--ink),0 4px 0 rgba(0,0,0,.14)}
       .dcSw .tag{position:absolute;right:-8px;top:-8px;font-size:20px;line-height:1;pointer-events:none}
@@ -61,7 +61,7 @@ KP.game({
       .dcSep{flex:0 0 auto;width:3px;align-self:stretch;margin:6px 2px;border-radius:3px;background:repeating-linear-gradient(#c9d2e6 0 6px,transparent 6px 11px)}
       .dcEmpty{flex:0 0 auto;display:flex;align-items:center;gap:8px;background:#fff;border-radius:20px;padding:6px 8px 6px 12px;box-shadow:0 5px 0 rgba(47,58,102,.1);font-size:13.5px;line-height:1.25;color:var(--ink2);max-width:290px}
       .dcEmpty .e{font-size:30px;flex:0 0 auto}
-      .dcEmpty button{flex:0 0 auto;background:var(--cat);color:#fff;border-radius:16px;padding:8px 10px;font-size:14px;box-shadow:0 4px 0 color-mix(in srgb,var(--cat) 60%,#000);min-height:52px;display:flex;align-items:center;gap:4px}
+      .dcEmpty button{flex:0 0 auto;background:var(--cat);color:#fff;border-radius:16px;padding:8px 10px;font-size:14px;box-shadow:0 4px 0 color-mix(in srgb,var(--cat) 60%,#000);min-height:64px;display:flex;align-items:center;gap:4px}
       .dcEmpty button .e{font-size:24px}
       .dcActs{grid-area:acts;display:flex;gap:8px;justify-content:center}
       .dcB{background:#fff;border-radius:20px;box-shadow:0 6px 0 rgba(47,58,102,.13);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 8px;min-width:72px;min-height:72px;font-size:14px;line-height:1.1;flex:1;max-width:130px}
@@ -74,6 +74,8 @@ KP.game({
         .dcSw.mine{--s:56px}
         .dcEmpty{order:9;padding:4px;background:none;box-shadow:none}
         .dcEmpty > .e,.dcEmpty > span{display:none}
+        .dcSw.base{--s:clamp(50px,6.6vh,56px)}
+        .dcEmpty button{flex-direction:column;min-width:64px;font-size:12px;padding:6px 8px;gap:0}
       }
       @media (orientation:landscape) and (min-height:500px){
         .dcW{grid-template-areas:"pal board acts";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);gap:14px;padding:2px 14px 14px}
@@ -86,6 +88,22 @@ KP.game({
         .dcB{min-width:104px;flex:0 0 auto;max-width:none;min-height:84px;font-size:15px}
         .dcB .e{font-size:36px}
         .dcB.main{flex:0 0 auto;max-width:none;min-height:104px}
+      }
+      /* 폰 가로(키 작은 가로 화면, 2026-11-09): 예전엔 세로용 쌓기 배치라 종이가 186×116px 로 작았음
+         → 물감은 왼쪽 2칸 줄, 단추는 오른쪽 세로줄, 종이가 높이를 다 씀 */
+      @media (orientation:landscape) and (max-height:500px){
+        .dcW{grid-template-areas:"pal board acts";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);gap:10px;padding:0 10px 8px}
+        .dcPal{display:grid;grid-template-columns:repeat(2,auto);justify-content:center;align-content:center;justify-items:center;
+          overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;max-height:100%;padding:8px 10px;gap:10px}
+        .dcSw.base,.dcSw.mine{--s:min(16.5vh,64px)}
+        .dcSep{width:auto;height:3px;margin:2px 6px;grid-column:1/-1;background:repeating-linear-gradient(90deg,#c9d2e6 0 6px,transparent 6px 11px)}
+        .dcEmpty{grid-column:1/-1;padding:0;background:none;box-shadow:none;max-width:none;justify-content:center}
+        .dcEmpty > .e,.dcEmpty > span{display:none}
+        .dcEmpty button{flex-direction:column;min-height:64px;min-width:64px;font-size:12px;padding:6px 8px}
+        .dcActs{flex-direction:column;justify-content:center;gap:8px;min-height:0}
+        .dcB{flex:0 1 84px;max-width:none;min-width:84px;min-height:64px;font-size:13px}
+        .dcB .e{font-size:28px}
+        .dcB.main{flex:0 1 96px;max-width:none;min-height:64px}
       }
     `);
 
@@ -2018,6 +2036,12 @@ async function loadGLB(url) {
       }
       return n;
     }
+    /** '다 칠했다'·열쇠 별 판정에 쓰는 큰 영역 수 (blank() 와 같은 기준) */
+    function bigRegions() {
+      let n = 0;
+      for (let r = 0; r < B.nReg; r++) if (B.regStart[r + 1] - B.regStart[r] >= 1500 * B.f * B.f) n++;
+      return n;
+    }
     /** 마법 색칠: 부위마다 다른 색 */
     function magic(colors) {
       save();
@@ -2050,7 +2074,7 @@ async function loadGLB(url) {
     }
     reset();
     return {
-      st, wrap, B, reset, compose, cutout, isEmpty, blank, magic, clear, back, layers, setLayers, box: mask.box,
+      st, wrap, B, reset, compose, cutout, isEmpty, blank, bigRegions, magic, clear, back, layers, setLayers, box: mask.box,
       canUndo: () => undo.length > 0,
       destroy() {
         undo.length = 0;
@@ -2122,6 +2146,11 @@ KP.game({
         .dw-pal,.dw-pal.mine3{grid-template-columns:repeat(7,var(--sw));gap:8px}
         .dw-acts{grid-template-columns:repeat(4,var(--ab));gap:8px;justify-content:end}
       }
+      /* 태블릿 세로(큰 세로 화면, 2026-11-09): 폰 규칙 그대로라 색 50·단추 56px → 64px 이상 */
+      @media (orientation:portrait) and (min-width:700px){
+        .dw{--tb:72px;--sw:64px;--ab:64px;padding-top:8px}
+        .dw-pal,.dw-pal.mine3{grid-template-columns:repeat(7,var(--sw));gap:10px 14px}
+      }
       /* 폰 세로(2026-11-08): 도구 6 + 굵기 3 + 단추 4 를 한 줄 5칸씩 3줄로(가운데 맞춤) → 모두 폰에서 64px 안팎.
          (도구·굵기·단추 묶음은 display:contents 로 풀어서 .dw 의 10칸 격자에 2칸씩 차지) */
       @media (orientation:portrait) and (max-width:480px){
@@ -2136,12 +2165,17 @@ KP.game({
         .dw-pal,.dw-pal.mine3{grid-column:1 / -1;grid-row:5;grid-template-columns:repeat(5,var(--sw));gap:6px 8px}
       }
       @media (orientation:landscape) and (max-height:500px){
-        .dw{gap:6px 8px;padding:2px 10px 8px;--tb:46px;--sw:44px;--ab:44px}
+        /* (2026-11-09) 단추 44px → 도구 64px·색·굵기·단추 56px (키 작은 폰은 조금 작게). 내 물감이 많으면 색 칸만 위아래로 밀기 */
+        .dw{gap:6px 8px;padding:0 10px 8px;--tb:min(16.4vh,64px);--sw:min(14.4vh,56px);--ab:min(14.4vh,56px)}
         .dw-tools{display:grid;grid-template-columns:repeat(3,var(--tb));gap:8px;align-content:center;justify-content:center}
         .dw-tool{border-radius:16px}
+        .dw-tool.sel{transform:scale(1.04)}
         .dw-sizes{flex-direction:row;gap:8px}
-        .dw-pal,.dw-pal.mine3{grid-template-columns:repeat(4,var(--sw));gap:6px}
+        .dw-pal,.dw-pal.mine3{grid-template-columns:repeat(4,var(--sw));gap:6px;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:5px;align-content:start}
         .dw-acts{grid-template-columns:repeat(4,var(--ab));gap:6px}
+      }
+      @media (orientation:landscape) and (max-height:500px) and (max-width:720px){
+        .dw{--tb:52px;--sw:46px;--ab:46px}
       }
     `);
 
@@ -2890,7 +2924,7 @@ KP.game({
             if (dr.paper) ctx.setPaper(dr.paper);
             ctx.loadInto(dr.ink || dr.img, () => ctx.markLoaded(true));
             KP.voice.say("그리던 그림이에요. 이어서 그려 봐요!");
-          } else KP.voice.say("손가락으로 쓱쓱 그려 봐요! 아래에서 색을 골라요.");
+          } else KP.voice.say(innerWidth > innerHeight ? "손가락으로 쓱쓱 그려 봐요!" : "손가락으로 쓱쓱 그려 봐요! 아래에서 색을 골라요."); // 가로 화면은 색이 오른쪽
         });
       } else KP.voice.say("손가락으로 쓱쓱 그려 봐요!");
       ctx.loadedOnce = true;
@@ -2984,7 +3018,7 @@ KP.game({
       .fc-col{width:clamp(36px,5.4vh,46px);height:clamp(36px,5.4vh,46px);border-radius:50%;border:4px solid #fff;box-shadow:0 3px 0 rgba(0,0,0,.14);background-image:radial-gradient(circle at 35% 30%,rgba(255,255,255,.55),rgba(255,255,255,0) 45%,rgba(0,0,0,.18))!important}
       .fc-col.sel{transform:scale(1.15);box-shadow:0 0 0 3px var(--ink)}
       .fc-acts{display:flex;gap:10px;justify-content:center;flex:0 0 auto}
-      .fc-act{font-size:clamp(20px,2.6vw,26px);padding:10px 18px;min-height:62px;white-space:nowrap}
+      .fc-act{font-size:clamp(20px,2.6vw,26px);padding:10px 18px;min-height:64px;white-space:nowrap}
       .fc-act .e{font-size:1.5em}
       /* 사진 줄 (폴라로이드) */
       .fc-line{position:relative;flex:0 0 auto;height:clamp(84px,12vh,112px);display:none}
@@ -3014,7 +3048,7 @@ KP.game({
       .fc-grid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(92px,15vmin,130px),1fr));gap:16px 12px;align-content:start;padding:10px 6px}
       .fc-grid .fc-pol .ph{aspect-ratio:1/1;height:auto}
       .fc-obar{display:flex;gap:10px;justify-content:center;flex:0 0 auto;flex-wrap:wrap}
-      .fc-obar .btn{min-height:62px;font-size:clamp(20px,2.6vw,26px);padding:8px 18px}
+      .fc-obar .btn{min-height:64px;font-size:clamp(20px,2.6vw,26px);padding:8px 18px}
       .fc-obar .btn .e{font-size:1.4em}
       .fc-pick{flex-direction:row;align-items:center;justify-content:center;gap:clamp(16px,4vw,48px)}
       .fc-snap{position:relative;flex:0 0 auto;width:min(38vmin,300px);transform:rotate(-3deg);animation:popIn .4s backwards}
@@ -3049,7 +3083,7 @@ KP.game({
         .fc-act{font-size:20px;padding:6px 12px;min-height:64px;min-width:68px}
         .fc-act .t{display:none}
         .fc-act.primary .t{display:inline}
-        .fc-obar .btn{font-size:19px;padding:6px 12px;min-height:56px}
+        .fc-obar .btn{font-size:19px;padding:6px 12px;min-height:64px;min-width:64px}
       }
       @media (orientation:portrait) and (max-height:720px){
         .fc{grid-template-rows:minmax(136px,1fr) auto}
@@ -3058,17 +3092,36 @@ KP.game({
         .fc-col{width:40px;height:40px}
         .fc-act{min-height:56px}
       }
+      /* 태블릿 세로(큰 세로 화면, 2026-11-09): 폰 크기 그대로라 탭·단추 56px → 72px */
+      @media (orientation:portrait) and (min-width:700px){
+        .fc-tab{height:72px;font-size:36px}
+        .fc-opts{grid-auto-rows:clamp(84px,9vh,110px)}
+        .fc-act{min-height:72px;font-size:24px}
+        .fc-col{width:64px;height:64px}
+        .fc-obar .btn{min-height:72px}
+      }
+      /* 폰 가로(2026-11-09): 머리색 점 36px·보기 46px·단추 52px 로 작고 보기 둘째 줄이 잘렸음
+         → 폰 세로처럼 '🎨 머리 색' 탭을 쓰고(점 줄 숨김), 단추 셋은 오른쪽 세로줄로 빼서 탭·보기가 64px 두 줄씩 다 보이게 */
       @media (orientation:landscape) and (max-height:500px){
-        .fc-opts{grid-auto-rows:minmax(46px,1fr);overflow-y:auto}
-        .fc-act{min-height:52px;font-size:19px;padding:4px 12px}
+        .fc{grid-template-columns:minmax(0,1fr) minmax(300px,44vw) auto;grid-template-rows:auto minmax(0,1fr);grid-template-areas:"face tabs acts" "face opts acts";gap:6px 8px;padding:0 10px 8px}
+        .fc-panel{display:contents}
+        .fc-tabs{grid-area:tabs;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+        .fc-tab{height:64px;font-size:28px;border-radius:14px}
+        .fc-tab.sel{transform:none}
+        .fc-tab.hc{display:flex}
+        .fc-colors{display:none}
+        .fc-opts{grid-area:opts;grid-auto-rows:minmax(64px,1fr);overflow-y:auto;padding:6px;gap:6px}
+        .fc-acts{grid-area:acts;flex-direction:column;justify-content:center;gap:8px}
+        .fc-act{min-height:64px;min-width:76px;font-size:24px;padding:4px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0}
         .fc-act .t{display:none}
-        .fc-act.primary .t{display:inline}
+        .fc-act.primary{min-height:96px}
+        .fc-act.primary .t{display:inline;font-size:14px;white-space:normal;word-break:keep-all;text-align:center;line-height:1.15}
         .fc-ov{padding:8px 10px;gap:6px}
         .fc-fam{grid-template-columns:repeat(6,minmax(0,1fr));padding:8px 8px 4px;gap:8px}
         .fc-fam .fc-pol{width:72%}
         .fc-fam .tag{font-size:24px}
         .fc-grid{grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:10px}
-        .fc-obar .btn{min-height:50px;font-size:18px;padding:4px 12px}
+        .fc-obar .btn{min-height:64px;min-width:64px;font-size:18px;padding:4px 12px}
         .fc-snap{width:min(46vh,220px)}
         .fc-pick .q{font-size:34px}
         .fc-whos{gap:8px}
@@ -4178,7 +4231,7 @@ KP.game({
       .gr{flex:1;min-height:0;position:relative;margin:0 12px 12px;border-radius:28px;overflow:hidden;box-shadow:var(--shadow);
         background:linear-gradient(#8fd3ff,#d9f2ff 58%,#a7df86 58%,#7fcc63)}
       .gr-hill{position:absolute;left:-10%;right:-10%;top:52%;height:20%;background:#b6e797;border-radius:50% 50% 0 0}
-      .gr-sun{position:absolute;right:3%;top:3%;width:clamp(100px,17vh,160px);height:clamp(100px,17vh,160px);display:flex;align-items:center;justify-content:center;z-index:2}
+      .gr-sun{position:absolute;right:3%;top:3%;width:clamp(100px,17vh,160px);height:clamp(100px,17vh,160px);display:flex;align-items:center;justify-content:center;z-index:3}
       .gr-sun .e{width:100%;height:100%;filter:drop-shadow(0 0 18px rgba(255,200,40,.7));animation:grSun 6s linear infinite}
       @keyframes grSun{to{transform:rotate(360deg)}}
       .gr-sun.shine::before{content:"";position:absolute;inset:-60%;border-radius:50%;background:radial-gradient(circle,rgba(255,236,120,.9),rgba(255,236,120,0) 65%);animation:grGlow 1.4s ease-out}
@@ -4187,10 +4240,11 @@ KP.game({
       @keyframes grBeam{from{opacity:0}25%{opacity:1}to{opacity:0}}
       .gr-cloud{position:absolute;top:8%;font-size:clamp(50px,9vh,90px);opacity:.95;animation:grCloud 40s linear infinite}
       @keyframes grCloud{from{transform:translateX(-30vw)}to{transform:translateX(110vw)}}
-      .gr-garden{position:absolute;left:12px;top:12px;z-index:3;display:flex;align-items:center;gap:6px;font-size:clamp(18px,2.4vw,24px);background:#fff;border-radius:20px;padding:8px 14px;box-shadow:var(--shadow);min-height:60px}
+      .gr-garden{position:absolute;left:12px;top:12px;z-index:3;display:flex;align-items:center;gap:6px;font-size:clamp(18px,2.4vw,24px);background:#fff;border-radius:20px;padding:8px 14px;box-shadow:var(--shadow);min-height:64px}
       .gr-garden .e{font-size:1.6em}
       .gr-garden b{font-weight:400;color:var(--coral)}
-      .gr-pots{position:absolute;left:0;right:0;bottom:3%;display:flex;justify-content:space-evenly;align-items:flex-end;z-index:2}
+      .gr-pots{position:absolute;left:0;right:0;bottom:3%;display:flex;justify-content:space-evenly;align-items:flex-end;z-index:2;pointer-events:none}
+      .gr-pots>.gr-pot{pointer-events:auto}
       .gr-pot{position:relative;width:clamp(100px,19vw,200px);aspect-ratio:100/170;transition:transform .2s}
       .gr-pot svg{width:100%;height:100%;overflow:visible}
       .gr-pot.over{transform:scale(1.06)}
@@ -4207,7 +4261,7 @@ KP.game({
       .gr-view{position:absolute;inset:0;z-index:8;display:none;flex-direction:column;background:linear-gradient(#bfe8ff,#e9f8ff 30%,#b8e79a 30%,#8fd56d)}
       .gr-view.show{display:flex;animation:enter .3s}
       .gr-vtop{display:flex;align-items:center;gap:10px;padding:12px 14px;font-size:clamp(20px,3vw,30px)}
-      .gr-vtop .btn{font-size:clamp(18px,2.4vw,22px)}
+      .gr-vtop .btn{font-size:clamp(18px,2.4vw,22px);min-height:64px}
       .gr-vscroll{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;position:relative;z-index:1}
       .gr-vgrid{margin-top:auto;display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:2px clamp(6px,2vw,22px);padding:20px 14px 18px}
       .gr-vgrid .gr-vf{min-width:var(--fs,74px)}
@@ -4225,6 +4279,8 @@ KP.game({
       @keyframes grSway{50%{transform:rotate(6deg)}}
       .gr-vempty{grid-column:1/-1;width:100%;text-align:center;font-size:22px;color:#2e6b2a;padding-top:40px}
       @media (max-aspect-ratio:1/1){ .gr{margin:0 10px 10px} .gr-pot{width:30vw} .gr-can,.gr-ghost{width:28vw} .gr-can{top:36%} }
+      /* 폰 가로(키 작은 가로 화면): 화분 상자가 해님 자리까지 올라가 해님을 덮던 문제(2026-11-09) → 화분·물뿌리개를 높이 기준으로 줄임 */
+      @media (orientation:landscape) and (max-height:500px){ .gr-pot{width:min(19vw,25vh)} .gr-sun{width:clamp(80px,24vh,120px);height:clamp(80px,24vh,120px)} .gr-can,.gr-ghost{width:min(15vw,30vh)} .gr-can{top:30%} }
     `);
 
     const FLOWERS = [
@@ -4233,6 +4289,8 @@ KP.game({
     ];
     KP.loadE(FLOWERS.map((f) => f[0]).concat(["🦋", "🐝"]));
     const STAGE_NAMES = ["씨앗", "싹", "잎", "봉오리", "꽃"];
+    // "튤립 꽃이 피었어요!" — 꽃 이름 + 공용 꼬리말 조각이라 모두 자연 음성 ("튤립이 피었어요!" 는 해바라기만 녹음돼 있었음, 2026-11-09)
+    const bloomMsg = (n) => (n.endsWith("꽃") ? n + "! 꽃이 피었어요!" : n + " 꽃이 피었어요!");
     // 자라는 순서: 씨앗(0) → 싹(1) → 봉오리(3) → 꽃(4). '잎(2)' 단계는 건너뜀 (예전에 저장된 2 는 3 으로)
     const NEXT = { 0: 1, 1: 3, 2: 3, 3: 4 };
 
@@ -4600,12 +4658,12 @@ KP.game({
         A.sfx("sparkle");
         updateGardenBtn();
         U.replay(bGarden, "bump");
-        ctx.say(U.josa(name, "이/가") + " 피었어요! 내 정원에 심었어요.");
+        ctx.say(bloomMsg(name) + " 내 정원에 심었어요.");
       }
       // 내가 키운 꽃을 볼 시간 (꽃을 콕 누르면 이름을 말함)
       await ctx.wait(3200);
       ctx.round = (ctx.round || 0) + 1;
-      const ok = await ctx.win({ big: ctx.round % 3 === 0, msg: U.josa(FLOWERS[pots[bloomed[0]].kind][1], "이/가") + " 피었어요!" });
+      const ok = await ctx.win({ big: ctx.round % 3 === 0, msg: bloomMsg(FLOWERS[pots[bloomed[0]].kind][1]) });
       if (!ok) return;
       // 핀 꽃은 정원으로 날아가고 새 씨앗
       for (const i of bloomed) {
@@ -4738,6 +4796,16 @@ KP.game({
       .ic-bub{position:absolute;z-index:2;left:4%;top:18%;max-width:48%;background:#fff;border-radius:24px;padding:10px 16px;box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;font-size:clamp(18px,2.6vw,26px);line-height:1.25;animation:popIn .4s cubic-bezier(.2,1.5,.4,1)}
       .ic-bub::after{content:"";position:absolute;left:30%;bottom:-16px;border:10px solid transparent;border-top:16px solid #fff}
       .ic-bub svg{height:clamp(70px,12vh,120px);width:auto;flex:0 0 auto}
+      /* 주문 그림 줄 (2026-11-09): 글 못 읽는 아이가 그림만 보고 맞히게 — 스쿱을 개수만큼, 콘/컵·토핑도 크게 */
+      .ic-bub.has-ord{flex-direction:column;gap:4px}
+      .ic-shop.has-ord .ic-cust{bottom:4%}
+      .ic-bub.has-ord > svg{display:none}
+      .ic-ord .g{display:flex;align-items:center;gap:2px;white-space:nowrap}
+      .ic-ord{flex:0 0 100%;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 6px;--ic:clamp(56px,min(9vw,11vh),84px)}
+      .ic-bub .ic-ord svg{width:var(--ic);height:calc(var(--ic) * .75)}
+      .ic-bub .ic-ord .ct svg{width:calc(var(--ic) * .7);height:calc(var(--ic) * .75)}
+      .ic-ord .e{font-size:calc(var(--ic) * .62)}
+      .ic-ord .plus{font-size:calc(var(--ic) * .4);color:#c7a2b6;margin:0 -2px}
       .ic-cone{position:absolute;right:6%;bottom:6%;height:86%;aspect-ratio:200/370;transition:transform .7s cubic-bezier(.5,0,.5,1),opacity .5s}
       .ic-cone svg{width:100%;height:100%;overflow:visible}
       .ic-cone.serve{opacity:0}
@@ -4769,6 +4837,7 @@ KP.game({
         .ic-b .e{font-size:32px}
         .ic-bub{max-width:62%;font-size:17px;padding:8px 12px}
         .ic-bub svg{height:64px}
+        .ic-bub.has-ord{font-size:15px}
         .ic-cust{width:44%;bottom:24%}
         .ic-animal{font-size:clamp(80px,11vh,120px)}
       }
@@ -4783,17 +4852,31 @@ KP.game({
         .ic-mix .ic-b,.ic-ac .ic-b{flex-direction:column;gap:1px;font-size:12.5px}
         .ic-animal{font-size:clamp(76px,10vh,110px)}
       }
+      /* 태블릿 세로(큰 세로 화면): 폰 크기 그대로라 단추·손님이 작고 화면이 비어 보였음 */
+      @media (orientation:portrait) and (min-width:700px){
+        .ic-ctl{gap:12px}
+        .ic-row,.ic-mix{gap:12px}
+        .ic-b{min-height:clamp(76px,8vh,96px);font-size:16px;border-radius:20px}
+        .ic-b svg{width:50px;height:50px}
+        .ic-b .e{font-size:42px}
+        .ic-animal{font-size:clamp(130px,15vh,190px)}
+        .ic-bub,.ic-bub.has-ord{font-size:20px}
+        .ic-ord{--ic:84px}
+      }
       @media (orientation:landscape) and (max-height:500px){
         .ic{gap:8px;padding:0 10px 8px}
         .ic-ctl{width:clamp(360px,46vw,420px);gap:8px}
-        .ic-fl{grid-template-columns:repeat(6,1fr);gap:6px}
+        .ic-fl{grid-template-columns:repeat(3,1fr);gap:6px}
         .ic-mix{display:grid;grid-template-columns:2fr 3fr;gap:6px}
         .ic-ac{gap:6px}
-        .ic-b{min-height:60px;border-radius:16px;font-size:13px;padding:4px 2px}
+        .ic-b{min-height:64px;border-radius:16px;font-size:13px;padding:2px 2px}
+        .ic-fl .ic-b{flex-direction:row;gap:6px;font-size:14px}
         .ic-b svg{width:32px;height:32px}
         .ic-b .e{font-size:28px}
-        .ic-bub{max-width:70%;font-size:16px;padding:6px 10px;top:12%}
+        .ic-bub{max-width:72%;font-size:16px;padding:6px 10px;top:12%}
         .ic-bub svg{height:48px}
+        .ic-bub.has-ord{gap:2px;font-size:14px}
+        .ic-ord{--ic:clamp(50px,14.5vh,56px)}
         .ic-cust{width:46%}
         .ic-animal{font-size:clamp(70px,22vh,100px)}
       }
@@ -4988,7 +5071,7 @@ KP.game({
       let t = parts.join(", ");
       if (o.cont) t = (o.cont === "cup" ? "컵에 " : "콘에 ") + t;
       t += " 주세요!";
-      if (o.top) t += " " + { cherry: "체리", sprinkle: "스프링클", chip: "초코칩" }[o.top] + "도 올려 주세요!";
+      if (o.top) t += " " + { cherry: "체리", sprinkle: "스프링클", chip: "초코칩" }[o.top] + " 주세요!"; // "체리도 올려 주세요!" 는 녹음이 없어 자연 음성 조각으로
       return t;
     }
     function orderPic(o) {
@@ -4999,6 +5082,17 @@ KP.game({
         for (let i = 0; i < n; i++) scoops.push(+f);
       });
       return iceSVG({ cont: o.cont || "cone", scoops, sprinkle: o.top === "sprinkle", cherry: o.top === "cherry", chip: o.top === "chip" });
+    }
+    /** 주문 그림 줄: 스쿱 아이콘을 개수만큼 (+ 4단계 콘/컵·토핑). 자유 주문은 없음 */
+    function orderRow(o) {
+      if (o.free) return "";
+      // 묶음(같은 맛 스쿱들, 콘/컵, 토핑)끼리는 줄이 바뀌지 않게 → 좁은 화면에서 묶음 단위로 다음 줄
+      const gs = [];
+      if (o.only != null) gs.push(scoopIcon(o.only));
+      else Object.entries(o.counts).forEach(([f, n]) => gs.push(Array.from({ length: n }, () => scoopIcon(+f)).join("")));
+      if (o.cont) gs.push('<span class="ct">' + CONTS[o.cont === "cone" ? 0 : 1][2] + "</span>");
+      if (o.top) gs.push(KP.E(TOPS.find((t) => t[0] === o.top)[2]));
+      return '<div class="ic-ord">' + gs.map((g, k) => '<span class="g">' + (k ? '<span class="plus">+</span>' : "") + g + "</span>").join("") + "</div>";
     }
     function newCustomer() {
       busy = false;
@@ -5021,7 +5115,10 @@ KP.game({
       });
       ctx.after(650, () => {
         const txt = orderText(order);
-        bub.innerHTML = orderPic(order) + "<span>" + txt + "</span>";
+        const row = orderRow(order);
+        bub.innerHTML = orderPic(order) + "<span>" + txt + "</span>" + row;
+        bub.classList.toggle("has-ord", !!row);
+        shop.classList.toggle("has-ord", !!row); // 주문 그림 줄로 말풍선이 커지면 손님은 바닥 쪽으로 (가려지지 않게)
         bub.style.display = "";
         U.replay(bub, "pop");
         ctx.say(who[1] + " 손님이 왔어요! " + (order.free ? "맛있는 아이스크림을 만들어 드려요." : txt));
@@ -5048,7 +5145,9 @@ KP.game({
       return bServe;
     }
     function hint() {
-      ctx.hint(need, order && !order.free ? orderText(order) : "맛을 골라 아이스크림을 만들어요!");
+      // 손가락이 다음에 누를 맛·콘/컵·토핑(정답)을 가리키면 그 판은 열쇠 별 없음. 다 맞게 만든 뒤 '드리기'를 가리키는 것은 괜찮음
+      const answer = !!order && !order.free && need() !== bServe;
+      ctx.hint(need, order && !order.free ? orderText(order) : "맛을 골라 아이스크림을 만들어요!", { answer });
     }
     function afterChange() {
       hint();
@@ -5057,20 +5156,21 @@ KP.game({
       if (order.free) return null;
       if (order.only != null) {
         const bad = st.scoops.find((f) => f !== order.only);
-        return bad == null ? null : U.josa(FLAVORS[bad][0], "은/는") + " 안 시켰어요!";
+        return bad == null ? null : FLAVORS[bad][0] + "! 안 시켰어요!";
       }
       const have = {};
       st.scoops.forEach((f) => (have[f] = (have[f] || 0) + 1));
-      const CNT = ["", "한", "두", "세", "네", "다섯"];
+      // 틀림 안내는 주문 문장·맛 이름 + 공용 조각으로만 (모두 자연 음성, 2026-11-09 — 예전 "딸기가 두 개 있어야 해요!" 류 47개는 기기 음성이었음)
+      const CN = ["", "하나", "두 개", "세 개"];
       for (const [f, n] of Object.entries(order.counts)) {
         const h = have[f] || 0,
           nm = FLAVORS[f][0];
-        if (h < n) return U.josa(nm, "이/가") + " " + CNT[n] + " 개 있어야 해요!";
-        if (h > n) return U.josa(nm, "이/가") + " 너무 많아요! " + CNT[n] + " 개만 주세요.";
+        if (h < n) return nm + " " + CN[n] + " 주세요!";
+        if (h > n) return "너무 많아요! " + nm + " " + CN[n] + " 주세요!";
       }
-      for (const f of Object.keys(have)) if (!(f in order.counts)) return U.josa(FLAVORS[f][0], "은/는") + " 안 시켰어요!";
-      if (order.cont && st.cont !== order.cont) return (order.cont === "cup" ? "컵" : "콘") + "에 담아 주세요!";
-      if (order.top && !st[order.top]) return { cherry: "체리", sprinkle: "스프링클", chip: "초코칩" }[order.top] + "도 올려 주세요!";
+      for (const f of Object.keys(have)) if (!(f in order.counts)) return FLAVORS[f][0] + "! 안 시켰어요!";
+      if (order.cont && st.cont !== order.cont) return (order.cont === "cup" ? "컵" : "콘") + "에 주세요!";
+      if (order.top && !st[order.top]) return { cherry: "체리", sprinkle: "스프링클", chip: "초코칩" }[order.top] + " 주세요!";
       return null;
     }
     ctx.tap(bServe, async () => {
@@ -5081,7 +5181,7 @@ KP.game({
       }
       const wrong = check();
       if (wrong) {
-        ctx.miss(animal, "음… " + wrong);
+        ctx.miss(animal, wrong);
         U.replay(bub, "pop");
         return;
       }
@@ -5300,7 +5400,8 @@ KP.game({
       }
       @media (orientation:landscape) and (max-height:500px){
         /* 폰 가로: 5칸 격자 → 기본 14색이 3줄에 다 보임(무지개·반짝이 안 잘림), 내 물감은 위 한 줄 가로 스크롤 (2026-11-08) */
-        .pb{gap:8px;padding:2px 10px 8px;--sw:min(13.6vh,56px);--ab:min(16vh,62px)}
+        .pb{gap:8px;padding:2px 10px 8px;--sw:min(14.4vh,56px);--ab:min(16.4vh,64px)}
+        .pb-tool{min-width:var(--ab);height:var(--ab);font-size:calc(var(--ab) * .5)} /* 도구(🪣/🖍️) 64px (2026-11-09) */
         .pb-acts{gap:6px}
         .pb-pal,.pb-pal.mine3{grid-template-columns:repeat(5,var(--sw));gap:6px;align-content:center;overflow-y:auto;padding:8px 10px}
         .pb-mine{grid-column:1/-1;display:flex;gap:6px;overflow-x:auto;overflow-y:hidden;padding:7px 9px;margin:-7px -9px;scrollbar-width:none;touch-action:pan-x}
@@ -6125,10 +6226,10 @@ KP.game({
         .plW{grid-template-areas:"bowl jars" "bowl acts" "bowl mine";grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto;align-content:center;padding:4px 10px 6px;gap:6px 12px}
         .plBowlCell{grid-row:1/4;align-self:stretch}
         .plJarsCell .psJars{flex-wrap:nowrap;gap:4px;padding:4px 6px 6px}
-        .plJarsCell .psJar{width:54px;height:74px}
+        .plJarsCell .psJar{width:64px;height:min(22vh,86px)} /* (2026-11-09) 물감 통·단추 64px 이상 */
         .plJarsCell .psJar .jn{font-size:12px}
         .plActs{flex-wrap:nowrap;gap:5px}
-        .plB{min-width:64px;min-height:58px;font-size:12px;padding:4px 5px}
+        .plB{min-width:66px;min-height:66px;font-size:12px;padding:4px 5px}
         .plB .e{font-size:24px}
         .plB .pi{width:30px;height:26px}
         .plMine{justify-self:stretch}
@@ -6304,10 +6405,10 @@ KP.game({
     if (isNew) {
       KP.audio.sfx("levelup");
       await ctx.win({ msg: "새 색깔 발견! " + nm.n + "!", big: true });
-      if (ctx._active) KP.voice.say("도감에 " + U.josa(nm.n, "이/가") + " 생겼어요! 마음에 들면 내 물감에 담아요.");
+      if (ctx._active) KP.voice.say(nm.n + "! 도감에 생겼어요! 마음에 들면 내 물감에 담아요."); // 색 이름 + 공용 조각 → 자연 음성 (2026-11-09)
     } else if (nm.n !== ctx.lastName) {
       KP.audio.sfx("sparkle");
-      KP.voice.say(U.josa(nm.n, "이/가") + " 됐어요!");
+      KP.voice.say(nm.n + "! 됐어요!");
     }
     ctx.lastName = nm.n;
   },
@@ -6342,7 +6443,7 @@ KP.game({
     });
     setTimeout(() => fly.remove(), 750);
     KP.audio.sfx("sticker");
-    KP.voice.say(U.josa(nm, "을/를") + " 내 물감 통에 담았어요! 그림 그릴 때 쓸 수 있어요.");
+    KP.voice.say(nm + "! 내 물감 통에 담았어요! 그림 그릴 때 쓸 수 있어요.");
     U.replay(ctx.bGo, "jump");
     ctx.hint(() => ctx.bGo, "칠하러 가요!");
   },
@@ -6421,7 +6522,7 @@ KP.game({
         '<span class="dxBlob" style="' + (has ? "background:" + x.hex : "") + '">' + (has ? "" : "?") + "</span><b>" + (has ? x.n : "???") + "</b>" + (has ? "<small>" + has + "</small>" : recipe(x.v));
       c.addEventListener("click", () => {
         U.replay(c, has ? "jump" : "wrong");
-        KP.voice.say(has ? x.n + "! 찾았어요!" : "아직 못 찾은 색이에요. 섞어서 찾아봐요!"); // 날짜는 화면에만
+        KP.voice.say(has ? x.n + "! 찾았다!" : "아직 못 찾은 색이에요. 섞어서 찾아봐요!"); // 날짜는 화면에만
       });
       grid.appendChild(c);
     });
@@ -6886,7 +6987,7 @@ KP.game({
       // 친구 영역 표본점 (그림이면 실제 윤곽, 사진이면 둥근 네모)
       samples = makeSamples(x, y, S);
       ctx.say(cur.photo && Math.random() < 0.5 ? "우리 캐릭터가 숨었어요! 어디 있을까요?" : theme.say);
-      ctx.hint(() => spot, "여기를 문질문질 해 봐요!");
+      ctx.hint(() => spot, "여기를 문질문질 해 봐요!", { answer: true }); // 친구 자리를 알려 주는 힌트 → 그 판은 열쇠 별 없음
     }
     function makeSamples(x, y, S) {
       const N = 44,
@@ -8939,6 +9040,42 @@ KP.game({
           .zpB .e{font-size:34px}
           .zpB.send{min-width:96px;padding:12px 10px}
         }
+        /* 폰 가로(키 작은 가로 화면, 2026-11-09): 예전엔 세로용 쌓기 배치라 그림판이 73px 로 찌그러짐
+           → 색·도구는 왼쪽(색 6칸씩 3줄, 내 물감이 있거나 아주 작은 폰이면 그 칸만 위아래로 밀기), 단추는 오른쪽 2줄, 그림판이 높이를 다 씀 */
+        @media (orientation:landscape) and (max-height:500px){
+          .zpWork{grid-template-areas:"pal paper act";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);padding:0 10px 8px;gap:10px}
+          .zpPal{display:grid;grid-template-columns:repeat(6,auto);gap:6px;align-content:start;justify-content:center;overflow-y:auto;overscroll-behavior:contain;padding:4px 4px 8px}
+          .zpSep{grid-column:1/-1;height:3px}
+          .zpSp{width:min(12.8vh,52px);height:min(12.8vh,52px);font-size:22px;border-width:3px}
+          .zpSp.sel{transform:scale(1.08)}
+          .zpTools{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:0}
+          .zpTool{min-width:0;min-height:64px;justify-content:center;padding:3px 4px;font-size:11px}
+          .zpTool .e{font-size:26px}
+          .zpSize{width:auto;height:64px;border-radius:18px}
+          .zpAct{display:grid;grid-template-columns:repeat(2,minmax(68px,auto));grid-auto-rows:minmax(64px,1fr);align-content:center;gap:8px}
+          .zpB{min-width:68px;padding:4px 6px;font-size:12px}
+          .zpB span{word-break:keep-all;text-align:center}
+          .zpB .e{font-size:28px}
+          .zpB.send{grid-column:1/-1;min-width:0}
+        }
+        @media (orientation:landscape) and (max-height:500px) and (max-width:720px){
+          .zpPal{grid-template-columns:repeat(4,auto)}
+          .zpSp{width:min(14vh,48px);height:min(14vh,48px)}
+          .zpTool,.zpSize{min-height:56px;height:56px}
+        }
+        /* 태블릿 세로(큰 세로 화면): 폰 크기 그대로라 작던 색·도구·단추를 크게 */
+        @media (orientation:portrait) and (min-width:700px){
+          .zpPal{gap:10px}
+          .zpSp{width:64px;height:64px;font-size:28px}
+          .zpTools{gap:10px}
+          .zpTool{min-width:80px;min-height:72px;justify-content:center;font-size:14px}
+          .zpTool .e{font-size:32px}
+          .zpSize{width:64px;height:64px}
+          .zpAct{gap:12px}
+          .zpB{min-width:104px;min-height:84px;font-size:16px}
+          .zpB .e{font-size:36px}
+          .zpB.send{min-width:150px}
+        }
         /* 폰처럼 좁은 세로 화면 */
         /* (2026-11-08) 손가락이 닿기 쉽게: 색 36→최대 52px(키 작은 폰은 조금 작게), 도구·굵기 52px 이상, '보내기' 글자는 낱말 단위로 줄바꿈 */
         @media (max-width:500px){
@@ -9638,6 +9775,10 @@ KP.game({
       KP.zooNew = item.id;
       ctx.paper.classList.add("fly");
       KP.audio.sfx("whoosh");
+      // 열쇠 별: 동물 도안과 같은 기준 — 큰 영역을 3곳 이상(또는 절반 이상) 칠했을 때만 (한 획만 칠하고 보내기 반복 방지, 2026-11-09)
+      const nBig = P.bigRegions(),
+        nDone = nBig - P.blank();
+      if (nDone < Math.min(3, Math.ceil(nBig / 2))) ctx.fewChoice();
       const ok = await ctx.win({ msg: DOLL().SPECIES[sp].name + " 출발!", big: true });
       if (ctx.doll === sp && !ctx.tid) this.dropDoll(ctx);
       ctx.paper.innerHTML = "";
@@ -9922,22 +10063,22 @@ KP.game({
         .z3Bg{position:absolute;inset:0;background-repeat:no-repeat;display:none;z-index:0;pointer-events:none;transition:filter .6s}
         .zooW.mode3d .z3Bg{display:block}
         .z3Bg.night{filter:brightness(.55) saturate(.8) hue-rotate(-8deg)}
-        .z3BgBtn{position:absolute;left:10px;top:8px;z-index:9600;display:none;width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.9);font-size:30px;box-shadow:0 4px 0 rgba(0,0,0,.14);align-items:center;justify-content:center}
+        .z3BgBtn{position:absolute;left:10px;top:8px;z-index:9600;display:none;width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,.9);font-size:30px;box-shadow:0 4px 0 rgba(0,0,0,.14);align-items:center;justify-content:center}
         .zooW.mode3d .z3BgBtn{display:flex}
         .z3Load{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9600;background:rgba(255,255,255,.92);border-radius:999px;padding:8px 18px;font-size:clamp(17px,2.2vw,22px);color:#2f3a66;pointer-events:none}
         .zA.doll .zDoll{width:100%;height:100%;object-fit:contain;object-position:50% 100%;display:block;pointer-events:none}
         .zhPic .zDollTh{width:100%;height:100%;object-fit:contain;display:block}
         .z3Tip{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:9600;background:rgba(255,255,255,.8);border-radius:999px;padding:4px 14px;font-size:clamp(13px,1.8vw,17px);color:#2f3a66;pointer-events:none;transition:opacity .6s;white-space:nowrap}
-        .zCount{position:absolute;right:10px;top:8px;z-index:9600;background:#fff;border:4px solid #b9773a;border-radius:999px;padding:4px 14px;min-height:48px;min-width:64px;font-size:clamp(17px,2.2vw,21px);color:#5a3a1a;box-shadow:0 4px 0 #8a5528}
+        .zCount{position:absolute;right:10px;top:8px;z-index:9600;background:#fff;border:4px solid #b9773a;border-radius:999px;padding:4px 14px;min-height:64px;min-width:72px;font-size:clamp(17px,2.2vw,21px);color:#5a3a1a;box-shadow:0 4px 0 #8a5528}
         .zCount.pulse{animation:zPulse 1s ease-in-out 4}
         @keyframes zPulse{50%{transform:scale(1.15)}}
         .zHouse{position:absolute;inset:0;z-index:9900;background:linear-gradient(180deg,#fff4dc,#ffe6b8);display:flex;flex-direction:column;border-radius:inherit}
         .zhTop{display:flex;align-items:center;gap:8px;padding:10px 12px 6px;flex-wrap:wrap}
         .zhTitle{font-size:clamp(20px,3vw,28px);color:#7a4a1e;flex:1 1 auto;white-space:nowrap}
-        .zhClose{min-height:48px}
+        .zhClose{min-height:64px}
         .zhFilter{display:flex;gap:6px;padding:0 12px 6px;overflow-x:auto;scrollbar-width:none;flex:0 0 auto}
         .zhFilter::-webkit-scrollbar{display:none}
-        .zhF{flex:0 0 auto;min-width:52px;min-height:48px;border-radius:16px;background:#fff;border:3px solid #f0cf94;font-size:24px;padding:2px 8px}
+        .zhF{flex:0 0 auto;min-width:64px;min-height:64px;border-radius:16px;background:#fff;border:3px solid #f0cf94;font-size:24px;padding:2px 8px}
         .zhF.sel{background:#ffd34d;border-color:#b9773a}
         .zhGrid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(120px,17vw,170px),1fr));gap:12px;padding:6px 12px 16px;align-content:start}
         .zhCard{position:relative;border-radius:22px;border:4px solid #fff;padding:6px 4px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;box-shadow:0 5px 0 rgba(122,74,30,.25)}
@@ -9947,9 +10088,10 @@ KP.game({
         .zhPic{width:100%;aspect-ratio:200/170}
         .zhPic svg{width:100%;height:100%;display:block;overflow:visible}
         .zhState{font-size:clamp(14px,1.8vw,17px);background:rgba(255,255,255,.9);border-radius:999px;padding:1px 10px;color:#3b3355}
-        .zhFav{position:absolute;right:4px;top:4px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.85);font-size:24px;display:flex;align-items:center;justify-content:center;opacity:.45}
+        .zhFav{position:absolute;right:4px;top:4px;width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,.85);font-size:30px;display:flex;align-items:center;justify-content:center;opacity:.45}
         .zhFav.on{opacity:1;background:#ffe27a}
         .zhCard.busy{pointer-events:none;opacity:.6}
+        .zEmpty .btn{min-height:64px} /* (2026-11-09) 터치 64px 이상 */
       `);
       if (!document.querySelector(".zDefs")) document.body.insertAdjacentHTML("beforeend", SHADE_DEFS);
       const W = U.el("div", "zooW");
@@ -10294,7 +10436,8 @@ KP.game({
         newcomer = ctx.animals.find((x) => x.item.id === newId);
       }
       if (newcomer) {
-        ctx.say("새 친구 " + U.josa(tOf(newcomer.item).name, "이/가") + " 동물원에 왔어요! 환영해!");
+        const nn = tOf(newcomer.item).name; // '새가' 는 녹음이 없어 새만 "새 친구 새! …" (자연 음성)
+        ctx.say(nn === "새" ? "새 친구 새! 동물원에 왔어요! 환영해!" : "새 친구 " + U.josa(nn, "이/가") + " 동물원에 왔어요! 환영해!");
         ctx.after(600, () => KP.confetti(140));
       }
       // 자리가 꽉 차 집에서 쉬러 간 친구가 있으면: 환영 인사 뒤에 짧게 + 집 버튼 반짝
@@ -10307,6 +10450,15 @@ KP.game({
         W.appendChild(tip);
         ctx.after(6000, () => (tip.style.opacity = "0"));
         ctx.after(7000, () => tip.remove());
+        // 3D 도 가만히 있으면 손가락이 동물 친구를 가리킴 (2.5D 와 같게, 2026-11-09)
+        ctx.hint(() => {
+          const z = ctx.z3,
+            a = z && z.animals && z.animals[0];
+          if (!a || tok !== ctx._tok) return null;
+          const p = z.toScreen(a, 0.5),
+            r = W.getBoundingClientRect();
+          return { x: r.left + p.x, y: r.top + p.y };
+        }, "동물 친구를 콕 눌러 보세요!");
         ctx.loop((dt) => {
           if (tok !== ctx._tok || !ctx.z3) return false;
           ctx.z3.tick(dt);

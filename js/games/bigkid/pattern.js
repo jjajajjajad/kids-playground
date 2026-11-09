@@ -3,7 +3,8 @@
    2단계: AAB · ABC (보기 3개)
    3단계: ABB · AABB · 두 가지 속성(모양은 번갈아, 색은 두 개씩) (보기 3~4개)
    - 판이 시작되면 줄이 순서대로 통통 튀며 리듬으로 들려줌
-   - 맞으면 줄 전체가 순서대로 튀며 리듬 소리 */
+   - 맞으면 줄 전체가 순서대로 튀며 리듬 소리
+   - 힌트: 첫 번째는 줄을 다시 들려주고 빈칸을 흔들기만, 두 번째부터 정답 보기를 가리킴 */
 "use strict";
 KP.game({
   id: "pattern",
@@ -194,6 +195,16 @@ KP.game({
     ctx.say(g.two ? "모양도 색도 잘 봐요! 빈칸에는 무엇이 올까요?" : "줄을 잘 봐요! 빈칸에 올 것을 끌어다 넣어요.");
     // 처음에 줄을 리듬으로 들려주기
     ctx.after(700, () => beat(cells.length, () => U.replay(slot, "wig")));
-    ctx.hint(() => opts.find((o) => o.dataset.right), "빈칸에 들어갈 것을 끌어다 놓아요!");
+    // 힌트 2단계: 첫 힌트(8초)는 줄을 리듬으로 다시 들려주고 빈칸만 흔들기(정답은 안 가리킴) →
+    // 두 번째부터 정답 보기를 가리킴(가리킨 판은 열쇠 별 없음 — 정답 보기는 data-right 라 자동)
+    const hk = (ctx.ptHintK = (ctx.ptHintK || 0) + 1);
+    ctx.hint(() => {
+      if (busy || hk !== ctx.ptHintK) return null;
+      beat(cells.length, () => U.replay(slot, "wig"));
+      ctx.after(3400, () => {
+        if (!busy && hk === ctx.ptHintK && ctx.g === g) ctx.hint(() => opts.find((o) => o.dataset.right), "빈칸에 들어갈 것을 끌어다 놓아요!");
+      });
+      return slot;
+    }, "줄을 잘 봐요!");
   },
 });

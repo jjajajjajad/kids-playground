@@ -728,7 +728,8 @@
     songStart(ctx) {
       const s = ctx.song || SONGS[0];
       const all = s.notes || KP.audio.SONGS[s.song].notes.filter((n) => n[0] !== "R").map((n) => n[0]);
-      const len = ctx.level === 1 ? Math.min(all.length, s.notes ? all.length : 7) : ctx.level === 2 ? Math.ceil(all.length / 2) : all.length;
+      const len1 = Math.min(all.length, s.notes ? all.length : 7); // 짧은 연습곡(도레미 계단)은 1단계부터 전체
+      const len = ctx.level === 1 ? len1 : ctx.level === 2 ? Math.max(len1, Math.ceil(all.length / 2)) : all.length; // 2단계가 1단계보다 짧아지지 않게
       ctx.seq = all.slice(0, len).map((n) => KEYS.findIndex((k) => k[0] === n));
       ctx.pos = 0;
       this.fitKeys(ctx);
@@ -803,7 +804,8 @@
       const s = ctx.song || SONGS[0];
       const raw = s.notes ? s.notes.map((n) => [n, 1]) : KP.audio.SONGS[s.song].notes;
       const playable = raw.filter((n) => n[0] !== "R").length;
-      const want = ctx.level === 1 ? Math.min(playable, s.notes ? playable : 8) : ctx.level === 2 ? Math.ceil(playable / 2) : playable;
+      const want1 = Math.min(playable, s.notes ? playable : 8);
+      const want = ctx.level === 1 ? want1 : ctx.level === 2 ? Math.max(want1, Math.ceil(playable / 2)) : playable; // 2단계 ≥ 1단계
       const list = [];
       let beat = 0;
       for (const [n, b] of raw) {
@@ -1021,6 +1023,7 @@
       ctx.sub.textContent = ctx.mic.on ? "이제 피아노로 따라 쳐요!" : "이제 건반을 눌러요!";
       if (ctx.level === 1) {
         this.mark(ctx, ctx.seq[0]); // 1단계는 칠 건반을 알려 줌
+        ctx.noStar(); // 칠 건반이 반짝여 기억할 것이 없음 → 열쇠 별 없음 (축하·단계는 그대로)
         ctx.hint(() => ctx.keyEls[ctx.seq[ctx.pos]], "반짝이는 건반을 쳐요!");
       } else this.idle(ctx); // 2·3단계는 답을 가리키지 않고 12초 뒤 다시 들려줌
     },

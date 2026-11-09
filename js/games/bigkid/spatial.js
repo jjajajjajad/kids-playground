@@ -78,6 +78,8 @@ KP.game({
       .spPut.r-뒤{left:64%;bottom:13cqw;z-index:0;font-size:18cqw}
       .spGlow{position:absolute;inset:-2cqw;border-radius:3cqw;box-shadow:0 0 0 1cqw rgba(255,213,74,.9),0 0 5cqw 2cqw rgba(255,213,74,.7);animation:spGlow 1s ease-in-out 2;pointer-events:none;z-index:7;opacity:0}
       @keyframes spGlow{50%{opacity:1}}
+      /* 폰 가로(높이 500 미만): 장면 | 친구 쟁반 을 옆으로 — 위아래로 쌓으면 장면이 작아짐 */
+      @media (orientation:landscape) and (max-height:499px){.spWrap{flex-direction:row;padding:0 10px 8px;gap:10px}.spTray{min-height:0;min-width:clamp(120px,18vw,170px);background:rgba(255,255,255,.45);border-radius:26px}.spChar{font-size:clamp(84px,24vh,112px)}}
     `);
     // (판다는 "판다를" 자연 음성이 없어서 오리로)
     ctx.CHARS = [["🐱", "고양이"], ["🐶", "강아지"], ["🐰", "토끼"], ["🐥", "병아리"], ["🦆", "오리"], ["🧸", "곰 인형"], ["⚽", "공"], ["🐸", "개구리"]];
@@ -202,7 +204,8 @@ KP.game({
             if (r.rel && supports.includes(r.rel)) {
               const full = "거기는 " + pName + " " + U.josa(r.rel, "이에요/예요") + "!";
               ctx.miss(ch, (nat(full) ? full : "거기는 " + pName + " " + r.rel + "!") + " " + ask);
-            } else ctx.miss(ch, ask);
+            } else if (!r.rel) ctx.miss(ch, ask, { soft: true }); // 하늘·풀밭 같은 빈 곳: 자리를 잘못 고른 게 아니라 단계·열쇠 별엔 안 셈
+            else ctx.miss(ch, ask);
           }
         },
       });

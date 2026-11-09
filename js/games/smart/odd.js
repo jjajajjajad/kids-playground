@@ -15,6 +15,8 @@ KP.game({
     KP.css("odd", `
       .oddGrid{--sz:var(--szl);flex:1;min-height:0;display:grid;grid-template-columns:repeat(var(--cl),auto);justify-content:center;align-content:center;gap:clamp(10px,2vw,22px);padding:8px 12px 20px}
       @media (max-aspect-ratio:1/1){.oddGrid{--sz:var(--szp);grid-template-columns:repeat(var(--cp),auto)}}
+      /* 폰 가로(낮은 가로 화면): 9칸을 3줄 대신 5+4 두 줄로 — 3줄이면 위·아래가 잘림 */
+      @media (min-aspect-ratio:1/1) and (max-height:500px){.oddGrid{--sz:var(--szs);grid-template-columns:repeat(var(--cs),auto);padding:4px 12px 10px}}
       .oddBtn{font-size:var(--sz);border-radius:28px;padding:clamp(8px,1.2vw,14px)}
       .oddBtn .e{transition:transform .2s}
       .oddFlip .e{transform:scaleX(-1)}
@@ -83,10 +85,12 @@ KP.game({
     for (let i = 0; i < n - 1; i++) list.push({ odd: false });
     list.push({ odd: true });
     U.shuffle(list);
-    const cols = { 4: [4, 2], 6: [3, 2], 9: [3, 3] }[n];
+    const cols = { 4: [4, 2, 4], 6: [3, 2, 3], 9: [3, 3, 5] }[n]; // [가로, 세로, 낮은 가로]
     ctx.grid.style.setProperty("--cl", cols[0]);
     ctx.grid.style.setProperty("--cp", cols[1]);
+    ctx.grid.style.setProperty("--cs", cols[2]);
     ctx.grid.style.setProperty("--szl", { 4: "clamp(80px,min(14vw,30vh),170px)", 6: "clamp(70px,min(13vw,22vh),150px)", 9: "clamp(60px,min(11vw,15vh),110px)" }[n]);
+    ctx.grid.style.setProperty("--szs", { 4: "clamp(80px,min(14vw,30vh),170px)", 6: "clamp(60px,min(13vw,20vh),150px)", 9: "clamp(56px,min(11vw,22vh),110px)" }[n]);
     ctx.grid.style.setProperty("--szp", { 4: "clamp(80px,34vw,160px)", 6: "clamp(70px,min(32vw,16vh),140px)", 9: "clamp(60px,min(22vw,14vh),110px)" }[n]);
     const ask = "하나만 달라요! 다른 걸 찾아요!";
     const nat = (...l) => (KP.voice._natUrls && l.find((t) => KP.voice._natUrls(t))) || l[0]; // 같은 뜻 중 자연 음성(이미 있는 조각)이 있는 문장

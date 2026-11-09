@@ -56,7 +56,9 @@ KP.game({
       .nbTarget{font-size:clamp(80px,12vw,140px);line-height:1;color:var(--ocean);background:#fff;border-radius:30px;padding:6px 30px;box-shadow:var(--shadow)}
       .nbBasket{position:relative;width:clamp(260px,40vw,460px);min-height:clamp(120px,20vh,190px);background:#f7d9a8;border-radius:16px 16px 60px 60px;
         border:6px solid #d79b4f;box-shadow:inset 0 -10px 0 rgba(0,0,0,.08);display:flex;flex-wrap:wrap;align-content:flex-end;justify-content:center;gap:2px;padding:10px 10px 16px}
-      .nbBasket::before{content:"";position:absolute;left:12%;right:12%;top:-50px;height:60px;border:7px solid #d79b4f;border-bottom:none;border-radius:120px 120px 0 0}
+      .nbBasket::before{content:"";position:absolute;left:12%;right:12%;top:-50px;height:60px;border:7px solid #d79b4f;border-bottom:none;border-radius:120px 120px 0 0;pointer-events:none}
+      /* 폰 가로(낮은 화면): 손잡이가 위 모드 단추 줄을 덮지 않게 낮추고 위 여백 확보 */
+      @media (max-height:500px){.nbBasket::before{top:-26px;height:32px;border-width:6px}.nbQ{padding-top:30px}}
       .nbBasket .nbA{font-size:clamp(40px,5.4vw,58px);line-height:1;padding:2px;animation:nbPop .35s}
       .nbBasket .nbA b{display:none}
       .nbTools{display:flex;gap:clamp(14px,3vw,30px);align-items:center}
@@ -208,7 +210,12 @@ KP.game({
     ctx.seen.add(n);
     ctx.cardEls[n - 1].classList.add("seen");
     const portrait = innerHeight > innerWidth;
-    const nb = portrait ? Math.min(innerWidth * 0.5, innerHeight * 0.24) : Math.min(innerWidth * 0.26, innerHeight * 0.44);
+    let nb = portrait ? Math.min(innerWidth * 0.5, innerHeight * 0.24) : Math.min(innerWidth * 0.26, innerHeight * 0.44);
+    // 낮은 가로 화면(폰 가로): 큰 숫자가 위 단추 줄·아래 숫자 카드 줄을 덮지 않게 무대 남은 높이로 제한
+    const room = ctx.show.clientHeight - 12;
+    if (!portrait && room > 60) nb = Math.min(nb, room);
+    // 세로 작은 폰(360×640): 아래 그림 줄(최소 높이 16vh)을 빼고 남는 만큼만
+    if (portrait && room > 160) nb = Math.min(nb, room - Math.max(90, innerHeight * 0.16) - 14);
     ctx.big.style.setProperty("--nb", Math.round(nb) + "px");
     ctx.big.className = "nbBig" + (n === 10 ? " two" : "");
     ctx.big.innerHTML = '<svg viewBox="0 0 120 120"><text x="60" y="64">' + n + "</text></svg>";
@@ -290,7 +297,8 @@ KP.game({
     if (t === ctx.lastT) t = t === 9 ? 4 : t + 1;
     ctx.lastT = t;
     const [em, name] = U.pick(ctx.THINGS.slice(0, 4));
-    const ask = U.josa(name, "을/를") + " " + CNT[t] + " 개 담아요! 다 담으면 초록 ✅ 버튼을 눌러요!";
+    const nat = (a, b) => (KP.voice._natUrls && KP.voice._natUrls(a) ? a : b); // 자연 음성이 없으면 "딸기! …" 조각으로
+    const ask = nat(U.josa(name, "을/를") + " " + CNT[t] + " 개 담아요! 다 담으면 초록 ✅ 버튼을 눌러요!", name + "! " + CNT[t] + " 개 담아요! 다 담으면 초록 ✅ 버튼을 눌러요!");
     ctx.say("🧺 " + ask);
     const wrap = U.el("div", "nbMake");
     const tg = U.el("div", "nbTarget", String(t));
@@ -339,7 +347,7 @@ KP.game({
         U.replay(tg, "jump");
         KP.voice.say(name + " " + CNT[t] + " 개! 딩동댕!");
         await this.done(ctx, CNT[t] + " 개 담았어요!");
-      } else if (cnt === 0) ctx.miss(ok, "아직 하나도 없어요. " + U.josa(name, "을/를") + " 담아 봐요!");
+      } else if (cnt === 0) ctx.miss(ok, nat("아직 하나도 없어요. " + U.josa(name, "을/를") + " 담아 봐요!", "아직 하나도 없어요. " + name + "! 담아 봐요!"));
       else if (cnt < t) ctx.miss(ok, "지금 " + CNT[cnt] + " 개예요. " + (t - cnt === 1 ? "하나 더" : "더") + " 담아요!");
       else ctx.miss(ok, "지금 " + CNT[cnt] + " 개예요. 너무 많아요! 바구니에서 눌러서 빼요!");
     });

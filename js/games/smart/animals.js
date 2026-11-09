@@ -205,6 +205,7 @@ KP.game({
       const h = Z.HABITATS.find((x) => x.k === hab);
       await ctx.wait(2200);
       if (!ctx._active) return;
+      ctx.noStar(); // 누르기만 하면 되는 자유 탐색 → 열쇠 별 없음
       await ctx.win({ big: true, msg: allDone ? "{부름} 동물 친구들 다 만났어요!" : h.n + " 친구들 다 만났어요!" });
     }
   },

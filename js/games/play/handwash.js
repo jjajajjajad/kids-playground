@@ -52,7 +52,9 @@ KP.game({
       .hw-hit.glow::after{animation:hw-ring 1.1s ease-in-out infinite alternate}
       @keyframes hw-ring{to{opacity:1}}
       .hw-handsHit.glow::after{animation:none}
-      .hw-scene.rubbing .hw-obj,.hw-scene.rubbing .hw-hit{pointer-events:none}
+      .hw-scene.rubbing .hw-obj,.hw-scene.rubbing .hw-hit,.hw-scene.rubbing .hw-bgHit{pointer-events:none}
+      /* 배경 그림 속 노란 비누·걸린 수건 자리(투명): 누르면 진짜 펌프·수건을 누른 것과 같게 */
+      .hw-bgHit{position:absolute;left:0;top:0;z-index:5;border-radius:30%;touch-action:manipulation;cursor:pointer}
       .hw-blob{position:absolute;left:0;top:0;z-index:5;pointer-events:none;width:var(--s);height:var(--s);margin:calc(var(--s)*-.5) 0 0 calc(var(--s)*-.5);border-radius:50%;
         background:radial-gradient(circle at 35% 35%,#fff 0 18%,rgba(255,255,255,0) 19%),radial-gradient(circle at 30% 60%,#f6faff 0 26%,rgba(255,255,255,0) 27%),
           radial-gradient(circle at 68% 58%,#eef6ff 0 28%,rgba(255,255,255,0) 29%),radial-gradient(circle at 52% 40%,#fbfdff 0 34%,rgba(255,255,255,0) 35%);
@@ -82,6 +84,12 @@ KP.game({
     ctx.pump.setAttribute("aria-label", "물비누");
     ctx.towel = mk("hw-obj hw-towelObj", '<img alt="" draggable="false" src="assets/play-clay/bath/towel.png">');
     ctx.towel.setAttribute("aria-label", "수건");
+    // 배경 그림의 노란 비누·수건: "비누를 눌러요!"에 아이가 먼저 누를 만한 곳 → 펌프·수건과 같은 동작으로 받아 줌
+    // (펌프·수건보다 아래 층이라 겹치면 진짜 물건이 눌림)
+    ctx.bgSoap = mk("hw-bgHit");
+    ctx.bgTowel = mk("hw-bgHit");
+    ctx.bgSoap.addEventListener("click", () => ctx.pump.click());
+    ctx.bgTowel.addEventListener("click", () => ctx.towel.click());
     ctx.handsHit = mk("hw-hit hw-handsHit");
     ctx.handsHit.setAttribute("aria-label", "손");
     ctx.pal = mk("hw-pal", '<img alt="">');
@@ -206,7 +214,7 @@ KP.game({
       const tw = Math.max(80, side * 1.15), th = tw * (199 / 256);
       put(ctx.towel, Math.min(W - tw - 4, x + w - tw * 0.2), H * 0.8 - th, tw, th);
     } else {
-      const ph = Math.max(96, v.fh * 0.19), pw = ph * (172 / 256);
+      const ph = Math.max(108, v.fh * 0.19), pw = ph * (172 / 256); // 폰 가로에서도 펌프 폭 72px 이상
       const pu = Math.max(0.285, vis.u0 + (pw / v.fw) * 0.5 + 0.012);
       const pp = P(pu, 0.57);
       put(ctx.pump, U.clamp(pp.x - pw / 2, 4, W - pw - 4), pp.y - ph, pw, ph);
@@ -215,6 +223,13 @@ KP.game({
       const tp = P(tu, 0.585);
       put(ctx.towel, U.clamp(tp.x - tw / 2, 4, W - tw - 4), tp.y - th, tw, th);
     }
+    // 배경 비누(받침 포함)·걸린 수건 자리 (배경 그림 1600×900 기준 u,v)
+    const box = (e, u0, v0, u1, v1) => {
+      const p0 = P(u0, v0), p1 = P(u1, v1);
+      put(e, p0.x, p0.y, p1.x - p0.x, p1.y - p0.y);
+    };
+    box(ctx.bgSoap, 0.11, 0.4, 0.278, 0.575);
+    box(ctx.bgTowel, 0.762, 0.33, 0.915, 0.73);
     // 응원 친구: 왼쪽 아래 구석
     const ps = Math.max(72, Math.min(H * 0.24, W * 0.26));
     ctx.pal.style.setProperty("--s", ps + "px");

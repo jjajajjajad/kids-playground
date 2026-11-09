@@ -243,10 +243,11 @@ KP.game({
       } else {
         ctx.losses++;
         ctx.bigText("아깝다!");
-        A.sfx("boing");
-        KP.voice.say("아깝다! 다시 해 볼까? 콕콕 더 빨리 눌러 봐요!");
+        // 진 판 = 가벼운 틀림(흔들기 없이 부드러운 소리) → 이번 판 열쇠 별 없음, 계속 지면 틀 규칙(5번)대로 단계가 내려감.
+        // 다음 경주는 상대가 느긋해짐(아래 T 의 losses)이라 지는 판이 길게 이어지지 않음
+        ctx.miss(null, "아깝다! 다시 해 볼까? 콕콕 더 빨리 눌러 봐요!");
         await ctx.wait(2600);
-        if (ctx._active) this.race(ctx, ctx.myCar);
+        if (ctx._active) this.race(ctx, ctx.myCar, true);
       }
     };
   },
@@ -284,7 +285,7 @@ KP.game({
     });
     ctx.hint(() => btns[0], "타고 싶은 차를 콕 눌러요!");
   },
-  async race(ctx, car) {
+  async race(ctx, car, again) {
     const U = KP.u,
       A = KP.audio;
     ctx.myCar = car;
@@ -296,16 +297,18 @@ KP.game({
     ctx.size();
     const lv = ctx.level;
     // 상대 차가 끝까지 가는 시간(초): 질수록 느긋해짐
-    // (예전 15초·18번 → 연타하면 3초 만에 끝나 경주 느낌이 짧았음) 상대를 조금 빠르게, 누를 횟수는 늘려 비슷하게 달리기
-    const T = [12, 10.5, 9][lv - 1] + Math.min(ctx.losses, 3) * 2.5;
-    ctx.ctl = { state: "ready", p: 0, pT: 0, o: 0, ov: 1 / T, t: 0, taps: [26, 32, 38][lv - 1], vmax: [0.2, 0.22, 0.24][lv - 1], tapN: 0 };
+    // 3~4세 연타(초당 3~4번) 기준 (흉내 계산, 0.35 흔들림): 1단계는 초당 2.5번도 여유 있게 이김,
+    // 2단계는 초당 2.5번이면 아슬아슬하게 이김, 3단계는 초당 3번 이상 '집중해서' 누르면 이김(초당 2.5번은 짐)
+    // (2차 보완의 [12,10.5,9]초·[26,32,38]번은 초당 4번으로도 3단계를 거의 못 이겼음)
+    const T = [13, 11.5, 10.5][lv - 1] + Math.min(ctx.losses, 3) * 2.5;
+    ctx.ctl = { state: "ready", p: 0, pT: 0, o: 0, ov: 1 / T, t: 0, taps: [22, 26, 30][lv - 1], vmax: [0.2, 0.22, 0.24][lv - 1], tapN: 0 };
     ctx.say("화면을 콕콕콕 빨리 누르면 내 차가 달려요!");
-    // 출발 신호
+    // 출발 신호 (진 뒤 다시 달릴 때는 기다림을 줄이고 바로 셋·둘·하나)
     const L = ctx.light,
       lamps = L.querySelectorAll("i");
     L.classList.remove("hide");
     lamps.forEach((l) => (l.className = ""));
-    await ctx.wait(1700);
+    await ctx.wait(again ? 600 : 1700);
     if (!ctx._active) return;
     const SAY = ["셋", "둘", "하나"];
     for (let i = 0; i < 3; i++) {

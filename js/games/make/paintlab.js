@@ -67,10 +67,10 @@ KP.game({
         .plW{grid-template-areas:"bowl jars" "bowl acts" "bowl mine";grid-template-columns:minmax(0,1fr) auto;grid-template-rows:auto auto auto;align-content:center;padding:4px 10px 6px;gap:6px 12px}
         .plBowlCell{grid-row:1/4;align-self:stretch}
         .plJarsCell .psJars{flex-wrap:nowrap;gap:4px;padding:4px 6px 6px}
-        .plJarsCell .psJar{width:54px;height:74px}
+        .plJarsCell .psJar{width:64px;height:min(22vh,86px)} /* (2026-11-09) 물감 통·단추 64px 이상 */
         .plJarsCell .psJar .jn{font-size:12px}
         .plActs{flex-wrap:nowrap;gap:5px}
-        .plB{min-width:64px;min-height:58px;font-size:12px;padding:4px 5px}
+        .plB{min-width:66px;min-height:66px;font-size:12px;padding:4px 5px}
         .plB .e{font-size:24px}
         .plB .pi{width:30px;height:26px}
         .plMine{justify-self:stretch}
@@ -246,10 +246,10 @@ KP.game({
     if (isNew) {
       KP.audio.sfx("levelup");
       await ctx.win({ msg: "새 색깔 발견! " + nm.n + "!", big: true });
-      if (ctx._active) KP.voice.say("도감에 " + U.josa(nm.n, "이/가") + " 생겼어요! 마음에 들면 내 물감에 담아요.");
+      if (ctx._active) KP.voice.say(nm.n + "! 도감에 생겼어요! 마음에 들면 내 물감에 담아요."); // 색 이름 + 공용 조각 → 자연 음성 (2026-11-09)
     } else if (nm.n !== ctx.lastName) {
       KP.audio.sfx("sparkle");
-      KP.voice.say(U.josa(nm.n, "이/가") + " 됐어요!");
+      KP.voice.say(nm.n + "! 됐어요!");
     }
     ctx.lastName = nm.n;
   },
@@ -284,7 +284,7 @@ KP.game({
     });
     setTimeout(() => fly.remove(), 750);
     KP.audio.sfx("sticker");
-    KP.voice.say(U.josa(nm, "을/를") + " 내 물감 통에 담았어요! 그림 그릴 때 쓸 수 있어요.");
+    KP.voice.say(nm + "! 내 물감 통에 담았어요! 그림 그릴 때 쓸 수 있어요.");
     U.replay(ctx.bGo, "jump");
     ctx.hint(() => ctx.bGo, "칠하러 가요!");
   },
@@ -363,7 +363,7 @@ KP.game({
         '<span class="dxBlob" style="' + (has ? "background:" + x.hex : "") + '">' + (has ? "" : "?") + "</span><b>" + (has ? x.n : "???") + "</b>" + (has ? "<small>" + has + "</small>" : recipe(x.v));
       c.addEventListener("click", () => {
         U.replay(c, has ? "jump" : "wrong");
-        KP.voice.say(has ? x.n + "! 찾았어요!" : "아직 못 찾은 색이에요. 섞어서 찾아봐요!"); // 날짜는 화면에만
+        KP.voice.say(has ? x.n + "! 찾았다!" : "아직 못 찾은 색이에요. 섞어서 찾아봐요!"); // 날짜는 화면에만
       });
       grid.appendChild(c);
     });

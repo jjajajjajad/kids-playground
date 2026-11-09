@@ -56,6 +56,11 @@ KP.game({
         .dw-pal,.dw-pal.mine3{grid-template-columns:repeat(7,var(--sw));gap:8px}
         .dw-acts{grid-template-columns:repeat(4,var(--ab));gap:8px;justify-content:end}
       }
+      /* 태블릿 세로(큰 세로 화면, 2026-11-09): 폰 규칙 그대로라 색 50·단추 56px → 64px 이상 */
+      @media (orientation:portrait) and (min-width:700px){
+        .dw{--tb:72px;--sw:64px;--ab:64px;padding-top:8px}
+        .dw-pal,.dw-pal.mine3{grid-template-columns:repeat(7,var(--sw));gap:10px 14px}
+      }
       /* 폰 세로(2026-11-08): 도구 6 + 굵기 3 + 단추 4 를 한 줄 5칸씩 3줄로(가운데 맞춤) → 모두 폰에서 64px 안팎.
          (도구·굵기·단추 묶음은 display:contents 로 풀어서 .dw 의 10칸 격자에 2칸씩 차지) */
       @media (orientation:portrait) and (max-width:480px){
@@ -70,12 +75,17 @@ KP.game({
         .dw-pal,.dw-pal.mine3{grid-column:1 / -1;grid-row:5;grid-template-columns:repeat(5,var(--sw));gap:6px 8px}
       }
       @media (orientation:landscape) and (max-height:500px){
-        .dw{gap:6px 8px;padding:2px 10px 8px;--tb:46px;--sw:44px;--ab:44px}
+        /* (2026-11-09) 단추 44px → 도구 64px·색·굵기·단추 56px (키 작은 폰은 조금 작게). 내 물감이 많으면 색 칸만 위아래로 밀기 */
+        .dw{gap:6px 8px;padding:0 10px 8px;--tb:min(16.4vh,64px);--sw:min(14.4vh,56px);--ab:min(14.4vh,56px)}
         .dw-tools{display:grid;grid-template-columns:repeat(3,var(--tb));gap:8px;align-content:center;justify-content:center}
         .dw-tool{border-radius:16px}
+        .dw-tool.sel{transform:scale(1.04)}
         .dw-sizes{flex-direction:row;gap:8px}
-        .dw-pal,.dw-pal.mine3{grid-template-columns:repeat(4,var(--sw));gap:6px}
+        .dw-pal,.dw-pal.mine3{grid-template-columns:repeat(4,var(--sw));gap:6px;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:5px;align-content:start}
         .dw-acts{grid-template-columns:repeat(4,var(--ab));gap:6px}
+      }
+      @media (orientation:landscape) and (max-height:500px) and (max-width:720px){
+        .dw{--tb:52px;--sw:46px;--ab:46px}
       }
     `);
 
@@ -824,7 +834,7 @@ KP.game({
             if (dr.paper) ctx.setPaper(dr.paper);
             ctx.loadInto(dr.ink || dr.img, () => ctx.markLoaded(true));
             KP.voice.say("그리던 그림이에요. 이어서 그려 봐요!");
-          } else KP.voice.say("손가락으로 쓱쓱 그려 봐요! 아래에서 색을 골라요.");
+          } else KP.voice.say(innerWidth > innerHeight ? "손가락으로 쓱쓱 그려 봐요!" : "손가락으로 쓱쓱 그려 봐요! 아래에서 색을 골라요."); // 가로 화면은 색이 오른쪽
         });
       } else KP.voice.say("손가락으로 쓱쓱 그려 봐요!");
       ctx.loadedOnce = true;

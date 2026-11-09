@@ -149,7 +149,8 @@ KP.game({
         // 다른 색 — 통통 튕기기
         U.replay(b.el, "cp-boing");
         b.push = 260;
-        A.sfx("boing");
+        // 가벼운 틀림(soft): 단계엔 안 들어가고, 한 판(5개)에 2번 이상이면 열쇠 별 없음 — 아무 색이나 마구 눌러도 별이 나오던 것 막기
+        ctx.miss(null, null, { soft: true });
         const tag = U.el("div", "cp-tag", b.c[1]);
         b.el.appendChild(tag);
         ctx.after(1400, () => tag.remove());
@@ -227,6 +228,6 @@ KP.game({
       const H = ctx.field.clientHeight;
       const t = ctx.balloons.filter((b) => !b.dead && b.c === ctx.target && b.y > 40 && b.y < H - b.h).sort((a, b) => b.y - a.y);
       return t[0] && t[0].el;
-    }, ctx.target[0] + " 풍선을 찾아서 콕 눌러요!");
+    }, ctx.target[0] + " 풍선을 찾아서 콕 눌러요!", { answer: true }); // 정답 풍선을 가리킴 → 가리킨 판은 열쇠 별 없음
   },
 });

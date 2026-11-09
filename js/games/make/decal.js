@@ -50,7 +50,7 @@ KP.game({
       .dcPal::-webkit-scrollbar{display:none}
       .dcSw{flex:0 0 auto;width:var(--s,48px);height:var(--s,48px);border-radius:50%;border:4px solid #fff;box-shadow:0 4px 0 rgba(0,0,0,.14);position:relative;transition:transform .12s}
       .dcSw.mine{--s:clamp(56px,7.6vh,70px);border-color:#ffe7a3}
-      .dcSw.base{--s:clamp(44px,6vh,54px)}
+      .dcSw.base{--s:clamp(56px,7.8vh,64px)}
       .dcSw.light{border-color:#e4e8f2}
       .dcSw.sel{transform:scale(1.14);box-shadow:0 0 0 4px var(--ink),0 4px 0 rgba(0,0,0,.14)}
       .dcSw .tag{position:absolute;right:-8px;top:-8px;font-size:20px;line-height:1;pointer-events:none}
@@ -58,7 +58,7 @@ KP.game({
       .dcSep{flex:0 0 auto;width:3px;align-self:stretch;margin:6px 2px;border-radius:3px;background:repeating-linear-gradient(#c9d2e6 0 6px,transparent 6px 11px)}
       .dcEmpty{flex:0 0 auto;display:flex;align-items:center;gap:8px;background:#fff;border-radius:20px;padding:6px 8px 6px 12px;box-shadow:0 5px 0 rgba(47,58,102,.1);font-size:13.5px;line-height:1.25;color:var(--ink2);max-width:290px}
       .dcEmpty .e{font-size:30px;flex:0 0 auto}
-      .dcEmpty button{flex:0 0 auto;background:var(--cat);color:#fff;border-radius:16px;padding:8px 10px;font-size:14px;box-shadow:0 4px 0 color-mix(in srgb,var(--cat) 60%,#000);min-height:52px;display:flex;align-items:center;gap:4px}
+      .dcEmpty button{flex:0 0 auto;background:var(--cat);color:#fff;border-radius:16px;padding:8px 10px;font-size:14px;box-shadow:0 4px 0 color-mix(in srgb,var(--cat) 60%,#000);min-height:64px;display:flex;align-items:center;gap:4px}
       .dcEmpty button .e{font-size:24px}
       .dcActs{grid-area:acts;display:flex;gap:8px;justify-content:center}
       .dcB{background:#fff;border-radius:20px;box-shadow:0 6px 0 rgba(47,58,102,.13);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:6px 8px;min-width:72px;min-height:72px;font-size:14px;line-height:1.1;flex:1;max-width:130px}
@@ -71,6 +71,8 @@ KP.game({
         .dcSw.mine{--s:56px}
         .dcEmpty{order:9;padding:4px;background:none;box-shadow:none}
         .dcEmpty > .e,.dcEmpty > span{display:none}
+        .dcSw.base{--s:clamp(50px,6.6vh,56px)}
+        .dcEmpty button{flex-direction:column;min-width:64px;font-size:12px;padding:6px 8px;gap:0}
       }
       @media (orientation:landscape) and (min-height:500px){
         .dcW{grid-template-areas:"pal board acts";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);gap:14px;padding:2px 14px 14px}
@@ -83,6 +85,22 @@ KP.game({
         .dcB{min-width:104px;flex:0 0 auto;max-width:none;min-height:84px;font-size:15px}
         .dcB .e{font-size:36px}
         .dcB.main{flex:0 0 auto;max-width:none;min-height:104px}
+      }
+      /* 폰 가로(키 작은 가로 화면, 2026-11-09): 예전엔 세로용 쌓기 배치라 종이가 186×116px 로 작았음
+         → 물감은 왼쪽 2칸 줄, 단추는 오른쪽 세로줄, 종이가 높이를 다 씀 */
+      @media (orientation:landscape) and (max-height:500px){
+        .dcW{grid-template-areas:"pal board acts";grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:minmax(0,1fr);gap:10px;padding:0 10px 8px}
+        .dcPal{display:grid;grid-template-columns:repeat(2,auto);justify-content:center;align-content:center;justify-items:center;
+          overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;max-height:100%;padding:8px 10px;gap:10px}
+        .dcSw.base,.dcSw.mine{--s:min(16.5vh,64px)}
+        .dcSep{width:auto;height:3px;margin:2px 6px;grid-column:1/-1;background:repeating-linear-gradient(90deg,#c9d2e6 0 6px,transparent 6px 11px)}
+        .dcEmpty{grid-column:1/-1;padding:0;background:none;box-shadow:none;max-width:none;justify-content:center}
+        .dcEmpty > .e,.dcEmpty > span{display:none}
+        .dcEmpty button{flex-direction:column;min-height:64px;min-width:64px;font-size:12px;padding:6px 8px}
+        .dcActs{flex-direction:column;justify-content:center;gap:8px;min-height:0}
+        .dcB{flex:0 1 84px;max-width:none;min-width:84px;min-height:64px;font-size:13px}
+        .dcB .e{font-size:28px}
+        .dcB.main{flex:0 1 96px;max-width:none;min-height:64px}
       }
     `);
 

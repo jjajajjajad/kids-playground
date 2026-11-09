@@ -178,7 +178,7 @@ KP.game({
     if (!W || !H) return;
     const IW = ctx.IW, IH = ctx.IH, M = ctx.MOUTH;
     const tall = W / H < 1.05;
-    let s = U.clamp(Math.min(W, H) * 0.19, 70, 140);
+    let s = U.clamp(Math.min(W, H) * 0.19, 78, 140); // 최소 78 → 컵(0.92배)도 폰에서 72px 이상
     const m = Math.max(6, s * 0.08);
     const kv = H / IH, kw = (0.97 * W) / 545, kl = H < 500 ? (0.8 * H) / 320 : 0;
     // 세로 화면: 위에 소품 선반 자리를 남김 (얼굴은 아래에 붙임)
@@ -217,7 +217,7 @@ KP.game({
       // 점토 선반 (얼굴 그림 윗변을 가림) 위에 친구·칫솔·치약·컵
       const sh = U.clamp(s * 0.17, 12, 24), sy = gap - sh * 0.55;
       put(ctx.shelf, -4, sy, W + 8, sh);
-      if (sy > s * 2) s = Math.min(130, sy * 0.62, (W - m * 5) / 4.3); // 위 틈이 넓으면 소품도 크게
+      if (sy > s * 2) s = Math.max(s, Math.min(130, sy * 0.62, (W - m * 5) / 4.3)); // 위 틈이 넓으면 소품도 크게
       const base = sy + 3;
       const ps = Math.min(sy - m, s * 1.5);
       put(ctx.pal, m, base - ps, ps, ps);
@@ -628,6 +628,7 @@ KP.game({
       const msg = big ? "이제 진짜로 치카치카 해 볼까?" : U.pick(["반짝반짝 깨끗한 이!", "치카치카 최고!", "{부름} 치카치카 박사!"]);
       // 말은 자연 음성이 있는 문장으로 (화면 글자는 그대로)
       const say = { "반짝반짝 깨끗한 이!": "반짝반짝! 깨끗해졌어요!", "치카치카 최고!": "최고예요!", "{부름} 치카치카 박사!": "{부름} 참 잘했어요!" }[msg] || msg;
+      ctx.noStar(); // 닦기만 하면 끝나는 판(틀릴 수 없음) → 열쇠 별 없음
       const ok = await ctx.win({ big, msg, say });
       if (ok && live()) this.next(ctx);
     };

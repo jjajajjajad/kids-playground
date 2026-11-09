@@ -65,7 +65,7 @@ KP.game({
       const lv = ctx.level;
       const pet = Math.random() < 0.28 ? U.pick(ctx.PETS) : null;
       const base = U.clamp(Math.min(W, H) * 0.2, 80, 150);
-      const d = Math.round(base * (pet ? U.randf(1.05, 1.25) : U.randf(0.8, 1.15)));
+      const d = Math.max(72, Math.round(base * (pet ? U.randf(1.05, 1.25) : U.randf(0.8, 1.15)))); // 폰 가로 3단계도 72px 이상
       const el = U.el("div", "bb");
       el.style.setProperty("--d", d + "px");
       el.innerHTML = '<div class="bb-in" style="--h:' + U.rand(360) + 'deg;animation-delay:-' + Math.random() * 2 + 's"></div>' + (pet ? '<div class="bb-pet">' + KP.E(pet[0]) + "</div>" : "");
@@ -106,7 +106,7 @@ KP.game({
       if (ctx.count % 10 === 0) {
         ctx.ms++;
         const big = ctx.ms % 3 === 0;
-        ctx.after(b.pet ? 1200 : 300, () => ctx.win({ big, msg: big ? "{부름} 비눗방울 대장!" : ctx.count + "개 팡팡!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 비눗방울 팡팡!" : "비눗방울 팡팡!" }));
+        ctx.after(b.pet ? 1200 : 300, () => (ctx.noStar(), ctx.win({ big, msg: big ? "{부름} 비눗방울 대장!" : ctx.count + "개 팡팡!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 비눗방울 팡팡!" : "비눗방울 팡팡!" })));
       }
     };
 

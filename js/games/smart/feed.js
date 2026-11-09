@@ -118,7 +118,7 @@ KP.game({
       });
       return el;
     });
-    const hint = () => ctx.hint(() => foodEls.find((e) => e.dataset.go && !e.dataset.done), "먹이를 끌어서 동물 입에 쏙 넣어 줘요!");
+    const hint = () => ctx.hint(() => foodEls.find((e) => e.dataset.go && !e.dataset.done), "먹이를 끌어서 동물 입에 쏙 넣어 줘요!", { answer: true });
     ctx.foodEls = foodEls; // 점검용
     hint();
     const done = async () => {

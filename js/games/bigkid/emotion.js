@@ -52,7 +52,9 @@ KP.game({
       .emAns .choice{flex-direction:column;gap:2px;padding:8px 12px 6px;min-width:clamp(84px,14vw,150px)}
       .emFace{font-size:clamp(48px,7.4vw,80px);line-height:1}
       .emLbl{font-size:clamp(15px,2vw,20px);color:var(--ink2)}
-      @media (orientation:portrait){.emAns{gap:10px}.emAns .choice{min-width:76px;padding:8px 6px 6px}}
+      /* 좁은 세로(폰)만 단추를 좁힘 — 세로 태블릿(820px)은 기본 크기(약 115px) 그대로 */
+      @media (orientation:portrait) and (max-width:600px){.emAns{gap:10px}.emAns .choice{min-width:76px;padding:8px 6px 6px}}
+      @media (orientation:portrait) and (min-width:601px){.emAns .choice{min-height:clamp(120px,15vw,150px)}}
     `);
     ctx.FEEL = {
       joy: { face: "😊", name: "기뻐요", adj: "기쁜", care: "기쁠 땐 활짝 웃어요! 친구랑 같이 기뻐해요.", icon: "🙌" },

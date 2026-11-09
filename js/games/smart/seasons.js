@@ -1411,19 +1411,12 @@
         await ctx.wait(600);
         if (!alive(r)) return false;
         ctx.score.add();
+        ctx.noStar(); // 한 바퀴(틀릴 수 없는 판) — 단계는 올리되 열쇠 별은 2·3단계에서만
         return ctx.win({ big: true, msg: "{부름} 사계절 박사!" });
       }
-      /** 봄·여름·가을 축하: ctx.win 그대로(열쇠 별·마지막 판 처리 포함) 하되 단계 연승(streak)에는 넣지 않음 */
+      /** 봄·여름·가을 축하: 빛나는 것을 누르기만 하는(틀릴 수 없는) 판 → 축하·마지막 판 처리만, 단계·열쇠 별에는 넣지 않음 */
       function seasonWin(o) {
-        const lv = KP.level.get("seasons");
-        const keep = lv.streak || 0;
-        lv.streak = -1; // win 이 +1 → 0, 3연승 승급 안 됨
-        KP.level.save("seasons", lv);
-        const p = ctx.win(o);
-        const lv2 = KP.level.get("seasons");
-        lv2.streak = keep;
-        KP.level.save("seasons", lv2);
-        return p;
+        return ctx.win(Object.assign({}, o, { noLevel: true }));
       }
       async function cycle(r) {
         if (!grown && !(await seedPhase(r))) return;

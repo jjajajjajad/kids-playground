@@ -102,7 +102,7 @@ KP.game({
       setHint();
     }
     function setHint() {
-      ctx.hint(() => pads[seq[pos]], "아까 누가 노래했지? 눌러 봐요!");
+      ctx.hint(() => pads[seq[pos]], "아까 누가 노래했지? 눌러 봐요!", { answer: true }); // 정답 패드를 가리킴 → 그 판은 열쇠 별 없음
     }
     async function input(i) {
       light(i, 260);
@@ -135,10 +135,12 @@ KP.game({
       seq.push(nextPad());
       show(false);
     }
-    /** 다음 패드: 1단계는 바로 앞과 다른 친구만 (같은 친구가 연달아 노래하면 3~4세는 한 번으로 봄) */
+    /** 다음 패드: 1단계는 바로 앞과 다른 친구만 (같은 친구가 연달아 노래하면 3~4세는 한 번으로 봄),
+        2·3단계도 같은 친구는 최대 2번 연속 */
     function nextPad() {
-      if (ctx.level > 1 || !seq.length) return U.rand(4);
+      if (!seq.length) return U.rand(4);
       const prev = seq[seq.length - 1];
+      if (ctx.level > 1 && !(seq.length >= 2 && seq[seq.length - 2] === prev)) return U.rand(4);
       return U.pick([0, 1, 2, 3].filter((i) => i !== prev));
     }
     function newRound() {

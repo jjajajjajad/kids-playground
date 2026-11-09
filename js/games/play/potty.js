@@ -411,7 +411,7 @@ KP.game({
 
     /* ---------- 매 장면: 자리 맞추기 (누르는 곳·소품·바지·뒤 캔버스) ---------- */
     const box = (e, x0, y0, x1, y1) => Object.assign(e.style, { left: x0 + "px", top: y0 + "px", width: Math.max(1, x1 - x0) + "px", height: Math.max(1, y1 - y0) + "px" });
-    const boxUV = (e, b, minPx = 70) => {
+    const boxUV = (e, b, minPx = 72) => { // 폰 가로에서도 72px 이상
       const a = st.uvToPx(b[0], b[1]), c = st.uvToPx(b[2], b[3]);
       // 보이는 곳만 (세로 화면은 배경 양옆이 잘림) — 화면 밖이면 숨김
       let x0 = Math.max(0, a.x), y0 = Math.max(0, a.y), x1 = Math.min(st.w, c.x), y1 = Math.min(st.h, c.y);
@@ -552,7 +552,7 @@ KP.game({
         ctx._hinted = true; // 안내 단계: 정답이 반짝
         ctx.hit.toilet.classList.add("glow");
       }
-      ctx.hint(() => ctx.hit.toilet, "화장실을 눌러요!");
+      ctx.hint(() => ctx.hit.toilet, "화장실을 눌러요!", { answer: true }); // 정답(변기)을 가리킴 → 가리킨 판은 열쇠 별 없음
     });
     if (ac) ac.abort();
     if (!picked || !live()) return;

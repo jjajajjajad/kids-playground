@@ -450,7 +450,7 @@ KP.game({
       // 친구 영역 표본점 (그림이면 실제 윤곽, 사진이면 둥근 네모)
       samples = makeSamples(x, y, S);
       ctx.say(cur.photo && Math.random() < 0.5 ? "우리 캐릭터가 숨었어요! 어디 있을까요?" : theme.say);
-      ctx.hint(() => spot, "여기를 문질문질 해 봐요!");
+      ctx.hint(() => spot, "여기를 문질문질 해 봐요!", { answer: true }); // 친구 자리를 알려 주는 힌트 → 그 판은 열쇠 별 없음
     }
     function makeSamples(x, y, S) {
       const N = 44,

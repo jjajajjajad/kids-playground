@@ -76,7 +76,7 @@ KP.game({
       .fc-col{width:clamp(36px,5.4vh,46px);height:clamp(36px,5.4vh,46px);border-radius:50%;border:4px solid #fff;box-shadow:0 3px 0 rgba(0,0,0,.14);background-image:radial-gradient(circle at 35% 30%,rgba(255,255,255,.55),rgba(255,255,255,0) 45%,rgba(0,0,0,.18))!important}
       .fc-col.sel{transform:scale(1.15);box-shadow:0 0 0 3px var(--ink)}
       .fc-acts{display:flex;gap:10px;justify-content:center;flex:0 0 auto}
-      .fc-act{font-size:clamp(20px,2.6vw,26px);padding:10px 18px;min-height:62px;white-space:nowrap}
+      .fc-act{font-size:clamp(20px,2.6vw,26px);padding:10px 18px;min-height:64px;white-space:nowrap}
       .fc-act .e{font-size:1.5em}
       /* 사진 줄 (폴라로이드) */
       .fc-line{position:relative;flex:0 0 auto;height:clamp(84px,12vh,112px);display:none}
@@ -106,7 +106,7 @@ KP.game({
       .fc-grid{flex:1;min-height:0;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(92px,15vmin,130px),1fr));gap:16px 12px;align-content:start;padding:10px 6px}
       .fc-grid .fc-pol .ph{aspect-ratio:1/1;height:auto}
       .fc-obar{display:flex;gap:10px;justify-content:center;flex:0 0 auto;flex-wrap:wrap}
-      .fc-obar .btn{min-height:62px;font-size:clamp(20px,2.6vw,26px);padding:8px 18px}
+      .fc-obar .btn{min-height:64px;font-size:clamp(20px,2.6vw,26px);padding:8px 18px}
       .fc-obar .btn .e{font-size:1.4em}
       .fc-pick{flex-direction:row;align-items:center;justify-content:center;gap:clamp(16px,4vw,48px)}
       .fc-snap{position:relative;flex:0 0 auto;width:min(38vmin,300px);transform:rotate(-3deg);animation:popIn .4s backwards}
@@ -141,7 +141,7 @@ KP.game({
         .fc-act{font-size:20px;padding:6px 12px;min-height:64px;min-width:68px}
         .fc-act .t{display:none}
         .fc-act.primary .t{display:inline}
-        .fc-obar .btn{font-size:19px;padding:6px 12px;min-height:56px}
+        .fc-obar .btn{font-size:19px;padding:6px 12px;min-height:64px;min-width:64px}
       }
       @media (orientation:portrait) and (max-height:720px){
         .fc{grid-template-rows:minmax(136px,1fr) auto}
@@ -150,17 +150,36 @@ KP.game({
         .fc-col{width:40px;height:40px}
         .fc-act{min-height:56px}
       }
+      /* 태블릿 세로(큰 세로 화면, 2026-11-09): 폰 크기 그대로라 탭·단추 56px → 72px */
+      @media (orientation:portrait) and (min-width:700px){
+        .fc-tab{height:72px;font-size:36px}
+        .fc-opts{grid-auto-rows:clamp(84px,9vh,110px)}
+        .fc-act{min-height:72px;font-size:24px}
+        .fc-col{width:64px;height:64px}
+        .fc-obar .btn{min-height:72px}
+      }
+      /* 폰 가로(2026-11-09): 머리색 점 36px·보기 46px·단추 52px 로 작고 보기 둘째 줄이 잘렸음
+         → 폰 세로처럼 '🎨 머리 색' 탭을 쓰고(점 줄 숨김), 단추 셋은 오른쪽 세로줄로 빼서 탭·보기가 64px 두 줄씩 다 보이게 */
       @media (orientation:landscape) and (max-height:500px){
-        .fc-opts{grid-auto-rows:minmax(46px,1fr);overflow-y:auto}
-        .fc-act{min-height:52px;font-size:19px;padding:4px 12px}
+        .fc{grid-template-columns:minmax(0,1fr) minmax(300px,44vw) auto;grid-template-rows:auto minmax(0,1fr);grid-template-areas:"face tabs acts" "face opts acts";gap:6px 8px;padding:0 10px 8px}
+        .fc-panel{display:contents}
+        .fc-tabs{grid-area:tabs;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+        .fc-tab{height:64px;font-size:28px;border-radius:14px}
+        .fc-tab.sel{transform:none}
+        .fc-tab.hc{display:flex}
+        .fc-colors{display:none}
+        .fc-opts{grid-area:opts;grid-auto-rows:minmax(64px,1fr);overflow-y:auto;padding:6px;gap:6px}
+        .fc-acts{grid-area:acts;flex-direction:column;justify-content:center;gap:8px}
+        .fc-act{min-height:64px;min-width:76px;font-size:24px;padding:4px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0}
         .fc-act .t{display:none}
-        .fc-act.primary .t{display:inline}
+        .fc-act.primary{min-height:96px}
+        .fc-act.primary .t{display:inline;font-size:14px;white-space:normal;word-break:keep-all;text-align:center;line-height:1.15}
         .fc-ov{padding:8px 10px;gap:6px}
         .fc-fam{grid-template-columns:repeat(6,minmax(0,1fr));padding:8px 8px 4px;gap:8px}
         .fc-fam .fc-pol{width:72%}
         .fc-fam .tag{font-size:24px}
         .fc-grid{grid-template-columns:repeat(auto-fill,minmax(82px,1fr));gap:10px}
-        .fc-obar .btn{min-height:50px;font-size:18px;padding:4px 12px}
+        .fc-obar .btn{min-height:64px;min-width:64px;font-size:18px;padding:4px 12px}
         .fc-snap{width:min(46vh,220px)}
         .fc-pick .q{font-size:34px}
         .fc-whos{gap:8px}

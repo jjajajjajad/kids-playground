@@ -1,6 +1,7 @@
 /* 숫자 기차 — 기관차 뒤에 숫자 객차를 순서대로 끌어 이어 붙이기
    1단계: 1~3 차례로 잇기 (숫자 + 점 개수 함께 보임)
    2단계: 1~5 차례로 잇기 (숫자 + 점)
+          1·2단계 판 셋 중 하나쯤은 앞 칸(1, 또는 1·2)이 이미 붙어 있어 그다음 숫자부터 이어요(시작 숫자 변화, 이을 칸 수는 같음)
    3단계: 1~10 기차에서 빈 칸 4개 채우기 (숫자만, 앞뒤 숫자 보고 추리)
           — 3단계에 처음 들어오면 첫 2판은 디딤판: 1~6 기차에 빈 칸 2개 (점도 보임)
    칸 크기(--cw)는 무대 폭에 맞춰 계산 → 한 줄에 다 들어가게. 너무 좁으면(폰 세로) 반씩 2줄(5+5)로 나눔
@@ -109,6 +110,7 @@ KP.game({
   start(ctx) {
     ctx.round = 0;
     ctx.l3n = 0; // 3단계 디딤판 판 수 (열 때마다 처음 2판)
+    ctx.lastPre = -1; // 열고 첫 판은 늘 1부터
     this.next(ctx);
   },
   car(ctx, n, dots) {
@@ -127,9 +129,13 @@ KP.game({
     if (lv < 3) ctx.l3n = 0;
     const step = lv === 3 && (ctx.l3n || 0) < 2;
     if (lv === 3) ctx.l3n = (ctx.l3n || 0) + 1;
-    const total = step ? 6 : [3, 5, 10][lv - 1];
-    const dots = lv < 3 || step;
     const seq = lv < 3; // 차례로 잇기
+    // 1·2단계: 가끔 앞 칸이 이미 붙어 있음 → 2(또는 3)부터 이어 붙이기. 연달아 두 번은 안 함
+    let pre = 0;
+    if (seq && !ctx.lastPre && U.rand(3) === 0) pre = lv === 1 ? 1 : 1 + U.rand(2);
+    ctx.lastPre = pre;
+    const total = step ? 6 : [3, 5, 10][lv - 1] + pre;
+    const dots = lv < 3 || step;
     ctx.wrap.classList.toggle("big", lv === 1);
     ctx.train.style.transition = "none"; // 떠난 자리에서 미끄러져 돌아오지 않게
     ctx.train.className = "trTrain";
@@ -145,7 +151,7 @@ KP.game({
     ctx.train.appendChild(loco);
     const units = []; // [{n, el(unit), slot|car}]
     let blanks;
-    if (seq) blanks = new Set(Array.from({ length: total }, (_, i) => i + 1));
+    if (seq) blanks = new Set(Array.from({ length: total - pre }, (_, i) => i + 1 + pre));
     else {
       blanks = new Set(U.sample(Array.from({ length: total - 1 }, (_, i) => i + 2), step ? 2 : 4));
     }
@@ -163,7 +169,7 @@ KP.game({
     ctx.units = units;
     this.fit(ctx);
     // 차례로 잇기: 다음 칸만 보여 줌
-    let nextN = 1;
+    let nextN = pre + 1;
     const showNext = () => {
       const u = units[nextN - 1];
       if (!u) return;
@@ -173,7 +179,9 @@ KP.game({
     if (seq) showNext();
     else units.forEach((u) => blanks.has(+u.dataset.n) && u.firstChild.classList.add("next"));
 
-    ctx.say(seq ? "기차 칸을 1부터 순서대로 이어 주세요!" : "빈 칸에 어떤 숫자가 들어갈까요? 기차를 이어 주세요!");
+    // 앞 칸이 붙어 있는 판: "하나! 둘! 다음은 뭐가 올 차례일까?" — 모두 자연 음성 조각
+    const preSay = Array.from({ length: pre }, (_, i) => U.NAT[i + 1] + "!").join(" ") + " 다음은 뭐가 올 차례일까?";
+    ctx.say(seq ? (pre ? preSay : "기차 칸을 1부터 순서대로 이어 주세요!") : "빈 칸에 어떤 숫자가 들어갈까요? 기차를 이어 주세요!");
     // 디딤판(끌 것 2개·빈 칸 2개): 첫 카드를 아무 칸에 놓아도 반은 맞고 나머지는 저절로 맞음 → 열쇠 별 없음
     if (step) ctx.fewChoice();
 

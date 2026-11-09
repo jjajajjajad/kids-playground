@@ -30,6 +30,16 @@ KP.game({
       .ic-bub{position:absolute;z-index:2;left:4%;top:18%;max-width:48%;background:#fff;border-radius:24px;padding:10px 16px;box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;font-size:clamp(18px,2.6vw,26px);line-height:1.25;animation:popIn .4s cubic-bezier(.2,1.5,.4,1)}
       .ic-bub::after{content:"";position:absolute;left:30%;bottom:-16px;border:10px solid transparent;border-top:16px solid #fff}
       .ic-bub svg{height:clamp(70px,12vh,120px);width:auto;flex:0 0 auto}
+      /* 주문 그림 줄 (2026-11-09): 글 못 읽는 아이가 그림만 보고 맞히게 — 스쿱을 개수만큼, 콘/컵·토핑도 크게 */
+      .ic-bub.has-ord{flex-direction:column;gap:4px}
+      .ic-shop.has-ord .ic-cust{bottom:4%}
+      .ic-bub.has-ord > svg{display:none}
+      .ic-ord .g{display:flex;align-items:center;gap:2px;white-space:nowrap}
+      .ic-ord{flex:0 0 100%;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:4px 6px;--ic:clamp(56px,min(9vw,11vh),84px)}
+      .ic-bub .ic-ord svg{width:var(--ic);height:calc(var(--ic) * .75)}
+      .ic-bub .ic-ord .ct svg{width:calc(var(--ic) * .7);height:calc(var(--ic) * .75)}
+      .ic-ord .e{font-size:calc(var(--ic) * .62)}
+      .ic-ord .plus{font-size:calc(var(--ic) * .4);color:#c7a2b6;margin:0 -2px}
       .ic-cone{position:absolute;right:6%;bottom:6%;height:86%;aspect-ratio:200/370;transition:transform .7s cubic-bezier(.5,0,.5,1),opacity .5s}
       .ic-cone svg{width:100%;height:100%;overflow:visible}
       .ic-cone.serve{opacity:0}
@@ -61,6 +71,7 @@ KP.game({
         .ic-b .e{font-size:32px}
         .ic-bub{max-width:62%;font-size:17px;padding:8px 12px}
         .ic-bub svg{height:64px}
+        .ic-bub.has-ord{font-size:15px}
         .ic-cust{width:44%;bottom:24%}
         .ic-animal{font-size:clamp(80px,11vh,120px)}
       }
@@ -75,17 +86,31 @@ KP.game({
         .ic-mix .ic-b,.ic-ac .ic-b{flex-direction:column;gap:1px;font-size:12.5px}
         .ic-animal{font-size:clamp(76px,10vh,110px)}
       }
+      /* 태블릿 세로(큰 세로 화면): 폰 크기 그대로라 단추·손님이 작고 화면이 비어 보였음 */
+      @media (orientation:portrait) and (min-width:700px){
+        .ic-ctl{gap:12px}
+        .ic-row,.ic-mix{gap:12px}
+        .ic-b{min-height:clamp(76px,8vh,96px);font-size:16px;border-radius:20px}
+        .ic-b svg{width:50px;height:50px}
+        .ic-b .e{font-size:42px}
+        .ic-animal{font-size:clamp(130px,15vh,190px)}
+        .ic-bub,.ic-bub.has-ord{font-size:20px}
+        .ic-ord{--ic:84px}
+      }
       @media (orientation:landscape) and (max-height:500px){
         .ic{gap:8px;padding:0 10px 8px}
         .ic-ctl{width:clamp(360px,46vw,420px);gap:8px}
-        .ic-fl{grid-template-columns:repeat(6,1fr);gap:6px}
+        .ic-fl{grid-template-columns:repeat(3,1fr);gap:6px}
         .ic-mix{display:grid;grid-template-columns:2fr 3fr;gap:6px}
         .ic-ac{gap:6px}
-        .ic-b{min-height:60px;border-radius:16px;font-size:13px;padding:4px 2px}
+        .ic-b{min-height:64px;border-radius:16px;font-size:13px;padding:2px 2px}
+        .ic-fl .ic-b{flex-direction:row;gap:6px;font-size:14px}
         .ic-b svg{width:32px;height:32px}
         .ic-b .e{font-size:28px}
-        .ic-bub{max-width:70%;font-size:16px;padding:6px 10px;top:12%}
+        .ic-bub{max-width:72%;font-size:16px;padding:6px 10px;top:12%}
         .ic-bub svg{height:48px}
+        .ic-bub.has-ord{gap:2px;font-size:14px}
+        .ic-ord{--ic:clamp(50px,14.5vh,56px)}
         .ic-cust{width:46%}
         .ic-animal{font-size:clamp(70px,22vh,100px)}
       }
@@ -280,7 +305,7 @@ KP.game({
       let t = parts.join(", ");
       if (o.cont) t = (o.cont === "cup" ? "컵에 " : "콘에 ") + t;
       t += " 주세요!";
-      if (o.top) t += " " + { cherry: "체리", sprinkle: "스프링클", chip: "초코칩" }[o.top] + "도 올려 주세요!";
+      if (o.top) t += " " + { cherry: "체리", sprinkle: "스프링클", chip: "초코칩" }[o.top] + " 주세요!"; // "체리도 올려 주세요!" 는 녹음이 없어 자연 음성 조각으로
       return t;
     }
     function orderPic(o) {
@@ -291,6 +316,17 @@ KP.game({
         for (let i = 0; i < n; i++) scoops.push(+f);
       });
       return iceSVG({ cont: o.cont || "cone", scoops, sprinkle: o.top === "sprinkle", cherry: o.top === "cherry", chip: o.top === "chip" });
+    }
+    /** 주문 그림 줄: 스쿱 아이콘을 개수만큼 (+ 4단계 콘/컵·토핑). 자유 주문은 없음 */
+    function orderRow(o) {
+      if (o.free) return "";
+      // 묶음(같은 맛 스쿱들, 콘/컵, 토핑)끼리는 줄이 바뀌지 않게 → 좁은 화면에서 묶음 단위로 다음 줄
+      const gs = [];
+      if (o.only != null) gs.push(scoopIcon(o.only));
+      else Object.entries(o.counts).forEach(([f, n]) => gs.push(Array.from({ length: n }, () => scoopIcon(+f)).join("")));
+      if (o.cont) gs.push('<span class="ct">' + CONTS[o.cont === "cone" ? 0 : 1][2] + "</span>");
+      if (o.top) gs.push(KP.E(TOPS.find((t) => t[0] === o.top)[2]));
+      return '<div class="ic-ord">' + gs.map((g, k) => '<span class="g">' + (k ? '<span class="plus">+</span>' : "") + g + "</span>").join("") + "</div>";
     }
     function newCustomer() {
       busy = false;
@@ -313,7 +349,10 @@ KP.game({
       });
       ctx.after(650, () => {
         const txt = orderText(order);
-        bub.innerHTML = orderPic(order) + "<span>" + txt + "</span>";
+        const row = orderRow(order);
+        bub.innerHTML = orderPic(order) + "<span>" + txt + "</span>" + row;
+        bub.classList.toggle("has-ord", !!row);
+        shop.classList.toggle("has-ord", !!row); // 주문 그림 줄로 말풍선이 커지면 손님은 바닥 쪽으로 (가려지지 않게)
         bub.style.display = "";
         U.replay(bub, "pop");
         ctx.say(who[1] + " 손님이 왔어요! " + (order.free ? "맛있는 아이스크림을 만들어 드려요." : txt));
@@ -340,7 +379,9 @@ KP.game({
       return bServe;
     }
     function hint() {
-      ctx.hint(need, order && !order.free ? orderText(order) : "맛을 골라 아이스크림을 만들어요!");
+      // 손가락이 다음에 누를 맛·콘/컵·토핑(정답)을 가리키면 그 판은 열쇠 별 없음. 다 맞게 만든 뒤 '드리기'를 가리키는 것은 괜찮음
+      const answer = !!order && !order.free && need() !== bServe;
+      ctx.hint(need, order && !order.free ? orderText(order) : "맛을 골라 아이스크림을 만들어요!", { answer });
     }
     function afterChange() {
       hint();
@@ -349,20 +390,21 @@ KP.game({
       if (order.free) return null;
       if (order.only != null) {
         const bad = st.scoops.find((f) => f !== order.only);
-        return bad == null ? null : U.josa(FLAVORS[bad][0], "은/는") + " 안 시켰어요!";
+        return bad == null ? null : FLAVORS[bad][0] + "! 안 시켰어요!";
       }
       const have = {};
       st.scoops.forEach((f) => (have[f] = (have[f] || 0) + 1));
-      const CNT = ["", "한", "두", "세", "네", "다섯"];
+      // 틀림 안내는 주문 문장·맛 이름 + 공용 조각으로만 (모두 자연 음성, 2026-11-09 — 예전 "딸기가 두 개 있어야 해요!" 류 47개는 기기 음성이었음)
+      const CN = ["", "하나", "두 개", "세 개"];
       for (const [f, n] of Object.entries(order.counts)) {
         const h = have[f] || 0,
           nm = FLAVORS[f][0];
-        if (h < n) return U.josa(nm, "이/가") + " " + CNT[n] + " 개 있어야 해요!";
-        if (h > n) return U.josa(nm, "이/가") + " 너무 많아요! " + CNT[n] + " 개만 주세요.";
+        if (h < n) return nm + " " + CN[n] + " 주세요!";
+        if (h > n) return "너무 많아요! " + nm + " " + CN[n] + " 주세요!";
       }
-      for (const f of Object.keys(have)) if (!(f in order.counts)) return U.josa(FLAVORS[f][0], "은/는") + " 안 시켰어요!";
-      if (order.cont && st.cont !== order.cont) return (order.cont === "cup" ? "컵" : "콘") + "에 담아 주세요!";
-      if (order.top && !st[order.top]) return { cherry: "체리", sprinkle: "스프링클", chip: "초코칩" }[order.top] + "도 올려 주세요!";
+      for (const f of Object.keys(have)) if (!(f in order.counts)) return FLAVORS[f][0] + "! 안 시켰어요!";
+      if (order.cont && st.cont !== order.cont) return (order.cont === "cup" ? "컵" : "콘") + "에 주세요!";
+      if (order.top && !st[order.top]) return { cherry: "체리", sprinkle: "스프링클", chip: "초코칩" }[order.top] + " 주세요!";
       return null;
     }
     ctx.tap(bServe, async () => {
@@ -373,7 +415,7 @@ KP.game({
       }
       const wrong = check();
       if (wrong) {
-        ctx.miss(animal, "음… " + wrong);
+        ctx.miss(animal, wrong);
         U.replay(bub, "pop");
         return;
       }

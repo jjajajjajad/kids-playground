@@ -83,13 +83,17 @@ KP.game({
       const n = ctx.n || 3;
       const W = stage.clientWidth,
         H = stage.clientHeight;
-      // 좁은 폰 세로: 두 줄(3개 → 2+1, 4개 → 2+2, 5개 → 3+2)로 달걀을 크게
-      const perRow = W < 560 ? (n <= 2 ? n : Math.ceil(n / 2)) : n;
-      const rows = Math.ceil(n / perRow);
-      const es = Math.floor(U.clamp(Math.min((W - 40) / perRow / 1.35, (H - 70) / rows / 1.75), 74, 190));
+      // 한 줄에 몇 개? 한 줄(n개)을 기본으로, 줄을 나눠(2개씩·절반씩) 달걀이 15% 넘게 커지면 그쪽으로
+      // (폰 세로 5개 → 2+2+1, 태블릿 세로 → 두 줄. 예전엔 '폭 560 미만'만 봐서 태블릿 세로는 한 줄로 작았고 폰 세로 5개는 74px)
+      const esOf = (p) => U.clamp(Math.min((W - 40) / p / 1.35, (H - 70) / Math.ceil(n / p) / 1.75), 74, 190);
+      let perRow = n;
+      for (const p of [Math.ceil(n / 2), 2]) if (p >= 2 && p < n && esOf(p) > esOf(perRow) * 1.15) perRow = p;
+      const es = Math.floor(esOf(perRow));
       row.style.setProperty("--es", es + "px");
       // 한 줄에 perRow 개만 (다음 달걀 하나가 더 들어갈 틈은 없게: 여유 es*0.5)
-      const gap = U.clamp(innerWidth * 0.02, 6, 26);
+      // 옆 칸 틈: 둥지가 달걀보다 양옆 12%씩 넓어서, 틈이 좁으면(폰) 둥지끼리 겹쳤음 → 둥지 폭만큼은 띄움
+      const gap = Math.max(U.clamp(innerWidth * 0.02, 6, 26), es * 0.26);
+      row.style.columnGap = gap + "px";
       row.style.maxWidth = perRow * es + (perRow - 1) * gap + 20 + es * 0.5 + "px";
       // 풀밭은 맨 윗줄 둥지 높이부터 (위 줄 달걀이 하늘에 떠 보이지 않게)
       const first = row.firstElementChild;
@@ -210,6 +214,7 @@ KP.game({
           ctx.after(2600, async () => {
             ctx.round++;
             const big = ctx.round % 4 === 0;
+            ctx.noStar(); // 두드리기만 하면 깨지는 판(틀릴 수 없음) → 열쇠 별 없음
             const ok = await ctx.win({ big, msg: big ? "아기 동물 친구 부자!" : "모두 태어났어요!" });
             if (ok) this.next(ctx);
           });

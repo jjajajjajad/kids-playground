@@ -277,7 +277,8 @@ KP.game({
       }
       if (n.d <= st.hitR) {
         st.shake[n.k] = 1;
-        A.sfx("boing");
+        // 차례가 아닌 점: 가벼운 실수(단계엔 안 셈, 1번까지는 열쇠 별 그대로 — 마구 누르기만 별 제외)
+        ctx.miss(null, null, { soft: true });
       }
       st.flashUntil = performance.now() + 1800;
       const now = performance.now();
@@ -361,8 +362,13 @@ KP.game({
   next(ctx) {
     const U = KP.u,
       lv = ctx.level;
-    if (!ctx.bag[lv] || !ctx.bag[lv].length) ctx.bag[lv] = U.shuffle([...ctx.SHAPES[lv - 1]]);
+    if (!ctx.bag[lv] || !ctx.bag[lv].length) {
+      ctx.bag[lv] = U.shuffle([...ctx.SHAPES[lv - 1]]);
+      // 다시 채운 주머니의 첫 모양이 바로 앞 판과 같으면 뒤로 (같은 모양 연달아 방지)
+      if (ctx.bag[lv].length > 1 && ctx.bag[lv][0] === ctx.lastShape) ctx.bag[lv].push(ctx.bag[lv].shift());
+    }
     const shape = ctx.bag[lv].shift();
+    ctx.lastShape = shape;
     ctx.ddBuild(shape, lv);
     // 화면: "1번부터 8번까지 차례로 이어요…" / 소리: 자연 음성이 있는 "1번 점부터 차례로 이어 봐요! 무슨 그림이 나올까?"
     const full = "하나부터 " + KP.u.numNative(shape.pts.length) + "까지 차례로 이어요. 무슨 그림이 나올까?";

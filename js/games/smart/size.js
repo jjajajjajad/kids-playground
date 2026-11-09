@@ -19,6 +19,8 @@ KP.game({
       @media (max-aspect-ratio:1/1){.szShelf{--sz:var(--szp)}
         /* 세로 폰: 칸 폭을 그림 크기에 맞춰(작은 그림 칸은 좁게, 그래도 72px 이상) → 큰 그림을 더 크게 그릴 수 있어 '작은 것'도 점처럼 안 보임 */
         .szShelf .szItem{width:max(72px,calc(var(--sz) * var(--k) + 16px))}}
+      /* 좁은 세로 화면의 4개 판: 선반 두 단(2+2) — 한 줄이면 가장 작은 그림이 32px 로 너무 작음 */
+      .szShelf.szTwo{flex-direction:column;align-items:center;gap:clamp(18px,3vh,30px);border-bottom:none;box-shadow:none;padding:0;border-radius:0}
       .szItem{position:relative;display:flex;align-items:flex-end;justify-content:center;width:calc(var(--sz) + 16px);height:calc(var(--sz) + 22px);
         border-radius:26px 26px 0 0;padding:0 0 4px;background:rgba(255,255,255,.55);transition:background .2s}
       .szItem:active{background:rgba(255,255,255,.9)}
@@ -59,9 +61,16 @@ KP.game({
     if (lv === 3) while (order.every((o, i) => o.rank === i)) order = U.shuffle(order);
     ctx.shelf.style.setProperty("--szl", { 3: "clamp(90px,min(22vw,40vh),240px)", 4: "clamp(80px,min(19vw,36vh),210px)" }[n]);
     // 세로: 칸 폭 합(그림 크기 합 + 칸 여백 16px·간격 8px·선반 여백) 이 화면 폭에 맞게
-    const sumK = ks.reduce((a, b) => a + Math.max(b, 0.56), 0); // 작은 칸도 최소 84px(.choice) → 작은 그림은 0.56 으로 셈
-    ctx.shelf.style.setProperty("--szp", "clamp(64px,calc((100vw - " + (16 * n + 8 * (n - 1) + 68) + "px) / " + sumK.toFixed(2) + "),min(" + (n === 3 ? 170 : 150) + "px,32vh))");
+    const two = n === 4 && innerWidth < innerHeight && innerWidth <= 600; // 폰 세로 4개 판: 선반 두 단
+    const per = two ? 2 : n; // 한 단의 칸 수
+    const kk = (o) => Math.max(o.k, 0.56); // 작은 칸도 최소 84px(.choice) → 작은 그림은 0.56 으로 셈
+    const sumK = two ? Math.max(kk(order[0]) + kk(order[1]), kk(order[2]) + kk(order[3])) : ks.reduce((a, b) => a + Math.max(b, 0.56), 0);
+    // 세로 화면 상한: 폰은 폭 계산이 먼저 걸리고, 세로 태블릿은 상한까지 크게 (예전 170/150px·32vh → 220/200px·36vh)
+    const cap = two ? "min(170px,26vh)" : "min(" + (n === 3 ? 220 : 200) + "px,36vh)";
+    ctx.shelf.style.setProperty("--szp", "clamp(64px,calc((100vw - " + (16 * per + 8 * (per - 1) + 68) + "px) / " + sumK.toFixed(2) + ")," + cap + ")");
     ctx.shelf.innerHTML = "";
+    ctx.shelf.classList.toggle("szTwo", two);
+    const rows = two ? [0, 1].map(() => ctx.shelf.appendChild(U.el("div", "szShelf szSub"))) : null;
     const render = (o) => KP.E(em);
 
     if (lv < 3) {
@@ -129,7 +138,7 @@ KP.game({
           ctx.miss(b, o.rank > step ? "이것보다 더 작은 " + U.josa(name, "이/가") + " 있어요!" : "다시 해 봐요!");
         }
       });
-      ctx.shelf.appendChild(b);
+      (rows ? rows[i < 2 ? 0 : 1] : ctx.shelf).appendChild(b);
       return b;
     });
     const hint = () => ctx.hint(() => btns.find((b) => +b.dataset.seq === step), step === 0 ? first : "그다음 큰 걸 눌러요!");

@@ -76,7 +76,8 @@ KP.game({
         .xy-card .e{font-size:44px}
       }
       @media (orientation:landscape) and (max-height:500px){
-        .xy-b{min-height:56px;padding:6px 14px;font-size:16px}
+        .xy-b{min-height:64px;padding:6px 14px;font-size:16px}
+        .xy-bar{align-items:center;padding-bottom:0} /* 막대가 낮아 글자가 위 못에 겹침 → 가운데로 */
         .xy-cards{grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
         .xy-card{padding:8px 4px;font-size:15px}
         .xy-card .e{font-size:40px}
@@ -324,6 +325,33 @@ KP.game({
       if (cur.length) out.push(cur);
       return out;
     }
+    /** 단계별 칠 음 개수(음 개수 기준) — 1단계 약 6~10음 < 2단계 약 절반 < 3단계 끝까지.
+        목표 근처(±3음)에서 긴 음·쉼표 뒤를 골라 끊음 (piano·xylo·musicbox 같은 방식) */
+    function partLen(list, lv) {
+      const seq = []; // 쉼표 뺀 음마다 '뒤에 쉬는 길이'
+      list.forEach(([n, b]) => {
+        if (n === "R") {
+          if (seq.length) seq[seq.length - 1] += b + 1; // 쉼표 앞은 더 좋은 끊는 자리
+        } else seq.push(b);
+      });
+      const N = seq.length;
+      if (lv >= 3 || N < 8) return N;
+      const cut = (t, lo, hi) => {
+        let best = Math.max(lo, Math.min(hi, t)),
+          bs = -1e9;
+        for (let c = Math.max(lo, t - 3); c <= Math.min(hi, t + 3); c++) {
+          const s = seq[c - 1] * 2 - Math.abs(c - t) * 0.6;
+          if (s > bs) {
+            bs = s;
+            best = c;
+          }
+        }
+        return best;
+      };
+      const c1 = cut(Math.max(6, Math.min(10, Math.round(N * 0.3))), 4, N - 4);
+      if (lv === 1) return c1;
+      return cut(Math.round(N * 0.5), c1 + 3, N - 2);
+    }
     /** 동요(도4~도5)를 실로폰(도5~도6)으로 한 옥타브 올려 막대 번호로 */
     const barOf = (n) => BARS.findIndex((b) => A.midiOf(b[0]) === A.midiOf(n) + 12);
     function startFollow(key) {
@@ -331,8 +359,7 @@ KP.game({
       const song = A.SONGS[key];
       const ph = phrasesOf(song.notes);
       const lv = ctx.level;
-      const take = lv === 1 ? 2 : lv === 2 ? Math.max(2, Math.ceil(ph.length / 2)) : ph.length;
-      const notes = [].concat(...ph.slice(0, take)).filter(([n]) => barOf(n) >= 0);
+      const notes = song.notes.filter(([n]) => n !== "R").slice(0, partLen(song.notes, lv)).filter(([n]) => barOf(n) >= 0);
       follow = { key, seq: notes.map(([n]) => barOf(n)), len: notes.map(([, b]) => b), idx: 0, wrong: 0 };
       dots.innerHTML = "";
       follow.seq.forEach(() => dots.appendChild(U.el("span", "xy-dot")));
@@ -369,6 +396,7 @@ KP.game({
         A.sfx("tap2");
         U.replay(bars[want], "bump");
         if (follow.wrong % 3 === 0) KP.voice.say("반짝이는 건반을 눌러요!");
+        ctx.hint(() => bars[want], "반짝이는 건반을 눌러요!"); // 누를 때 지운 힌트를 다시 걸기
         return;
       }
       follow.wrong = 0;

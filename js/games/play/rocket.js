@@ -175,7 +175,7 @@ KP.game({
       return b;
     });
     btns[0].classList.add("next");
-    const hint = () => ctx.hint(() => btns[idx], "다음 숫자 " + KP.u.josa(word(seq[idx]), "을/를") + " 눌러요!");
+    const hint = () => ctx.hint(() => btns[idx], "다음 숫자 " + KP.u.josa(word(seq[idx]), "을/를") + " 눌러요!", { answer: true }); // 정답 숫자를 가리킴 → 가리킨 판은 열쇠 별 없음
     hint();
 
     const launch = async () => {

@@ -63,6 +63,7 @@ KP.game({
     ctx.body.appendChild(ctx.wrap);
     ctx.round = 0;
     ctx.token = 0;
+    addEventListener("resize", () => ctx._active && ctx.tray && (ctx.tray.style.minHeight = "")); // 화면을 돌리면 고정 높이 풀기 (놀이 중일 때만, dotdot 과 같은 방식)
   },
   start(ctx) {
     ctx.round = 0;
@@ -148,14 +149,25 @@ KP.game({
         },
       });
     });
+    // 힌트 2단계: 첫 힌트(8초)는 안내를 다시 들려주고 다음 빈칸만 흔들기(정답 카드는 안 가리킴) →
+    // 두 번째부터 정답 카드를 가리킴({answer:true} — 가리킨 판은 열쇠 별 없음, 기다렸다 끌기 방지)
+    // 쟁반 높이 고정: 카드가 2줄(3+1)→1줄로 줄면 space-evenly 가 위 칸 줄을 약 70px 옮겼음(태블릿 세로 3단계)
+    ctx.tray.style.minHeight = "";
+    ctx.tray.style.minHeight = ctx.tray.offsetHeight + "px";
+    let hk = 0;
     const hint = () => {
       const s = slots.find((x) => !x.classList.contains("filled"));
       const c = cards[+s.dataset.i];
-      // 정답 카드를 가리키면 이번 판은 열쇠 별 없음(기다렸다 끌기 방지) / 말: "하나! 그림을 순서대로 놓아요!"(자연 음성)
+      const k = ++hk;
+      const say2 = U.NAT[+s.dataset.i + 1] + "! 그림을 순서대로 놓아요!"; // "하나! 그림을 순서대로 놓아요!"(자연 음성)
       ctx.hint(() => {
-        ctx._hinted = true;
-        return c;
-      }, U.NAT[+s.dataset.i + 1] + "! 그림을 순서대로 놓아요!");
+        if (k !== hk || tok !== ctx.token || s.classList.contains("filled")) return null;
+        U.replay(s, "wig");
+        ctx.after(3400, () => {
+          if (k === hk && tok === ctx.token && !s.classList.contains("filled")) ctx.hint(() => c, say2, { answer: true });
+        });
+        return s;
+      }, ctx.instr || say2);
     };
     hint();
     const finish = async () => {

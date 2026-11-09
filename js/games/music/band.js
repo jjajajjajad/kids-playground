@@ -1008,6 +1008,7 @@ KP.game({
       muted = true;
       const sess = ctx._session;
       PLAYERS.forEach((p) => dolls[p.id] && dolls[p.id].act && dolls[p.id].act.happy());
+      ctx.noStar(); // 맞힐 것이 없는 자유 합주 → 열쇠 별 없음 (축하·단계는 그대로)
       const ok = await ctx.win(U.pick([{ msg: "멋진 합주예요!", say: "멋진 연주예요!" }, { msg: "{부름} 최고!" }]));
       if (sess !== ctx._session) return;
       winning = false;

@@ -62,10 +62,12 @@ KP.game({
     ctx.size = (n) => {
       const W = stage.clientWidth,
         H = stage.clientHeight;
-      const perRow = W < 560 && n >= 3 ? 2 : n; // 좁은 폰 세로: 두 줄(2+1, 2+2)로 집을 크게
-      const rows = Math.ceil(n / perRow);
-      const hs = Math.floor(U.clamp(Math.min((W - 40) / perRow / 1.35, (H - 90) / rows / 1.6), 90, 220));
+      // 한 줄(n채)을 기본으로, 두 줄(2채씩)로 나눠 집이 15% 넘게 커지면 두 줄 (폰 세로·태블릿 세로)
+      const hsOf = (p) => U.clamp(Math.min((W - 40) / p / 1.35, (H - 90) / Math.ceil(n / p) / 1.6), 90, 220);
+      const perRow = n >= 3 && hsOf(2) > hsOf(n) * 1.15 ? 2 : n;
+      const hs = Math.floor(hsOf(perRow));
       row.style.setProperty("--hs", hs + "px");
+      row.style.columnGap = Math.round(U.clamp(innerWidth * 0.022, 10, 30) + hs * 0.08) + "px"; // 열린 문·지붕이 옆집에 덜 겹치게
       row.style.maxWidth = perRow * (hs * 1.3 + 30) + "px";
     };
     addEventListener("resize", () => ctx._active && ctx.row.children.length && ctx.size(ctx.row.children.length));
@@ -148,6 +150,7 @@ KP.game({
             ctx.score.add();
             ctx.round++;
             const big = ctx.round % 4 === 0;
+            ctx.noStar(); // 1단계: 문을 다 열면 끝(틀릴 수 없음) → 열쇠 별 없음
             const ok = await ctx.win({ big, msg: big ? "{부름} 까꿍 대장!" : "모두 찾았다!" });
             if (ok) this.next(ctx);
           });

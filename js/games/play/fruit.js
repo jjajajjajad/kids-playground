@@ -141,6 +141,7 @@ KP.game({
         ctx.pause = 2.5;
         ctx.after(300, async () => {
           // 음성은 자연 음성 조각이 있는 말로 ("십! 바구니가 꽉 찼어요!") — "받았다!" 는 조각이 없어 기기 목소리였음
+          ctx.noStar(); // 받기만 하는 진행형(틀림 없음) → 열쇠 별 없음
           const ok = await ctx.win({ big, msg: big ? "{부름} 과일 부자!" : ctx.count + "개 받았다!", say: big ? "" : ctx.count <= 100 ? KP.u.numSino(ctx.count) + "! 바구니가 꽉 찼어요!" : "바구니가 꽉 찼어요!" });
           if (ok) {
             ctx.setHint();

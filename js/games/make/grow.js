@@ -19,7 +19,7 @@ KP.game({
       .gr{flex:1;min-height:0;position:relative;margin:0 12px 12px;border-radius:28px;overflow:hidden;box-shadow:var(--shadow);
         background:linear-gradient(#8fd3ff,#d9f2ff 58%,#a7df86 58%,#7fcc63)}
       .gr-hill{position:absolute;left:-10%;right:-10%;top:52%;height:20%;background:#b6e797;border-radius:50% 50% 0 0}
-      .gr-sun{position:absolute;right:3%;top:3%;width:clamp(100px,17vh,160px);height:clamp(100px,17vh,160px);display:flex;align-items:center;justify-content:center;z-index:2}
+      .gr-sun{position:absolute;right:3%;top:3%;width:clamp(100px,17vh,160px);height:clamp(100px,17vh,160px);display:flex;align-items:center;justify-content:center;z-index:3}
       .gr-sun .e{width:100%;height:100%;filter:drop-shadow(0 0 18px rgba(255,200,40,.7));animation:grSun 6s linear infinite}
       @keyframes grSun{to{transform:rotate(360deg)}}
       .gr-sun.shine::before{content:"";position:absolute;inset:-60%;border-radius:50%;background:radial-gradient(circle,rgba(255,236,120,.9),rgba(255,236,120,0) 65%);animation:grGlow 1.4s ease-out}
@@ -28,10 +28,11 @@ KP.game({
       @keyframes grBeam{from{opacity:0}25%{opacity:1}to{opacity:0}}
       .gr-cloud{position:absolute;top:8%;font-size:clamp(50px,9vh,90px);opacity:.95;animation:grCloud 40s linear infinite}
       @keyframes grCloud{from{transform:translateX(-30vw)}to{transform:translateX(110vw)}}
-      .gr-garden{position:absolute;left:12px;top:12px;z-index:3;display:flex;align-items:center;gap:6px;font-size:clamp(18px,2.4vw,24px);background:#fff;border-radius:20px;padding:8px 14px;box-shadow:var(--shadow);min-height:60px}
+      .gr-garden{position:absolute;left:12px;top:12px;z-index:3;display:flex;align-items:center;gap:6px;font-size:clamp(18px,2.4vw,24px);background:#fff;border-radius:20px;padding:8px 14px;box-shadow:var(--shadow);min-height:64px}
       .gr-garden .e{font-size:1.6em}
       .gr-garden b{font-weight:400;color:var(--coral)}
-      .gr-pots{position:absolute;left:0;right:0;bottom:3%;display:flex;justify-content:space-evenly;align-items:flex-end;z-index:2}
+      .gr-pots{position:absolute;left:0;right:0;bottom:3%;display:flex;justify-content:space-evenly;align-items:flex-end;z-index:2;pointer-events:none}
+      .gr-pots>.gr-pot{pointer-events:auto}
       .gr-pot{position:relative;width:clamp(100px,19vw,200px);aspect-ratio:100/170;transition:transform .2s}
       .gr-pot svg{width:100%;height:100%;overflow:visible}
       .gr-pot.over{transform:scale(1.06)}
@@ -48,7 +49,7 @@ KP.game({
       .gr-view{position:absolute;inset:0;z-index:8;display:none;flex-direction:column;background:linear-gradient(#bfe8ff,#e9f8ff 30%,#b8e79a 30%,#8fd56d)}
       .gr-view.show{display:flex;animation:enter .3s}
       .gr-vtop{display:flex;align-items:center;gap:10px;padding:12px 14px;font-size:clamp(20px,3vw,30px)}
-      .gr-vtop .btn{font-size:clamp(18px,2.4vw,22px)}
+      .gr-vtop .btn{font-size:clamp(18px,2.4vw,22px);min-height:64px}
       .gr-vscroll{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;position:relative;z-index:1}
       .gr-vgrid{margin-top:auto;display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:2px clamp(6px,2vw,22px);padding:20px 14px 18px}
       .gr-vgrid .gr-vf{min-width:var(--fs,74px)}
@@ -66,6 +67,8 @@ KP.game({
       @keyframes grSway{50%{transform:rotate(6deg)}}
       .gr-vempty{grid-column:1/-1;width:100%;text-align:center;font-size:22px;color:#2e6b2a;padding-top:40px}
       @media (max-aspect-ratio:1/1){ .gr{margin:0 10px 10px} .gr-pot{width:30vw} .gr-can,.gr-ghost{width:28vw} .gr-can{top:36%} }
+      /* 폰 가로(키 작은 가로 화면): 화분 상자가 해님 자리까지 올라가 해님을 덮던 문제(2026-11-09) → 화분·물뿌리개를 높이 기준으로 줄임 */
+      @media (orientation:landscape) and (max-height:500px){ .gr-pot{width:min(19vw,25vh)} .gr-sun{width:clamp(80px,24vh,120px);height:clamp(80px,24vh,120px)} .gr-can,.gr-ghost{width:min(15vw,30vh)} .gr-can{top:30%} }
     `);
 
     const FLOWERS = [
@@ -74,6 +77,8 @@ KP.game({
     ];
     KP.loadE(FLOWERS.map((f) => f[0]).concat(["🦋", "🐝"]));
     const STAGE_NAMES = ["씨앗", "싹", "잎", "봉오리", "꽃"];
+    // "튤립 꽃이 피었어요!" — 꽃 이름 + 공용 꼬리말 조각이라 모두 자연 음성 ("튤립이 피었어요!" 는 해바라기만 녹음돼 있었음, 2026-11-09)
+    const bloomMsg = (n) => (n.endsWith("꽃") ? n + "! 꽃이 피었어요!" : n + " 꽃이 피었어요!");
     // 자라는 순서: 씨앗(0) → 싹(1) → 봉오리(3) → 꽃(4). '잎(2)' 단계는 건너뜀 (예전에 저장된 2 는 3 으로)
     const NEXT = { 0: 1, 1: 3, 2: 3, 3: 4 };
 
@@ -441,12 +446,12 @@ KP.game({
         A.sfx("sparkle");
         updateGardenBtn();
         U.replay(bGarden, "bump");
-        ctx.say(U.josa(name, "이/가") + " 피었어요! 내 정원에 심었어요.");
+        ctx.say(bloomMsg(name) + " 내 정원에 심었어요.");
       }
       // 내가 키운 꽃을 볼 시간 (꽃을 콕 누르면 이름을 말함)
       await ctx.wait(3200);
       ctx.round = (ctx.round || 0) + 1;
-      const ok = await ctx.win({ big: ctx.round % 3 === 0, msg: U.josa(FLOWERS[pots[bloomed[0]].kind][1], "이/가") + " 피었어요!" });
+      const ok = await ctx.win({ big: ctx.round % 3 === 0, msg: bloomMsg(FLOWERS[pots[bloomed[0]].kind][1]) });
       if (!ok) return;
       // 핀 꽃은 정원으로 날아가고 새 씨앗
       for (const i of bloomed) {

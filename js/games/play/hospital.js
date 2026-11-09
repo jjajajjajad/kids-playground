@@ -95,7 +95,7 @@ KP.game({
       .hpTool::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:0;box-shadow:0 0 0 10px rgba(255,197,49,.65)}
       .hpTool.glow::after{animation:hpGlow 1.3s ease-in-out infinite}
       @keyframes hpGlow{50%{opacity:1}}
-      @media (orientation:portrait){.hpTool{width:clamp(70px,18vw,104px);height:clamp(70px,18vw,104px)}.hpTray{gap:10px}}
+      @media (orientation:portrait){.hpTool{width:clamp(72px,18vw,104px);height:clamp(72px,18vw,104px)}.hpTray{gap:10px}}
       @media (orientation:landscape) and (max-height:520px){
         .hpWrap{flex-direction:row;padding:0 10px 8px}
         .hpTray{flex-direction:row;width:calc(2*78px + 30px);min-height:0;gap:8px;align-content:center;padding:6px}
@@ -609,7 +609,8 @@ KP.game({
       if (si >= steps.length) return cure();
       await ctx.wait(500);
       if (!live()) return;
-      ctx.say("👩‍⚕️ 이제 " + askOf(steps[si]));
+      // 말은 이모지 없이 따로 → 👩‍⚕️ 의 이음 글자(U+200D)가 문장 앞에 남지 않아 자연 음성 키와 같은 문장이 됨
+      ctx.say("👩‍⚕️ 이제 " + askOf(steps[si]), "이제 " + askOf(steps[si]));
       startStep();
     };
     const careDone = async () => {

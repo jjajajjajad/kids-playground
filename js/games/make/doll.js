@@ -445,6 +445,12 @@
       }
       return n;
     }
+    /** '다 칠했다'·열쇠 별 판정에 쓰는 큰 영역 수 (blank() 와 같은 기준) */
+    function bigRegions() {
+      let n = 0;
+      for (let r = 0; r < B.nReg; r++) if (B.regStart[r + 1] - B.regStart[r] >= 1500 * B.f * B.f) n++;
+      return n;
+    }
     /** 마법 색칠: 부위마다 다른 색 */
     function magic(colors) {
       save();
@@ -477,7 +483,7 @@
     }
     reset();
     return {
-      st, wrap, B, reset, compose, cutout, isEmpty, blank, magic, clear, back, layers, setLayers, box: mask.box,
+      st, wrap, B, reset, compose, cutout, isEmpty, blank, bigRegions, magic, clear, back, layers, setLayers, box: mask.box,
       canUndo: () => undo.length > 0,
       destroy() {
         undo.length = 0;

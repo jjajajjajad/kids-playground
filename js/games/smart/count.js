@@ -14,6 +14,8 @@ KP.game({
       .countTile{position:relative;background:#fff;border-radius:26px;padding:12px;box-shadow:0 6px 0 rgba(47,58,102,.12);font-size:clamp(46px,7.5vw,84px);line-height:1}
       .countTile[data-n]{background:#fff8d6;box-shadow:0 6px 0 #f1cf5b}
       .countBadge{position:absolute;top:-10px;right:-10px;min-width:38px;height:38px;border-radius:50%;background:var(--coral);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 0 rgba(0,0,0,.15);animation:popBig .4s}
+      /* 폰 가로(낮은 화면): 타일을 높이 기준으로 줄여 8~10개도 한 줄에 — 위로 잘리거나 보기와 겹치지 않게 */
+      @media (max-height:500px) and (min-aspect-ratio:1/1){.qStage .countTile{font-size:clamp(36px,12vh,70px);padding:9px;border-radius:20px}.countItems{padding-top:14px}.countBadge{top:-8px;right:-8px;min-width:32px;height:32px;font-size:20px}}
     `);
     ctx.items = U.el("div", "qStage countItems");
     ctx.ans = U.el("div", "qAns");
@@ -40,7 +42,8 @@ KP.game({
 
     ctx.say(U.josa(name, "이/가") + " 몇 개일까요? 하나씩 눌러서 세어 봐요!");
     ctx.items.innerHTML = "";
-    ctx.items.style.maxWidth = answer > 5 ? "900px" : "760px";
+    const low = innerHeight <= 500 && innerWidth >= innerHeight;
+    ctx.items.style.maxWidth = low ? "none" : answer > 5 ? "900px" : "760px";
     ctx.items.style.margin = "0 auto";
     const tiles = [];
     for (let i = 0; i < answer; i++) {

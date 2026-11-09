@@ -240,6 +240,22 @@ KP.game({
         now = c.currentTime,
         ahead = now + 0.2,
         spb = 60 / acc.bpm;
+      // 축하 동안은 반주를 쉼(축하 징글과 겹치지 않게) → 끝나면 쉰 만큼 박자 단위로 밀어서 이어 감
+      if (KP.celebrating) {
+        acc.paused = true;
+        return;
+      }
+      if (acc.paused) {
+        acc.paused = false;
+        const lag = now + 0.12 - Math.min(acc.beatT, acc.melT);
+        if (lag > 0) {
+          const sh = Math.ceil(lag / spb) * spb;
+          acc.beatT += sh;
+          acc.melT += sh;
+          acc.mel.forEach((m) => (m[0] += sh));
+          acc.times = [];
+        }
+      }
       // 멜로디 (오르골)
       while (acc.melT < ahead) {
         const song = A.SONGS[ACC_SONGS[acc.songI % ACC_SONGS.length]].notes;

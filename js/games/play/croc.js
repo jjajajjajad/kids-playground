@@ -34,6 +34,13 @@ KP.game({
       .cr-lower{position:absolute;left:0;right:0;top:calc(var(--cw)*.47);bottom:0;border-radius:12% 12% 50% 50%/10% 10% 60% 60%;z-index:1;
         background:radial-gradient(circle at 30% 80%,rgba(255,255,255,.12) 0 8%,transparent 9%),linear-gradient(#4fc46a,#2f9a4c);box-shadow:inset 0 -10px 0 rgba(0,0,0,.12),0 8px 0 rgba(0,0,0,.1)}
       .cr-mouth{position:absolute;left:5%;right:5%;top:0;bottom:12%;border-radius:0 0 50% 50%/0 0 70% 70%;background:radial-gradient(ellipse at 50% 20%,#ff9db3,#e9567a 70%,#c93a62);box-shadow:inset 0 10px 18px rgba(120,0,40,.35)}
+      /* 앙!(bite): 내려온 위턱 머리 둥근 모서리 옆으로 분홍 입 안의 네모난 윗모서리가 삐져나와 보였음
+         (세로로 깊은 입(--ch, 태블릿 세로)에서는 위턱이 입을 다 못 덮어 입 안·이빨이 통째로 위로 드러났음)
+         → 닫힌 동안 아래턱 윗변을 위턱 머리 바로 아래까지 내리고, 입 안 윗부분은 잘라 숨기고, 아래 이빨은 입 속이라 숨김 */
+      .cr-lower{transition:top .45s ease-out}
+      .cr-croc.bite .cr-lower{top:max(calc(var(--cw)*.47),calc(var(--ch,calc(var(--cw)*1.02)) - var(--cw)*.5));transition:top .14s cubic-bezier(.7,0,1,.6)}
+      .cr-croc.bite .cr-mouth{clip-path:inset(calc(var(--cw)*.15) 0 0 0)}
+      .cr-croc.bite .cr-teeth{opacity:0;transition:opacity .1s}
       .cr-tongue{position:absolute;left:30%;right:30%;top:30%;bottom:16%;border-radius:50% 50% 45% 45%;background:radial-gradient(circle at 50% 30%,#ffc1cf,#ff7d9b);box-shadow:inset 0 -6px 0 rgba(0,0,0,.08)}
       .cr-tongue::after{content:"";position:absolute;left:49%;top:12%;bottom:30%;width:3px;background:rgba(160,30,70,.35);border-radius:2px}
       /* --close(0~1, 누를수록 커짐)만큼 위턱이 내려옴 — 최대 0.4배로 제한(끝자리 이빨이 위턱에 가려지지 않게). 앙!(bite)은 따로 끝까지
@@ -162,7 +169,9 @@ KP.game({
     ctx.fitWide = (n) => {
       ctx.wx = 1;
       ctx.size();
-      for (let wx = 1.15; wx <= 1.81 && ctx.teethLayout(n).tw < 64; wx += 0.15) {
+      // 폰(짧은 변 430 이하)은 가능하면 72px 까지 넓힘 (개수를 줄이는 기준은 그대로 64px)
+      const want = Math.min(innerWidth, innerHeight) <= 430 ? 72 : 64;
+      for (let wx = 1.15; wx <= 1.81 && ctx.teethLayout(n).tw < want; wx += 0.15) {
         ctx.wx = wx;
         ctx.size();
       }

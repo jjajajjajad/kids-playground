@@ -315,7 +315,7 @@ KP.game({
       ctx.F = { x: b.l - b.w * 0.12, y: b.t - b.h * 0.06, w: b.w * 1.24, h: b.h * 1.12 };
       const fh = st.bc.view.fh;
       // 오리: 인형 왼쪽 물 위 (좁은 화면이면 가장자리 안쪽)
-      const ds = Math.max(54, fh * 0.11);
+      const ds = Math.max(72, fh * 0.11); // 폰 가로에서도 72px
       const dp = st.uvToPx(0.335, 0.425);
       const dx = U.clamp(Math.min(dp.x, b.l - ds * 0.35) - ds / 2, 4, st.w - ds - 4);
       ctx.duck.style.cssText = `--s:${ds}px;transform:translate(${dx}px,${dp.y - ds * 0.72}px)`;
@@ -489,6 +489,7 @@ KP.game({
     const msg = big ? "{부름} 목욕 최고!" : U.pick(["뽀송뽀송 깨끗해!", "깨끗해졌어요!", "{부름} 고마워요!"]);
     // 말은 자연 음성이 있는 문장으로 ("목욕 최고!"·"뽀송뽀송 깨끗해!"는 녹음 전)
     const say = msg === "{부름} 목욕 최고!" ? "{부름} 최고예요!" : msg === "뽀송뽀송 깨끗해!" ? "깨끗해졌어요!" : msg;
+    ctx.noStar(); // 문지르기만 하면 끝나는 판(틀릴 수 없음) → 열쇠 별 없음
     const ok = await ctx.win({ big, msg, say });
     if (ok && live()) this.next(ctx);
   },

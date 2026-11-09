@@ -98,8 +98,12 @@ KP.game({
       lock = false;
       ctx.say("🃏 카드를 두 장 뒤집어서 같은 그림 짝을 찾아요!");
     }
+    // 한 장 뒤집은 뒤의 힌트는 '짝 카드(정답)'를 가리킴 → 그 판은 열쇠 별 없음
     const hint = () =>
-      ctx.hint(() => (first ? cards.find((c) => c !== first && c.dataset.k === first.dataset.k) : cards.find((c) => !c.classList.contains("done"))), first ? "같은 그림을 찾아요!" : "카드를 눌러 뒤집어 봐요!");
+      first
+        ? ctx.hint(() => cards.find((c) => c !== first && c.dataset.k === first.dataset.k), "같은 그림을 찾아요!", { answer: true })
+        : ctx.hint(() => cards.find((c) => !c.classList.contains("done")), "카드를 눌러 뒤집어 봐요!");
+    let wrong = 0; // 틀린 짝 수 — 쌍 수보다 많아지면 가벼운 실수로 셈(마구 누르기로 별 받기 방지)
     if (!peek) hint();
 
     const sparkle = (c) => {
@@ -143,7 +147,9 @@ KP.game({
       } else {
         lock = true;
         KP.voice.say(name);
-        KP.audio.note("E4", { inst: "soft", dur: 0.25, vol: 0.14, when: 0.15 });
+        wrong++;
+        if (wrong > pairs) ctx.miss(null, null, { soft: true });
+        else KP.audio.note("E4", { inst: "soft", dur: 0.25, vol: 0.14, when: 0.15 });
         ctx.after(1100, () => {
           a.classList.remove("open");
           c.classList.remove("open");

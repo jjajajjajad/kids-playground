@@ -91,6 +91,20 @@ KP.game({
         .coB{min-height:84px;font-size:16px}
         .coB .e{font-size:36px}
       }
+      /* 폰 가로(높이 500 미만): 물감 통 | 그릇 | 손님·단추 — 위아래로 쌓으면 그릇이 통·막대에 가려짐 */
+      @media (orientation:landscape) and (max-height:499px){
+        .coW{grid-template-areas:"jars bowl side";grid-template-columns:auto minmax(0,1fr) minmax(250px,36vw);grid-template-rows:minmax(0,1fr);padding:4px 10px 8px;gap:10px}
+        .coSide{grid-area:side;display:flex;flex-direction:column;gap:8px;align-self:stretch;justify-content:center;width:100%;min-height:0}
+        .coCust{padding:6px 10px 8px;gap:4px 8px}
+        .coAni{font-size:clamp(46px,13vh,64px)}
+        .coSay{padding:6px 8px;gap:6px}
+        .coCard{width:clamp(60px,17vh,84px);border-width:4px}
+        .coDot{width:30px;height:30px}
+        .coJarsCell .psJars{display:grid;grid-template-columns:repeat(2,auto);gap:6px 6px;align-items:end}
+        .coJarsCell .psJar{width:64px;height:clamp(76px,22vh,90px)}
+        .coB{min-height:68px}
+        .coB .e{font-size:28px}
+      }
     `);
     const W = U.el("div", "coW");
     const bowlCell = U.el("div", "coBowlCell");
@@ -278,12 +292,15 @@ KP.game({
         R.appendChild(d);
       });
     } else R.appendChild(U.el("span", "q", "?"));
-    const hello = first ? "안녕! 나는 " + U.josa(an[1], "이에요/예요") + ". " : "";
     // 소리: "진초록이에요." 처럼 자연 음성이 없는 색 이름은 "진초록!" 으로 (조각마다 자연 음성)
     const nat = (t) => !KP.voice._natUrls || !!KP.voice._natUrls(t);
+    // 인사도 같은 방식: "안녕! 나는 펭귄이에요." 통째 음성이 없으면 "안녕! 나는 펭귄!" (조각마다 자연 음성)
+    const helloFull = "안녕! 나는 " + U.josa(an[1], "이에요/예요") + ". ";
+    const hello = first ? helloFull : "";
+    const helloSay = !first ? "" : nat(helloFull.trim()) ? helloFull : "안녕! 나는 " + an[1] + "! ";
     const nameSay = nat(U.josa(name, "이에요/예요") + ".") ? U.josa(name, "이에요/예요") + "." : name + "!";
     ctx.order.ask = "이런 색 물감 주세요! " + nameSay;
-    ctx.say(an[0] + " " + hello + "이런 색 물감 주세요! " + U.josa(name, "이에요/예요") + ".", hello + ctx.order.ask);
+    ctx.say(an[0] + " " + hello + "이런 색 물감 주세요! " + U.josa(name, "이에요/예요") + ".", helloSay + ctx.order.ask);
     this.hintFirst(ctx);
   },
   hintFirst(ctx) {
@@ -374,7 +391,10 @@ KP.game({
     if (best) {
       const p = P.BASE[best.id];
       const lot = best.lot;
-      const tip = U.josa(p.n, "을/를") + (lot ? " 많이 넣어 봐요!" : " 조금 더 넣어 봐요!");
+      const tail = lot ? "많이 넣어 봐요!" : "조금 더 넣어 봐요!";
+      // "노랑을 조금 더 넣어 봐요!" 통째 음성이 없으면 "노랑! 조금 더 넣어 봐요!" (조각마다 자연 음성)
+      const tipFull = U.josa(p.n, "을/를") + " " + tail;
+      const tip = !KP.voice._natUrls || KP.voice._natUrls(tipFull) ? tipFull : p.n + "! " + tail;
       ctx.miss(null, null, { soft: true });
       KP.voice.say("음, 조금 달라요. " + (lot ? "훨씬 더 " : "조금 더 ") + this.MORE[best.id] + " 해 볼까요? " + tip);
       U.replay(ctx.ani, "wig");

@@ -94,6 +94,20 @@ KP.game({
         .coB{min-height:84px;font-size:16px}
         .coB .e{font-size:36px}
       }
+      /* 폰 가로(높이 500 미만): 물감 통 | 그릇 | 손님·단추 — 위아래로 쌓으면 그릇이 통·막대에 가려짐 */
+      @media (orientation:landscape) and (max-height:499px){
+        .coW{grid-template-areas:"jars bowl side";grid-template-columns:auto minmax(0,1fr) minmax(250px,36vw);grid-template-rows:minmax(0,1fr);padding:4px 10px 8px;gap:10px}
+        .coSide{grid-area:side;display:flex;flex-direction:column;gap:8px;align-self:stretch;justify-content:center;width:100%;min-height:0}
+        .coCust{padding:6px 10px 8px;gap:4px 8px}
+        .coAni{font-size:clamp(46px,13vh,64px)}
+        .coSay{padding:6px 8px;gap:6px}
+        .coCard{width:clamp(60px,17vh,84px);border-width:4px}
+        .coDot{width:30px;height:30px}
+        .coJarsCell .psJars{display:grid;grid-template-columns:repeat(2,auto);gap:6px 6px;align-items:end}
+        .coJarsCell .psJar{width:64px;height:clamp(76px,22vh,90px)}
+        .coB{min-height:68px}
+        .coB .e{font-size:28px}
+      }
     `);
     const W = U.el("div", "coW");
     const bowlCell = U.el("div", "coBowlCell");
@@ -281,12 +295,15 @@ KP.game({
         R.appendChild(d);
       });
     } else R.appendChild(U.el("span", "q", "?"));
-    const hello = first ? "안녕! 나는 " + U.josa(an[1], "이에요/예요") + ". " : "";
     // 소리: "진초록이에요." 처럼 자연 음성이 없는 색 이름은 "진초록!" 으로 (조각마다 자연 음성)
     const nat = (t) => !KP.voice._natUrls || !!KP.voice._natUrls(t);
+    // 인사도 같은 방식: "안녕! 나는 펭귄이에요." 통째 음성이 없으면 "안녕! 나는 펭귄!" (조각마다 자연 음성)
+    const helloFull = "안녕! 나는 " + U.josa(an[1], "이에요/예요") + ". ";
+    const hello = first ? helloFull : "";
+    const helloSay = !first ? "" : nat(helloFull.trim()) ? helloFull : "안녕! 나는 " + an[1] + "! ";
     const nameSay = nat(U.josa(name, "이에요/예요") + ".") ? U.josa(name, "이에요/예요") + "." : name + "!";
     ctx.order.ask = "이런 색 물감 주세요! " + nameSay;
-    ctx.say(an[0] + " " + hello + "이런 색 물감 주세요! " + U.josa(name, "이에요/예요") + ".", hello + ctx.order.ask);
+    ctx.say(an[0] + " " + hello + "이런 색 물감 주세요! " + U.josa(name, "이에요/예요") + ".", helloSay + ctx.order.ask);
     this.hintFirst(ctx);
   },
   hintFirst(ctx) {
@@ -377,7 +394,10 @@ KP.game({
     if (best) {
       const p = P.BASE[best.id];
       const lot = best.lot;
-      const tip = U.josa(p.n, "을/를") + (lot ? " 많이 넣어 봐요!" : " 조금 더 넣어 봐요!");
+      const tail = lot ? "많이 넣어 봐요!" : "조금 더 넣어 봐요!";
+      // "노랑을 조금 더 넣어 봐요!" 통째 음성이 없으면 "노랑! 조금 더 넣어 봐요!" (조각마다 자연 음성)
+      const tipFull = U.josa(p.n, "을/를") + " " + tail;
+      const tip = !KP.voice._natUrls || KP.voice._natUrls(tipFull) ? tipFull : p.n + "! " + tail;
       ctx.miss(null, null, { soft: true });
       KP.voice.say("음, 조금 달라요. " + (lot ? "훨씬 더 " : "조금 더 ") + this.MORE[best.id] + " 해 볼까요? " + tip);
       U.replay(ctx.ani, "wig");
@@ -1034,7 +1054,8 @@ KP.game({
       }
       if (n.d <= st.hitR) {
         st.shake[n.k] = 1;
-        A.sfx("boing");
+        // 차례가 아닌 점: 가벼운 실수(단계엔 안 셈, 1번까지는 열쇠 별 그대로 — 마구 누르기만 별 제외)
+        ctx.miss(null, null, { soft: true });
       }
       st.flashUntil = performance.now() + 1800;
       const now = performance.now();
@@ -1118,8 +1139,13 @@ KP.game({
   next(ctx) {
     const U = KP.u,
       lv = ctx.level;
-    if (!ctx.bag[lv] || !ctx.bag[lv].length) ctx.bag[lv] = U.shuffle([...ctx.SHAPES[lv - 1]]);
+    if (!ctx.bag[lv] || !ctx.bag[lv].length) {
+      ctx.bag[lv] = U.shuffle([...ctx.SHAPES[lv - 1]]);
+      // 다시 채운 주머니의 첫 모양이 바로 앞 판과 같으면 뒤로 (같은 모양 연달아 방지)
+      if (ctx.bag[lv].length > 1 && ctx.bag[lv][0] === ctx.lastShape) ctx.bag[lv].push(ctx.bag[lv].shift());
+    }
     const shape = ctx.bag[lv].shift();
+    ctx.lastShape = shape;
     ctx.ddBuild(shape, lv);
     // 화면: "1번부터 8번까지 차례로 이어요…" / 소리: 자연 음성이 있는 "1번 점부터 차례로 이어 봐요! 무슨 그림이 나올까?"
     const full = "하나부터 " + KP.u.numNative(shape.pts.length) + "까지 차례로 이어요. 무슨 그림이 나올까?";
@@ -1414,7 +1440,9 @@ KP.game({
       .emAns .choice{flex-direction:column;gap:2px;padding:8px 12px 6px;min-width:clamp(84px,14vw,150px)}
       .emFace{font-size:clamp(48px,7.4vw,80px);line-height:1}
       .emLbl{font-size:clamp(15px,2vw,20px);color:var(--ink2)}
-      @media (orientation:portrait){.emAns{gap:10px}.emAns .choice{min-width:76px;padding:8px 6px 6px}}
+      /* 좁은 세로(폰)만 단추를 좁힘 — 세로 태블릿(820px)은 기본 크기(약 115px) 그대로 */
+      @media (orientation:portrait) and (max-width:600px){.emAns{gap:10px}.emAns .choice{min-width:76px;padding:8px 6px 6px}}
+      @media (orientation:portrait) and (min-width:601px){.emAns .choice{min-height:clamp(120px,15vw,150px)}}
     `);
     ctx.FEEL = {
       joy: { face: "😊", name: "기뻐요", adj: "기쁜", care: "기쁠 땐 활짝 웃어요! 친구랑 같이 기뻐해요.", icon: "🙌" },
@@ -4283,7 +4311,8 @@ KP.game({
    2단계: AAB · ABC (보기 3개)
    3단계: ABB · AABB · 두 가지 속성(모양은 번갈아, 색은 두 개씩) (보기 3~4개)
    - 판이 시작되면 줄이 순서대로 통통 튀며 리듬으로 들려줌
-   - 맞으면 줄 전체가 순서대로 튀며 리듬 소리 */
+   - 맞으면 줄 전체가 순서대로 튀며 리듬 소리
+   - 힌트: 첫 번째는 줄을 다시 들려주고 빈칸을 흔들기만, 두 번째부터 정답 보기를 가리킴 */
 "use strict";
 KP.game({
   id: "pattern",
@@ -4474,7 +4503,17 @@ KP.game({
     ctx.say(g.two ? "모양도 색도 잘 봐요! 빈칸에는 무엇이 올까요?" : "줄을 잘 봐요! 빈칸에 올 것을 끌어다 넣어요.");
     // 처음에 줄을 리듬으로 들려주기
     ctx.after(700, () => beat(cells.length, () => U.replay(slot, "wig")));
-    ctx.hint(() => opts.find((o) => o.dataset.right), "빈칸에 들어갈 것을 끌어다 놓아요!");
+    // 힌트 2단계: 첫 힌트(8초)는 줄을 리듬으로 다시 들려주고 빈칸만 흔들기(정답은 안 가리킴) →
+    // 두 번째부터 정답 보기를 가리킴(가리킨 판은 열쇠 별 없음 — 정답 보기는 data-right 라 자동)
+    const hk = (ctx.ptHintK = (ctx.ptHintK || 0) + 1);
+    ctx.hint(() => {
+      if (busy || hk !== ctx.ptHintK) return null;
+      beat(cells.length, () => U.replay(slot, "wig"));
+      ctx.after(3400, () => {
+        if (!busy && hk === ctx.ptHintK && ctx.g === g) ctx.hint(() => opts.find((o) => o.dataset.right), "빈칸에 들어갈 것을 끌어다 놓아요!");
+      });
+      return slot;
+    }, "줄을 잘 봐요!");
   },
 });
 
@@ -4546,6 +4585,7 @@ KP.game({
     ctx.body.appendChild(ctx.wrap);
     ctx.round = 0;
     ctx.token = 0;
+    addEventListener("resize", () => ctx._active && ctx.tray && (ctx.tray.style.minHeight = "")); // 화면을 돌리면 고정 높이 풀기 (놀이 중일 때만, dotdot 과 같은 방식)
   },
   start(ctx) {
     ctx.round = 0;
@@ -4631,14 +4671,25 @@ KP.game({
         },
       });
     });
+    // 힌트 2단계: 첫 힌트(8초)는 안내를 다시 들려주고 다음 빈칸만 흔들기(정답 카드는 안 가리킴) →
+    // 두 번째부터 정답 카드를 가리킴({answer:true} — 가리킨 판은 열쇠 별 없음, 기다렸다 끌기 방지)
+    // 쟁반 높이 고정: 카드가 2줄(3+1)→1줄로 줄면 space-evenly 가 위 칸 줄을 약 70px 옮겼음(태블릿 세로 3단계)
+    ctx.tray.style.minHeight = "";
+    ctx.tray.style.minHeight = ctx.tray.offsetHeight + "px";
+    let hk = 0;
     const hint = () => {
       const s = slots.find((x) => !x.classList.contains("filled"));
       const c = cards[+s.dataset.i];
-      // 정답 카드를 가리키면 이번 판은 열쇠 별 없음(기다렸다 끌기 방지) / 말: "하나! 그림을 순서대로 놓아요!"(자연 음성)
+      const k = ++hk;
+      const say2 = U.NAT[+s.dataset.i + 1] + "! 그림을 순서대로 놓아요!"; // "하나! 그림을 순서대로 놓아요!"(자연 음성)
       ctx.hint(() => {
-        ctx._hinted = true;
-        return c;
-      }, U.NAT[+s.dataset.i + 1] + "! 그림을 순서대로 놓아요!");
+        if (k !== hk || tok !== ctx.token || s.classList.contains("filled")) return null;
+        U.replay(s, "wig");
+        ctx.after(3400, () => {
+          if (k === hk && tok === ctx.token && !s.classList.contains("filled")) ctx.hint(() => c, say2, { answer: true });
+        });
+        return s;
+      }, ctx.instr || say2);
     };
     hint();
     const finish = async () => {
@@ -4892,7 +4943,12 @@ KP.game({
       .srtBox{display:flex;gap:clamp(10px,2.4vw,26px);flex-wrap:wrap;justify-content:center;padding:clamp(14px,2.4vw,26px);border-radius:32px;background:linear-gradient(180deg,#ffcf7a,#f4a944);box-shadow:0 10px 0 #c97f22, inset 0 4px 0 rgba(255,255,255,.5)}
       .srtHole{width:clamp(84px,13vw,140px);height:clamp(84px,13vw,140px);border-radius:24px;background:rgba(120,60,0,.18);box-shadow:inset 0 6px 10px rgba(80,40,0,.35);display:flex;align-items:center;justify-content:center;font-size:clamp(60px,9.5vw,104px);position:relative}
       .srtHole .ghost{filter:brightness(0) opacity(.35)}
-      .srtBox.tint .srtHole .ghost{filter:saturate(.75) opacity(.5)}
+      /* 색 구멍(3단계): 흰 동그라미 위에 본래 색을 진하게 — 주황 상자 위에 반투명으로 겹치면 보라가 갈색·파랑이 회색처럼 보였음 */
+      .srtBox.tint .srtHole::before{content:"";position:absolute;inset:9%;border-radius:50%;background:rgba(255,255,255,.88);box-shadow:inset 0 3px 6px rgba(80,40,0,.18)}
+      .srtBox.tint .srtHole .ghost{filter:opacity(.8);position:relative}
+      .srtBox.tint .srtHole.filled::before{display:none}
+      /* 🔺 그림은 여백이 커서 다른 모양의 절반처럼 보임 → 그림만 키움(끄는 상자 크기는 그대로) */
+      [data-k="🔺"] .e{transform:scale(1.7)}
       .srtHole.filled .ghost{display:none}
       .srtTray{display:flex;gap:clamp(12px,2.6vw,30px);flex-wrap:wrap;justify-content:center;min-height:clamp(96px,14vw,150px);align-items:center}
       .srtPiece{font-size:clamp(60px,9.5vw,104px);line-height:1;padding:8px;filter:drop-shadow(0 6px 0 rgba(0,0,0,.15))}
@@ -5077,6 +5133,8 @@ KP.game({
       .spPut.r-뒤{left:64%;bottom:13cqw;z-index:0;font-size:18cqw}
       .spGlow{position:absolute;inset:-2cqw;border-radius:3cqw;box-shadow:0 0 0 1cqw rgba(255,213,74,.9),0 0 5cqw 2cqw rgba(255,213,74,.7);animation:spGlow 1s ease-in-out 2;pointer-events:none;z-index:7;opacity:0}
       @keyframes spGlow{50%{opacity:1}}
+      /* 폰 가로(높이 500 미만): 장면 | 친구 쟁반 을 옆으로 — 위아래로 쌓으면 장면이 작아짐 */
+      @media (orientation:landscape) and (max-height:499px){.spWrap{flex-direction:row;padding:0 10px 8px;gap:10px}.spTray{min-height:0;min-width:clamp(120px,18vw,170px);background:rgba(255,255,255,.45);border-radius:26px}.spChar{font-size:clamp(84px,24vh,112px)}}
     `);
     // (판다는 "판다를" 자연 음성이 없어서 오리로)
     ctx.CHARS = [["🐱", "고양이"], ["🐶", "강아지"], ["🐰", "토끼"], ["🐥", "병아리"], ["🦆", "오리"], ["🧸", "곰 인형"], ["⚽", "공"], ["🐸", "개구리"]];
@@ -5201,7 +5259,8 @@ KP.game({
             if (r.rel && supports.includes(r.rel)) {
               const full = "거기는 " + pName + " " + U.josa(r.rel, "이에요/예요") + "!";
               ctx.miss(ch, (nat(full) ? full : "거기는 " + pName + " " + r.rel + "!") + " " + ask);
-            } else ctx.miss(ch, ask);
+            } else if (!r.rel) ctx.miss(ch, ask, { soft: true }); // 하늘·풀밭 같은 빈 곳: 자리를 잘못 고른 게 아니라 단계·열쇠 별엔 안 셈
+            else ctx.miss(ch, ask);
           }
         },
       });
@@ -5683,8 +5742,13 @@ KP.game({
     const U = KP.u;
     const lv = ctx.level;
     // 같은 단계 안에서는 모양이 골고루 나오도록 주머니에서 뽑기
-    if (!ctx.bag[lv] || !ctx.bag[lv].length) ctx.bag[lv] = lv === 3 ? [...ctx.SHAPES[2]] : U.shuffle([...ctx.SHAPES[lv - 1]]);
+    if (!ctx.bag[lv] || !ctx.bag[lv].length) {
+      ctx.bag[lv] = lv === 3 ? [...ctx.SHAPES[2]] : U.shuffle([...ctx.SHAPES[lv - 1]]);
+      // 다시 채운 주머니의 첫 모양이 바로 앞 판과 같으면 뒤로 (같은 모양 연달아 방지)
+      if (ctx.bag[lv].length > 1 && ctx.bag[lv][0] === ctx.lastShape) ctx.bag[lv].push(ctx.bag[lv].shift());
+    }
     const shape = ctx.bag[lv].shift();
+    ctx.lastShape = shape;
     ctx.trBuild(shape, lv);
     if (shape.say) {
       // 화면은 "ㄱ 따라 그려요!", 말(말풍선 다시 듣기·힌트 포함)은 "기역을 따라 그려요!"
@@ -5704,6 +5768,7 @@ KP.game({
 /* 숫자 기차 — 기관차 뒤에 숫자 객차를 순서대로 끌어 이어 붙이기
    1단계: 1~3 차례로 잇기 (숫자 + 점 개수 함께 보임)
    2단계: 1~5 차례로 잇기 (숫자 + 점)
+          1·2단계 판 셋 중 하나쯤은 앞 칸(1, 또는 1·2)이 이미 붙어 있어 그다음 숫자부터 이어요(시작 숫자 변화, 이을 칸 수는 같음)
    3단계: 1~10 기차에서 빈 칸 4개 채우기 (숫자만, 앞뒤 숫자 보고 추리)
           — 3단계에 처음 들어오면 첫 2판은 디딤판: 1~6 기차에 빈 칸 2개 (점도 보임)
    칸 크기(--cw)는 무대 폭에 맞춰 계산 → 한 줄에 다 들어가게. 너무 좁으면(폰 세로) 반씩 2줄(5+5)로 나눔
@@ -5812,6 +5877,7 @@ KP.game({
   start(ctx) {
     ctx.round = 0;
     ctx.l3n = 0; // 3단계 디딤판 판 수 (열 때마다 처음 2판)
+    ctx.lastPre = -1; // 열고 첫 판은 늘 1부터
     this.next(ctx);
   },
   car(ctx, n, dots) {
@@ -5830,9 +5896,13 @@ KP.game({
     if (lv < 3) ctx.l3n = 0;
     const step = lv === 3 && (ctx.l3n || 0) < 2;
     if (lv === 3) ctx.l3n = (ctx.l3n || 0) + 1;
-    const total = step ? 6 : [3, 5, 10][lv - 1];
-    const dots = lv < 3 || step;
     const seq = lv < 3; // 차례로 잇기
+    // 1·2단계: 가끔 앞 칸이 이미 붙어 있음 → 2(또는 3)부터 이어 붙이기. 연달아 두 번은 안 함
+    let pre = 0;
+    if (seq && !ctx.lastPre && U.rand(3) === 0) pre = lv === 1 ? 1 : 1 + U.rand(2);
+    ctx.lastPre = pre;
+    const total = step ? 6 : [3, 5, 10][lv - 1] + pre;
+    const dots = lv < 3 || step;
     ctx.wrap.classList.toggle("big", lv === 1);
     ctx.train.style.transition = "none"; // 떠난 자리에서 미끄러져 돌아오지 않게
     ctx.train.className = "trTrain";
@@ -5848,7 +5918,7 @@ KP.game({
     ctx.train.appendChild(loco);
     const units = []; // [{n, el(unit), slot|car}]
     let blanks;
-    if (seq) blanks = new Set(Array.from({ length: total }, (_, i) => i + 1));
+    if (seq) blanks = new Set(Array.from({ length: total - pre }, (_, i) => i + 1 + pre));
     else {
       blanks = new Set(U.sample(Array.from({ length: total - 1 }, (_, i) => i + 2), step ? 2 : 4));
     }
@@ -5866,7 +5936,7 @@ KP.game({
     ctx.units = units;
     this.fit(ctx);
     // 차례로 잇기: 다음 칸만 보여 줌
-    let nextN = 1;
+    let nextN = pre + 1;
     const showNext = () => {
       const u = units[nextN - 1];
       if (!u) return;
@@ -5876,7 +5946,9 @@ KP.game({
     if (seq) showNext();
     else units.forEach((u) => blanks.has(+u.dataset.n) && u.firstChild.classList.add("next"));
 
-    ctx.say(seq ? "기차 칸을 1부터 순서대로 이어 주세요!" : "빈 칸에 어떤 숫자가 들어갈까요? 기차를 이어 주세요!");
+    // 앞 칸이 붙어 있는 판: "하나! 둘! 다음은 뭐가 올 차례일까?" — 모두 자연 음성 조각
+    const preSay = Array.from({ length: pre }, (_, i) => U.NAT[i + 1] + "!").join(" ") + " 다음은 뭐가 올 차례일까?";
+    ctx.say(seq ? (pre ? preSay : "기차 칸을 1부터 순서대로 이어 주세요!") : "빈 칸에 어떤 숫자가 들어갈까요? 기차를 이어 주세요!");
     // 디딤판(끌 것 2개·빈 칸 2개): 첫 카드를 아무 칸에 놓아도 반은 맞고 나머지는 저절로 맞음 → 열쇠 별 없음
     if (step) ctx.fewChoice();
 
