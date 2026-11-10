@@ -36,7 +36,8 @@
   };
   const push = (kind, game, a, b, c) => {
     if (!on()) return;
-    q.push([Date.now(), kind, game || "", a == null ? null : a, b == null ? null : b, c == null ? null : String(c).slice(0, 40)]);
+    // 7번째 칸: 이벤트 고유 번호 — 아이폰에서 화면이 꺼질 때 보낸 묶음의 응답을 못 받아 같은 묶음을 다시 보내면 서버가 이 번호로 중복을 걸러냄 (2026-11-09 아이폰 기록 3배 중복)
+    q.push([Date.now(), kind, game || "", a == null ? null : a, b == null ? null : b, c == null ? null : String(c).slice(0, 40), rnd().slice(0, 12)]);
     if (q.length > 500) q.splice(0, q.length - 500);
     save();
   };

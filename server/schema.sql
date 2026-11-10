@@ -19,8 +19,10 @@ CREATE TABLE IF NOT EXISTS events (
   kind TEXT NOT NULL,         -- app(켬) open(놀이 열기) leave(나감, a=초) win miss lvl(a=+1/-1, b=새 단계) unlock(a=분, c=방법) err(c=메시지) set(c=설정키, a=값)
   game TEXT,                  -- 놀이 id ('' = 앱 전체)
   a REAL, b REAL, c TEXT,
-  ver TEXT
+  ver TEXT,
+  eid TEXT                    -- 앱이 붙인 이벤트 고유 번호 (같은 묶음 재전송 중복 방지; 옛 버전은 NULL)
 );
 CREATE INDEX IF NOT EXISTS ev_t ON events (t);
+CREATE UNIQUE INDEX IF NOT EXISTS ev_dev_eid ON events (dev, eid);
 CREATE INDEX IF NOT EXISTS ev_game_t ON events (game, t);
 CREATE INDEX IF NOT EXISTS ev_dev_t ON events (dev, t);

@@ -55,10 +55,10 @@ async function receive(req, env) {
   let n = 0;
   for (const e of ev) {
     if (!Array.isArray(e)) continue;
-    const [t, kind, game, a, b2, c] = e;
+    const [t, kind, game, a, b2, c, eid] = e; // eid: 앱이 붙인 이벤트 고유 번호(없는 옛 버전은 null) — 같은 묶음을 다시 받아도 한 번만 저장
     if (!KINDS.has(kind)) continue;
     const ts = Number.isFinite(+t) && Math.abs(now - +t) < 90 * 86400e3 ? +t : now; // 시계가 이상한 기기는 받은 시각으로
-    stm.push(env.DB.prepare("INSERT INTO events (dev, t, kind, game, a, b, c, ver) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").bind(dev, ts, kind, clean(game, 30), numOrNull(a), numOrNull(b2), clean(c, 40) || null, ver));
+    stm.push(env.DB.prepare("INSERT OR IGNORE INTO events (dev, t, kind, game, a, b, c, ver, eid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").bind(dev, ts, kind, clean(game, 30), numOrNull(a), numOrNull(b2), clean(c, 40) || null, ver, clean(eid, 16) || null));
     n++;
   }
   if (stm.length > 1) await env.DB.batch(stm);
