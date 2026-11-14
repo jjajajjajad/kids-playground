@@ -28,7 +28,8 @@ KP.game({
       .rb-scene{position:relative;flex:1;min-height:0;border-radius:28px;overflow:hidden;box-shadow:0 0 0 5px #fff,0 8px 0 5px rgba(47,58,102,.14);background:#cfeeff;margin:5px}
       .rb-bg{position:absolute;inset:0;opacity:0;transition:opacity .45s;pointer-events:none;background-size:cover;background-repeat:no-repeat}
       .rb-bg.on{opacity:1}
-      .rb-goal{position:absolute;left:0;top:0;font-size:clamp(46px,10vmin,88px);margin:-.55em 0 0 -.5em;pointer-events:none;transition:opacity .3s,transform .5s;z-index:1;filter:drop-shadow(0 0 10px #fff)}
+      .rb-goal{position:absolute;left:0;top:0;font-size:clamp(46px,10vmin,88px);margin:-.55em 0 0 -.5em;pointer-events:none;transition:opacity .3s,transform .5s;z-index:1}
+      .rb-goal::before{content:"";position:absolute;left:50%;top:50%;width:1.8em;height:1.8em;margin:-.9em 0 0 -.9em;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.9),rgba(255,255,255,0) 68%);z-index:-1}
       .rb-goal>*{display:block;animation:rbGoal 1.2s ease-in-out infinite alternate}
       .rb-goal.got{opacity:0}
       .rb-fix[hidden],.rb-goal[hidden],.rb-bot[hidden]{display:none}
@@ -57,7 +58,10 @@ KP.game({
       @keyframes rbGo{from{transform:translateY(-1.5%) rotate(-1.5deg)}to{transform:translateY(1.5%) rotate(1.5deg)}}
       .rb-bot.in .rb-bob{animation:rbIn .45s cubic-bezier(.3,1.5,.5,1)}
       @keyframes rbIn{from{transform:translateY(-60%) scale(.6);opacity:0}}
-      .rb-pic{width:100%;height:100%;background:center/contain no-repeat;pointer-events:none;filter:drop-shadow(0 8px 6px rgba(20,30,70,.25))}
+      .rb-pic{position:relative;width:100%;height:100%;background:center/contain no-repeat;pointer-events:none}
+      /* 발밑 그림자: filter:drop-shadow 는 그림이 바뀔 때마다 다시 계산해 저가 기기에 무거워서(2026-11-14) 타원 하나로 바꿈. 날 때는 숨김 */
+      .rb-sh{position:absolute;left:20%;right:20%;bottom:1.5%;height:8%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(20,30,70,.3),rgba(20,30,70,0) 70%);pointer-events:none;transition:opacity .25s}
+      .rb-bot.going .rb-sh,.rb-bot.air .rb-sh,.rb-bot.hover .rb-sh{opacity:0}
       .rb-pic.pp{animation:rbPp .28s}
       @keyframes rbPp{0%{transform:scale(.9)}60%{transform:scale(1.05)}}
       /* 효과 그림(로봇 상자 안, % 자리) */
@@ -82,7 +86,6 @@ KP.game({
       .rb-t.right{--k:#b9f5b9;--k2:#5fc66a}
       .rb-t.sel{--k:#ffe680;--k2:#e0b62a}
       .rb-t svg{width:74%;height:74%}
-      .rb-t .e{filter:drop-shadow(0 2px 2px rgba(20,30,70,.25))}
       .rb-face{width:100%;height:100%;border-radius:20px;background:50% 14%/215% no-repeat}
       .rb-bar[data-many] .rb-t{width:clamp(66px,10.5vmin,98px);height:clamp(66px,10.5vmin,98px);font-size:clamp(36px,6.4vmin,58px);border-radius:22px}
       .rb-bar[data-big] .rb-t{width:clamp(80px,19vmin,170px);height:clamp(80px,19vmin,170px);border-radius:30px}
@@ -156,7 +159,7 @@ KP.game({
     });
     ctx.goal = U.el("div", "rb-goal");
     ctx.goal.hidden = true;
-    ctx.bot = U.el("div", "rb-bot snap", '<div class="rb-bob"><div class="rb-pic"></div></div><div class="rb-fx"></div>');
+    ctx.bot = U.el("div", "rb-bot snap", '<div class="rb-sh"></div><div class="rb-bob"><div class="rb-pic"></div></div><div class="rb-fx"></div>');
     ctx.pic = ctx.bot.querySelector(".rb-pic");
     ctx.steps = U.el("div", "rb-step");
     ctx.fix = U.el("button", "rb-fix");
@@ -166,8 +169,10 @@ KP.game({
     ctx.bar = U.el("div", "rb-bar");
     w.append(sc, ctx.bar);
     ctx.body.appendChild(w);
-    ctx.loaded = {};
+    ctx.loaded = {}; // 이름 → 불러오는 중/끝난 약속
+    ctx.imgs = {}; // 이름 → Image (붙잡고 있어야 풀어 둔 그림이 유지됨)
     ctx.bad = {};
+    ctx.recent = []; // 최근에 화면에 나온 친구 (그림을 붙잡아 둘 친구)
     const d = KP.store.get("robot:me", null);
     const ok = (v) => Number.isInteger(v) && v >= 0 && v < 9;
     ctx.me = d && typeof d === "object" && ctx.CH[d.c] && ok(d.t1) && ok(d.t2) && d.t1 !== d.t2 ? d : null;
@@ -185,14 +190,24 @@ KP.game({
         (n) =>
           ctx.loaded[n] ||
           (ctx.loaded[n] = new Promise((res) => {
-            const im = new Image();
-            im.onload = () => res();
+            const im = (ctx.imgs[n] = new Image());
+            // 받은 뒤 미리 풀어 둠(decode) — 큰 변신 시트를 처음 화면에 올릴 때 멈칫하지 않게
+            im.onload = () => (im.decode ? im.decode().then(res, res) : res());
             im.onerror = () => ((ctx.bad[n] = 1), res()); // 그림이 없는 친구·임무는 빼고 보여 줌
             im.src = ctx.IMG(n);
-            (ctx.keep || (ctx.keep = [])).push(im);
           }))
       )
     );
+  },
+  /** 화면에 없는 친구의 그림 내려놓기 — 친구 한 명 그림이 풀면 약 33MB 라 일곱을 다 붙잡으면 저가 기기가 버거움(2026-11-14).
+   *  최근 두 친구(keep)만 남기고, 얼굴 단추에 쓰는 -robot 낱장은 늘 남김 */
+  drop(ctx, keep) {
+    for (const n in ctx.imgs) {
+      if (keep.includes(n.split("-")[0]) || /-robot$/.test(n)) continue;
+      if (!ctx.imgs[n].complete) continue; // 받는 중인 그림은 건드리지 않음 (다음에 내려놓음)
+      delete ctx.imgs[n];
+      delete ctx.loaded[n];
+    }
   },
   /** 그 친구에게 필요한 그림 이름들 */
   names(ctx, c, all) {
@@ -213,6 +228,7 @@ KP.game({
     const p = ctx.pic;
     if (ctx.cur === name) return;
     ctx.cur = name;
+    ctx.bot.classList.toggle("air", /^(h-veh|h-rocket|c-veh)$/.test(name)); // 나는 모습은 발밑 그림자 없음
     p.style.backgroundImage = 'url("' + ctx.IMG(name) + '")';
     p.style.backgroundSize = "contain";
     p.style.backgroundPosition = "center";
@@ -221,6 +237,7 @@ KP.game({
   /** 3×2 시트의 i번째 칸(0~5) 보이기 */
   frame(ctx, sheet, i) {
     const p = ctx.pic;
+    ctx.bot.classList.remove("air");
     ctx.cur = sheet + "#" + i;
     p.style.backgroundImage = 'url("' + ctx.IMG(sheet) + '")';
     p.style.backgroundSize = "300% 200%";
@@ -253,6 +270,16 @@ KP.game({
       }
       e.classList.toggle("on", k === key);
     }
+    // 지금 장면과 집(자주 돌아옴) 말고는 배경 그림을 내려놓음 — 사라지는 효과(0.45초)가 끝난 뒤에
+    ctx.after(700, () => {
+      const now = ctx.scene.dataset.s;
+      for (const k in ctx.bgs) {
+        const e = ctx.bgs[k];
+        if (k === now || k === "home" || e.dataset.src) continue;
+        e.dataset.src = ctx.IMG("bg-" + k);
+        e.style.backgroundImage = "";
+      }
+    });
   },
   /** 자리 → 화면 px (로봇 가운데). 배경 그림(1280×853, cover)이 화면에 놓인 곳을 계산해 땅 높이를 맞춤 */
   xy(ctx, spot, prop) {
@@ -438,6 +465,8 @@ KP.game({
   /** 화면의 로봇을 그 친구로 */
   setWho(ctx, c) {
     ctx.who = c;
+    ctx.recent = [c].concat(ctx.recent.filter((x) => x !== c)).slice(0, 2);
+    this.drop(ctx, ctx.recent.concat(ctx.me ? [ctx.me.c] : []));
     ctx.cur = "";
     ctx.bot.hidden = false;
     ctx.bot.classList.remove("going");
