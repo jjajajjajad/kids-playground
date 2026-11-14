@@ -53,6 +53,10 @@ node tools/phone-audit.js        # 폰 화면 넘침 점검 (n100 은 알려진 
   - 🧸 3D 인형 친구 8종(`doll-bake.js` 종 설정·도안 굽기, `doll.js` 불러오기·칠하기): 저장 `{kind:"zoo", tid:"doll", species, img(3D 텍스처 JPEG 768), thumb(정면 그림 PNG)}`.
     도안은 미리 구워 둠(`assets/doll/<종>.bin·-map.png·-lines.png`) — 모델·종 설정을 바꾸면 `node tools/doll-bake.js` 다시 실행.
   - 도안 동물은 Clay 2.0(`zoo-clay.js`: 저장 SVG → 점토 조각, 11종 관절 RIG). 시험판은 `lab/doll`, `lab/zoo`.
+- `js/games/make/robot.js` — 변신 로봇(2026-11-14, 하성이와 만듦). 친구 일곱(하송 h·삐뽀 p·소방이 f·두두 c·쿵쿵이 d·어흥이 l·깡총이 r), 도구 9가지, 시키기(집)·출동 임무.
+  그림은 힉스필드(gpt_image_2_6, 투명 배경)로 뽑아 `assets/robot/*.webp`(약 12MB) — `<친구>-robot/-veh/-eat/-brush/-hello/-t-<도구>` 낱장, `<친구>-tf-veh`·`<친구>-dance` 는 3×2 시트(칸을 넘겨 움직임), `bg-*` 배경.
+  원본 PNG·주문서·굽기 스크립트는 `tools/out/robot/hf/`(gitignore: `raw/`, `GEN-BRIEF*.md`, `bake.js`). 새 친구를 넣으려면 같은 이름 규칙으로 그림을 만들고 `ctx.CH`·`ctx.SITS` 에 추가 — 그림이 없는 친구·임무는 자동으로 빠짐.
+  하송은 사용자가 전에 만든 캐릭터(슈퍼윙스풍)에서 로고·W 표식을 뺀 것 — 판매 전 유명 캐릭터와 닮음 여부 재확인 필요. 말은 '!' 조각으로 나눠 자연 음성을 붙임(이름·탈것 조각 재사용).
 - `js/games/bigkid/maze.js` — 미로 + 술래 도전(BFS 추적, 속도 자동 조절 `maze:chaseK`).
 - `css/app.css`, `css/games/*.css`.
 - 홈 메뉴: 탭 6개(`KP.CATS`, id 는 잠금 설정과 묶여 있어 바꾸지 말 것). `name` 은 화면·음성용, `short` 는 폰(세로·가로)에서 보이는 짧은 이름.

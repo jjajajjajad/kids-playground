@@ -8,7 +8,7 @@
     // 신나는 놀이: 누르면 바로 반응 → 움직이는 것 잡기 → 색·신호·규칙
     "firework", "balloon", "bubble", "egg", "peekaboo", "hospital", "candle", "bath", "handwash", "brush", "potty", "mole", "fish", "fruit", "rocket", "race", "croc", "colorpop", "light", "rps",
     // 만들기
-    "zoo", "zoopaint", "paintlab", "decal", "draw", "wipe", "paintbook", "face", "icecream", "grow",
+    "zoo", "zoopaint", "paintlab", "decal", "draw", "wipe", "paintbook", "face", "robot", "icecream", "grow",
     // 음악 (진짜 피아노는 실제 피아노가 있어야 해서 맨 뒤)
     "piano", "xylo", "drum", "band", "musicbox", "inst", "simon", "realpiano",
     // 똑똑 놀이: 보고·듣고 고르기 (색·모양·소리 → 기억·마음)
